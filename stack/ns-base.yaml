@@ -1,0 +1,13 @@
+apiVersion: platform.huybrechts.xyz/v1
+kind: namespace
+meta:
+  name: haven_ns_base
+  annotations:
+    description: Base infrastructure namespace for Haven — Traefik reverse proxy
+  labels:
+    version: 1.0.0
+  tags: [haven, namespace]
+spec:
+  modules:
+    - name: traefik
+      file: "@haven/stack/mod-traefik.yaml"

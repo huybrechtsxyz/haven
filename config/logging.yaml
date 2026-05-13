@@ -1,0 +1,46 @@
+# ===============================================================================
+# Production Logging Configuration - File only
+# ===============================================================================
+# JSON rotating file — scraped by Promtail/Alloy and shipped to Loki.
+# No console output. No remote handlers.
+# ===============================================================================
+
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  json:
+    (): xyz_platform.logger.formatters.JsonFormatter
+
+handlers:
+  file:
+    class: logging.handlers.RotatingFileHandler
+    level: INFO
+    formatter: json
+    filename: /var/log/haven/application.json
+    maxBytes: 52428800  # 50MB
+    backupCount: 10
+    encoding: utf8
+
+loggers:
+  xyz_platform:
+    level: INFO
+    handlers: [file]
+    propagate: false
+
+  # Reduce third-party noise
+  urllib3:
+    level: ERROR
+  requests:
+    level: ERROR
+  paramiko:
+    level: ERROR
+
+root:
+  level: WARNING
+  handlers: [file]
+
+# Azure Application Insights
+azure:
+  enabled: true
+  # Use environment variable: APPLICATIONINSIGHTS_CONNECTION_STRING
