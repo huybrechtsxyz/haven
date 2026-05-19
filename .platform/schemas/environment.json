@@ -1,0 +1,966 @@
+{
+  "$defs": {
+    "CommonLifecycleModel": {
+      "additionalProperties": {
+        "$ref": "#/$defs/CommonLifecyclePhaseModel"
+      },
+      "default": {},
+      "description": "Lifecycle phases for common models.\nMaps phase names to phase configurations.\nPhase names follow pattern: {command}_{action}_{suffix}\nExamples: config_clear, config_fetch, deploy_plan_before, deploy_apply_after",
+      "title": "CommonLifecycleModel",
+      "type": "object"
+    },
+    "CommonLifecyclePhaseModel": {
+      "description": "Model for common lifecycle phase with script validation.",
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional description for documentation purposes",
+          "title": "Description"
+        },
+        "scripts": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/$defs/ScriptPathModel"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scripts"
+        }
+      },
+      "title": "CommonLifecyclePhaseModel",
+      "type": "object"
+    },
+    "EnvironmentIncludeModel": {
+      "description": "Terraform file include definition for merging during build.\n\nDefines which source files to merge, the merge strategy, and the output target\nwithin the build terraform directory.",
+      "properties": {
+        "source": {
+          "description": "Source file path or glob pattern. Supports @repo/ references. Examples: '@haven/terraform/waf/listeners/*.tf', 'customers/acme/overrides.tfvars'",
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "target": {
+          "description": "Output filename in the build terraform directory. Examples: 'waf_listeners.tf', 'acme.auto.tfvars.json'",
+          "minLength": 1,
+          "title": "Target",
+          "type": "string"
+        },
+        "strategy": {
+          "$ref": "#/$defs/IncludeMergeStrategy",
+          "default": "concatenate",
+          "description": "Merge strategy: 'concatenate' (raw append) or 'merge' (structural merge)"
+        },
+        "optional": {
+          "default": false,
+          "description": "If true, silently skip when source resolves to no files",
+          "title": "Optional",
+          "type": "boolean"
+        },
+        "order": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sort priority when multiple includes share the same target (lower = first)",
+          "title": "Order"
+        }
+      },
+      "required": [
+        "source",
+        "target"
+      ],
+      "title": "EnvironmentIncludeModel",
+      "type": "object"
+    },
+    "EnvironmentMetaModel": {
+      "description": "Model for environment metadata (name, annotations, labels, tags).",
+      "properties": {
+        "name": {
+          "description": "Unique environment name",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional annotations (key-value pairs for documentation)",
+          "title": "Annotations"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Labels for classification/filtering",
+          "title": "Labels"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional tags (list of values for categorization)",
+          "title": "Tags"
+        }
+      },
+      "required": [
+        "name",
+        "labels"
+      ],
+      "title": "EnvironmentMetaModel",
+      "type": "object"
+    },
+    "EnvironmentModuleOverrideModel": {
+      "description": "Environment-specific module overrides (for modules within workspace resources).\n\nMirrors WorkspaceModuleReferenceModel fields (all optional except identifiers).\nValues are merged with workspace module configuration.",
+      "properties": {
+        "resource": {
+          "description": "Resource name containing the module",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Resource",
+          "type": "string"
+        },
+        "module": {
+          "description": "Module name to override",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Module",
+          "type": "string"
+        },
+        "slot_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override deployment slot type (main, staging, canary, sidecar, init)",
+          "title": "Slot Type"
+        },
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override whether this module is enabled/deployed in this environment",
+          "title": "Enabled"
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Environment-specific module configuration overrides",
+          "title": "Configuration"
+        }
+      },
+      "required": [
+        "resource",
+        "module"
+      ],
+      "title": "EnvironmentModuleOverrideModel",
+      "type": "object"
+    },
+    "EnvironmentOverridesModel": {
+      "description": "Model for environment overrides on workspace configurations.",
+      "properties": {
+        "resources": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/EnvironmentResourceOverrideModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Resource-specific overrides (count, configuration, enabled state)",
+          "title": "Resources"
+        },
+        "modules": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/EnvironmentModuleOverrideModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Module-specific overrides (enabled, slot_type, configuration)",
+          "title": "Modules"
+        },
+        "providers": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/EnvironmentProviderOverrideModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Provider-specific overrides (description)",
+          "title": "Providers"
+        },
+        "properties": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override workspace properties for this environment",
+          "title": "Properties"
+        },
+        "includes": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/EnvironmentIncludeModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Environment-wide terraform file includes (not tied to a specific resource)",
+          "title": "Includes"
+        }
+      },
+      "title": "EnvironmentOverridesModel",
+      "type": "object"
+    },
+    "EnvironmentProviderOverrideModel": {
+      "description": "Environment-specific provider overrides.\n\nMirrors WorkspaceProviderModel fields (all optional except provider identifier).\nValues are merged with workspace provider configuration.\nNote: Provider configuration is in the provider file itself, not in workspace.",
+      "properties": {
+        "provider": {
+          "description": "Provider name to override (must match a provider in the workspace)",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Provider",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override provider description",
+          "title": "Description"
+        }
+      },
+      "required": [
+        "provider"
+      ],
+      "title": "EnvironmentProviderOverrideModel",
+      "type": "object"
+    },
+    "EnvironmentResourceOverrideModel": {
+      "description": "Environment-specific resource overrides.\n\nMirrors WorkspaceResourceModel fields (all optional except resource identifier).\nValues are merged with workspace resource configuration.",
+      "properties": {
+        "resource": {
+          "description": "Resource name to override (must match a resource in the workspace)",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Resource",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override resource description",
+          "title": "Description"
+        },
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override whether this resource is enabled/deployed in this environment",
+          "title": "Enabled"
+        },
+        "condition": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override conditional expression for resource inclusion",
+          "title": "Condition"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override role of the resource",
+          "title": "Role"
+        },
+        "count": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override resource instance count",
+          "title": "Count"
+        },
+        "depends_on": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override resource dependencies",
+          "title": "Depends On"
+        },
+        "references": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override cross-resource value references",
+          "title": "References"
+        },
+        "firewalls": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override firewall/NSG references",
+          "title": "Firewalls"
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Environment-specific configuration overrides (merged with workspace configuration)",
+          "title": "Configuration"
+        },
+        "custom": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Environment-specific custom properties",
+          "title": "Custom"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override resource labels",
+          "title": "Labels"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override resource tags",
+          "title": "Tags"
+        },
+        "includes": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/EnvironmentIncludeModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Terraform files to merge into build output for this resource",
+          "title": "Includes"
+        }
+      },
+      "required": [
+        "resource"
+      ],
+      "title": "EnvironmentResourceOverrideModel",
+      "type": "object"
+    },
+    "EnvironmentSpecModel": {
+      "description": "Model for environment specification with workspace overrides.",
+      "properties": {
+        "lifecycle": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CommonLifecycleModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Environment lifecycle phases"
+        },
+        "properties": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Environment-specific properties and configurations",
+          "title": "Properties"
+        },
+        "custom": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Environment-specific custom properties and configurations",
+          "title": "Custom"
+        },
+        "overrides": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EnvironmentOverridesModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Environment-specific overrides for workspace configurations (resources, modules, providers, properties)"
+        },
+        "variables": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/VariableStoreModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Variable declarations - single source of truth for all platform component variable references",
+          "title": "Variables"
+        },
+        "secrets": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/SecretStoreModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Secret declarations - single source of truth for all platform component secret references",
+          "title": "Secrets"
+        },
+        "features": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/FeatureStoreModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Feature flag declarations - single source of truth for all platform component feature references",
+          "title": "Features"
+        }
+      },
+      "title": "EnvironmentSpecModel",
+      "type": "object"
+    },
+    "FeatureStoreModel": {
+      "description": "Model for feature flag definitions.\n\nFeature flags can be sourced from various backends using registered integrations.\nThe 'store' field specifies the integration type, and the 'value' field\nspecifies the feature flag identifier within that store.",
+      "properties": {
+        "key": {
+          "description": "Feature flag key name for referencing in configurations",
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "store": {
+          "$ref": "#/$defs/FeatureStoreType",
+          "description": "Feature store type: constant, environment, or azure-appconfig"
+        },
+        "value": {
+          "description": "Feature flag identifier: literal value for constant, env var name for environment, flag name/key for integration stores",
+          "title": "Value"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional version for store-based feature flags (supported by some integrations)",
+          "title": "Version"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional description for documentation purposes",
+          "title": "Description"
+        }
+      },
+      "required": [
+        "key",
+        "store",
+        "value"
+      ],
+      "title": "FeatureStoreModel",
+      "type": "object"
+    },
+    "FeatureStoreType": {
+      "description": "Enumeration of supported feature flag store backend types.\n\nStore types map to integration types registered in IntegrationFactory:\n- CONSTANT/ENVIRONMENT: Built-in resolvers (no integration required)\n- AZURE_APPCONFIG: \"azure-appconfig\" integration type\n\nCan be expanded to include more feature flag services:\n- LaunchDarkly, Split, Unleash, etc.",
+      "enum": [
+        "constant",
+        "environment",
+        "azure-appconfig"
+      ],
+      "title": "FeatureStoreType",
+      "type": "string"
+    },
+    "IncludeMergeStrategy": {
+      "description": "Supported merge strategies for terraform file includes.",
+      "enum": [
+        "concatenate",
+        "merge"
+      ],
+      "title": "IncludeMergeStrategy",
+      "type": "string"
+    },
+    "PlatformKind": {
+      "description": "Enumeration of supported platform kinds.",
+      "enum": [
+        "configuration",
+        "deployment",
+        "environment",
+        "firewall",
+        "module",
+        "namespace",
+        "platform_model",
+        "provider",
+        "resource",
+        "workspace"
+      ],
+      "title": "PlatformKind",
+      "type": "string"
+    },
+    "PlatformVersion": {
+      "description": "Enumeration of supported platform versions.",
+      "enum": [
+        "platform.huybrechts.xyz/v1"
+      ],
+      "title": "PlatformVersion",
+      "type": "string"
+    },
+    "ScriptPathModel": {
+      "description": "Individual script with scope and execution metadata.",
+      "properties": {
+        "file": {
+          "description": "Path to script file",
+          "title": "File",
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/PlatformKind",
+          "description": "Execution scope - determines how many times script runs (deployment, environment, workspace, provider, resource, module, namespace)"
+        },
+        "priority": {
+          "default": 100,
+          "description": "Execution order within scope (lower runs first)",
+          "maximum": 9999,
+          "minimum": 0,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional target filter (e.g., 'vm-*', 'azure-*', 'production')",
+          "title": "Target"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional description for documentation purposes",
+          "title": "Description"
+        }
+      },
+      "required": [
+        "file",
+        "scope"
+      ],
+      "title": "ScriptPathModel",
+      "type": "object"
+    },
+    "SecretStoreModel": {
+      "description": "Model for secret definitions.\n\nSecrets can be sourced from various backends using registered integrations.\nThe 'store' field specifies the integration type, and the 'value' field\nspecifies the secret identifier within that store.",
+      "properties": {
+        "key": {
+          "description": "Secret key name for referencing in configurations",
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "store": {
+          "$ref": "#/$defs/SecretStoreType",
+          "description": "Secret store type: constant, environment, azure-keyvault, bitwarden, or vault"
+        },
+        "value": {
+          "description": "Secret identifier: literal value for constant, env var name for environment, secret path/ID for integration stores",
+          "title": "Value"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional version for store-based secrets (supported by some integrations)",
+          "title": "Version"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional description for documentation purposes",
+          "title": "Description"
+        }
+      },
+      "required": [
+        "key",
+        "store",
+        "value"
+      ],
+      "title": "SecretStoreModel",
+      "type": "object"
+    },
+    "SecretStoreType": {
+      "description": "Enumeration of supported secret store backend types.\n\nStore types map to integration types registered in IntegrationFactory:\n- CONSTANT/ENVIRONMENT: Built-in resolvers (no integration required)\n- AZURE_KEYVAULT: \"azure-keyvault\" integration type\n- BITWARDEN: \"bitwarden\" integration type\n- HASHICORP_VAULT: \"vault\" integration type",
+      "enum": [
+        "constant",
+        "environment",
+        "azure-keyvault",
+        "bitwarden",
+        "vault"
+      ],
+      "title": "SecretStoreType",
+      "type": "string"
+    },
+    "VariableStoreModel": {
+      "description": "Model for variable definitions.\n\nVariables can be sourced from various backends using registered integrations.\nThe 'store' field specifies the integration type, and the 'value' field\nspecifies the variable identifier within that store.",
+      "properties": {
+        "key": {
+          "description": "Variable key name for referencing in configurations",
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "store": {
+          "$ref": "#/$defs/VariableStoreType",
+          "description": "Variable store type: constant, environment, azure-appconfig, consul, or vault"
+        },
+        "value": {
+          "description": "Variable identifier: literal value for constant, env var name for environment, config path/key for integration stores",
+          "title": "Value"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional version for store-based variables (supported by some integrations)",
+          "title": "Version"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional description for documentation purposes",
+          "title": "Description"
+        }
+      },
+      "required": [
+        "key",
+        "store",
+        "value"
+      ],
+      "title": "VariableStoreModel",
+      "type": "object"
+    },
+    "VariableStoreType": {
+      "description": "Enumeration of supported variable store backend types.\n\nStore types map to integration types registered in IntegrationFactory:\n- CONSTANT/ENVIRONMENT: Built-in resolvers (no integration required)\n- AZURE_APPCONFIG: \"azure-appconfig\" integration type\n- HASHICORP_CONSUL: \"consul\" integration type\n- HASHICORP_VAULT: \"vault\" integration type",
+      "enum": [
+        "constant",
+        "environment",
+        "azure-appconfig",
+        "consul",
+        "vault"
+      ],
+      "title": "VariableStoreType",
+      "type": "string"
+    }
+  },
+  "description": "Root model for a environment configuration file.",
+  "properties": {
+    "apiVersion": {
+      "$ref": "#/$defs/PlatformVersion",
+      "default": "platform.huybrechts.xyz/v1",
+      "description": "API version for platform configuration"
+    },
+    "kind": {
+      "$ref": "#/$defs/PlatformKind",
+      "default": "environment",
+      "description": "Platform kind (always 'environment')"
+    },
+    "meta": {
+      "$ref": "#/$defs/EnvironmentMetaModel",
+      "description": "Environment metadata (name, annotations, labels, tags)"
+    },
+    "spec": {
+      "$ref": "#/$defs/EnvironmentSpecModel",
+      "description": "Environment specification (properties, workspace, environment)"
+    }
+  },
+  "required": [
+    "meta",
+    "spec"
+  ],
+  "title": "EnvironmentModel",
+  "type": "object"
+}

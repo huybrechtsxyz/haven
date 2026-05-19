@@ -1,0 +1,738 @@
+{
+  "$defs": {
+    "CommonLifecycleModel": {
+      "additionalProperties": {
+        "$ref": "#/$defs/CommonLifecyclePhaseModel"
+      },
+      "default": {},
+      "description": "Lifecycle phases for common models.\nMaps phase names to phase configurations.\nPhase names follow pattern: {command}_{action}_{suffix}\nExamples: config_clear, config_fetch, deploy_plan_before, deploy_apply_after",
+      "title": "CommonLifecycleModel",
+      "type": "object"
+    },
+    "CommonLifecyclePhaseModel": {
+      "description": "Model for common lifecycle phase with script validation.",
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional description for documentation purposes",
+          "title": "Description"
+        },
+        "scripts": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/$defs/ScriptPathModel"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scripts"
+        }
+      },
+      "title": "CommonLifecyclePhaseModel",
+      "type": "object"
+    },
+    "ModuleCheckModel": {
+      "description": "Model for a module health check configuration.",
+      "properties": {
+        "name": {
+          "description": "Name of the health check",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Label for the health check",
+          "title": "Label"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target resource for the health check",
+          "title": "Target"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Type of health check (e.g., http, tcp, command)",
+          "title": "Type"
+        },
+        "interval": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Interval between health checks (e.g., '30s')",
+          "title": "Interval"
+        },
+        "timeout": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Timeout for each health check (e.g., '5s')",
+          "title": "Timeout"
+        },
+        "retries": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Number of retries before marking as unhealthy",
+          "title": "Retries"
+        },
+        "command": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Command to run for 'command' type health checks",
+          "title": "Command"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ModuleCheckModel",
+      "type": "object"
+    },
+    "ModuleEndpointModel": {
+      "description": "Model for a module endpoint configuration.",
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Name of the endpoint",
+          "title": "Name"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Label for the endpoint",
+          "title": "Label"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "URL or address of the endpoint",
+          "title": "Url"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Type of endpoint (e.g., http, tcp)",
+          "title": "Type"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Port number for the endpoint",
+          "title": "Port"
+        },
+        "protocol": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Protocol for the endpoint (e.g., tcp, udp)",
+          "title": "Protocol"
+        }
+      },
+      "title": "ModuleEndpointModel",
+      "type": "object"
+    },
+    "ModuleMetaModel": {
+      "description": "Model for module metadata (name, annotations, labels, tags).",
+      "properties": {
+        "name": {
+          "description": "Unique module name",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional annotations (key-value pairs for documentation)",
+          "title": "Annotations"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional labels (key-value pairs for classification/filtering)",
+          "title": "Labels"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional list of tags for the module",
+          "title": "Tags"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ModuleMetaModel",
+      "type": "object"
+    },
+    "ModuleMountModel": {
+      "description": "Model for a module mount configuration.",
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Name of the mount",
+          "title": "Name"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Type of the mount (e.g., volume, bind)",
+          "title": "Type"
+        },
+        "change_mod": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Permissions for the mount (e.g., '755')",
+          "title": "Change Mod"
+        },
+        "target_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Path inside the module",
+          "title": "Target Path"
+        },
+        "source_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Source path of the mount",
+          "title": "Source Path"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Description of the mount",
+          "title": "Description"
+        }
+      },
+      "title": "ModuleMountModel",
+      "type": "object"
+    },
+    "ModulePropertiesModel": {
+      "description": "Model for module-specific properties and configurations.",
+      "properties": {
+        "mounts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ModuleMountModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of module mount configurations",
+          "title": "Mounts"
+        },
+        "checks": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ModuleCheckModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of module health check configurations",
+          "title": "Checks"
+        },
+        "endpoints": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ModuleEndpointModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of module endpoint configurations",
+          "title": "Endpoints"
+        }
+      },
+      "title": "ModulePropertiesModel",
+      "type": "object"
+    },
+    "ModuleReferenceModel": {
+      "description": "References to variables, secrets, and features required by this module.\n\nLists the keys that must be defined in the environment configuration.\nActual values and store backends are defined at environment/workspace level.\n\nSimilar to how SourceModel references repositories by name, this model\nreferences variable/secret/feature keys by name.",
+      "properties": {
+        "variables": {
+          "anyOf": [
+            {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of variable keys this module requires from environment",
+          "title": "Variables"
+        },
+        "secrets": {
+          "anyOf": [
+            {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of secret keys this module requires from environment",
+          "title": "Secrets"
+        },
+        "features": {
+          "anyOf": [
+            {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of feature flag keys this module requires from environment",
+          "title": "Features"
+        }
+      },
+      "title": "ModuleReferenceModel",
+      "type": "object"
+    },
+    "ModuleSpecModel": {
+      "description": "Model for module spec (lifecycle, modules, validation).",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/SourceModel",
+          "description": "Module deployment configuration"
+        },
+        "lifecycle": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CommonLifecycleModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Module-specific lifecycle hooks"
+        },
+        "properties": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModulePropertiesModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Module-specific properties and configurations"
+        },
+        "references": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModuleReferenceModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Module references for variable and secret injection"
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Module-specific configuration data",
+          "title": "Configuration"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "ModuleSpecModel",
+      "type": "object"
+    },
+    "PlatformKind": {
+      "description": "Enumeration of supported platform kinds.",
+      "enum": [
+        "configuration",
+        "deployment",
+        "environment",
+        "firewall",
+        "module",
+        "namespace",
+        "platform_model",
+        "provider",
+        "resource",
+        "workspace"
+      ],
+      "title": "PlatformKind",
+      "type": "string"
+    },
+    "PlatformVersion": {
+      "description": "Enumeration of supported platform versions.",
+      "enum": [
+        "platform.huybrechts.xyz/v1"
+      ],
+      "title": "PlatformVersion",
+      "type": "string"
+    },
+    "ScriptPathModel": {
+      "description": "Individual script with scope and execution metadata.",
+      "properties": {
+        "file": {
+          "description": "Path to script file",
+          "title": "File",
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/PlatformKind",
+          "description": "Execution scope - determines how many times script runs (deployment, environment, workspace, provider, resource, module, namespace)"
+        },
+        "priority": {
+          "default": 100,
+          "description": "Execution order within scope (lower runs first)",
+          "maximum": 9999,
+          "minimum": 0,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional target filter (e.g., 'vm-*', 'azure-*', 'production')",
+          "title": "Target"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional description for documentation purposes",
+          "title": "Description"
+        }
+      },
+      "required": [
+        "file",
+        "scope"
+      ],
+      "title": "ScriptPathModel",
+      "type": "object"
+    },
+    "SourceModel": {
+      "description": "Reusable model for source configuration that references a repository.\n\nUsed by resources, modules, and other components to specify where their\nsource artifacts come from and where they should be deployed/built.\n\nExample usage in a resource:\n    source:\n      repository: my-infra-repo\n      source_path: terraform/modules/vpc\n      target_path: build/vpc",
+      "properties": {
+        "repository": {
+          "description": "Name of the repository from configuration's repositories list",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Repository",
+          "type": "string"
+        },
+        "source_path": {
+          "description": "Path to the source artifacts within the repository (relative path)",
+          "minLength": 1,
+          "title": "Source Path",
+          "type": "string"
+        },
+        "target_path": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target path where artifacts should be built/deployed (relative to build/deploy directory)",
+          "title": "Target Path"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional description for documentation purposes",
+          "title": "Description"
+        }
+      },
+      "required": [
+        "repository",
+        "source_path"
+      ],
+      "title": "SourceModel",
+      "type": "object"
+    }
+  },
+  "description": "Top-level model for a module resource.",
+  "properties": {
+    "apiVersion": {
+      "$ref": "#/$defs/PlatformVersion",
+      "default": "platform.huybrechts.xyz/v1",
+      "description": "API version for module configuration"
+    },
+    "kind": {
+      "$ref": "#/$defs/PlatformKind",
+      "default": "module",
+      "description": "Resource kind (always 'Module')"
+    },
+    "meta": {
+      "$ref": "#/$defs/ModuleMetaModel",
+      "description": "Module metadata (name, annotations, labels, tags)"
+    },
+    "spec": {
+      "$ref": "#/$defs/ModuleSpecModel",
+      "description": "Module specification (lifecycle, modules, variables, secrets)"
+    }
+  },
+  "required": [
+    "meta",
+    "spec"
+  ],
+  "title": "ModuleModel",
+  "type": "object"
+}
