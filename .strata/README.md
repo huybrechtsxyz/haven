@@ -11,13 +11,13 @@ Included files:
 
 ## Using the integration docs
 
-Each file under `.platform/integrations/` documents how to configure and use an integration (for example, `azure_keyvault.md`, `git.md`, `terraform.md`). Use these documents as the first-stop reference when wiring credentials, environment variables, or diagnosing common issues.
+Each file under `.strata/integrations/` documents how to configure and use an integration (for example, `azure_keyvault.md`, `git.md`, `terraform.md`). Use these documents as the first-stop reference when wiring credentials, environment variables, or diagnosing common issues.
 
 Examples:
 
-- To see the Azure Key Vault guide: open `.platform/integrations/azure_keyvault.md`
-- To find quick Git setup instructions: open `.platform/integrations/git.md`
-- To find Bitwarden Secrets Manager setup: open `.platform/integrations/bitwarden.md`
+- To see the Azure Key Vault guide: open `.strata/integrations/azure_keyvault.md`
+- To find quick Git setup instructions: open `.strata/integrations/git.md`
+- To find Bitwarden Secrets Manager setup: open `.strata/integrations/bitwarden.md`
 
 ## Available integrations
 

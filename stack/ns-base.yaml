@@ -10,4 +10,4 @@ meta:
 spec:
   modules:
     - name: traefik
-      file: "@haven/stack/mod-traefik.yaml"
+      file: "apps/mod-traefik.yaml"

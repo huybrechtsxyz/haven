@@ -59,20 +59,20 @@ locals {
 # Kamatera VMs Module
 # =============================================================================
 
-module "kamatera_vms" {
-  source = "./modules/kamatera_vms"
+# module "kamatera_vms" {
+#   source = "./modules/kamatera_vms"
 
-  workspace_name = var.workspace_name
-  environment    = var.environment
-  region         = local.kamatera_provider.region
+#   workspace_name = var.workspace_name
+#   environment    = var.environment
+#   region         = local.kamatera_provider.region
 
-  vm_instances = local.vm_instance_map
-  vm_resources = var.resources
-  firewalls    = var.firewalls
+#   vm_instances = local.vm_instance_map
+#   vm_resources = var.resources
+#   firewalls    = var.firewalls
 
-  kamatera_api_key       = var.KAMATERA_API_KEY
-  kamatera_api_secret    = var.KAMATERA_API_SECRET
-  kamatera_root_password = var.KAMATERA_ROOT_PASSWORD
-  kamatera_private_key   = var.KAMATERA_PRIVATE_KEY
-  kamatera_public_key    = var.KAMATERA_PUBLIC_KEY
-}
+#   kamatera_api_key       = var.KAMATERA_API_KEY
+#   kamatera_api_secret    = var.KAMATERA_API_SECRET
+#   kamatera_root_password = var.KAMATERA_ROOT_PASSWORD
+#   kamatera_private_key   = var.KAMATERA_PRIVATE_KEY
+#   kamatera_public_key    = var.KAMATERA_PUBLIC_KEY
+# }

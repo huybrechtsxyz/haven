@@ -11,7 +11,7 @@ meta:
   - configuration
 spec:
   logging:
-    file: '@haven/config/logging.yaml'
+    file: config/logging.yaml
   layering:
   - name: environment
     description: Deployment environment
@@ -24,13 +24,6 @@ spec:
         pattern: ^(edge|prd)$
         required: true
         description: Deployment environment (edge, prd)
-  repositories:
-  - name: haven_config
-    type: gitops
-    repository: git@github.com:huybrechtsxzy/xyz-configuration.git
-    reference: main
-    source_path: .
-    deploy_path: .
   integrations:
   - name: git
     type: git
@@ -43,10 +36,6 @@ spec:
       min_version: 2.30.0
     authentication:
       method: cli
-      env_vars:
-      - GIT_SSH_COMMAND
-      - GIT_USERNAME
-      - GIT_PASSWORD
   - name: terraform
     type: terraform
     capabilities:
@@ -58,8 +47,6 @@ spec:
       min_version: 1.0.0
     authentication:
       method: cli
-      env_vars:
-      - TERRAFORM_API_TOKEN
   - name: bitwarden
     type: bitwarden
     capabilities:
@@ -73,8 +60,8 @@ spec:
       address: https://bitwarden.com/api
     authentication:
       method: api_key
-      env_vars:
-      - BWS_ACCESS_TOKEN
+      api_key:
+        api_key: BWS_ACCESS_TOKEN
   providers:
   - name: kamatera
     description: Kamatera Cloud Provider

@@ -5,9 +5,12 @@
       "name": "Run: haven",
       "type": "debugpy",
       "request": "launch",
-      "module": "strata",
+      "program": "${workspaceFolder}/src/strata/__main__.py",
       "args": "${input:cliArgs}",
       "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
       "console": "integratedTerminal",
       "justMyCode": true
     },
@@ -15,9 +18,12 @@
       "name": "Debug: haven",
       "type": "debugpy",
       "request": "launch",
-      "module": "strata",
+      "program": "${workspaceFolder}/src/strata/__main__.py",
       "args": "${input:cliArgs}",
       "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
       "console": "integratedTerminal",
       "justMyCode": false
     }

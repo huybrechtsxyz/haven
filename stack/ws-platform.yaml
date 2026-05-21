@@ -10,7 +10,7 @@ meta:
 spec:
   providers:
     - name: kamatera_eu_fr
-      file: "@haven/stack/dc-eu-fr.yaml"
+      file: "stack/dc-eu-fr.yaml"
 
   provisioners:
     - name: haven_iac
@@ -42,19 +42,19 @@ spec:
 
   resources:
     - name: haven_vm_manager
-      file: "@haven/stack/vm-manager.yaml"
+      file: "stack/vm-manager.yaml"
       role: manager
       count: 1
       firewalls:
         - haven_fw_vm
     - name: haven_vm_infra
-      file: "@haven/stack/vm-infra.yaml"
+      file: "stack/vm-infra.yaml"
       role: worker
       count: 1
       firewalls:
         - haven_fw_vm
     - name: haven_vm_worker
-      file: "@haven/stack/vm-worker.yaml"
+      file: "stack/vm-worker.yaml"
       role: worker
       count: 2
       firewalls:
@@ -62,8 +62,8 @@ spec:
 
   namespaces:
     - name: haven_ns_base
-      file: "@haven/stack/ns-base.yaml"
+      file: "stack/ns-base.yaml"
 
   firewalls:
     - name: haven_fw_vm
-      file: "@haven/stack/fw-vm.yaml"
+      file: "stack/fw-vm.yaml"

@@ -1,11 +1,12 @@
 {
   "folders": [
     {
+      "name": "Haven",
       "path": "."
     },
     {
-      "path": ".",
-      "name": "haven"
+      "name": "Strata",
+      "path": "../strata"
     }
   ],
   "settings": {}

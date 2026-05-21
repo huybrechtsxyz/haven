@@ -5,28 +5,18 @@
     "name": "haven"
   },
   "spec": {
-    "solution_id": "dd978801-3634-433f-bc98-ba6c6db93e22",
-    "repositories": [
-      {
-        "name": "haven",
-        "url": ".",
-        "path": "repos/haven",
-        "type": "local",
-        "branch": "",
-        "created": "2026-05-13T15:49:33.488298+00:00"
-      }
-    ],
+    "solution_id": "7de99a3b-3dab-43da-9162-c621cdaf383c",
     "profiles": [
       {
         "name": "prd",
         "active": true,
-        "created": "2026-05-13T20:06:24.701245+00:00",
+        "created": "2026-05-21T11:12:55.202631+00:00",
         "configfile_paths": [
           {
             "name": "config",
-            "path": "@haven/config/config.yaml",
+            "path": ".\\config\\config.yaml",
             "type": "configfile",
-            "created": "2026-05-13T20:07:40.057510+00:00"
+            "created": "2026-05-21T13:08:37.486604+00:00"
           }
         ],
         "envfile_paths": [],

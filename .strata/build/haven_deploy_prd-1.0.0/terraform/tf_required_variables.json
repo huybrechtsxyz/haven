@@ -1,0 +1,26 @@
+{
+  "variables": [
+    {
+      "key": "WORKSPACE",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_WORKSPACE",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "haven"
+    },
+    {
+      "key": "DATACENTER",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_DATACENTER",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "kamatera-eu-fr"
+    }
+  ]
+}

@@ -16,28 +16,28 @@ spec:
       - name: configuration_files
         type: config
         target_path: ${TRAEFIK_PATH_CONFIG}
-        chmod: "0644"
+        change_mod: "0644"
         source_path: config
         description: Traefik static configuration
       - name: certificates
         type: config
-        chmod: "0600"
+        change_mod: "0600"
         target_path: ${TRAEFIK_PATH_CERTS}
         description: TLS certificates
       - name: documentation
         type: docs
-        chmod: "0644"
+        change_mod: "0644"
         target_path: ${TRAEFIK_PATH_DOCS}
         source_path: docs/traefik
         description: Module documentation
       - name: datafiles
         type: data
-        chmod: "0600"
+        change_mod: "0600"
         target_path: ${TRAEFIK_PATH_DATA}
         description: Certificate storage (ACME)
       - name: logging
         type: logs
-        chmod: "0644"
+        change_mod: "0644"
         target_path: ${TRAEFIK_PATH_LOGS}
         description: Access and error logs
     checks:

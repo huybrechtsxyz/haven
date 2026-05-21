@@ -39,8 +39,3 @@ loggers:
 root:
   level: WARNING
   handlers: [file]
-
-# Azure Application Insights
-azure:
-  enabled: true
-  # Use environment variable: APPLICATIONINSIGHTS_CONNECTION_STRING
