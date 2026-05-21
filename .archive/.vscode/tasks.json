@@ -1,0 +1,75 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "strata: validate",
+      "type": "shell",
+      "command": "strata validate --file ${input:configFile}",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "strata: deploy run",
+      "type": "shell",
+      "command": "strata deploy run --file ${input:configFile}",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "strata: build run",
+      "type": "shell",
+      "command": "strata build run --file ${input:configFile}",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run: haven",
+      "type": "shell",
+      "command": "strata ${input:cliArgs}",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "configFile",
+      "type": "promptString",
+      "description": "Config file path (e.g. @haven/deploy/deploy-prd.yaml)",
+      "default": "@haven/deploy/deploy-prd.yaml"
+    },
+    {
+      "id": "cliArgs",
+      "type": "promptString",
+      "description": "CLI arguments (e.g. version, validate --file @haven/deploy/deploy-prd.yaml)",
+      "default": "version"
+    }
+  ]
+}

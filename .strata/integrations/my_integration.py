@@ -83,9 +83,7 @@ class MyIntegration(BaseIntegration):
         singleton per named entry in your solution.  Override only if you
         need to key on something else (e.g. endpoint URL).
         """
-        config: Optional[IntegrationModel] = kwargs.get("config") or (
-            args[0] if args else None
-        )
+        config: Optional[IntegrationModel] = kwargs.get("config") or (args[0] if args else None)
         return config.name if config else "default"
 
     # ------------------------------------------------------------------ #
@@ -161,9 +159,7 @@ class MyIntegration(BaseIntegration):
                     "description": "Set MY_TOOL_API_TOKEN before running strata.",
                 },
             ],
-            "yaml_example": (
-                "type: my_integration\nspec:\n  endpoint: https://my-service.example.com\n"
-            ),
+            "yaml_example": ("type: my_integration\nspec:\n  endpoint: https://my-service.example.com\n"),
         }
 
     # ------------------------------------------------------------------ #
@@ -203,7 +199,7 @@ def register() -> None:
     """Register this integration type with IntegrationFactory.
 
     The platform calls register() on every .py file it discovers in
-    .platform/integrations/.  The type string must match the ``type:``
+    .strata/integrations/.  The type string must match the ``type:``
     field you use in your YAML configuration.
     """
     IntegrationFactory.register_type("my_integration", MyIntegration)
