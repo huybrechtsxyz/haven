@@ -31,6 +31,9 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Build output
+build/
+
 # Terraform state & local overrides
 **/.terraform/
 *.tfstate
