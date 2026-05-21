@@ -11,12 +11,12 @@ output "platform" {
   }
 }
 
-output "virtual_machines" {
-  description = "Provisioned VM instances with network details"
-  value       = module.kamatera_vms.instances
-}
+# output "virtual_machines" {
+#   description = "Provisioned VM instances with network details"
+#   value       = module.kamatera_vms.instances
+# }
 
-output "private_network" {
-  description = "Private network CIDR"
-  value       = module.kamatera_vms.private_network
-}
+# output "private_network" {
+#   description = "Private network CIDR"
+#   value       = module.kamatera_vms.private_network
+# }
