@@ -285,8 +285,9 @@ These are available in lifecycle scripts during build/deploy:
 
 ### Initial Setup
 ```bash
+git remote set-url origin https://github.com/huybrechtsxyz/haven.git
 strata init --output json
-strata repo add --name haven --path ../xyz-configuration --output json
+strata repo add --name haven --path ../haven --output json
 strata profile add --name prd --output json
 strata profile activate prd --output json
 ```
