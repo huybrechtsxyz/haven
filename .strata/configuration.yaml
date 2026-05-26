@@ -62,6 +62,17 @@ spec:
       method: api_key
       api_key:
         api_key: BWS_ACCESS_TOKEN
+  - name: ansible
+    type: ansible
+    capabilities:
+    - infrastructure
+    description: Ansible configuration management tool
+    required: false
+    validation:
+      command: ansible --version
+      min_version: 2.9.0
+    authentication:
+      method: cli
   providers:
   - name: kamatera
     description: Kamatera Cloud Provider

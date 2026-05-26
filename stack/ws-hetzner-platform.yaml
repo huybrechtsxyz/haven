@@ -1,16 +1,16 @@
 apiVersion: platform.huybrechts.xyz/v1
 kind: workspace
 meta:
-  name: haven_platform
+  name: haven_hetzner_platform
   annotations:
-    description: Haven platform workspace on Kamatera — Docker Swarm cluster
+    description: Haven platform workspace on Hetzner — Docker Swarm cluster
   labels:
     version: "1.0.0"
-  tags: [haven, platform]
+  tags: [haven, hetzner, platform]
 spec:
   providers:
-    - name: kamatera_eu_fr
-      file: "stack/dc-eu-fr.yaml"
+    - name: hetzner_eu_de
+      file: "stack/dc-hetzner-eu-de.yaml"
 
   provisioners:
     - name: haven_iac
@@ -21,7 +21,7 @@ spec:
 
   topology:
     - name: haven_swarm
-      provider: kamatera_eu_fr
+      provider: hetzner_eu_de
       provisioner: terraform
       type: docker_swarm
       volumes:
@@ -36,33 +36,33 @@ spec:
         - name: serve
           type: distributed
       components:
-        - resource: haven_vm_manager
-        - resource: haven_vm_infra
-        - resource: haven_vm_worker
+        - resource: haven_vm_hetzner_manager
+        - resource: haven_vm_hetzner_infra
+        - resource: haven_vm_hetzner_worker
 
   resources:
-    - name: haven_vm_manager
-      file: "stack/vm-manager.yaml"
+    - name: haven_vm_hetzner_manager
+      file: "stack/vm-hetzner-manager.yaml"
       role: manager
       count: 1
       firewalls:
         - haven_fw_vm
-    - name: haven_vm_infra
-      file: "stack/vm-infra.yaml"
+    - name: haven_vm_hetzner_infra
+      file: "stack/vm-hetzner-infra.yaml"
       role: worker
       count: 1
       firewalls:
         - haven_fw_vm
-    - name: haven_vm_worker
-      file: "stack/vm-worker.yaml"
+    - name: haven_vm_hetzner_worker
+      file: "stack/vm-hetzner-worker.yaml"
       role: worker
       count: 2
       firewalls:
         - haven_fw_vm
 
-  namespaces:
-    - name: haven_ns_base
-      file: "stack/ns-base.yaml"
+  # namespaces:
+  #   - name: haven_ns_base
+  #     file: "stack/ns-base.yaml"
 
   firewalls:
     - name: haven_fw_vm

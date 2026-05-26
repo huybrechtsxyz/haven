@@ -1,0 +1,37 @@
+apiVersion: platform.huybrechts.xyz/v1
+kind: deployment
+meta:
+  name: haven_deploy_kamatera_prd
+  annotations:
+    description: Production deployment for the Haven platform on Kamatera
+  labels:
+    version: "1.0.0"
+  tags: [haven, kamatera, production, deployment]
+spec:
+  configurations:
+    - name: config
+      file: config/config.yaml
+
+  lifecycle: null
+
+  layers:
+    environment: prd
+
+  properties:
+    environment: prd
+
+  workspace:
+    name: haven_kamatera_platform
+    description: Haven Kamatera Platform Workspace
+    file: "stack/ws-kamatera-platform.yaml"
+
+  environments:
+    - "envs/env-kamatera-prd.yaml"
+
+  stages:
+    # Infrastructure provisioning stage - uses Terraform via convention
+    - name: infrastructure
+      type: infrastructure
+      scope: all
+      depends_on: null
+      on_failure: stop

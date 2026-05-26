@@ -1,0 +1,13 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: provider
+meta:
+  name: hetzner_eu_de
+  annotations:
+    description: Hetzner cloud provider — Europe Nuremberg datacenter
+  labels:
+    version: "1.0.0"
+  tags: [haven, hetzner, provider]
+spec:
+  properties:
+    type: hetzner
+    region: eu-de

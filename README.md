@@ -1,4 +1,4 @@
-# haven
+# Haven
 
 Configuration repository managed by [strata](https://github.com/huybrechtsxzy/strata).
 

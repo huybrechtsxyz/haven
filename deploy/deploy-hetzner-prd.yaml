@@ -1,12 +1,12 @@
 apiVersion: platform.huybrechts.xyz/v1
 kind: deployment
 meta:
-  name: haven_deploy_prd
+  name: haven_deploy_hetzner_prd
   annotations:
-    description: Production deployment for the Haven platform on Kamatera
+    description: Production deployment for the Haven platform on Hetzner
   labels:
     version: "1.0.0"
-  tags: [haven, production, deployment]
+  tags: [haven, hetzner, production, deployment]
 spec:
   configurations:
     - name: config
@@ -21,12 +21,12 @@ spec:
     environment: prd
 
   workspace:
-    name: haven_platform
-    description: Haven Platform Workspace
-    file: "stack/ws-platform.yaml"
+    name: haven_hetzner_platform
+    description: Haven Hetzner Platform Workspace
+    file: "stack/ws-hetzner-platform.yaml"
 
   environments:
-    - "envs/env-prd.yaml"
+    - "envs/env-hetzner-prd.yaml"
 
   stages:
     # Infrastructure provisioning stage - uses Terraform via convention

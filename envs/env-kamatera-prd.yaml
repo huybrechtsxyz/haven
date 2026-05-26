@@ -1,12 +1,12 @@
 apiVersion: platform.huybrechts.xyz/v1
 kind: environment
 meta:
-  name: haven_env_prd
+  name: haven_env_kamatera_prd
   annotations:
     description: Production environment for the Haven platform on Kamatera
   labels:
     version: "1.0.0"
-  tags: [haven, production]
+  tags: [haven, kamatera, production]
 spec:
   variables:
     - key: WORKSPACE

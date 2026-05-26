@@ -1,30 +1,29 @@
 apiVersion: platform.huybrechts.xyz/v1
 kind: resource
 meta:
-  name: haven_vm_manager
+  name: haven_vm_kamatera_worker
   annotations:
-    description: Kamatera Virtual Machine for Haven Docker Swarm manager node
+    description: Kamatera Virtual Machine for Haven Docker Swarm worker node — runs application containers
   labels:
     version: 1.0.0
-  tags: [haven, vm, manager]
+  tags: [haven, kamatera, vm, worker]
 spec:
-  lifecycle: null
   properties:
     provider_type: kamatera
     resource_type: virtualmachine
-    unit_cost: 5.00 # USD per month
+    unit_cost: 6.00 # USD per month
   configuration:
     os_name: "Ubuntu"
     os_code: "24.04 64bit"
     cpu_type: "A"
     cpu_cores: 1
-    ram_mb: 1024
+    ram_mb: 2048
     billing: "hourly"
   storage:
     install_path: /opt/install/haven
     disks:
       - size: 20
-        label: haven-vm-manager-os
+        label: haven-vm-worker-os
         mount: /mnt/data1
     volumes:
       - name: config

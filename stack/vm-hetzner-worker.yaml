@@ -1,0 +1,35 @@
+apiVersion: platform.huybrechts.xyz/v1
+kind: resource
+meta:
+  name: haven_vm_hetzner_worker
+  annotations:
+    description: Hetzner Virtual Machine for Haven Docker Swarm worker node — runs application containers
+  labels:
+    version: 1.0.0
+  tags: [haven, hetzner, vm, worker]
+spec:
+  properties:
+    provider_type: hetzner
+    resource_type: virtualmachine
+    unit_cost: 4.35 # USD per month (cpx11)
+  configuration:
+    image: ubuntu-24.04
+    server_type: cpx11
+    location: nbg1
+  storage:
+    install_path: /opt/install/haven
+    disks:
+      - size: 20
+        label: haven-vm-worker-os
+        mount: /mnt/data1
+    volumes:
+      - name: config
+        path: /mnt/data1/etc/haven
+      - name: docs
+        path: /mnt/data1/var/docs/haven
+      - name: data
+        path: /mnt/data1/var/data/haven
+      - name: logs
+        path: /mnt/data1/var/logs/haven
+      - name: serve
+        path: /mnt/data1/var/serve

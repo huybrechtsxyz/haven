@@ -1,25 +1,21 @@
 apiVersion: platform.huybrechts.xyz/v1
 kind: resource
 meta:
-  name: haven_vm_infra
+  name: haven_vm_hetzner_infra
   annotations:
-    description: Kamatera Infrastructure VM — databases and infrastructure services (Postgres, Redis, GlusterFS)
+    description: Hetzner Infrastructure VM — databases and infrastructure services (Postgres, Redis, GlusterFS)
   labels:
     version: 1.0.0
-  tags: [haven, vm, infra]
+  tags: [haven, hetzner, vm, infra]
 spec:
   properties:
-    provider_type: kamatera
+    provider_type: hetzner
     resource_type: virtualmachine
-    unit_cost: 11.00 # USD per month
+    unit_cost: 5.00 # USD per month (cx22)
   configuration:
-    os_name: "Ubuntu"
-    os_code: "24.04 64bit"
-    cpu_type: "A"
-    cpu_cores: 1
-    ram_mb: 4096
-    billing: "hourly"
-    disk_size: 40
+    image: ubuntu-24.04
+    server_type: cx22
+    location: nbg1
   storage:
     install_path: /opt/install/haven
     disks:
