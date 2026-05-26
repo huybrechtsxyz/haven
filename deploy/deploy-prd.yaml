@@ -8,7 +8,9 @@ meta:
     version: "1.0.0"
   tags: [haven, production, deployment]
 spec:
-  configurations: null
+  configurations:
+    - name: config
+      file: config/config.yaml
 
   lifecycle: null
 
