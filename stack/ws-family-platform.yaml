@@ -1,0 +1,73 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: workspace
+meta:
+  name: haven_family_platform
+  annotations:
+    description: Family platform workspace — Core VPS (Docker Compose) + Workload VPS (k3s) on Hetzner
+  labels:
+    version: "1.0.0"
+  tags: [haven, hetzner, platform, family]
+spec:
+  providers:
+    - name: hetzner_family_eu_de
+      file: "stack/dc-family-eu-de.yaml"
+
+  provisioners:
+    - name: haven_iac
+      provisioner: terraform
+      source:
+        repository: haven
+        source_path: terraform
+
+  topology:
+    - name: family_core
+      provider: hetzner_family_eu_de
+      provisioner: terraform
+      type: single_node          # Docker Compose — Caddy, Authentik, Vaultwarden, Infisical
+      volumes:
+        - name: config
+          type: local
+        - name: data
+          type: local
+        - name: logs
+          type: local
+        - name: certs
+          type: local
+      components:
+        - resource: haven_vm_family_core
+
+    - name: family_workload
+      provider: hetzner_family_eu_de
+      provisioner: terraform
+      type: k3s_single           # k3s single-node — Immich, Gatus, apps
+      volumes:
+        - name: immich-library
+          type: local
+        - name: k3s-data
+          type: local
+        - name: logs
+          type: local
+      components:
+        - resource: haven_vm_family_workload
+
+  resources:
+    - name: haven_vm_family_core
+      file: "stack/vm-family-core.yaml"
+      role: core
+      count: 1
+      firewalls:
+        - haven_fw_family_core
+
+    - name: haven_vm_family_workload
+      file: "stack/vm-family-workload.yaml"
+      role: workload
+      count: 1
+      firewalls:
+        - haven_fw_family_workload
+
+  firewalls:
+    - name: haven_fw_family_core
+      file: "stack/fw-family-core.yaml"
+
+    - name: haven_fw_family_workload
+      file: "stack/fw-family-workload.yaml"

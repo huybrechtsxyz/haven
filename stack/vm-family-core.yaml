@@ -1,0 +1,30 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: resource
+meta:
+  name: haven_vm_family_core
+  annotations:
+    description: Hetzner CX22 — Core VPS (Caddy, Authentik, Vaultwarden, Infisical)
+  labels:
+    version: "1.0.0"
+  tags: [haven, hetzner, vm, core, family]
+spec:
+  lifecycle: null
+  properties:
+    provider_type: hetzner
+    resource_type: virtualmachine
+    unit_cost: 4.15   # EUR per month (CX22)
+  configuration:
+    image: ubuntu-24.04
+    server_type: cx22
+    location: nbg1
+  storage:
+    install_path: /opt/haven
+    volumes:
+      - name: config
+        path: /opt/haven/etc
+      - name: data
+        path: /opt/haven/var/data
+      - name: logs
+        path: /opt/haven/var/logs
+      - name: certs
+        path: /opt/haven/var/certs    # Caddy ACME storage

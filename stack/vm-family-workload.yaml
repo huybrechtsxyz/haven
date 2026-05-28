@@ -1,0 +1,28 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: resource
+meta:
+  name: haven_vm_family_workload
+  annotations:
+    description: Hetzner CPX41 — Workload VPS (k3s; Immich, Gatus, apps)
+  labels:
+    version: "1.0.0"
+  tags: [haven, hetzner, vm, workload, family]
+spec:
+  lifecycle: null
+  properties:
+    provider_type: hetzner
+    resource_type: virtualmachine
+    unit_cost: 26.00   # EUR per month (CPX41)
+  configuration:
+    image: ubuntu-24.04
+    server_type: cpx41
+    location: nbg1
+  storage:
+    install_path: /opt/haven
+    volumes:
+      - name: immich-library
+        path: /opt/haven/var/immich      # photo originals on VPS SSD
+      - name: k3s-data
+        path: /var/lib/rancher/k3s
+      - name: logs
+        path: /opt/haven/var/logs

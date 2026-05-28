@@ -1,0 +1,71 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: firewall
+meta:
+  name: haven_fw_family_core
+  annotations:
+    description: Firewall for Core VPS — public HTTPS only; SSH from private network only
+  labels:
+    version: "1.0.0"
+  tags: [haven, firewall, core, family]
+spec:
+  reset: true
+  defaults:
+    - direction: in
+      permission: deny
+      comment: Deny all incoming traffic by default
+    - direction: out
+      permission: deny
+      comment: Deny all outgoing traffic by default
+  deny:
+  allow:
+    # Essential system services
+    - direction: out
+      proto: udp
+      port: 53
+      comment: DNS (UDP)
+    - direction: out
+      proto: tcp
+      port: 53
+      comment: DNS (TCP)
+    - direction: out
+      proto: udp
+      port: 123
+      comment: NTP
+    - direction: in
+      interface: lo
+      comment: Loopback IN
+    - direction: out
+      interface: lo
+      comment: Loopback OUT
+    # Package management
+    - direction: out
+      proto: tcp
+      port: [20, 21]
+      comment: FTP (apt)
+    - direction: out
+      proto: tcp
+      port: 11371
+      comment: GPG keyserver
+    # Public web ingress
+    - direction: in
+      proto: tcp
+      port: 80
+      comment: HTTP (redirect to HTTPS)
+    - direction: in
+      proto: tcp
+      port: 443
+      comment: HTTPS
+    - direction: out
+      proto: tcp
+      port: 80
+      comment: HTTP outbound (image pulls, ACME)
+    - direction: out
+      proto: tcp
+      port: 443
+      comment: HTTPS outbound
+    # SSH — private network only (Hetzner private network or Tailscale CGNAT)
+    - direction: in
+      proto: tcp
+      port: 22
+      from: 10.0.0.0/8
+      comment: SSH (private network only)

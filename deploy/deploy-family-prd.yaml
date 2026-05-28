@@ -1,0 +1,52 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: deployment
+meta:
+  name: haven_deploy_family_prd
+  annotations:
+    description: Production deployment for the family platform on Hetzner
+  labels:
+    version: "1.0.0"
+  tags: [haven, hetzner, family, production, deployment]
+spec:
+  configurations:
+    - name: config
+      file: config/config.yaml
+
+  lifecycle: null
+
+  layers:
+    environment: prd
+
+  properties:
+    environment: prd
+
+  workspace:
+    name: haven_family_platform
+    description: Haven Family Platform Workspace
+    file: "stack/ws-family-platform.yaml"
+
+  environments:
+    - "envs/env-family-prd.yaml"
+
+  stages:
+    # Stage 1 — provision both VPS nodes and storage box via Terraform
+    - name: infrastructure
+      type: infrastructure
+      scope: all
+      depends_on: null
+      on_failure: stop
+
+    # Stage 2 — configure Core VPS: Docker Compose bootstrap (Caddy, Authentik, Vaultwarden, Infisical)
+    - name: core_bootstrap
+      type: configuration
+      scope: family_core
+      depends_on: infrastructure
+      on_failure: stop
+
+    # Stage 3 — configure Workload VPS: k3s install + Helm deployments (Immich, Gatus, apps)
+    # Uses Infisical ESO token only — no direct access to Hetzner or SSH keys
+    - name: workload_deploy
+      type: configuration
+      scope: family_workload
+      depends_on: core_bootstrap
+      on_failure: stop
