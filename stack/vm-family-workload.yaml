@@ -12,7 +12,7 @@ spec:
   properties:
     provider_type: hetzner
     resource_type: virtualmachine
-    unit_cost: 26.00   # EUR per month (CPX41)
+    unit_cost: 26.00 # EUR per month (CPX41)
   configuration:
     image: ubuntu-24.04
     server_type: cpx41
@@ -21,7 +21,7 @@ spec:
     install_path: /opt/haven
     volumes:
       - name: immich-library
-        path: /opt/haven/var/immich      # photo originals on VPS SSD
+        path: /opt/haven/var/immich # photo originals on VPS SSD
       - name: k3s-data
         path: /var/lib/rancher/k3s
       - name: logs

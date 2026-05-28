@@ -23,7 +23,7 @@ spec:
     - name: family_core
       provider: hetzner_family_eu_de
       provisioner: terraform
-      type: single_node          # Docker Compose — Caddy, Authentik, Vaultwarden, Infisical
+      type: single_node # Docker Compose — Caddy, Authentik, Vaultwarden, Infisical
       volumes:
         - name: config
           type: local
@@ -39,7 +39,7 @@ spec:
     - name: family_workload
       provider: hetzner_family_eu_de
       provisioner: terraform
-      type: k3s_single           # k3s single-node — Immich, Gatus, apps
+      type: k3s_single # k3s single-node — Immich, Gatus, apps
       volumes:
         - name: immich-library
           type: local

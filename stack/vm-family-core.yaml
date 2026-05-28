@@ -12,7 +12,7 @@ spec:
   properties:
     provider_type: hetzner
     resource_type: virtualmachine
-    unit_cost: 4.15   # EUR per month (CX22)
+    unit_cost: 4.15 # EUR per month (CX22)
   configuration:
     image: ubuntu-24.04
     server_type: cx22
@@ -27,4 +27,4 @@ spec:
       - name: logs
         path: /opt/haven/var/logs
       - name: certs
-        path: /opt/haven/var/certs    # Caddy ACME storage
+        path: /opt/haven/var/certs # Caddy ACME storage
