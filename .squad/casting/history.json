@@ -1,0 +1,22 @@
+{
+  "universe_usage_history": [
+    {
+      "universe": "Firefly",
+      "first_used": "2026-05-29",
+      "project": "haven"
+    }
+  ],
+  "assignment_cast_snapshots": {
+    "haven-2026-05-29": {
+      "assignment_id": "haven-2026-05-29",
+      "universe": "Firefly",
+      "created_at": "2026-05-29",
+      "agents": [
+        { "name": "mal",    "role": "Lead & Architect" },
+        { "name": "kaylee", "role": "Infrastructure Dev" },
+        { "name": "simon",  "role": "Platform Dev" },
+        { "name": "zoe",    "role": "QA & Migration" }
+      ]
+    }
+  }
+}

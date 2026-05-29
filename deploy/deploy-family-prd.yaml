@@ -3,7 +3,7 @@ kind: deployment
 meta:
   name: haven_deploy_family_prd
   annotations:
-    description: Production deployment for the family platform on Hetzner
+    description: Production deployment for the family platform on Hetzner — Hearth + Forge
   labels:
     version: "1.0.0"
   tags: [haven, hetzner, family, production, deployment]
@@ -36,17 +36,17 @@ spec:
       depends_on: null
       on_failure: stop
 
-    # Stage 2 — configure Core VPS: Docker Compose bootstrap (Caddy, Authentik, Vaultwarden, Infisical)
-    - name: core_bootstrap
+    # Stage 2 — configure Hearth VPS: Docker Compose bootstrap (Caddy, Authentik, Vaultwarden, Infisical)
+    - name: hearth_bootstrap
       type: configuration
-      scope: family_core
+      scope: hetzner_hearth
       depends_on: infrastructure
       on_failure: stop
 
-    # Stage 3 — configure Workload VPS: k3s install + Helm deployments (Immich, Gatus, apps)
+    # Stage 3 — configure Forge VPS: k3s install + Helm deployments (Immich, Gatus, apps)
     # Uses Infisical ESO token only — no direct access to Hetzner or SSH keys
-    - name: workload_deploy
+    - name: forge_deploy
       type: configuration
-      scope: family_workload
-      depends_on: core_bootstrap
+      scope: hetzner_forge
+      depends_on: hearth_bootstrap
       on_failure: stop

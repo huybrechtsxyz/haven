@@ -3,14 +3,14 @@ kind: workspace
 meta:
   name: haven_family_platform
   annotations:
-    description: Family platform workspace — Core VPS (Docker Compose) + Workload VPS (k3s) on Hetzner
+    description: Family platform workspace — Hearth VPS (Docker Compose) + Forge VPS (k3s) on Hetzner
   labels:
     version: "1.0.0"
   tags: [haven, hetzner, platform, family]
 spec:
   providers:
-    - name: hetzner_family_eu_de
-      file: "stack/dc-family-eu-de.yaml"
+    - name: hetzner_dc_eu_de
+      file: "stack/dc-hetzner-eu-de.yaml"
 
   provisioners:
     - name: haven_iac
@@ -20,8 +20,8 @@ spec:
         source_path: terraform
 
   topology:
-    - name: family_core
-      provider: hetzner_family_eu_de
+    - name: hetzner_hearth
+      provider: hetzner_dc_eu_de
       provisioner: terraform
       type: single_node # Docker Compose — Caddy, Authentik, Vaultwarden, Infisical
       volumes:
@@ -34,10 +34,10 @@ spec:
         - name: certs
           type: local
       components:
-        - resource: haven_vm_family_core
+        - resource: haven_vm_hetzner_hearth
 
-    - name: family_workload
-      provider: hetzner_family_eu_de
+    - name: hetzner_forge
+      provider: hetzner_dc_eu_de
       provisioner: terraform
       type: k3s_single # k3s single-node — Immich, Gatus, apps
       volumes:
@@ -48,26 +48,31 @@ spec:
         - name: logs
           type: local
       components:
-        - resource: haven_vm_family_workload
+        - resource: haven_vm_hetzner_forge
 
   resources:
-    - name: haven_vm_family_core
-      file: "stack/vm-family-core.yaml"
-      role: core
+    - name: haven_vm_hetzner_hearth
+      file: "stack/vm-hetzner-hearth.yaml"
+      role: hearth
       count: 1
       firewalls:
-        - haven_fw_family_core
+        - haven_fw_hetzner_hearth
 
-    - name: haven_vm_family_workload
-      file: "stack/vm-family-workload.yaml"
-      role: workload
+    - name: haven_vm_hetzner_forge
+      file: "stack/vm-hetzner-forge.yaml"
+      role: forge
       count: 1
       firewalls:
-        - haven_fw_family_workload
+        - haven_fw_hetzner_forge
+
+    - name: haven_sb_hetzner_hearth
+      file: "stack/sb-hetzner-hearth.yaml"
+      role: backup
+      count: 1
 
   firewalls:
-    - name: haven_fw_family_core
-      file: "stack/fw-family-core.yaml"
+    - name: haven_fw_hetzner_hearth
+      file: "stack/fw-hetzner-hearth.yaml"
 
-    - name: haven_fw_family_workload
-      file: "stack/fw-family-workload.yaml"
+    - name: haven_fw_hetzner_forge
+      file: "stack/fw-hetzner-forge.yaml"

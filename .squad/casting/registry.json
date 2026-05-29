@@ -1,0 +1,36 @@
+{
+  "agents": {
+    "mal": {
+      "persistent_name": "mal",
+      "universe": "Firefly",
+      "role": "Lead & Architect",
+      "created_at": "2026-05-29",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "kaylee": {
+      "persistent_name": "kaylee",
+      "universe": "Firefly",
+      "role": "Infrastructure Dev",
+      "created_at": "2026-05-29",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "simon": {
+      "persistent_name": "simon",
+      "universe": "Firefly",
+      "role": "Platform Dev",
+      "created_at": "2026-05-29",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "zoe": {
+      "persistent_name": "zoe",
+      "universe": "Firefly",
+      "role": "QA & Migration",
+      "created_at": "2026-05-29",
+      "legacy_named": false,
+      "status": "active"
+    }
+  }
+}

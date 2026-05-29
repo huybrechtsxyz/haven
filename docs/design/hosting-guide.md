@@ -3,7 +3,7 @@
 > Plan: [hosting-steps-v2.md](hosting-steps-v2.md) | Design: [hosting-design.md](hosting-design.md)
 > This file is a living workbook. Fill in results as you go. Use it to track progress and collect the data needed for each next step.
 
-**Status:** 🔴 Not started
+**Status:** � In Progress
 
 ---
 
@@ -21,15 +21,15 @@
 
 ## Wave 1 — Infrastructure & Developer Services
 
-**Wave 1 status:** 🔴 Not started  
-**Wave 1 started:** ___________  
+**Wave 1 status:** � In Progress  
+**Wave 1 started:** 2026-05-27  
 **Wave 1 completed:** ___________
 
 ---
 
 ### Phase 1.1 — Domain transfer to INWX
 
-**Status:** 🔴 Not started
+**Status:** � In Progress
 
 > **Decision: `meeus.family` will NOT be transferred.** Renewal cost jumps to ~€52/yr from year 2. Let it expire at Versio. Steps 3 and 7 are skipped.
 >
