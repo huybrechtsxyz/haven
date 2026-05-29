@@ -48,3 +48,6 @@ terraform.rc
 
 # Node (if tooling is ever added)
 node_modules/
+
+# Sphinx build output
+docs/_build/
