@@ -1,0 +1,451 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Haven Deployment Guide &mdash; haven</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Hosting Migration — Working Guide" href="hosting-guide.html" />
+    <link rel="prev" title="Hosting Design — Solution A: Infomaniak kSuite + Hetzner VPS" href="hosting-design.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            haven
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Design &amp; Migration</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Family Platform — Design &amp; Migration</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="hosting.html">Huybrechts.xyz Platform</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-solutions.html">Hosting Design Specifications</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-design.html">Hosting Design — Solution A: Infomaniak kSuite + Hetzner VPS</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Haven Deployment Guide</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#accounts-required">Accounts Required</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#step-1-generate-ssh-key-pair">Step 1 — Generate SSH Key Pair</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#step-2-configure-github-secrets">Step 2 — Configure GitHub Secrets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#step-3-configure-terraform-cloud">Step 3 — Configure Terraform Cloud</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#step-4-create-hetzner-project">Step 4 — Create Hetzner Project</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#step-5-order-storage-box-manual">Step 5 — Order Storage Box (Manual)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#step-6-local-deployment-first-time">Step 6 — Local Deployment (First Time)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#step-7-configure-dns">Step 7 — Configure DNS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#step-8-bootstrap-hearth-ansible">Step 8 — Bootstrap Hearth (Ansible)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#step-9-verify">Step 9 — Verify</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#step-10-enable-ci-cd">Step 10 — Enable CI/CD</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#architecture-reference">Architecture Reference</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#cost-summary">Cost Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#what-s-next-wave-2">What’s Next (Wave 2)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-guide.html">Hosting Migration — Working Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps.html">Migration Plan — Step by Step</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps-v2.html">Migration Plan v2 — Gradual Migration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps-v2.html#wave-1-infrastructure-developer-services">Wave 1 — Infrastructure &amp; Developer Services</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps-v2.html#wave-2-email-files-collaboration-google-ksuite">Wave 2 — Email, Files &amp; Collaboration (Google → kSuite)</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">haven</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Family Platform — Design &amp; Migration</a></li>
+      <li class="breadcrumb-item active">Haven Deployment Guide</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/design/hosting-deploy.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="haven-deployment-guide">
+<h1>Haven Deployment Guide<a class="headerlink" href="#haven-deployment-guide" title="Link to this heading"></a></h1>
+<blockquote>
+<div><p>How to deploy the Haven family platform from zero to running.</p>
+</div></blockquote>
+<section id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tool</p></th>
+<th class="head"><p>Version</p></th>
+<th class="head"><p>Install</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>strata</p></td>
+<td><p>v0.0.3+</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">tool</span> <span class="pre">install</span> <span class="pre">xyz-strata</span></code> or <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">xyz-strata</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>OpenTofu / Terraform</p></td>
+<td><p>&gt;= 1.6</p></td>
+<td><p><a class="reference external" href="https://opentofu.org/docs/intro/install/">opentofu.org</a> or <code class="docutils literal notranslate"><span class="pre">choco</span> <span class="pre">install</span> <span class="pre">opentofu</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Ansible</p></td>
+<td><p>&gt;= 2.14</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">ansible-core</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>GitHub CLI</p></td>
+<td><p>latest</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">winget</span> <span class="pre">install</span> <span class="pre">GitHub.cli</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="accounts-required">
+<h2>Accounts Required<a class="headerlink" href="#accounts-required" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Service</p></th>
+<th class="head"><p>What you need</p></th>
+<th class="head"><p>Where</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Hetzner Cloud</p></td>
+<td><p>Project + API token (read/write)</p></td>
+<td><p><a class="reference external" href="https://console.hetzner.cloud">console.hetzner.cloud</a></p></td>
+</tr>
+<tr class="row-odd"><td><p>Terraform Cloud</p></td>
+<td><p>Organization + workspace <code class="docutils literal notranslate"><span class="pre">haven-prd</span></code></p></td>
+<td><p><a class="reference external" href="https://app.terraform.io">app.terraform.io</a></p></td>
+</tr>
+<tr class="row-even"><td><p>GitHub</p></td>
+<td><p>Repository secrets configured</p></td>
+<td><p>Settings → Secrets → Actions</p></td>
+</tr>
+<tr class="row-odd"><td><p>INWX</p></td>
+<td><p>Domain registrar (huybrechts.xyz)</p></td>
+<td><p><a class="reference external" href="https://my.inwx.de">my.inwx.de</a></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="step-1-generate-ssh-key-pair">
+<h2>Step 1 — Generate SSH Key Pair<a class="headerlink" href="#step-1-generate-ssh-key-pair" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ssh-keygen<span class="w"> </span>-t<span class="w"> </span>ed25519<span class="w"> </span>-C<span class="w"> </span><span class="s2">&quot;haven-deploy&quot;</span><span class="w"> </span>-f<span class="w"> </span>~/.ssh/haven_ed25519<span class="w"> </span>-N<span class="w"> </span><span class="s2">&quot;&quot;</span>
+</pre></div>
+</div>
+<p>Keep both files — the public key goes to Hetzner, the private key to GitHub Secrets.</p>
+</section>
+<section id="step-2-configure-github-secrets">
+<h2>Step 2 — Configure GitHub Secrets<a class="headerlink" href="#step-2-configure-github-secrets" title="Link to this heading"></a></h2>
+<p>Go to your repo → Settings → Secrets and variables → Actions. Add:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Secret name</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">TF_TOKEN_APP_TERRAFORM_IO</span></code></p></td>
+<td><p>Terraform Cloud API token</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">HETZNER_API_TOKEN</span></code></p></td>
+<td><p>Hetzner Cloud project API token</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">HETZNER_PUBLIC_KEY</span></code></p></td>
+<td><p>Contents of <code class="docutils literal notranslate"><span class="pre">~/.ssh/haven_ed25519.pub</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">HETZNER_PRIVATE_KEY</span></code></p></td>
+<td><p>Contents of <code class="docutils literal notranslate"><span class="pre">~/.ssh/haven_ed25519</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">HETZNER_ROOT_PASSWORD</span></code></p></td>
+<td><p>Strong random password (initial provisioning only)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">INFISICAL_ESO_TOKEN</span></code></p></td>
+<td><p>Leave empty for Wave 1 (needed for Forge/k3s later)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="step-3-configure-terraform-cloud">
+<h2>Step 3 — Configure Terraform Cloud<a class="headerlink" href="#step-3-configure-terraform-cloud" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p>Create organization <code class="docutils literal notranslate"><span class="pre">huybrechts</span></code> (or use existing)</p></li>
+<li><p>Create workspace <code class="docutils literal notranslate"><span class="pre">haven-prd</span></code> (CLI-driven execution mode)</p></li>
+<li><p>Set execution mode to <strong>Local</strong> (CLI drives the runs, TF Cloud stores state only)</p></li>
+<li><p>Generate a user/team API token → use as <code class="docutils literal notranslate"><span class="pre">TF_TOKEN_APP_TERRAFORM_IO</span></code></p></li>
+</ol>
+</section>
+<section id="step-4-create-hetzner-project">
+<h2>Step 4 — Create Hetzner Project<a class="headerlink" href="#step-4-create-hetzner-project" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p>Log in to <a class="reference external" href="https://console.hetzner.cloud">Hetzner Cloud Console</a></p></li>
+<li><p>Create project: <code class="docutils literal notranslate"><span class="pre">huybrechts-family</span></code></p></li>
+<li><p>Go to Security → API Tokens → Generate token (read/write) → use as <code class="docutils literal notranslate"><span class="pre">HETZNER_API_TOKEN</span></code></p></li>
+</ol>
+</section>
+<section id="step-5-order-storage-box-manual">
+<h2>Step 5 — Order Storage Box (Manual)<a class="headerlink" href="#step-5-order-storage-box-manual" title="Link to this heading"></a></h2>
+<p>Storage Boxes are not provisioned via Terraform — order via Hetzner Robot:</p>
+<ol class="arabic simple">
+<li><p>Go to <a class="reference external" href="https://robot.hetzner.com">robot.hetzner.com</a> → Storage Box</p></li>
+<li><p>Order BX11 (1 TB, ~€3.81/mo), location: Nuremberg</p></li>
+<li><p>Create sub-accounts: <code class="docutils literal notranslate"><span class="pre">hearth_backup</span></code>, <code class="docutils literal notranslate"><span class="pre">forge_backup</span></code></p></li>
+<li><p>Enable SSH access on both sub-accounts</p></li>
+<li><p>Note the hostname (e.g., <code class="docutils literal notranslate"><span class="pre">uXXXXXX.your-storagebox.de</span></code>)</p></li>
+</ol>
+</section>
+<section id="step-6-local-deployment-first-time">
+<h2>Step 6 — Local Deployment (First Time)<a class="headerlink" href="#step-6-local-deployment-first-time" title="Link to this heading"></a></h2>
+<p>For the initial deployment, run locally to verify everything works:</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="nb">cd </span><span class="n">e</span><span class="p">:\</span><span class="n">SourcesXYZ</span><span class="p">\</span><span class="n">haven</span>
+
+<span class="c"># Authenticate Terraform Cloud</span>
+<span class="n">terraform</span> <span class="n">login</span>
+
+<span class="c"># Build strata artifacts</span>
+<span class="n">strata</span> <span class="n">build</span> <span class="n">run</span> <span class="o">-f</span> <span class="n">config</span><span class="p">/</span><span class="n">deploy-haven-prd</span><span class="p">.</span><span class="n">yaml</span>
+
+<span class="c"># Copy tfvars to terraform directory</span>
+<span class="nb">Copy-Item</span> <span class="n">build</span><span class="p">\</span><span class="n">haven_deploy_prd</span><span class="p">-</span><span class="n">1</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">0</span><span class="p">\</span><span class="n">terraform</span><span class="p">\*.</span><span class="n">auto</span><span class="p">.</span><span class="n">tfvars</span><span class="p">.</span><span class="n">json</span> <span class="n">terraform</span><span class="p">\</span>
+
+<span class="c"># Export secrets as environment variables</span>
+<span class="nv">$env:TF_VAR_HETZNER_API_TOKEN</span> <span class="p">=</span> <span class="s2">&quot;your-token&quot;</span>
+<span class="nv">$env:TF_VAR_HETZNER_PUBLIC_KEY</span> <span class="p">=</span> <span class="nb">Get-Content</span> <span class="p">~/.</span><span class="n">ssh</span><span class="p">/</span><span class="n">haven_ed25519</span><span class="p">.</span><span class="n">pub</span>
+<span class="nv">$env:TF_VAR_HETZNER_PRIVATE_KEY</span> <span class="p">=</span> <span class="nb">Get-Content</span> <span class="p">~/.</span><span class="n">ssh</span><span class="p">/</span><span class="n">haven_ed25519</span> <span class="n">-Raw</span>
+<span class="nv">$env:TF_VAR_HETZNER_ROOT_PASSWORD</span> <span class="p">=</span> <span class="s2">&quot;your-password&quot;</span>
+<span class="nv">$env:TF_VAR_INFISICAL_ESO_TOKEN</span> <span class="p">=</span> <span class="s2">&quot;&quot;</span>
+
+<span class="c"># Init + Plan</span>
+<span class="nb">cd </span><span class="n">terraform</span>
+<span class="n">terraform</span> <span class="n">init</span>
+<span class="n">terraform</span> <span class="n">plan</span>
+
+<span class="c"># Apply (creates Hearth VPS + network + firewall)</span>
+<span class="n">terraform</span> <span class="n">apply</span>
+</pre></div>
+</div>
+<p>After apply, note the outputs:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">hearth_public_ip</span></code> — point DNS here</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hearth_private_ip</span></code> — internal network address</p></li>
+</ul>
+</section>
+<section id="step-7-configure-dns">
+<h2>Step 7 — Configure DNS<a class="headerlink" href="#step-7-configure-dns" title="Link to this heading"></a></h2>
+<p>In INWX (or wherever DNS is managed), create A records:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Record</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">huybrechts.xyz</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&lt;hearth_public_ip&gt;</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">auth.huybrechts.xyz</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&lt;hearth_public_ip&gt;</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">vault.huybrechts.xyz</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&lt;hearth_public_ip&gt;</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">secrets.huybrechts.xyz</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&lt;hearth_public_ip&gt;</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">status.huybrechts.xyz</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&lt;hearth_public_ip&gt;</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">photos.huybrechts.xyz</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&lt;hearth_public_ip&gt;</span></code> (proxied to Forge later)</p></td>
+</tr>
+</tbody>
+</table>
+<p>TTL: 300 (5 min) initially, increase to 3600 after verification.</p>
+</section>
+<section id="step-8-bootstrap-hearth-ansible">
+<h2>Step 8 — Bootstrap Hearth (Ansible)<a class="headerlink" href="#step-8-bootstrap-hearth-ansible" title="Link to this heading"></a></h2>
+<blockquote>
+<div><p>Wave 1 — this step is still being built (deploy/ansible/ not yet created)</p>
+</div></blockquote>
+<p>The ansible playbook will:</p>
+<ol class="arabic simple">
+<li><p>SSH to Hearth using the deploy key</p></li>
+<li><p>Install Docker + Docker Compose</p></li>
+<li><p>Deploy the Caddy + Authentik + Vaultwarden + Infisical stack</p></li>
+<li><p>Configure Caddy with ACME (Let’s Encrypt) for all subdomains</p></li>
+<li><p>Set up BorgBackup to the Storage Box</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ansible-playbook<span class="w"> </span>-i<span class="w"> </span>&lt;hearth_public_ip&gt;,<span class="w"> </span>deploy/ansible/hearth-bootstrap.yml<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--private-key<span class="w"> </span>~/.ssh/haven_ed25519<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-u<span class="w"> </span>root
+</pre></div>
+</div>
+</section>
+<section id="step-9-verify">
+<h2>Step 9 — Verify<a class="headerlink" href="#step-9-verify" title="Link to this heading"></a></h2>
+<ul class="contains-task-list simple">
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"><code class="docutils literal notranslate"><span class="pre">https://huybrechts.xyz</span></code> — Caddy responds</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"><code class="docutils literal notranslate"><span class="pre">https://auth.huybrechts.xyz</span></code> — Authentik login page</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"><code class="docutils literal notranslate"><span class="pre">https://vault.huybrechts.xyz</span></code> — Vaultwarden web vault</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"><code class="docutils literal notranslate"><span class="pre">https://secrets.huybrechts.xyz</span></code> — Infisical dashboard</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">SSH via private network only (public SSH blocked by firewall)</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">BorgBackup cron runs successfully</p></li>
+</ul>
+</section>
+<section id="step-10-enable-ci-cd">
+<h2>Step 10 — Enable CI/CD<a class="headerlink" href="#step-10-enable-ci-cd" title="Link to this heading"></a></h2>
+<p>Once manual deployment works:</p>
+<ol class="arabic simple">
+<li><p>Push to <code class="docutils literal notranslate"><span class="pre">main</span></code> — the workflow triggers automatically</p></li>
+<li><p>Or run manually: Actions → Deploy Haven → Run workflow</p></li>
+<li><p>Use dry_run=true for plan-only runs</p></li>
+<li><p>Use stage filter to limit scope (e.g., <code class="docutils literal notranslate"><span class="pre">infrastructure</span></code> only)</p></li>
+</ol>
+</section>
+<section id="architecture-reference">
+<h2>Architecture Reference<a class="headerlink" href="#architecture-reference" title="Link to this heading"></a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>┌─────────────────────────────────────────────────────────┐
+│ GitHub Actions (.github/workflows/deploy.yml)           │
+│                                                         │
+│  strata build → *.auto.tfvars.json                      │
+│  strata deploy → terraform apply + ansible-playbook     │
+└─────────────────┬───────────────────────────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────────────────────────┐
+│ Hetzner Cloud (huybrechts-family project)               │
+│                                                         │
+│  ┌─────────────┐    10.0.1.0/24     ┌──────────────┐   │
+│  │   Hearth    │◄──────────────────►│    Forge     │   │
+│  │   CX22      │   private net      │    CPX41     │   │
+│  │             │                    │   (Wave 2)   │   │
+│  │ Caddy       │                    │ k3s          │   │
+│  │ Authentik   │                    │ Immich       │   │
+│  │ Vaultwarden │                    │ Gatus        │   │
+│  │ Infisical   │                    │              │   │
+│  └──────┬──────┘                    └──────────────┘   │
+│         │                                               │
+│         │ SSH/BorgBackup                                │
+│         ▼                                               │
+│  ┌─────────────┐                                        │
+│  │ Storage Box │ BX11, 1TB                              │
+│  │ (BorgBackup)│                                        │
+│  └─────────────┘                                        │
+└─────────────────────────────────────────────────────────┘
+</pre></div>
+</div>
+</section>
+<section id="cost-summary">
+<h2>Cost Summary<a class="headerlink" href="#cost-summary" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Resource</p></th>
+<th class="head"><p>Monthly</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Hearth CX22</p></td>
+<td><p>~€4.15</p></td>
+</tr>
+<tr class="row-odd"><td><p>Forge CPX41 (Wave 2)</p></td>
+<td><p>~€26.00</p></td>
+</tr>
+<tr class="row-even"><td><p>Storage Box BX11</p></td>
+<td><p>~€3.81</p></td>
+</tr>
+<tr class="row-odd"><td><p>Terraform Cloud</p></td>
+<td><p>Free (&lt; 500 resources)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Total Wave 1</strong></p></td>
+<td><p><strong>~€7.96</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Total Wave 1+2</strong></p></td>
+<td><p><strong>~€33.96</strong></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="what-s-next-wave-2">
+<h2>What’s Next (Wave 2)<a class="headerlink" href="#what-s-next-wave-2" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p>Uncomment Forge module in <code class="docutils literal notranslate"><span class="pre">terraform/main.tf</span></code></p></li>
+<li><p>Add Forge resource + firewall to strata config</p></li>
+<li><p>Create <code class="docutils literal notranslate"><span class="pre">deploy/ansible/forge-bootstrap.yml</span></code> (k3s install)</p></li>
+<li><p>Create <code class="docutils literal notranslate"><span class="pre">deploy/helm/</span></code> charts for Immich, Gatus</p></li>
+<li><p>Configure Infisical ESO on Forge</p></li>
+<li><p>Update DNS to proxy photos.huybrechts.xyz through Caddy → Forge</p></li>
+</ol>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="hosting-design.html" class="btn btn-neutral float-left" title="Hosting Design — Solution A: Infomaniak kSuite + Hetzner VPS" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="hosting-guide.html" class="btn btn-neutral float-right" title="Hosting Migration — Working Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Vincent Huybrechts.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

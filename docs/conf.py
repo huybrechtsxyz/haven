@@ -11,7 +11,7 @@ extensions = [
 ]
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", ".venv", "Thumbs.db", ".DS_Store"]
 
 # MyST settings — enable useful extensions
 myst_enable_extensions = [

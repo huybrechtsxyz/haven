@@ -1,0 +1,1186 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hosting Design Specifications &mdash; haven</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Hosting Design — Solution A: Infomaniak kSuite + Hetzner VPS" href="hosting-design.html" />
+    <link rel="prev" title="Huybrechts.xyz Platform" href="hosting.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            haven
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Design &amp; Migration</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Family Platform — Design &amp; Migration</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="hosting.html">Huybrechts.xyz Platform</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Hosting Design Specifications</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#common-assumptions">Common assumptions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#note-on-secret-managers">Note on secret managers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#note-on-app-configuration">Note on app configuration</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#note-on-identity-sso-oidc">Note on identity (SSO / OIDC)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#note-on-dns-registrar">Note on DNS registrar</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#solution-a-infomaniak-ksuite-hetzner-vps">Solution A: Infomaniak kSuite + Hetzner VPS</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#design-goal">Design goal</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#architecture">Architecture</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#components">Components</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#domain-email-setup">Domain &amp; email setup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#vps-sizing">VPS sizing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#security-privacy">Security &amp; privacy</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#monthly-cost-estimate-5-users">Monthly cost estimate (5 users)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pros">Pros</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cons">Cons</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#solution-b-proton-hetzner-vps">Solution B — Proton + Hetzner VPS</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id1">Design goal</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id2">Architecture</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id3">Components</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id4">Domain &amp; email setup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#important-constraint-no-standard-caldav-carddav">Important constraint: no standard CalDAV/CardDAV</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id5">VPS sizing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id6">Security &amp; privacy</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id7">Monthly cost estimate (5 users)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id8">Pros</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id9">Cons</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#solution-c-fully-self-hosted-managed-email-mailbox-org-hetzner-vps">Solution C — Fully self-hosted + managed email (Mailbox.org + Hetzner VPS)</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id10">Design goal</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id11">Architecture</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id12">Components</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id13">Domain &amp; email setup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id14">VPS sizing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id15">Security &amp; privacy</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id16">Monthly cost estimate (5 users)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id17">Pros</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id18">Cons</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#comparison">Comparison</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#secret-manager-decision-table">Secret manager decision table</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-design.html">Hosting Design — Solution A: Infomaniak kSuite + Hetzner VPS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-deploy.html">Haven Deployment Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-guide.html">Hosting Migration — Working Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps.html">Migration Plan — Step by Step</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps-v2.html">Migration Plan v2 — Gradual Migration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps-v2.html#wave-1-infrastructure-developer-services">Wave 1 — Infrastructure &amp; Developer Services</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps-v2.html#wave-2-email-files-collaboration-google-ksuite">Wave 2 — Email, Files &amp; Collaboration (Google → kSuite)</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">haven</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Family Platform — Design &amp; Migration</a></li>
+      <li class="breadcrumb-item active">Hosting Design Specifications</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/design/hosting-solutions.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="hosting-design-specifications">
+<h1>Hosting Design Specifications<a class="headerlink" href="#hosting-design-specifications" title="Link to this heading"></a></h1>
+<blockquote>
+<div><p>Source research: <a class="reference internal" href="hosting.html"><span class="std std-doc">hosting.md</span></a>
+Date: 2026-05-26
+Scope: 5 users, family platform, custom email domains with forwarding, EU/Swiss privacy, admin is tech-savvy.</p>
+</div></blockquote>
+<hr class="docutils" />
+<section id="common-assumptions">
+<h2>Common assumptions<a class="headerlink" href="#common-assumptions" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Email is always SaaS</strong> — no self-hosted MTA in any solution. Too much ops overhead (deliverability, IP reputation, spam filtering).</p></li>
+<li><p><strong>Compute</strong> — all self-hosted services run on a single Hetzner VPS (Germany, EU). Admin manages this VPS; family members never interact with it.</p></li>
+<li><p><strong>Domains</strong> — 1 primary email domain + up to 4 alias/forwarder domains. All MX records point to the SaaS mail provider. DNS managed at registrar level.</p></li>
+<li><p><strong>5 mailboxes</strong> — one per family member. Shared calendar and contacts via CalDAV/CardDAV.</p></li>
+<li><p><strong>Password manager</strong> — Vaultwarden on VPS (self-hosted Bitwarden-compatible server). Same Bitwarden app on Firefox and iPhone — zero UX change for family. Saves ~€15/mo vs Bitwarden Team cloud.</p></li>
+<li><p><strong>Secret manager &amp; app config</strong> — Infisical on VPS covers both: per-app/per-environment secrets (API keys, DB passwords) and key-value app configuration (feature flags handled by Flagsmith if needed). No separate Azure App Config / Consul equivalent required. For simple setups start with Bitwarden CLI against Vaultwarden; migrate to Infisical when app count or environment count grows.</p></li>
+<li><p><strong>Photos</strong> — Immich on VPS (Google Photos replacement: timeline, face recognition, shared albums, mobile auto-upload). Free on existing VPS.</p></li>
+<li><p><strong>Backups</strong> — Hetzner Storage Box (BX11 or larger) with BorgBackup/restic for encrypted daily off-server backups. VPS backup includes: Vaultwarden data, Infisical data, Immich library, any app databases, Nextcloud data (Solution 3 only).</p></li>
+</ul>
+<section id="note-on-secret-managers">
+<h3>Note on secret managers<a class="headerlink" href="#note-on-secret-managers" title="Link to this heading"></a></h3>
+<p>HashiCorp was acquired by IBM in April 2024 and changed Vault’s licence to BSL (Business Source License) in 2023 — no longer fully open source. Two alternatives:</p>
+<ul class="simple">
+<li><p><strong>Infisical</strong> ⭐ recommended — MIT-licensed, modern open-source secrets platform with a good UI, per-app/per-environment namespacing, CLI, SDK, Docker Compose deploy, k8s operator and audit log. Self-hostable on the same VPS. Not IBM-controlled.</p></li>
+<li><p><strong>OpenBao</strong> — community-maintained open-source fork of Vault under MPL 2.0, started after the BSL change. Drop-in Vault replacement if Vault-style dynamic credentials or deep ACL policies are needed. Not IBM-controlled.</p></li>
+<li><p><strong>Bitwarden CLI → Vaultwarden</strong> — zero extra service; store secrets as vault items and retrieve with <code class="docutils literal notranslate"><span class="pre">bw</span> <span class="pre">get</span></code> in scripts. Works today, good for &lt; ~20 secrets without per-env namespacing.</p></li>
+</ul>
+</section>
+<section id="note-on-app-configuration">
+<h3>Note on app configuration<a class="headerlink" href="#note-on-app-configuration" title="Link to this heading"></a></h3>
+<p><strong>What Azure App Configuration / Consul provide:</strong> centralized key-value config store, per-environment overrides (dev/staging/prod), feature flags, dynamic config reload without redeployment, and (in Consul’s case) service discovery and health checking.</p>
+<p><strong>Consul note:</strong> same IBM/BSL concern as Vault — Consul was also relicensed to BSL in 2023. Not recommended for new self-hosted setups.</p>
+<p><strong>Open-source alternatives:</strong></p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tool</p></th>
+<th class="head"><p>Licence</p></th>
+<th class="head"><p>Self-hosted</p></th>
+<th class="head"><p>Best for</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Infisical</strong> ⭐</p></td>
+<td><p>MIT</p></td>
+<td><p>✓ Docker</p></td>
+<td><p>Covers both secrets AND per-env config key-values in one tool; already recommended for secrets — use it for config too. Avoids adding another service.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Flagsmith</strong></p></td>
+<td><p>BSD-3</p></td>
+<td><p>✓ Docker</p></td>
+<td><p>Feature flags + remote config per environment; REST API + SDKs for many languages; good UI; no service discovery.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Unleash</strong></p></td>
+<td><p>Apache 2.0</p></td>
+<td><p>✓ Docker</p></td>
+<td><p>Feature toggles focused; well-established; REST API + SDKs; good for gradual rollouts.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>etcd</strong></p></td>
+<td><p>Apache 2.0</p></td>
+<td><p>✓</p></td>
+<td><p>Distributed key-value store; already embedded in k3s/k8s — expose it directly if running k3s. Lightweight but no built-in UI.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>OpenBao</strong> (KV engine)</p></td>
+<td><p>MPL 2.0</p></td>
+<td><p>✓</p></td>
+<td><p>Vault KV secrets engine also works as a config store; good if already running OpenBao for secrets.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Zitadel / Ory</strong></p></td>
+<td><p>Apache 2.0</p></td>
+<td><p>✓</p></td>
+<td><p>Identity + config — only relevant if also consolidating OIDC/SSO.</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Recommendation for this stack:</strong></p>
+<ul class="simple">
+<li><p><strong>Infisical handles both secrets and app config</strong> — store API keys, DB passwords, and any environment-specific key-value config (base URLs, feature toggles, timeouts) all in one place, separated by app and environment (dev / staging / prod). This replaces Azure App Configuration and removes the need for a separate config service.</p></li>
+<li><p><strong>Add Flagsmith</strong> only if you need a dedicated feature-flag UI with gradual rollout controls, A/B testing, or kill switches — Infisical can toggle boolean config values but has no rollout percentage logic.</p></li>
+<li><p><strong>Use etcd directly</strong> if running k3s/k8s — it is embedded and free; use Kubernetes ConfigMaps for non-sensitive config and Kubernetes Secrets (backed by Infisical via the k8s operator) for sensitive values.</p></li>
+<li><p>Avoid Consul (BSL) for new deployments; use <strong>Traefik</strong> or <strong>Caddy</strong> labels for service discovery instead.</p></li>
+</ul>
+</section>
+<section id="note-on-identity-sso-oidc">
+<h3>Note on identity (SSO / OIDC)<a class="headerlink" href="#note-on-identity-sso-oidc" title="Link to this heading"></a></h3>
+<p>Home-grown apps and self-hosted services need a central identity provider (IdP) for SSO, 2FA enforcement, OIDC/OAuth2 token issuance and user lifecycle management. Without an IdP every app has its own user database and login — fragile and hard to maintain.</p>
+<p><strong>Keycloak</strong> is the industry-standard open-source IdP (Red Hat / CNCF) — battle-tested, full OIDC/SAML/OAuth2, excellent LDAP/AD federation. However it is Java-based and heavy (~1-2 GB RAM, slow cold start). Still a valid choice if you need SAML or deep enterprise federation.</p>
+<p><strong>Lighter open-source alternatives:</strong></p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tool</p></th>
+<th class="head"><p>Licence</p></th>
+<th class="head"><p>Language</p></th>
+<th class="head"><p>RAM</p></th>
+<th class="head"><p>Best for</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Authentik</strong> ⭐</p></td>
+<td><p>MIT</p></td>
+<td><p>Python + Go</p></td>
+<td><p>~300-500 MB</p></td>
+<td><p>Recommended for self-hosted home/small-team setups; excellent UI, OIDC/SAML/LDAP, proxy provider (can protect any app without native OIDC support), Docker Compose deploy, active development.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Zitadel</strong></p></td>
+<td><p>Apache 2.0</p></td>
+<td><p>Go</p></td>
+<td><p>~100-200 MB</p></td>
+<td><p>Lightest footprint; API-first; OIDC/OAuth2/SAML; good for developer-centric setups and home-grown apps; no proxy provider.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Keycloak</strong></p></td>
+<td><p>Apache 2.0</p></td>
+<td><p>Java</p></td>
+<td><p>~1-2 GB</p></td>
+<td><p>Use if SAML federation, Kerberos, or deep enterprise AD integration is required; otherwise overkill.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Authelia</strong></p></td>
+<td><p>Apache 2.0</p></td>
+<td><p>Go</p></td>
+<td><p>~50 MB</p></td>
+<td><p>Lightweight 2FA + SSO gateway for reverse proxy (Caddy/Nginx/Traefik); not a full IdP — no OIDC server, no user management API.</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>What integrates with an IdP (OIDC):</strong> Nextcloud · Immich · Infisical · Vaultwarden (OIDC login) · Flagsmith · home-grown apps (any OAuth2/OIDC library).</p>
+<p><strong>Recommendation:</strong> use <strong>Authentik</strong> on the VPS. Single Docker Compose service, covers all apps via OIDC and the built-in proxy provider, enforces 2FA centrally, and does not require Java. Keycloak is a valid drop-in if SAML or deeper AD/LDAP federation is needed later.</p>
+<p><strong>VPS RAM impact:</strong> add ~400-500 MB for Authentik (or ~1-2 GB for Keycloak). Factor this into VPS sizing — all solutions should use <strong>CPX41 (16 GB)</strong> when running the full stack including identity.</p>
+</section>
+<section id="note-on-dns-registrar">
+<h3>Note on DNS registrar<a class="headerlink" href="#note-on-dns-registrar" title="Link to this heading"></a></h3>
+<p>DNS has two independent concerns: <strong>domain registration</strong> (whois, EPP transfer, billing) and <strong>authoritative DNS hosting</strong> (nameservers that answer queries). They can be the same provider or different ones.</p>
+<section id="recommended-registrar-inwx">
+<h4>Recommended registrar: INWX<a class="headerlink" href="#recommended-registrar-inwx" title="Link to this heading"></a></h4>
+<p><strong><a class="reference external" href="https://www.inwx.com">INWX</a></strong> ⭐ — German registrar (DE 🇩🇪, GDPR jurisdiction), ICANN-accredited, DNSSEC, clean REST + EPP API, very affordable (~€8-12/yr for <code class="docutils literal notranslate"><span class="pre">.com</span></code>/<code class="docutils literal notranslate"><span class="pre">.eu</span></code>/<code class="docutils literal notranslate"><span class="pre">.be</span></code>/<code class="docutils literal notranslate"><span class="pre">.nl</span></code>/<code class="docutils literal notranslate"><span class="pre">.xyz</span></code>), no per-transfer fees, supports all relevant TLDs. Good balance of EU privacy, API quality and cost.</p>
+<p><strong>Alternative — Infomaniak</strong> (CH 🇨🇭): if using Solution A, consolidating domains with Infomaniak keeps all DNS + mail + files under one vendor (convenience over minimal vendor count). Slightly higher domain prices but excellent UI.</p>
+</section>
+<section id="recommended-dns-hosting-inwx-built-in-ns-or-hetzner-dns">
+<h4>Recommended DNS hosting: INWX built-in NS or Hetzner DNS<a class="headerlink" href="#recommended-dns-hosting-inwx-built-in-ns-or-hetzner-dns" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Option</p></th>
+<th class="head"><p>Cost</p></th>
+<th class="head"><p>Pros</p></th>
+<th class="head"><p>Cons</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>INWX built-in DNS</strong> ⭐</p></td>
+<td><p>Free</p></td>
+<td><p>Single vendor for registration + DNS; API; DNSSEC; no extra login</p></td>
+<td><p>Only as reliable as INWX (single anycast zone)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Hetzner DNS</strong></p></td>
+<td><p>Free</p></td>
+<td><p>Already using Hetzner; REST API; pairs naturally with VPS A records; fast</p></td>
+<td><p>Separate login; no free secondary NS</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Cloudflare DNS (free)</strong></p></td>
+<td><p>Free</p></td>
+<td><p>Industry-best performance; huge anycast; excellent API + UI</p></td>
+<td><p>US company — not EU-native</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Recommendation:</strong> use <strong>INWX built-in DNS</strong> for simplicity. If you want separation of registrar vs DNS hosting, delegate to <strong>Hetzner DNS</strong> (free, API, already in your Hetzner account).</p>
+<p>Avoid ClouDNS for new setups — Bulgarian hosting, no EU-specific data residency commitment, and an extra recurring subscription once domains move to INWX.</p>
+</section>
+<section id="migrating-from-versio-registrar-transfer">
+<h4>Migrating from Versio (registrar transfer)<a class="headerlink" href="#migrating-from-versio-registrar-transfer" title="Link to this heading"></a></h4>
+<p>Versio is a Dutch registrar. Transfer each domain to INWX:</p>
+<ol class="arabic simple">
+<li><p><strong>Lower TTLs</strong> — in Versio DNS manager, set all record TTLs to <code class="docutils literal notranslate"><span class="pre">300</span></code> (5 min) at least 24 h before you start, so DNS changes propagate quickly.</p></li>
+<li><p><strong>Export DNS records</strong> — screenshot or copy every record (MX, A, CNAME, TXT for SPF/DKIM/DMARC) for each domain. BIND zone export if available.</p></li>
+<li><p><strong>Recreate records at INWX</strong> — create the domain in INWX DNS and add all records <em>before</em> the transfer completes. This prevents downtime when NS changes.</p></li>
+<li><p><strong>Unlock the domain at Versio</strong> — go to domain settings → remove transfer lock (“Domeindiensten vergrendelen” toggle off).</p></li>
+<li><p><strong>Request EPP/auth code</strong> — Versio calls this the “authcode”. Request it per domain; it arrives by email.</p></li>
+<li><p><strong>Initiate inbound transfer at INWX</strong> — enter domain + EPP code. INWX sends a confirmation email to the registrant contact.</p></li>
+<li><p><strong>Confirm the transfer</strong> — click the confirmation link in the email. Standard <code class="docutils literal notranslate"><span class="pre">.com</span></code>/<code class="docutils literal notranslate"><span class="pre">.eu</span></code>/<code class="docutils literal notranslate"><span class="pre">.xyz</span></code> transfers complete in 5–7 days. <code class="docutils literal notranslate"><span class="pre">.nl</span></code> domains use the SIDN push mechanism (same-day if both registrars use SIDN API).</p></li>
+<li><p><strong>After transfer</strong> — INWX becomes the registrar and activates its own nameservers. Verify all DNS records are live: <code class="docutils literal notranslate"><span class="pre">dig</span> <span class="pre">MX</span> <span class="pre">yourdomain.tld</span></code>, <code class="docutils literal notranslate"><span class="pre">dig</span> <span class="pre">TXT</span> <span class="pre">yourdomain.tld</span></code>.</p></li>
+<li><p><strong>Raise TTLs</strong> — set records back to <code class="docutils literal notranslate"><span class="pre">3600</span></code> or <code class="docutils literal notranslate"><span class="pre">86400</span></code> once DNS is stable.</p></li>
+</ol>
+<blockquote>
+<div><p>Versio may charge no transfer fee for most TLDs; INWX also charges no inbound transfer fee. Check per-TLD rules at each registrar before initiating.</p>
+</div></blockquote>
+</section>
+<section id="migrating-from-cloudns-dns-hosting-migration">
+<h4>Migrating from ClouDNS (DNS hosting migration)<a class="headerlink" href="#migrating-from-cloudns-dns-hosting-migration" title="Link to this heading"></a></h4>
+<p>ClouDNS is a DNS hosting provider (not a registrar) — the domain is still registered at Versio (or wherever). Migration means switching authoritative nameservers:</p>
+<ol class="arabic simple">
+<li><p><strong>Export zone from ClouDNS</strong> — ClouDNS dashboard → zone → Export → BIND format. This gives you a <code class="docutils literal notranslate"><span class="pre">.txt</span></code> zone file with all records.</p></li>
+<li><p><strong>Import / recreate records at INWX DNS</strong> (or Hetzner DNS):</p>
+<ul class="simple">
+<li><p>INWX: Domains → DNS → Import zone (BIND format supported).</p></li>
+<li><p>Hetzner DNS: DNS console → Import zone file (BIND format).</p></li>
+</ul>
+</li>
+<li><p><strong>Double-check every record</strong> — especially MX, SPF (<code class="docutils literal notranslate"><span class="pre">TXT</span> <span class="pre">v=spf1</span> <span class="pre">...</span></code>), DKIM (<code class="docutils literal notranslate"><span class="pre">TXT</span></code> on <code class="docutils literal notranslate"><span class="pre">selector._domainkey</span></code>), DMARC (<code class="docutils literal notranslate"><span class="pre">TXT</span></code> on <code class="docutils literal notranslate"><span class="pre">_dmarc</span></code>), and any A/CNAME for VPS services.</p></li>
+<li><p><strong>Note the new nameservers</strong> — INWX provides NS like <code class="docutils literal notranslate"><span class="pre">ns1.inwx.de</span> <span class="pre">/</span> <span class="pre">ns2.inwx.de</span></code>; Hetzner DNS provides <code class="docutils literal notranslate"><span class="pre">hydrogen.ns.hetzner.com</span> <span class="pre">/</span> <span class="pre">oxygen.ns.hetzner.com</span> <span class="pre">/</span> <span class="pre">helium.ns.hetzner.de</span></code>.</p></li>
+<li><p><strong>Lower TTLs at ClouDNS</strong> — set all records to TTL <code class="docutils literal notranslate"><span class="pre">300</span></code> and wait 24 h before the next step.</p></li>
+<li><p><strong>Change nameservers at Versio</strong> — Versio control panel → domain → nameservers → enter new NS from INWX or Hetzner. Save.</p></li>
+<li><p><strong>Wait for propagation</strong> — global propagation with TTL 300 takes ~30 min. Check with <code class="docutils literal notranslate"><span class="pre">dig</span> <span class="pre">NS</span> <span class="pre">yourdomain.tld</span> <span class="pre">&#64;8.8.8.8</span></code>.</p></li>
+<li><p><strong>Verify mail flow</strong> — send a test email to each mailbox, check DKIM signing, check <code class="docutils literal notranslate"><span class="pre">mail-tester.com</span></code> score.</p></li>
+<li><p><strong>Cancel ClouDNS</strong> — once all domains are propagated and email confirmed, cancel ClouDNS zones/subscription.</p></li>
+</ol>
+</section>
+</section>
+</section>
+<hr class="docutils" />
+<section id="solution-a-infomaniak-ksuite-hetzner-vps">
+<h2>Solution A: Infomaniak kSuite + Hetzner VPS<a class="headerlink" href="#solution-a-infomaniak-ksuite-hetzner-vps" title="Link to this heading"></a></h2>
+<section id="design-goal">
+<h3>Design goal<a class="headerlink" href="#design-goal" title="Link to this heading"></a></h3>
+<p>Simplest day-to-day experience for all 5 family members. A single Swiss vendor covers everything the family touches (mail, files, docs, calendar, contacts). The VPS is invisible to the family — it only runs Immich (photos), Vaultwarden (passwords), Infisical (app secrets) and home-grown apps.</p>
+</section>
+<section id="architecture">
+<h3>Architecture<a class="headerlink" href="#architecture" title="Link to this heading"></a></h3>
+<div class="highlight-ascii notranslate"><div class="highlight"><pre><span></span>Family members
+    │
+    ├── Infomaniak kSuite (Swiss managed)
+    │       ├── kMail        — email, webmail, iOS/Android app
+    │       ├── kDrive       — file sync, web access, iOS/Android app
+    │       ├── OnlyOffice   — Docs / Sheets / Slides (via kDrive)
+    │       ├── Calendar     — CalDAV, shared family calendars
+    │       └── Contacts     — CardDAV, mobile sync
+    │
+    └── Hetzner VPS (admin only)
+            ├── Immich           — photo management (mobile auto-upload)
+            ├── Vaultwarden      — password manager (Bitwarden-compatible)
+            ├── Infisical        — app secret management
+            ├── Home-grown apps  — Docker / k3s
+            └── Nginx / Caddy    — reverse proxy + TLS (Let&#39;s Encrypt)
+
+DNS (registrar)
+    ├── primary domain  → kSuite MX + SPF/DKIM/DMARC
+    └── alias domains   → kSuite MX (forwarding to primary mailboxes)
+</pre></div>
+</div>
+</section>
+<section id="components">
+<h3>Components<a class="headerlink" href="#components" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Layer</p></th>
+<th class="head"><p>Service</p></th>
+<th class="head"><p>Provider</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Email</p></td>
+<td><p>kSuite Mail</p></td>
+<td><p>Infomaniak (CH 🇨🇭)</p></td>
+<td><p>5 mailboxes, custom domains, alias domains, forwarding, webmail, CalDAV/CardDAV, ActiveSync. SPF/DKIM/DMARC managed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Calendar</p></td>
+<td><p>kSuite Calendar</p></td>
+<td><p>Infomaniak (CH 🇨🇭)</p></td>
+<td><p>Shared family calendars, delegation, CalDAV, iOS/Android sync.</p></td>
+</tr>
+<tr class="row-even"><td><p>Contacts</p></td>
+<td><p>kSuite Contacts</p></td>
+<td><p>Infomaniak (CH 🇨🇭)</p></td>
+<td><p>CardDAV, vCard import/export, mobile sync.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Files</p></td>
+<td><p>kDrive</p></td>
+<td><p>Infomaniak (CH 🇨🇭)</p></td>
+<td><p>3–6 TB shared storage, desktop + mobile apps, web access, versioning.</p></td>
+</tr>
+<tr class="row-even"><td><p>Docs / Office</p></td>
+<td><p>OnlyOffice (via kDrive)</p></td>
+<td><p>Infomaniak (CH 🇨🇭)</p></td>
+<td><p>Docs/Sheets/Slides in browser; no simultaneous editing required.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Photos</p></td>
+<td><p>Immich</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Google Photos replacement; timeline, face recognition, shared albums, mobile auto-upload app.</p></td>
+</tr>
+<tr class="row-even"><td><p>Passwords</p></td>
+<td><p>Vaultwarden</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Self-hosted Bitwarden server; family uses existing Bitwarden Firefox extension + iPhone app unchanged.</p></td>
+</tr>
+<tr class="row-odd"><td><p>App secrets &amp; config</p></td>
+<td><p>Infisical</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Per-app / per-env secrets <strong>and</strong> key-value app config; CLI + SDK for home-grown apps and CI/CD; replaces Azure App Config / Consul KV.</p></td>
+</tr>
+<tr class="row-even"><td><p>Identity (SSO)</p></td>
+<td><p><strong>Authentik</strong> (or Keycloak)</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>OIDC/OAuth2 SSO for Immich, Infisical, Vaultwarden and home-grown apps; 2FA enforcement; user lifecycle management.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute / apps</p></td>
+<td><p>Docker on Hetzner</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Home-grown apps, Immich, Vaultwarden, Infisical run as Docker Compose services.</p></td>
+</tr>
+<tr class="row-even"><td><p>Reverse proxy</p></td>
+<td><p>Caddy</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Automatic TLS (Let’s Encrypt), subdomain routing for all VPS services.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Backups</p></td>
+<td><p>BorgBackup → Hetzner Storage Box</p></td>
+<td><p>Hetzner (DE 🇩🇪)</p></td>
+<td><p>Encrypted daily backups of VPS data (Vaultwarden, Immich, Infisical, app DBs). kDrive has built-in 30-day versioning.</p></td>
+</tr>
+<tr class="row-even"><td><p>DNS</p></td>
+<td><p><strong>INWX</strong> (or Hetzner DNS)</p></td>
+<td><p>INWX (DE 🇩🇪) / Hetzner (DE 🇩🇪)</p></td>
+<td><p>MX, SPF, DKIM, DMARC, A/CNAME for VPS services per domain. INWX for registration + DNS; delegate to Hetzner DNS if preferred.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="domain-email-setup">
+<h3>Domain &amp; email setup<a class="headerlink" href="#domain-email-setup" title="Link to this heading"></a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>primary:   huybrechts.xyz   → kSuite MX → 5 mailboxes
+alias 1:   domain2.tld      → kSuite MX → alias → primary mailboxes
+alias 2:   domain3.tld      → kSuite MX → alias → primary mailboxes
+alias 3:   domain4.tld      → forward at DNS level or kSuite alias domain
+alias 4:   domain5.tld      → forward at DNS level or kSuite alias domain
+</pre></div>
+</div>
+<p>Each domain gets its own SPF, DKIM (key generated by kSuite), and DMARC record.</p>
+</section>
+<section id="vps-sizing">
+<h3>VPS sizing<a class="headerlink" href="#vps-sizing" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Spec</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Model</p></td>
+<td><p>Hetzner CPX31</p></td>
+</tr>
+<tr class="row-odd"><td><p>vCPU</p></td>
+<td><p>4</p></td>
+</tr>
+<tr class="row-even"><td><p>RAM</p></td>
+<td><p>8 GB</p></td>
+</tr>
+<tr class="row-odd"><td><p>SSD</p></td>
+<td><p>160 GB (OS + apps + Vaultwarden + Infisical + Immich thumbs)</p></td>
+</tr>
+<tr class="row-even"><td><p>Network</p></td>
+<td><p>20 TB/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Cost</p></td>
+<td><p>~€15/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Storage Box</p></td>
+<td><p>Hetzner BX11 (1 TB) for Immich originals + BorgBackup → ~€4/mo</p></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<div><p>Scale up to CPX41 (8 vCPU / 16 GB) or BX40 (5 TB) if home-grown apps demand more resources.</p>
+</div></blockquote>
+</section>
+<section id="security-privacy">
+<h3>Security &amp; privacy<a class="headerlink" href="#security-privacy" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>kSuite: Swiss nFADP + GDPR, DPA available, TLS in transit, encrypted at rest, DKIM/DMARC managed.</p></li>
+<li><p>VPS: UFW firewall (only ports 80/443/SSH), SSH key-only login, Fail2Ban, automatic security updates (unattended-upgrades).</p></li>
+<li><p>Caddy: automatic HTTPS, HSTS, modern TLS 1.2/1.3 only.</p></li>
+<li><p>Authentik: enforce 2FA (TOTP/WebAuthn) for all users; use as OIDC provider for Immich, Infisical, Vaultwarden and home-grown apps; daily encrypted backup of Authentik DB.</p></li>
+<li><p>Vaultwarden: HTTPS only, 2FA via Authentik OIDC, admin token protected, daily encrypted backup.</p></li>
+<li><p>Immich: OIDC login via Authentik; private, not internet-exposed without auth.</p></li>
+<li><p>Infisical: internal-only or Tailscale-gated; secrets never stored in env files or git.</p></li>
+</ul>
+</section>
+<section id="monthly-cost-estimate-5-users">
+<h3>Monthly cost estimate (5 users)<a class="headerlink" href="#monthly-cost-estimate-5-users" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Cost</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Infomaniak kSuite (5 users, kDrive 3 TB)</p></td>
+<td><p>~€25-35/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Infomaniak kDrive extra storage (to ~5 TB)</p></td>
+<td><p>~€5-10/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Hetzner CPX31 VPS</p></td>
+<td><p>€15/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Hetzner BX11 Storage Box (Immich + backups)</p></td>
+<td><p>~€4/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Domains (5, keep existing)</p></td>
+<td><p>~€5-8/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Vaultwarden</p></td>
+<td><p>€0 (on VPS)</p></td>
+</tr>
+<tr class="row-even"><td><p>Infisical</p></td>
+<td><p>€0 (on VPS, open source)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Immich</p></td>
+<td><p>€0 (on VPS, open source)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Total</strong></p></td>
+<td><p><strong>~€54-72/mo</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>vs current spend</strong></p></td>
+<td><p>~€58-81/mo — similar cost, 2 extra users, Swiss privacy, no MTA ops</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="pros">
+<h3>Pros<a class="headerlink" href="#pros" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Simplest experience for non-tech family: one login, one app ecosystem (kMail/kDrive), works on iOS/Android without configuration.</p></li>
+<li><p>Admin only manages 1 VPS for non-email services.</p></li>
+<li><p>Swiss privacy for all email/files/docs/calendar; German privacy for VPS workloads.</p></li>
+<li><p>No CalDAV/CardDAV configuration needed for family — kSuite handles it natively.</p></li>
+<li><p>Zero UX change for passwords (same Bitwarden app).</p></li>
+<li><p>kSuite has a DPA and complies with Swiss nFADP + GDPR.</p></li>
+</ul>
+</section>
+<section id="cons">
+<h3>Cons<a class="headerlink" href="#cons" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Infomaniak vendor dependency for core collaboration (mail, drive, calendar).</p></li>
+<li><p>kDrive is not as feature-rich as Nextcloud for power-user workflows.</p></li>
+<li><p>No built-in E2E encryption for email (PGP optional but not automatic).</p></li>
+<li><p>VPS still needs admin attention for updates, monitoring and backups.</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="solution-b-proton-hetzner-vps">
+<h2>Solution B — Proton + Hetzner VPS<a class="headerlink" href="#solution-b-proton-hetzner-vps" title="Link to this heading"></a></h2>
+<section id="id1">
+<h3>Design goal<a class="headerlink" href="#id1" title="Link to this heading"></a></h3>
+<p>Maximum privacy and encryption. Proton provides zero-access encrypted email, calendar and contacts. The VPS covers files, photos, passwords, secrets and home-grown apps. Best for users who prioritise E2E encryption above convenience.</p>
+</section>
+<section id="id2">
+<h3>Architecture<a class="headerlink" href="#id2" title="Link to this heading"></a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Family members
+    │
+    ├── Proton (Swiss managed, zero-access E2E)
+    │       ├── Proton Mail     — email, webmail, iOS/Android app (+ Bridge for IMAP clients)
+    │       ├── Proton Calendar — encrypted calendar, iOS/Android app
+    │       ├── Proton Contacts — encrypted contacts
+    │       └── Proton VPN      — included in Family plan
+    │
+    └── Hetzner VPS (admin only)
+            ├── Nextcloud        — file sync, web/mobile access, shared drives
+            ├── OnlyOffice Docs  — document editing (integrated with Nextcloud)
+            ├── Immich           — photo management
+            ├── Vaultwarden      — password manager
+            ├── Infisical        — app secret management
+            ├── Home-grown apps  — Docker / k3s
+            └── Caddy            — reverse proxy + TLS
+
+DNS (registrar)
+    ├── primary domain  → Proton MX + SPF/DKIM/DMARC
+    └── alias domains   → Proton MX or registrar-level forward
+</pre></div>
+</div>
+</section>
+<section id="id3">
+<h3>Components<a class="headerlink" href="#id3" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Layer</p></th>
+<th class="head"><p>Service</p></th>
+<th class="head"><p>Provider</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Email</p></td>
+<td><p>Proton Mail (Family plan)</p></td>
+<td><p>Proton (CH 🇨🇭)</p></td>
+<td><p>Zero-access E2E encrypted; 5 mailboxes + 1 spare; custom domains + alias domains; Proton Bridge for IMAP clients (Outlook, Thunderbird, Apple Mail). SPF/DKIM/DMARC managed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Calendar</p></td>
+<td><p>Proton Calendar</p></td>
+<td><p>Proton (CH 🇨🇭)</p></td>
+<td><p>E2E encrypted; iOS/Android app. <strong>Note: no CalDAV export</strong> — calendar is Proton-app-only.</p></td>
+</tr>
+<tr class="row-even"><td><p>Contacts</p></td>
+<td><p>Proton Contacts</p></td>
+<td><p>Proton (CH 🇨🇭)</p></td>
+<td><p>E2E encrypted; iOS/Android app. <strong>Note: no CardDAV</strong> — contacts are Proton-app-only.</p></td>
+</tr>
+<tr class="row-odd"><td><p>VPN</p></td>
+<td><p>Proton VPN (included)</p></td>
+<td><p>Proton (CH 🇨🇭)</p></td>
+<td><p>All 10 devices (Family plan); network privacy for all family members.</p></td>
+</tr>
+<tr class="row-even"><td><p>Files</p></td>
+<td><p>Nextcloud</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>5 TB+ via Hetzner Storage Box; web + desktop + iOS/Android app; shared folders; versioning.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Docs / Office</p></td>
+<td><p>OnlyOffice Docs (Docker)</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Integrated with Nextcloud; Docs/Sheets/Slides in browser.</p></td>
+</tr>
+<tr class="row-even"><td><p>Photos</p></td>
+<td><p>Immich</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Google Photos replacement; timeline, face recognition, shared albums, mobile auto-upload.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Passwords</p></td>
+<td><p>Vaultwarden</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Self-hosted Bitwarden server; family uses Bitwarden Firefox extension + iPhone app.</p></td>
+</tr>
+<tr class="row-even"><td><p>App secrets &amp; config</p></td>
+<td><p>Infisical</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Per-app / per-env secrets <strong>and</strong> key-value app config; CLI + SDK; replaces Azure App Config / Consul KV.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute / apps</p></td>
+<td><p>Docker on Hetzner</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Nextcloud, OnlyOffice, Immich, Vaultwarden, Infisical, home-grown apps.</p></td>
+</tr>
+<tr class="row-even"><td><p>Reverse proxy</p></td>
+<td><p>Caddy</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Automatic TLS, subdomain routing.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Backups</p></td>
+<td><p>BorgBackup → Hetzner Storage Box</p></td>
+<td><p>Hetzner (DE 🇩🇪)</p></td>
+<td><p>Encrypted daily backups of all VPS data (Nextcloud, Immich, Vaultwarden, Infisical, DBs).</p></td>
+</tr>
+<tr class="row-even"><td><p>DNS</p></td>
+<td><p><strong>INWX</strong> (or Hetzner DNS)</p></td>
+<td><p>INWX (DE 🇩🇪) / Hetzner (DE 🇩🇪)</p></td>
+<td><p>Per-domain MX, SPF, DKIM, DMARC. Proton generates DKIM keys per custom domain in its admin panel.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="id4">
+<h3>Domain &amp; email setup<a class="headerlink" href="#id4" title="Link to this heading"></a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>primary:   huybrechts.xyz   → Proton MX → 5 mailboxes
+alias 1:   domain2.tld      → Proton custom domain → alias addresses
+alias 2:   domain3.tld      → Proton custom domain → alias addresses
+alias 3:   domain4.tld      → registrar MX forward → primary Proton mailbox
+alias 4:   domain5.tld      → registrar MX forward → primary Proton mailbox
+</pre></div>
+</div>
+<blockquote>
+<div><p>Proton Family supports up to 3 custom domains on the Family plan. Additional domains may need forwarding at registrar level or an upgrade.</p>
+</div></blockquote>
+</section>
+<section id="important-constraint-no-standard-caldav-carddav">
+<h3>Important constraint: no standard CalDAV/CardDAV<a class="headerlink" href="#important-constraint-no-standard-caldav-carddav" title="Link to this heading"></a></h3>
+<p>Proton Calendar and Contacts do <strong>not</strong> expose CalDAV/CardDAV. This means:</p>
+<ul class="simple">
+<li><p>Family members must use the Proton Calendar app on iOS/Android (not Apple Calendar, Google Calendar, etc.).</p></li>
+<li><p>Contacts must be managed in the Proton Contacts app, not the system address book.</p></li>
+<li><p>This is a real UX trade-off for non-tech users — they need to adopt new apps.</p></li>
+</ul>
+<p>Mitigation: Nextcloud on the VPS can run its own Calendar + Contacts (CalDAV/CardDAV) alongside Proton for users who need standard protocol access. This adds complexity but gives the best of both worlds.</p>
+</section>
+<section id="id5">
+<h3>VPS sizing<a class="headerlink" href="#id5" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Spec</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Model</p></td>
+<td><p>Hetzner CPX41</p></td>
+</tr>
+<tr class="row-odd"><td><p>vCPU</p></td>
+<td><p>8</p></td>
+</tr>
+<tr class="row-even"><td><p>RAM</p></td>
+<td><p>16 GB</p></td>
+</tr>
+<tr class="row-odd"><td><p>SSD</p></td>
+<td><p>240 GB</p></td>
+</tr>
+<tr class="row-even"><td><p>Cost</p></td>
+<td><p>~€26/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Storage Box</p></td>
+<td><p>Hetzner BX40 (5 TB) for Nextcloud + Immich + backups → ~€16/mo</p></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<div><p>CPX41 recommended over CPX31 because Nextcloud + OnlyOffice + Immich + Vaultwarden + Infisical is a heavier stack than Solution A.</p>
+</div></blockquote>
+</section>
+<section id="id6">
+<h3>Security &amp; privacy<a class="headerlink" href="#id6" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Proton: Swiss law, zero-access encryption for email/calendar/contacts, no metadata logging, independent security audits, strong DPA.</p></li>
+<li><p>Proton VPN: included in Family plan, all 10 devices, no-logs policy, audited.</p></li>
+<li><p>Proton Bridge: enables standard IMAP/SMTP clients while maintaining E2E encryption locally.</p></li>
+<li><p>VPS: same hardening as Solution A (UFW, SSH keys, Fail2Ban, Caddy HTTPS, unattended-upgrades).</p></li>
+<li><p>Nextcloud: admin-managed, encrypted at rest via storage encryption app (optional), TLS in transit.</p></li>
+<li><p>Vaultwarden + Infisical: same as Solution A.</p></li>
+</ul>
+</section>
+<section id="id7">
+<h3>Monthly cost estimate (5 users)<a class="headerlink" href="#id7" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Cost</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Proton Family plan (6 users, 3 TB Proton Drive)</p></td>
+<td><p>~€30/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Hetzner CPX41 VPS</p></td>
+<td><p>~€26/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Hetzner BX40 Storage Box (5 TB)</p></td>
+<td><p>~€16/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Domains (5, keep existing)</p></td>
+<td><p>~€5-8/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Vaultwarden</p></td>
+<td><p>€0 (on VPS)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Infisical</p></td>
+<td><p>€0 (on VPS)</p></td>
+</tr>
+<tr class="row-even"><td><p>Immich</p></td>
+<td><p>€0 (on VPS)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Nextcloud + OnlyOffice</p></td>
+<td><p>€0 (on VPS, open source)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Total</strong></p></td>
+<td><p><strong>~€77-80/mo</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>vs current spend</strong></p></td>
+<td><p>~€58-81/mo — slight premium for E2E encryption + VPN</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="id8">
+<h3>Pros<a class="headerlink" href="#id8" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Strongest email/calendar/contacts privacy: zero-access E2E encryption, Swiss law, audited.</p></li>
+<li><p>VPN included for all 10 family devices — no separate VPN subscription needed.</p></li>
+<li><p>Full control over files, photos, passwords and secrets on EU VPS.</p></li>
+<li><p>Proton mobile apps are polished and easy for non-tech users (for mail/calendar/contacts).</p></li>
+<li><p>OpenBao or Infisical for secrets — no IBM/HashiCorp licence concern.</p></li>
+</ul>
+</section>
+<section id="id9">
+<h3>Cons<a class="headerlink" href="#id9" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>No standard CalDAV/CardDAV for calendar/contacts — family must use Proton apps only.</p></li>
+<li><p>Proton Drive is paid storage that overlaps with Nextcloud on VPS — paying for two storage layers.</p></li>
+<li><p>Proton Bridge needed for IMAP clients (Outlook, Thunderbird, Apple Mail) — extra step for non-tech users.</p></li>
+<li><p>Heavier VPS stack (Nextcloud + OnlyOffice + Immich + Vaultwarden + Infisical) requires more admin effort.</p></li>
+<li><p>Most expensive of the three options.</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="solution-c-fully-self-hosted-managed-email-mailbox-org-hetzner-vps">
+<h2>Solution C — Fully self-hosted + managed email (Mailbox.org + Hetzner VPS)<a class="headerlink" href="#solution-c-fully-self-hosted-managed-email-mailbox-org-hetzner-vps" title="Link to this heading"></a></h2>
+<section id="id10">
+<h3>Design goal<a class="headerlink" href="#id10" title="Link to this heading"></a></h3>
+<p>Maximum control and lowest recurring cost. Managed email only (Mailbox.org, German privacy). Everything else — files, docs, photos, calendar, contacts, passwords, secrets — runs on a single Hetzner VPS. Uses standard open protocols (IMAP/CalDAV/CardDAV) so any client app works without configuration.</p>
+</section>
+<section id="id11">
+<h3>Architecture<a class="headerlink" href="#id11" title="Link to this heading"></a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Family members
+    │
+    ├── Mailbox.org (managed email, DE)
+    │       └── 5 mailboxes, webmail, CalDAV/CardDAV, custom domains, PGP
+    │
+    └── Hetzner VPS (admin manages everything else)
+            ├── Nextcloud Hub    — files, calendar, contacts, tasks, notes, sharing
+            ├── OnlyOffice Docs  — document editing (integrated with Nextcloud)
+            ├── Immich           — photo management
+            ├── Vaultwarden      — password manager
+            ├── Infisical        — app secret management
+            ├── Home-grown apps  — Docker / k3s
+            └── Caddy            — reverse proxy + TLS
+
+DNS (registrar)
+    ├── primary domain  → Mailbox.org MX + SPF/DKIM/DMARC
+    └── alias domains   → Mailbox.org MX or alias domain config
+</pre></div>
+</div>
+</section>
+<section id="id12">
+<h3>Components<a class="headerlink" href="#id12" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Layer</p></th>
+<th class="head"><p>Service</p></th>
+<th class="head"><p>Provider</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Email</p></td>
+<td><p>Mailbox.org Business</p></td>
+<td><p>Mailbox.org (DE 🇩🇪)</p></td>
+<td><p>5× Business Lite (~€3/user/mo); custom domains; alias domains; PGP built-in; CalDAV/CardDAV; IMAP/SMTP; webmail. SPF/DKIM/DMARC managed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Calendar</p></td>
+<td><p>Nextcloud Calendar</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>CalDAV, shared family calendars, iOS/Android sync via any CalDAV-compatible app (Apple Calendar, Thunderbird, etc.).</p></td>
+</tr>
+<tr class="row-even"><td><p>Contacts</p></td>
+<td><p>Nextcloud Contacts</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>CardDAV, system address book sync on iOS/Android, vCard import/export.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Files</p></td>
+<td><p>Nextcloud Files</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>5 TB+ via Hetzner Storage Box; web + desktop + iOS/Android app; shared folders; Group Folders for family; versioning.</p></td>
+</tr>
+<tr class="row-even"><td><p>Docs / Office</p></td>
+<td><p>OnlyOffice Docs (Docker)</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Integrated with Nextcloud for in-browser editing of Docs/Sheets/Slides.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Photos</p></td>
+<td><p>Immich</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Google Photos replacement; timeline, face recognition, shared albums, mobile auto-upload.</p></td>
+</tr>
+<tr class="row-even"><td><p>Passwords</p></td>
+<td><p>Vaultwarden</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Self-hosted Bitwarden server; family uses Bitwarden Firefox extension + iPhone app.</p></td>
+</tr>
+<tr class="row-odd"><td><p>App secrets &amp; config</p></td>
+<td><p>Infisical</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Per-app / per-env secrets <strong>and</strong> key-value app config; CLI + SDK; replaces Azure App Config / Consul KV.</p></td>
+</tr>
+<tr class="row-even"><td><p>Compute / apps</p></td>
+<td><p>Docker on Hetzner</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Nextcloud, OnlyOffice, Immich, Vaultwarden, Infisical, home-grown apps as Docker Compose services.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Reverse proxy</p></td>
+<td><p>Caddy</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Automatic TLS, subdomain routing for all services.</p></td>
+</tr>
+<tr class="row-even"><td><p>Backups</p></td>
+<td><p>BorgBackup → Hetzner Storage Box</p></td>
+<td><p>Hetzner (DE 🇩🇪)</p></td>
+<td><p>Encrypted daily backups: Nextcloud data + DB, Immich, Vaultwarden, Infisical, app DBs. Mailbox.org mail backed up by provider.</p></td>
+</tr>
+<tr class="row-odd"><td><p>DNS</p></td>
+<td><p><strong>INWX</strong> (or Hetzner DNS)</p></td>
+<td><p>INWX (DE 🇩🇪) / Hetzner (DE 🇩🇪)</p></td>
+<td><p>Per-domain MX, SPF, DKIM (from Mailbox.org admin panel), DMARC.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="id13">
+<h3>Domain &amp; email setup<a class="headerlink" href="#id13" title="Link to this heading"></a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>primary:   huybrechts.xyz   → Mailbox.org MX → 5 mailboxes
+alias 1:   domain2.tld      → Mailbox.org alias domain → primary mailboxes
+alias 2:   domain3.tld      → Mailbox.org alias domain → primary mailboxes
+alias 3:   domain4.tld      → Mailbox.org alias domain or registrar forward
+alias 4:   domain5.tld      → Mailbox.org alias domain or registrar forward
+</pre></div>
+</div>
+<p>Mailbox.org Business supports multiple custom domains. DKIM keys generated per domain in the Mailbox.org admin panel.</p>
+</section>
+<section id="id14">
+<h3>VPS sizing<a class="headerlink" href="#id14" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Spec</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Model</p></td>
+<td><p>Hetzner CPX41</p></td>
+</tr>
+<tr class="row-odd"><td><p>vCPU</p></td>
+<td><p>8</p></td>
+</tr>
+<tr class="row-even"><td><p>RAM</p></td>
+<td><p>16 GB</p></td>
+</tr>
+<tr class="row-odd"><td><p>SSD</p></td>
+<td><p>240 GB</p></td>
+</tr>
+<tr class="row-even"><td><p>Cost</p></td>
+<td><p>~€26/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Storage Box</p></td>
+<td><p>Hetzner BX40 (5 TB) → ~€16/mo</p></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<div><p>CPX41 needed for Nextcloud + OnlyOffice + Immich + Vaultwarden + Infisical stack. Consider a separate CPX21 for home-grown apps if resource contention is a concern.</p>
+</div></blockquote>
+</section>
+<section id="id15">
+<h3>Security &amp; privacy<a class="headerlink" href="#id15" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Mailbox.org: German BDSG + GDPR, PGP built-in, TLS in transit, ISO 27001 certified, DPA available, no US jurisdiction.</p></li>
+<li><p>Nextcloud: admin-controlled, TLS via Caddy, optional server-side encryption (at-rest), LDAP/OIDC possible, 2FA via TOTP or WebAuthn.</p></li>
+<li><p>CalDAV/CardDAV: standard protocols over TLS — works with Apple Calendar, Thunderbird, Android natively.</p></li>
+<li><p>VPS: UFW, SSH keys only, Fail2Ban, Caddy HTTPS, unattended-upgrades.</p></li>
+<li><p>Vaultwarden: HTTPS, 2FA enforced, daily encrypted backup.</p></li>
+<li><p>Infisical: internal-only or Tailscale-gated.</p></li>
+</ul>
+</section>
+<section id="id16">
+<h3>Monthly cost estimate (5 users)<a class="headerlink" href="#id16" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Cost</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Mailbox.org Business (5 × €3/mo)</p></td>
+<td><p>€15/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Hetzner CPX41 VPS</p></td>
+<td><p>~€26/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Hetzner BX40 Storage Box (5 TB)</p></td>
+<td><p>~€16/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Domains (5, keep existing)</p></td>
+<td><p>~€5-8/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Nextcloud + OnlyOffice</p></td>
+<td><p>€0 (open source)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Vaultwarden</p></td>
+<td><p>€0 (on VPS)</p></td>
+</tr>
+<tr class="row-even"><td><p>Infisical</p></td>
+<td><p>€0 (on VPS)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Immich</p></td>
+<td><p>€0 (on VPS)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Total</strong></p></td>
+<td><p><strong>~€62-65/mo</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>vs current spend</strong></p></td>
+<td><p>~€58-81/mo — similar or lower, all EU, no MTA ops, full control</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="id17">
+<h3>Pros<a class="headerlink" href="#id17" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Lowest vendor lock-in: all services use open protocols (IMAP, CalDAV, CardDAV, WebDAV).</p></li>
+<li><p>Calendar and contacts work with any standard client (Apple Calendar, Thunderbird, Android) — no app to install.</p></li>
+<li><p>Cheapest recurring cost of the three solutions.</p></li>
+<li><p>Full data control: all non-email data on your own VPS in Germany.</p></li>
+<li><p>Mailbox.org is German, GDPR-compliant, DPA available, PGP integrated.</p></li>
+<li><p>Nextcloud is a mature, well-maintained platform with a large ecosystem.</p></li>
+</ul>
+</section>
+<section id="id18">
+<h3>Cons<a class="headerlink" href="#id18" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Heaviest admin burden: Nextcloud, OnlyOffice, Immich, Vaultwarden, Infisical all need updates, monitoring and backups.</p></li>
+<li><p>Nextcloud UX is functional but less polished than kSuite or Proton apps for non-tech users.</p></li>
+<li><p>Family members need to set up CalDAV/CardDAV sync manually (one-time, but requires guided setup).</p></li>
+<li><p>No built-in VPN (add Tailscale or WireGuard on VPS if needed, free).</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="comparison">
+<h2>Comparison<a class="headerlink" href="#comparison" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Criterion</p></th>
+<th class="head text-center"><p>Solution A (kSuite)</p></th>
+<th class="head text-center"><p>Solution B (Proton)</p></th>
+<th class="head text-center"><p>Solution C (Mailbox.org)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Email privacy</strong></p></td>
+<td class="text-center"><p>★★★★☆ Swiss, TLS+rest</p></td>
+<td class="text-center"><p>★★★★★ Swiss, zero-access E2E</p></td>
+<td class="text-center"><p>★★★★☆ German, TLS+PGP</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Calendar/Contacts</strong></p></td>
+<td class="text-center"><p>★★★★★ native CalDAV</p></td>
+<td class="text-center"><p>★★☆☆☆ Proton apps only</p></td>
+<td class="text-center"><p>★★★★★ standard CalDAV</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>File storage</strong></p></td>
+<td class="text-center"><p>★★★★☆ kDrive managed</p></td>
+<td class="text-center"><p>★★★★★ Nextcloud self-hosted</p></td>
+<td class="text-center"><p>★★★★★ Nextcloud self-hosted</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Family UX</strong></p></td>
+<td class="text-center"><p>★★★★★ one app, easy</p></td>
+<td class="text-center"><p>★★★★☆ Proton apps, polished</p></td>
+<td class="text-center"><p>★★★☆☆ needs CalDAV setup</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Admin overhead</strong></p></td>
+<td class="text-center"><p>★★★★☆ low (1 VPS)</p></td>
+<td class="text-center"><p>★★★☆☆ medium (heavy VPS stack)</p></td>
+<td class="text-center"><p>★★★☆☆ medium (heavy VPS stack)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Cost /mo</strong></p></td>
+<td class="text-center"><p>~€54-72</p></td>
+<td class="text-center"><p>~€77-80</p></td>
+<td class="text-center"><p>~€62-65</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>VPN included</strong></p></td>
+<td class="text-center"><p>✗</p></td>
+<td class="text-center"><p>✓ Proton VPN</p></td>
+<td class="text-center"><p>✗ (add Tailscale free)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Vendor lock-in</strong></p></td>
+<td class="text-center"><p>Medium (Infomaniak)</p></td>
+<td class="text-center"><p>Medium (Proton apps)</p></td>
+<td class="text-center"><p>Low (open protocols)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Password manager</strong></p></td>
+<td class="text-center"><p>Vaultwarden (VPS)</p></td>
+<td class="text-center"><p>Vaultwarden (VPS)</p></td>
+<td class="text-center"><p>Vaultwarden (VPS)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Secret manager</strong></p></td>
+<td class="text-center"><p>Infisical (VPS)</p></td>
+<td class="text-center"><p>Infisical (VPS)</p></td>
+<td class="text-center"><p>Infisical (VPS)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<hr class="docutils" />
+<section id="secret-manager-decision-table">
+<h2>Secret manager decision table<a class="headerlink" href="#secret-manager-decision-table" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tool</p></th>
+<th class="head"><p>Licence</p></th>
+<th class="head"><p>Self-hosted</p></th>
+<th class="head"><p>IBM/HashiCorp risk</p></th>
+<th class="head"><p>When to use</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Infisical</strong> ⭐</p></td>
+<td><p>MIT</p></td>
+<td><p>✓ Docker Compose</p></td>
+<td><p>None</p></td>
+<td><p>Recommended; modern UI, per-app/env secrets, CLI/SDK, audit log</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>OpenBao</strong></p></td>
+<td><p>MPL 2.0</p></td>
+<td><p>✓</p></td>
+<td><p>None (fork of Vault, not IBM-controlled)</p></td>
+<td><p>If you need Vault-style dynamic credentials or fine-grained ACL</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Bitwarden CLI → Vaultwarden</strong></p></td>
+<td><p>AGPL</p></td>
+<td><p>✓ (already on VPS)</p></td>
+<td><p>None</p></td>
+<td><p>Good starting point; free; use until app count demands namespacing</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>HashiCorp Vault</strong></p></td>
+<td><p>BSL</p></td>
+<td><p>✓</p></td>
+<td><p>⚠ IBM-owned, non-OSS licence</p></td>
+<td><p>Not recommended; use OpenBao instead if Vault features needed</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Azure Key Vault / AWS Secrets Manager</strong></p></td>
+<td><p>Commercial</p></td>
+<td><p>✗ (cloud only)</p></td>
+<td><p>Vendor cloud</p></td>
+<td><p>Not applicable for EU self-hosted privacy-first setup</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Recommendation:</strong> start with Bitwarden CLI → Vaultwarden (zero cost, already deployed). Add Infisical when you have multiple apps needing isolated secret environments. Keep OpenBao as a fallback if dynamic DB credentials or deep audit trails become a requirement.</p>
+<hr class="docutils" />
+<p><em>Next step: choose a solution and create a migration plan (Google Takeout export, IMAP sync, CalDAV/vCard import, domain DNS cutover checklist).</em></p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="hosting.html" class="btn btn-neutral float-left" title="Huybrechts.xyz Platform" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="hosting-design.html" class="btn btn-neutral float-right" title="Hosting Design — Solution A: Infomaniak kSuite + Hetzner VPS" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Vincent Huybrechts.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
