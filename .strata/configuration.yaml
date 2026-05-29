@@ -1,0 +1,159 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: configuration
+meta:
+  name: haven_config
+  annotations:
+    description: "Haven family platform configuration \u2014 Hetzner Hearth (Docker\
+      \ Compose) + Forge (k3s)"
+  labels:
+    version: 1.0.0
+  tags:
+  - haven
+  - hetzner
+  - configuration
+  - family
+spec:
+  logging:
+    file: config/cfg-logging.yaml
+  layering:
+  - name: environment
+    description: Deployment environment
+    pattern: ''
+    required: true
+  deployment:
+    additional_properties: false
+    properties:
+      environment:
+        pattern: ^(prd|dev)$
+        required: true
+        description: Deployment environment (prd, dev)
+  integrations:
+  - name: git
+    type: git
+    capabilities:
+    - repository
+    description: Git version control
+    required: true
+    validation:
+      command: git --version
+      min_version: 2.30.0
+    authentication:
+      method: cli
+  - name: terraform
+    type: terraform
+    capabilities:
+    - infrastructure
+    description: OpenTofu / Terraform infrastructure provisioner
+    required: true
+    validation:
+      command: tofu version
+      min_version: 1.6.0
+    authentication:
+      method: cli
+  - name: ansible
+    type: ansible
+    capabilities:
+    - infrastructure
+    description: Ansible configuration management
+    required: true
+    validation:
+      command: ansible --version
+      min_version: 2.14.0
+    authentication:
+      method: cli
+  - name: helm
+    type: helm
+    capabilities:
+    - container
+    description: Helm package manager for Kubernetes / k3s (Forge workloads)
+    required: true
+    validation:
+      command: helm version
+      min_version: 3.12.0
+    authentication:
+      method: cli
+  - name: infisical
+    type: infisical
+    capabilities:
+    - secrets
+    description: "Infisical secrets manager (target state \u2014 not available during\
+      \ Wave 1 bootstrap)"
+    required: false
+    validation:
+      command: infisical --version
+      min_version: 0.6.0
+    endpoints:
+      address: https://secrets.huybrechts.xyz
+    authentication:
+      method: api_key
+      api_key:
+        api_key: INFISICAL_TOKEN
+  providers:
+  - name: hetzner
+    description: "Hetzner Cloud \u2014 EU-DE (Nuremberg)"
+    additional_regions: false
+    regions:
+    - name: eu-de
+      description: "Europe \u2014 Nuremberg (nbg1), Falkenstein (fsn1)"
+    additional_resources: false
+    resources:
+    - name: virtualmachine
+      category: compute
+      subcategory: virtualmachine
+      description: Hetzner Cloud Server
+      additional_configurations: false
+      configuration:
+        server_type:
+          pattern: ^(cx[0-9]+|cpx[0-9]+|cax[0-9]+|ccx[0-9]+)$
+          required: true
+          description: Hetzner server type (e.g. cx22, cpx41, cax21)
+        image:
+          pattern: ^[a-z0-9][a-z0-9\-\.]{1,32}$
+          required: true
+          description: OS image slug (e.g. ubuntu-24.04, debian-12)
+        location:
+          pattern: ^(nbg1|fsn1|hel1|ash|hil)$
+          required: true
+          description: Datacenter location (nbg1=Nuremberg, fsn1=Falkenstein, hel1=Helsinki)
+    - name: storagebox
+      category: storage
+      subcategory: nas
+      description: "Hetzner Storage Box \u2014 BorgBackup target"
+      additional_configurations: false
+      configuration:
+        type:
+          pattern: ^bx(11|21|31|41|61)$
+          required: true
+          description: Storage Box plan (bx11=1TB, bx21=2TB, bx31=5TB, bx41=10TB,
+            bx61=20TB)
+        location:
+          pattern: ^(nbg1|fsn1|hel1)$
+          required: true
+          description: "Datacenter location \u2014 must match VPS region for private\
+            \ network access"
+  additional_topologies: false
+  topologies:
+  - type: single_node
+    description: "Single-node Docker Compose host (Hearth \u2014 Caddy, Authentik,\
+      \ Vaultwarden, Infisical)"
+    additional_components: false
+    components:
+    - role: node
+      description: Docker Compose host node
+      uses_module: false
+      is_control: true
+      required: true
+      min_count: 1
+      max_count: 1
+  - type: k3s_single
+    description: "Single-node k3s cluster (Forge \u2014 Immich, Gatus, home-grown\
+      \ apps)"
+    additional_components: false
+    components:
+    - role: server
+      description: k3s server node (combined control-plane + worker)
+      uses_module: false
+      is_control: true
+      required: true
+      min_count: 1
+      max_count: 1

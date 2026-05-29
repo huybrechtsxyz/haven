@@ -1,16 +1,16 @@
 apiVersion: strata.huybrechts.xyz/v1
 kind: deployment
 meta:
-  name: haven_deploy_family_prd
+  name: haven_deploy_prd
   annotations:
-    description: Production deployment for the family platform on Hetzner — Hearth + Forge
+    description: Production deployment for the family platform on Hetzner — Hearth (Docker Compose)
   labels:
     version: "1.0.0"
   tags: [haven, hetzner, family, production, deployment]
 spec:
   configurations:
     - name: config
-      file: config/config.yaml
+      file: config/cfg-haven.yaml
 
   lifecycle: null
 
@@ -21,12 +21,12 @@ spec:
     environment: prd
 
   workspace:
-    name: haven_family_platform
+    name: haven_platform
     description: Haven Family Platform Workspace
-    file: "stack/ws-family-platform.yaml"
+    file: "config/ws-haven.yaml"
 
   environments:
-    - "envs/env-family-prd.yaml"
+    - "config/env-haven-prd.yaml"
 
   stages:
     # Stage 1 — provision both VPS nodes and storage box via Terraform
@@ -40,13 +40,8 @@ spec:
     - name: hearth_bootstrap
       type: configuration
       scope: hetzner_hearth
-      depends_on: infrastructure
+      depends_on: [infrastructure]
       on_failure: stop
 
-    # Stage 3 — configure Forge VPS: k3s install + Helm deployments (Immich, Gatus, apps)
-    # Uses Infisical ESO token only — no direct access to Hetzner or SSH keys
-    - name: forge_deploy
-      type: configuration
-      scope: hetzner_forge
-      depends_on: hearth_bootstrap
-      on_failure: stop
+    # Stage 3 — Forge deploy (pending: Wave 2)
+    # - name: forge_deploy

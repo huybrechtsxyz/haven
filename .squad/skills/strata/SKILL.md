@@ -36,6 +36,29 @@ The file used `strata.huybrechts.xyz/v1` which is the value shown in all existin
 
 ---
 
+### 2026-05-29 — Integration capability enum is undocumented (Kaylee)
+
+**What happened:** `strata validate` on `config/haven-config.yaml` failed with:
+```
+spec -> integrations -> 2 -> capabilities: Value error, Invalid capability names: {'configuration'}
+spec -> integrations -> 3 -> capabilities: Value error, Invalid capability names: {'deployment'}
+```
+
+**Valid capability names (confirmed):** `api`, `container`, `features`, `infrastructure`, `keyvalue`, `repository`, `secrets`, `variables`
+
+**Mappings to use:**
+- Ansible → `infrastructure` (not `configuration`)
+- Helm → `container` (not `deployment`)
+- Terraform/OpenTofu → `infrastructure`
+- Git → `repository`
+- Infisical/Bitwarden → `secrets`
+
+**Resolution from strata team (2026-05-29):** `infrastructure` and `container` are deliberate umbrella terms — `configuration` and `deployment` will NOT be added to the enum as they would be ambiguous aliases. Fix is documentation only: protocol docstrings, registry examples, field description, and the docs table are being updated to make the umbrella-term design explicit.
+
+**Status:** ✅ Closed — by design. Our mappings above are correct and final.
+
+---
+
 ## Patterns That Work
 
 *(Append here when a pattern is confirmed reliable across multiple uses)*

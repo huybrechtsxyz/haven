@@ -5,6 +5,24 @@
     "name": "haven"
   },
   "spec": {
-    "solution_id": "2d8f0d79-34f6-42ef-b236-3ecb40340c6d"
+    "solution_id": "7de99a3b-3dab-43da-9162-c621cdaf383c",
+    "profiles": [
+      {
+        "name": "prd",
+        "active": true,
+        "created": "2026-05-21T11:12:55.202631+00:00",
+        "configfile_paths": [
+          {
+            "name": "config",
+            "path": ".\\config\\cfg-haven.yaml",
+            "type": "configfile",
+            "created": "2026-05-21T13:08:37.486604+00:00"
+          }
+        ],
+        "envfile_paths": [],
+        "datafile_paths": [],
+        "secretfile_paths": []
+      }
+    ]
   }
 }
