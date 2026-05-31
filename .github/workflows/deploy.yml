@@ -39,12 +39,20 @@ permissions:
 
 env:
   DEPLOYMENT_FILE: config/deploy-haven-prd.yaml
+  # Terraform Cloud auth
   TF_TOKEN_app_terraform_io: ${{ secrets.TERRAFORM_API_TOKEN }}
+  # Terraform variables (used by terraform plan/apply)
   TF_VAR_HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
   TF_VAR_HETZNER_PUBLIC_KEY: ${{ secrets.HETZNER_PUBLIC_KEY }}
   TF_VAR_HETZNER_PRIVATE_KEY: ${{ secrets.HETZNER_PRIVATE_KEY }}
   TF_VAR_HETZNER_ROOT_PASSWORD: ${{ secrets.HETZNER_ROOT_PASSWORD }}
   TF_VAR_INFISICAL_ESO_TOKEN: ${{ secrets.INFISICAL_ESO_TOKEN }}
+  # Strata secret resolution (store:environment looks for key name directly)
+  HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+  HETZNER_PUBLIC_KEY: ${{ secrets.HETZNER_PUBLIC_KEY }}
+  HETZNER_PRIVATE_KEY: ${{ secrets.HETZNER_PRIVATE_KEY }}
+  HETZNER_ROOT_PASSWORD: ${{ secrets.HETZNER_ROOT_PASSWORD }}
+  INFISICAL_ESO_TOKEN: ${{ secrets.INFISICAL_ESO_TOKEN }}
 
 jobs:
   deploy:
