@@ -47,3 +47,4 @@ dist/
 
 # Node (if tooling is ever added)
 node_modules/
+.strata/cli.yaml
