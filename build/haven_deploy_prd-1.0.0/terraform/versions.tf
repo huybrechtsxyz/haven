@@ -10,9 +10,9 @@ terraform {
   required_version = ">= 1.6" # OpenTofu 1.6+
 
   cloud {
-    organization = "huybrechts"
+    organization = "huybrechts-xyz"
     workspaces {
-      name = "haven-prd"
+      name = "haven_deploy_prd"
     }
   }
 

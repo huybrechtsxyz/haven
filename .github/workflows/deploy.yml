@@ -80,6 +80,12 @@ jobs:
         run: pip install ansible-core
 
       # ------------------------------------------------------------------
+      # Prepare — ensure strata log directory exists
+      # ------------------------------------------------------------------
+      - name: Create strata logs directory
+        run: mkdir -p .strata/logs
+
+      # ------------------------------------------------------------------
       # Validate
       # ------------------------------------------------------------------
       - name: Validate deployment file
