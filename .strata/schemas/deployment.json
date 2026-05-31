@@ -448,6 +448,18 @@
           ],
           "default": null,
           "description": "Per-stage approval override: list of approver keys from spec.approvals.approvers. Absent means no stage-level restriction \u2014 spec-level approvers apply as-is."
+        },
+        "timeouts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeploymentStageTimeoutsModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Per-operation subprocess timeouts. Overrides TerraformIntegration defaults (init=300s, validate=60s, plan=600s, apply=1800s, destroy=1800s)."
         }
       },
       "required": [
@@ -455,6 +467,78 @@
         "type"
       ],
       "title": "DeploymentStageModel",
+      "type": "object"
+    },
+    "DeploymentStageTimeoutsModel": {
+      "description": "Per-step subprocess timeouts for a deployment stage (all deployer types).\n\nField names match deployer step names so the same schema works for\nTerraform, Ansible, and script-based stages.  All fields are optional;\nomitting a field keeps the deployer's built-in default.\n\nExamples (YAML)::\n\n    stages:\n      - name: infrastructure\n        type: infrastructure\n        timeouts:\n          setup: 120   # fail fast if backend is unreachable\n          plan: 300\n          apply: 1200  # 20 min \u2014 tighter than the 30 min default",
+      "properties": {
+        "setup": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Timeout in seconds for the setup step (tf init / galaxy install / deploy_setup). Default varies by deployer.",
+          "title": "Setup"
+        },
+        "check": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Timeout in seconds for the check step (tf validate / syntax-check / deploy_check). Default varies by deployer.",
+          "title": "Check"
+        },
+        "plan": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Timeout in seconds for the plan step. Default varies by deployer.",
+          "title": "Plan"
+        },
+        "apply": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Timeout in seconds for the apply step. Default varies by deployer.",
+          "title": "Apply"
+        },
+        "destroy": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Timeout in seconds for the destroy step. Default varies by deployer.",
+          "title": "Destroy"
+        }
+      },
+      "title": "DeploymentStageTimeoutsModel",
       "type": "object"
     },
     "DeploymentWorkspaceModel": {
