@@ -1,0 +1,69 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: workspace
+meta:
+  name: haven_kamatera_platform
+  annotations:
+    description: Haven platform workspace on Kamatera — Docker Swarm cluster
+  labels:
+    version: "1.0.0"
+  tags: [haven, kamatera, platform]
+spec:
+  providers:
+    - name: kamatera_eu_fr
+      file: "stack/dc-kamatera-eu-fr.yaml"
+
+  provisioners:
+    - name: haven_iac
+      provisioner: terraform
+      source:
+        repository: haven
+        source_path: terraform
+
+  topology:
+    - name: haven_swarm
+      provider: kamatera_eu_fr
+      provisioner: terraform
+      type: docker_swarm
+      volumes:
+        - name: config
+          type: replicated
+        - name: docs
+          type: replicated
+        - name: data
+          type: local
+        - name: logs
+          type: local
+        - name: serve
+          type: distributed
+      components:
+        - resource: haven_vm_kamatera_manager
+        - resource: haven_vm_kamatera_infra
+        - resource: haven_vm_kamatera_worker
+
+  resources:
+    - name: haven_vm_kamatera_manager
+      file: "stack/vm-kamatera-manager.yaml"
+      role: manager
+      count: 1
+      firewalls:
+        - haven_fw_vm
+    - name: haven_vm_kamatera_infra
+      file: "stack/vm-kamatera-infra.yaml"
+      role: worker
+      count: 1
+      firewalls:
+        - haven_fw_vm
+    - name: haven_vm_kamatera_worker
+      file: "stack/vm-kamatera-worker.yaml"
+      role: worker
+      count: 2
+      firewalls:
+        - haven_fw_vm
+
+  # namespaces:
+  #   - name: haven_ns_base
+  #     file: "stack/ns-base.yaml"
+
+  firewalls:
+    - name: haven_fw_vm
+      file: "stack/fw-vm.yaml"

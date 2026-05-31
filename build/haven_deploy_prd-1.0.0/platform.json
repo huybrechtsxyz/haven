@@ -1,0 +1,425 @@
+{
+  "apiVersion": "strata.huybrechts.xyz/v1",
+  "kind": "platform_model",
+  "meta": {
+    "name": "haven_deploy_prd",
+    "annotations": {
+      "description": "Production deployment for the family platform on Hetzner — Hearth (Docker Compose)"
+    },
+    "labels": {
+      "version": "1.0.0"
+    },
+    "tags": [
+      "haven",
+      "hetzner",
+      "family",
+      "production",
+      "deployment"
+    ]
+  },
+  "spec": {
+    "deployment": {
+      "environment": "prd"
+    },
+    "artifact_path": "prd",
+    "stages": [
+      {
+        "name": "infrastructure",
+        "type": "infrastructure",
+        "scope": "all",
+        "on_failure": "stop"
+      },
+      {
+        "name": "hearth_bootstrap",
+        "type": "configuration",
+        "scope": "hetzner_hearth",
+        "depends_on": [
+          "infrastructure"
+        ],
+        "on_failure": "stop"
+      }
+    ],
+    "properties": {
+      "environment": "prd"
+    },
+    "workspace": {
+      "name": "haven_platform",
+      "annotations": {
+        "description": "Family platform workspace — Hearth VPS (Docker Compose) + Forge VPS (k3s) on Hetzner"
+      },
+      "labels": {
+        "version": "1.0.0"
+      },
+      "tags": [
+        "haven",
+        "hetzner",
+        "platform",
+        "family"
+      ]
+    },
+    "providers": [
+      {
+        "name": "hetzner_dc_eu_de",
+        "description": "Hetzner Cloud — Europe Nuremberg (EU-DE) for family platform",
+        "annotations": {
+          "description": "Hetzner Cloud — Europe Nuremberg (EU-DE) for family platform"
+        },
+        "labels": {
+          "version": "1.0.0"
+        },
+        "tags": [
+          "haven",
+          "hetzner",
+          "provider",
+          "family"
+        ],
+        "properties": {
+          "type": "hetzner",
+          "region": "eu-de"
+        }
+      }
+    ],
+    "provisioners": [
+      {
+        "name": "haven_iac",
+        "provisioner": "terraform",
+        "source": {
+          "repository": "haven",
+          "source_path": "terraform"
+        }
+      }
+    ],
+    "topologies": [
+      {
+        "name": "hetzner_hearth",
+        "provider": "hetzner_dc_eu_de",
+        "provisioner": "terraform",
+        "type": "single_node",
+        "components": [
+          {
+            "resource": "haven_vm_hetzner_hearth",
+            "role": "hearth",
+            "count": 1
+          }
+        ],
+        "volumes": [
+          {
+            "name": "config",
+            "type": "local"
+          },
+          {
+            "name": "data",
+            "type": "local"
+          },
+          {
+            "name": "logs",
+            "type": "local"
+          },
+          {
+            "name": "certs",
+            "type": "local"
+          }
+        ]
+      }
+    ],
+    "resources": [
+      {
+        "name": "haven_vm_hetzner_hearth",
+        "annotations": {
+          "description": "Hetzner CX22 — Hearth VPS (Caddy, Authentik, Vaultwarden, Infisical)"
+        },
+        "labels": {
+          "version": "1.0.0"
+        },
+        "tags": [
+          "haven",
+          "hetzner",
+          "vm",
+          "hearth",
+          "family"
+        ],
+        "properties": {
+          "provider_type": "hetzner",
+          "resource_type": "virtualmachine",
+          "unit_cost": 4.15,
+          "category": "compute",
+          "subcategory": "virtualmachine"
+        },
+        "storage": {
+          "install_path": "/opt/haven",
+          "volumes": [
+            {
+              "name": "config",
+              "path": "/opt/haven/etc"
+            },
+            {
+              "name": "data",
+              "path": "/opt/haven/var/data"
+            },
+            {
+              "name": "logs",
+              "path": "/opt/haven/var/logs"
+            },
+            {
+              "name": "certs",
+              "path": "/opt/haven/var/certs"
+            }
+          ]
+        },
+        "configuration": {
+          "image": "ubuntu-24.04",
+          "server_type": "cx22",
+          "location": "nbg1"
+        },
+        "firewall": "haven_vm_hetzner_hearth_merged_fw",
+        "role": "hearth",
+        "count": 1
+      },
+      {
+        "name": "haven_sb_hetzner_hearth",
+        "annotations": {
+          "description": "Hetzner BX11 Storage Box — encrypted BorgBackup target for Hearth and Forge VPS"
+        },
+        "labels": {
+          "version": "1.0.0"
+        },
+        "tags": [
+          "haven",
+          "hetzner",
+          "storagebox",
+          "hearth",
+          "family"
+        ],
+        "properties": {
+          "provider_type": "hetzner",
+          "resource_type": "storagebox",
+          "unit_cost": 3.81,
+          "category": "storage",
+          "subcategory": "nas"
+        },
+        "configuration": {
+          "type": "bx11",
+          "location": "nbg1"
+        },
+        "role": "backup",
+        "count": 1
+      }
+    ],
+    "features": [],
+    "variables": [
+      {
+        "key": "WORKSPACE",
+        "store": "constant",
+        "value": "haven"
+      },
+      {
+        "key": "DATACENTER",
+        "store": "constant",
+        "value": "hetzner-eu-de"
+      },
+      {
+        "key": "ENVIRONMENT",
+        "store": "constant",
+        "value": "prd"
+      },
+      {
+        "key": "DOMAIN_PRIMARY",
+        "store": "constant",
+        "value": "huybrechts.xyz"
+      },
+      {
+        "key": "DOMAIN_ALIAS_DEV",
+        "store": "constant",
+        "value": "huybrechts.dev"
+      },
+      {
+        "key": "DOMAIN_ALIAS_ALDERWYN",
+        "store": "constant",
+        "value": "alderwyn.xyz"
+      },
+      {
+        "key": "DOMAIN_ALIAS_JANA",
+        "store": "constant",
+        "value": "madebyjana.be"
+      },
+      {
+        "key": "SUBDOMAIN_AUTH",
+        "store": "constant",
+        "value": "auth.huybrechts.xyz"
+      },
+      {
+        "key": "SUBDOMAIN_VAULT",
+        "store": "constant",
+        "value": "vault.huybrechts.xyz"
+      },
+      {
+        "key": "SUBDOMAIN_SECRETS",
+        "store": "constant",
+        "value": "secrets.huybrechts.xyz"
+      },
+      {
+        "key": "SUBDOMAIN_PHOTOS",
+        "store": "constant",
+        "value": "photos.huybrechts.xyz"
+      },
+      {
+        "key": "SUBDOMAIN_STATUS",
+        "store": "constant",
+        "value": "status.huybrechts.xyz"
+      },
+      {
+        "key": "HETZNER_REGION",
+        "store": "constant",
+        "value": "eu-de"
+      },
+      {
+        "key": "HETZNER_LOCATION",
+        "store": "constant",
+        "value": "nbg1"
+      },
+      {
+        "key": "CORE_VM_TYPE",
+        "store": "constant",
+        "value": "cx22"
+      },
+      {
+        "key": "WORKLOAD_VM_TYPE",
+        "store": "constant",
+        "value": "cpx41"
+      },
+      {
+        "key": "STORAGE_BOX_TYPE",
+        "store": "constant",
+        "value": "bx11"
+      }
+    ],
+    "secrets": [
+      {
+        "key": "HETZNER_API_TOKEN",
+        "store": "environment"
+      },
+      {
+        "key": "HETZNER_PRIVATE_KEY",
+        "store": "environment"
+      },
+      {
+        "key": "HETZNER_PUBLIC_KEY",
+        "store": "environment"
+      },
+      {
+        "key": "HETZNER_ROOT_PASSWORD",
+        "store": "environment"
+      },
+      {
+        "key": "INFISICAL_ESO_TOKEN",
+        "store": "environment"
+      }
+    ],
+    "firewalls": [
+      {
+        "name": "haven_vm_hetzner_hearth_merged_fw",
+        "annotations": {
+          "description": "Firewall for Hearth VPS — public HTTPS only; SSH from private network only"
+        },
+        "labels": {
+          "version": "1.0.0"
+        },
+        "tags": [
+          "haven",
+          "firewall",
+          "hearth",
+          "family"
+        ],
+        "reset": true,
+        "defaults": [
+          {
+            "direction": "in",
+            "permission": "deny",
+            "comment": "Deny all incoming traffic by default"
+          },
+          {
+            "direction": "out",
+            "permission": "deny",
+            "comment": "Deny all outgoing traffic by default"
+          }
+        ],
+        "allow": [
+          {
+            "direction": "out",
+            "proto": "udp",
+            "port": 53,
+            "comment": "DNS (UDP)"
+          },
+          {
+            "direction": "out",
+            "proto": "tcp",
+            "port": 53,
+            "comment": "DNS (TCP)"
+          },
+          {
+            "direction": "out",
+            "proto": "udp",
+            "port": 123,
+            "comment": "NTP"
+          },
+          {
+            "direction": "in",
+            "interface": "lo",
+            "comment": "Loopback IN"
+          },
+          {
+            "direction": "out",
+            "interface": "lo",
+            "comment": "Loopback OUT"
+          },
+          {
+            "direction": "out",
+            "proto": "tcp",
+            "port": [
+              20,
+              21
+            ],
+            "comment": "FTP (apt)"
+          },
+          {
+            "direction": "out",
+            "proto": "tcp",
+            "port": 11371,
+            "comment": "GPG keyserver"
+          },
+          {
+            "direction": "in",
+            "proto": "tcp",
+            "port": 80,
+            "comment": "HTTP (redirect to HTTPS)"
+          },
+          {
+            "direction": "in",
+            "proto": "tcp",
+            "port": 443,
+            "comment": "HTTPS"
+          },
+          {
+            "direction": "out",
+            "proto": "tcp",
+            "port": 80,
+            "comment": "HTTP outbound (image pulls, ACME)"
+          },
+          {
+            "direction": "out",
+            "proto": "tcp",
+            "port": 443,
+            "comment": "HTTPS outbound"
+          },
+          {
+            "direction": "in",
+            "proto": "tcp",
+            "port": 22,
+            "from_": "10.0.0.0/8",
+            "comment": "SSH (private network only)"
+          }
+        ]
+      }
+    ]
+  }
+}

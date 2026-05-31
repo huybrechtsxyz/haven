@@ -31,12 +31,6 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Strata local state
-.strata/cli.yaml
-
-# Build output
-build/
-
 # Terraform state & local overrides
 **/.terraform/
 *.tfstate

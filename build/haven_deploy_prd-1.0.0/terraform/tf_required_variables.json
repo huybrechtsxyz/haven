@@ -1,0 +1,191 @@
+{
+  "variables": [
+    {
+      "key": "WORKSPACE",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_WORKSPACE",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "haven"
+    },
+    {
+      "key": "DATACENTER",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_DATACENTER",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "hetzner-eu-de"
+    },
+    {
+      "key": "ENVIRONMENT",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_ENVIRONMENT",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "prd"
+    },
+    {
+      "key": "DOMAIN_PRIMARY",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_DOMAIN_PRIMARY",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "huybrechts.xyz"
+    },
+    {
+      "key": "DOMAIN_ALIAS_DEV",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_DOMAIN_ALIAS_DEV",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "huybrechts.dev"
+    },
+    {
+      "key": "DOMAIN_ALIAS_ALDERWYN",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_DOMAIN_ALIAS_ALDERWYN",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "alderwyn.xyz"
+    },
+    {
+      "key": "DOMAIN_ALIAS_JANA",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_DOMAIN_ALIAS_JANA",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "madebyjana.be"
+    },
+    {
+      "key": "SUBDOMAIN_AUTH",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_SUBDOMAIN_AUTH",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "auth.huybrechts.xyz"
+    },
+    {
+      "key": "SUBDOMAIN_VAULT",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_SUBDOMAIN_VAULT",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "vault.huybrechts.xyz"
+    },
+    {
+      "key": "SUBDOMAIN_SECRETS",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_SUBDOMAIN_SECRETS",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "secrets.huybrechts.xyz"
+    },
+    {
+      "key": "SUBDOMAIN_PHOTOS",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_SUBDOMAIN_PHOTOS",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "photos.huybrechts.xyz"
+    },
+    {
+      "key": "SUBDOMAIN_STATUS",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_SUBDOMAIN_STATUS",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "status.huybrechts.xyz"
+    },
+    {
+      "key": "HETZNER_REGION",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_HETZNER_REGION",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "eu-de"
+    },
+    {
+      "key": "HETZNER_LOCATION",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_HETZNER_LOCATION",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "nbg1"
+    },
+    {
+      "key": "CORE_VM_TYPE",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_CORE_VM_TYPE",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "cx22"
+    },
+    {
+      "key": "WORKLOAD_VM_TYPE",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_WORKLOAD_VM_TYPE",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "cpx41"
+    },
+    {
+      "key": "STORAGE_BOX_TYPE",
+      "description": "Variable from haven_env_prd (constant)",
+      "required": true,
+      "suggested_env_var": "TF_VAR_STORAGE_BOX_TYPE",
+      "used_by": [
+        "haven_env_prd"
+      ],
+      "store": "constant",
+      "value": "bx11"
+    }
+  ]
+}

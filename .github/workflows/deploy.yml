@@ -1,0 +1,113 @@
+# ==============================================================================
+# Haven Platform — Deploy Workflow
+# ==============================================================================
+# Deploys the haven family platform using strata CLI.
+# Pipeline: strata build → strata deploy (terraform + ansible)
+#
+# Secrets required (GitHub Secrets):
+#   - TERRAFORM_API_TOKEN       : Terraform Cloud API token
+#   - HETZNER_API_TOKEN         : Hetzner Cloud project token
+#   - HETZNER_PUBLIC_KEY        : SSH public key
+#   - HETZNER_PRIVATE_KEY       : SSH private key
+#   - HETZNER_ROOT_PASSWORD     : Initial root password
+#   - INFISICAL_ESO_TOKEN       : Infisical ESO token (Wave 2)
+# ==============================================================================
+
+name: Deploy Haven
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "config/**"
+      - "terraform/**"
+      - "deploy/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (plan only, no apply)"
+        type: boolean
+        default: false
+      stage:
+        description: "Limit to a specific stage (empty = all)"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  DEPLOYMENT_FILE: config/deploy-haven-prd.yaml
+  TF_TOKEN_app_terraform_io: ${{ secrets.TERRAFORM_API_TOKEN }}
+  TF_VAR_HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+  TF_VAR_HETZNER_PUBLIC_KEY: ${{ secrets.HETZNER_PUBLIC_KEY }}
+  TF_VAR_HETZNER_PRIVATE_KEY: ${{ secrets.HETZNER_PRIVATE_KEY }}
+  TF_VAR_HETZNER_ROOT_PASSWORD: ${{ secrets.HETZNER_ROOT_PASSWORD }}
+  TF_VAR_INFISICAL_ESO_TOKEN: ${{ secrets.INFISICAL_ESO_TOKEN }}
+
+jobs:
+  deploy:
+    name: Deploy Haven PRD
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      # ------------------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------
+      # Install tools
+      # ------------------------------------------------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install strata
+        run: pip install xyz-strata
+
+      - name: Install OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.8"
+          tofu_wrapper: false
+
+      - name: Install Ansible
+        run: pip install ansible-core
+
+      # ------------------------------------------------------------------
+      # Validate
+      # ------------------------------------------------------------------
+      - name: Validate deployment file
+        run: strata validate $DEPLOYMENT_FILE
+
+      # ------------------------------------------------------------------
+      # Build — strata generates *.auto.tfvars.json
+      # ------------------------------------------------------------------
+      - name: Build platform artifacts
+        run: strata build run -f $DEPLOYMENT_FILE
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-build
+          path: build/
+          retention-days: 14
+
+      # ------------------------------------------------------------------
+      # Deploy — strata orchestrates terraform + ansible
+      # ------------------------------------------------------------------
+      - name: Deploy infrastructure
+        run: |
+          ARGS="-f $DEPLOYMENT_FILE"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          if [ -n "${{ inputs.stage }}" ]; then
+            ARGS="$ARGS --stage ${{ inputs.stage }}"
+          fi
+          strata deploy run $ARGS

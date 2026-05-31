@@ -710,11 +710,12 @@
       "type": "object"
     },
     "FeatureStoreType": {
-      "description": "Enumeration of supported feature flag store backend types.\n\nStore types map to integration types registered in IntegrationFactory:\n- CONSTANT/ENVIRONMENT: Built-in resolvers (no integration required)\n- AZURE_APPCONFIG: \"azure-appconfig\" integration type\n\nCan be expanded to include more feature flag services:\n- LaunchDarkly, Split, Unleash, etc.",
+      "description": "Enumeration of supported feature flag store backend types.\n\nStore types map to integration types registered in IntegrationFactory:\n- CONSTANT/ENVIRONMENT: Built-in resolvers (no integration required)\n- AZURE_APPCONFIG: \"azure-appconfig\" integration type\n- FLAGSMITH: \"flagsmith\" integration type",
       "enum": [
         "constant",
         "environment",
-        "azure-appconfig"
+        "azure-appconfig",
+        "flagsmith"
       ],
       "title": "FeatureStoreType",
       "type": "string"
@@ -748,7 +749,7 @@
     "PlatformVersion": {
       "description": "Enumeration of supported platform versions.",
       "enum": [
-        "platform.huybrechts.xyz/v1"
+        "strata.huybrechts.xyz/v1"
       ],
       "title": "PlatformVersion",
       "type": "string"
@@ -860,13 +861,14 @@
       "type": "object"
     },
     "SecretStoreType": {
-      "description": "Enumeration of supported secret store backend types.\n\nStore types map to integration types registered in IntegrationFactory:\n- CONSTANT/ENVIRONMENT: Built-in resolvers (no integration required)\n- AZURE_KEYVAULT: \"azure-keyvault\" integration type\n- BITWARDEN: \"bitwarden\" integration type\n- HASHICORP_VAULT: \"vault\" integration type",
+      "description": "Enumeration of supported secret store backend types.\n\nStore types map to integration types registered in IntegrationFactory:\n- CONSTANT/ENVIRONMENT: Built-in resolvers (no integration required)\n- AZURE_KEYVAULT: \"azure-keyvault\" integration type\n- BITWARDEN: \"bitwarden\" integration type\n- HASHICORP_VAULT: \"vault\" integration type\n- INFISICAL: \"infisical\" integration type",
       "enum": [
         "constant",
         "environment",
         "azure-keyvault",
         "bitwarden",
-        "vault"
+        "vault",
+        "infisical"
       ],
       "title": "SecretStoreType",
       "type": "string"
@@ -924,13 +926,15 @@
       "type": "object"
     },
     "VariableStoreType": {
-      "description": "Enumeration of supported variable store backend types.\n\nStore types map to integration types registered in IntegrationFactory:\n- CONSTANT/ENVIRONMENT: Built-in resolvers (no integration required)\n- AZURE_APPCONFIG: \"azure-appconfig\" integration type\n- HASHICORP_CONSUL: \"consul\" integration type\n- HASHICORP_VAULT: \"vault\" integration type",
+      "description": "Enumeration of supported variable store backend types.\n\nStore types map to integration types registered in IntegrationFactory:\n- CONSTANT/ENVIRONMENT: Built-in resolvers (no integration required)\n- AZURE_APPCONFIG: \"azure-appconfig\" integration type\n- HASHICORP_CONSUL: \"consul\" integration type\n- HASHICORP_VAULT: \"vault\" integration type\n- INFISICAL: \"infisical\" integration type\n- ETCD: \"etcd\" integration type",
       "enum": [
         "constant",
         "environment",
         "azure-appconfig",
         "consul",
-        "vault"
+        "vault",
+        "infisical",
+        "etcd"
       ],
       "title": "VariableStoreType",
       "type": "string"
@@ -940,7 +944,7 @@
   "properties": {
     "apiVersion": {
       "$ref": "#/$defs/PlatformVersion",
-      "default": "platform.huybrechts.xyz/v1",
+      "default": "strata.huybrechts.xyz/v1",
       "description": "API version for platform configuration"
     },
     "kind": {

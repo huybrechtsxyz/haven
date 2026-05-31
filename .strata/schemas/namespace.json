@@ -273,7 +273,7 @@
     "PlatformVersion": {
       "description": "Enumeration of supported platform versions.",
       "enum": [
-        "platform.huybrechts.xyz/v1"
+        "strata.huybrechts.xyz/v1"
       ],
       "title": "PlatformVersion",
       "type": "string"
@@ -337,7 +337,7 @@
   "properties": {
     "apiVersion": {
       "$ref": "#/$defs/PlatformVersion",
-      "default": "platform.huybrechts.xyz/v1",
+      "default": "strata.huybrechts.xyz/v1",
       "description": "API version for namespace configuration"
     },
     "kind": {

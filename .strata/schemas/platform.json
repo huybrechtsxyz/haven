@@ -559,11 +559,12 @@
       "type": "object"
     },
     "FeatureStoreType": {
-      "description": "Enumeration of supported feature flag store backend types.\n\nStore types map to integration types registered in IntegrationFactory:\n- CONSTANT/ENVIRONMENT: Built-in resolvers (no integration required)\n- AZURE_APPCONFIG: \"azure-appconfig\" integration type\n\nCan be expanded to include more feature flag services:\n- LaunchDarkly, Split, Unleash, etc.",
+      "description": "Enumeration of supported feature flag store backend types.\n\nStore types map to integration types registered in IntegrationFactory:\n- CONSTANT/ENVIRONMENT: Built-in resolvers (no integration required)\n- AZURE_APPCONFIG: \"azure-appconfig\" integration type\n- FLAGSMITH: \"flagsmith\" integration type",
       "enum": [
         "constant",
         "environment",
-        "azure-appconfig"
+        "azure-appconfig",
+        "flagsmith"
       ],
       "title": "FeatureStoreType",
       "type": "string"
@@ -2044,6 +2045,20 @@
           ],
           "default": null,
           "description": "Backend configuration for state storage (e.g., Terraform Cloud, S3, Azure Storage)"
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tool-specific configuration (e.g. playbook, inventory, ssh_private_key_secret for Ansible; backend overrides for Terraform).",
+          "title": "Configuration"
         }
       },
       "required": [
@@ -2673,6 +2688,22 @@
           "title": "Components",
           "type": "array"
         },
+        "namespaces": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/WorkspaceNamespaceReferenceModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Namespace references deployed on this topology",
+          "title": "Namespaces"
+        },
         "volumes": {
           "anyOf": [
             {
@@ -2702,7 +2733,7 @@
     "PlatformVersion": {
       "description": "Enumeration of supported platform versions.",
       "enum": [
-        "platform.huybrechts.xyz/v1"
+        "strata.huybrechts.xyz/v1"
       ],
       "title": "PlatformVersion",
       "type": "string"
@@ -2880,6 +2911,7 @@
       "description": "Enumeration of supported provisioner names.",
       "enum": [
         "terraform",
+        "ansible",
         "script"
       ],
       "title": "ProvisionerType",
@@ -3405,13 +3437,14 @@
       "type": "object"
     },
     "SecretStoreType": {
-      "description": "Enumeration of supported secret store backend types.\n\nStore types map to integration types registered in IntegrationFactory:\n- CONSTANT/ENVIRONMENT: Built-in resolvers (no integration required)\n- AZURE_KEYVAULT: \"azure-keyvault\" integration type\n- BITWARDEN: \"bitwarden\" integration type\n- HASHICORP_VAULT: \"vault\" integration type",
+      "description": "Enumeration of supported secret store backend types.\n\nStore types map to integration types registered in IntegrationFactory:\n- CONSTANT/ENVIRONMENT: Built-in resolvers (no integration required)\n- AZURE_KEYVAULT: \"azure-keyvault\" integration type\n- BITWARDEN: \"bitwarden\" integration type\n- HASHICORP_VAULT: \"vault\" integration type\n- INFISICAL: \"infisical\" integration type",
       "enum": [
         "constant",
         "environment",
         "azure-keyvault",
         "bitwarden",
-        "vault"
+        "vault",
+        "infisical"
       ],
       "title": "SecretStoreType",
       "type": "string"
@@ -3521,13 +3554,15 @@
       "type": "object"
     },
     "VariableStoreType": {
-      "description": "Enumeration of supported variable store backend types.\n\nStore types map to integration types registered in IntegrationFactory:\n- CONSTANT/ENVIRONMENT: Built-in resolvers (no integration required)\n- AZURE_APPCONFIG: \"azure-appconfig\" integration type\n- HASHICORP_CONSUL: \"consul\" integration type\n- HASHICORP_VAULT: \"vault\" integration type",
+      "description": "Enumeration of supported variable store backend types.\n\nStore types map to integration types registered in IntegrationFactory:\n- CONSTANT/ENVIRONMENT: Built-in resolvers (no integration required)\n- AZURE_APPCONFIG: \"azure-appconfig\" integration type\n- HASHICORP_CONSUL: \"consul\" integration type\n- HASHICORP_VAULT: \"vault\" integration type\n- INFISICAL: \"infisical\" integration type\n- ETCD: \"etcd\" integration type",
       "enum": [
         "constant",
         "environment",
         "azure-appconfig",
         "consul",
-        "vault"
+        "vault",
+        "infisical",
+        "etcd"
       ],
       "title": "VariableStoreType",
       "type": "string"
@@ -3553,6 +3588,22 @@
         "configuration"
       ],
       "title": "WorkspaceIacBackendModel",
+      "type": "object"
+    },
+    "WorkspaceNamespaceReferenceModel": {
+      "description": "Namespace reference within a topology - links a namespace to this topology.",
+      "properties": {
+        "namespace": {
+          "description": "Namespace name reference (must match a namespace defined in spec.namespaces)",
+          "minLength": 1,
+          "title": "Namespace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "namespace"
+      ],
+      "title": "WorkspaceNamespaceReferenceModel",
       "type": "object"
     },
     "WorkspaceVolumeModel": {
@@ -3593,7 +3644,7 @@
   "properties": {
     "apiVersion": {
       "$ref": "#/$defs/PlatformVersion",
-      "default": "platform.huybrechts.xyz/v1",
+      "default": "strata.huybrechts.xyz/v1",
       "description": "API version for platform configuration"
     },
     "kind": {

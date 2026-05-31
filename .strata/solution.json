@@ -1,5 +1,5 @@
 {
-  "apiVersion": "platform.huybrechts.xyz/v1",
+  "apiVersion": "strata.huybrechts.xyz/v1",
   "kind": "solution",
   "meta": {
     "name": "haven"
@@ -14,7 +14,7 @@
         "configfile_paths": [
           {
             "name": "config",
-            "path": ".\\config\\config.yaml",
+            "path": ".\\config\\cfg-haven.yaml",
             "type": "configfile",
             "created": "2026-05-21T13:08:37.486604+00:00"
           }

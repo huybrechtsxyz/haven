@@ -71,7 +71,7 @@
     "PlatformVersion": {
       "description": "Enumeration of supported platform versions.",
       "enum": [
-        "platform.huybrechts.xyz/v1"
+        "strata.huybrechts.xyz/v1"
       ],
       "title": "PlatformVersion",
       "type": "string"
@@ -80,6 +80,7 @@
       "description": "Enumeration of supported provisioner names.",
       "enum": [
         "terraform",
+        "ansible",
         "script"
       ],
       "title": "ProvisionerType",
@@ -295,6 +296,20 @@
           ],
           "default": null,
           "description": "Backend configuration for state storage (e.g., Terraform Cloud, S3, Azure Storage)"
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tool-specific configuration (e.g. playbook, inventory, ssh_private_key_secret for Ansible; backend overrides for Terraform).",
+          "title": "Configuration"
         }
       },
       "required": [
@@ -444,6 +459,22 @@
         "file"
       ],
       "title": "WorkspaceNamespaceModel",
+      "type": "object"
+    },
+    "WorkspaceNamespaceReferenceModel": {
+      "description": "Namespace reference within a topology - links a namespace to this topology.",
+      "properties": {
+        "namespace": {
+          "description": "Namespace name reference (must match a namespace defined in spec.namespaces)",
+          "minLength": 1,
+          "title": "Namespace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "namespace"
+      ],
+      "title": "WorkspaceNamespaceReferenceModel",
       "type": "object"
     },
     "WorkspaceProviderModel": {
@@ -846,6 +877,22 @@
           "title": "Components",
           "type": "array"
         },
+        "namespaces": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/WorkspaceNamespaceReferenceModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Namespace references deployed on this topology",
+          "title": "Namespaces"
+        },
         "volumes": {
           "anyOf": [
             {
@@ -911,7 +958,7 @@
   "properties": {
     "apiVersion": {
       "$ref": "#/$defs/PlatformVersion",
-      "default": "platform.huybrechts.xyz/v1",
+      "default": "strata.huybrechts.xyz/v1",
       "description": "API version for workspace configuration"
     },
     "kind": {

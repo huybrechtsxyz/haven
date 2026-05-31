@@ -1,6 +1,14 @@
-# haven
+# Haven
 
-Configuration repository managed by [strata](https://github.com/huybrechtsxzy/strata).
+Configuration repository managed by [strata](https://github.com/huybrechtsxyz/strata).
+
+📖 **Documentation:** [`docs/`](docs/) — build with Sphinx (`make html` from `docs/`)
+
+| Section                                                | Description                                             |
+| ------------------------------------------------------ | ------------------------------------------------------- |
+| [Design & Architecture](docs/design/hosting-design.md) | Two-node Hetzner platform — Core VPS + k3s Workload VPS |
+| [Migration Guide](docs/design/hosting-guide.md)        | Living workbook — track progress as you go              |
+| [Research](docs/design/hosting.md)                     | Goals, constraints, solution comparison                 |
 
 ## Getting Started
 
