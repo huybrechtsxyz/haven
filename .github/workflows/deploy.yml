@@ -113,6 +113,17 @@ jobs:
           retention-days: 14
 
       # ------------------------------------------------------------------
+      # Workaround: strata build copies terraform flat to build/.../terraform/
+      # but strata deploy expects build/.../terraform/{provisioner_name}/
+      # Bug reported: https://github.com/huybrechts-xyz/strata (path contract mismatch)
+      # ------------------------------------------------------------------
+      - name: Fix terraform working directory (strata bug workaround)
+        run: |
+          TF_DIR="build/haven_deploy_prd-1.0.0/terraform"
+          TF_TARGET="${TF_DIR}/haven_iac"
+          mkdir -p "$TF_TARGET"
+          find "$TF_DIR" -maxdepth 1 -mindepth 1 ! -name haven_iac -exec mv {} "$TF_TARGET/" \;
+      # ------------------------------------------------------------------
       # Deploy — strata orchestrates terraform + ansible
       # ------------------------------------------------------------------
       - name: Deploy infrastructure
