@@ -47,7 +47,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup yq
         uses: huybrechtsxyz/strata/.github/actions/setup-yq@deployment-bugs
@@ -59,7 +59,7 @@ jobs:
           strata-ref: deployment-bugs
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_wrapper: false
 
