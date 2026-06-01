@@ -56,6 +56,7 @@ jobs:
         uses: huybrechtsxyz/strata/.github/actions/setup-strata@deployment-bugs
         with:
           python-version: "3.13"
+          strata-ref: deployment-bugs
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
