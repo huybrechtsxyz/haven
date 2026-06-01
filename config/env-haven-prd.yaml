@@ -68,17 +68,17 @@ spec:
     # After Core VPS is running, all runtime secrets are pulled from Infisical
     - key: HETZNER_API_TOKEN
       store: environment
-      value: ~ # GitHub Secret: HETZNER_API_TOKEN
+      value: HETZNER_API_TOKEN
     - key: HETZNER_PRIVATE_KEY
       store: environment
-      value: ~ # GitHub Secret: HETZNER_PRIVATE_KEY
+      value: HETZNER_PRIVATE_KEY
     - key: HETZNER_PUBLIC_KEY
       store: environment
-      value: ~ # GitHub Secret: HETZNER_PUBLIC_KEY
+      value: HETZNER_PUBLIC_KEY
     - key: HETZNER_ROOT_PASSWORD
       store: environment
-      value: ~ # GitHub Secret: HETZNER_ROOT_PASSWORD
+      value: HETZNER_ROOT_PASSWORD
     # Workload VPS — Infisical ESO token only (no other secrets)
     - key: INFISICAL_ESO_TOKEN
       store: environment
-      value: ~ # GitHub Secret: INFISICAL_ESO_TOKEN (scoped to workload namespace)
+      value: INFISICAL_ESO_TOKEN

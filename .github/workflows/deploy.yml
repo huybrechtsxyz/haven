@@ -43,6 +43,7 @@ jobs:
       HETZNER_PUBLIC_KEY: ${{ secrets.HETZNER_PUBLIC_KEY }}
       HETZNER_ROOT_PASSWORD: ${{ secrets.HETZNER_ROOT_PASSWORD }}
       INFISICAL_ESO_TOKEN: ${{ secrets.INFISICAL_ESO_TOKEN }}
+      TF_TOKEN_app_terraform_io: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
 
     steps:
       - name: Checkout repository
