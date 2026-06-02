@@ -1,0 +1,200 @@
+---
+# Haven — Hearth Bootstrap Playbook
+# Run: ansible-playbook -i inventory.yml site.yml -e hearth_host=<IP>
+
+# ---------------------------------------------------------------------------
+# Play 1: System bootstrap
+# ---------------------------------------------------------------------------
+- name: System bootstrap
+  hosts: hearth
+  become: true
+  tags: [bootstrap]
+
+  tasks:
+    - name: Update apt cache and upgrade packages
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+        cache_valid_time: 3600
+
+    - name: Install prerequisites
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - python3-pip
+          - acl
+        state: present
+
+    - name: Set hostname to hearth
+      ansible.builtin.hostname:
+        name: hearth
+
+    - name: Set timezone to Europe/Brussels
+      community.general.timezone:
+        name: Europe/Brussels
+
+# ---------------------------------------------------------------------------
+# Play 2: Install Docker
+# ---------------------------------------------------------------------------
+- name: Install Docker
+  hosts: hearth
+  become: true
+  tags: [docker]
+
+  tasks:
+    - name: Create /etc/apt/keyrings directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Download Docker's official GPG key
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: "0644"
+
+    - name: Add Docker apt repository
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc]
+          https://download.docker.com/linux/ubuntu
+          {{ ansible_distribution_release }} stable
+        state: present
+        filename: docker
+
+    - name: Install Docker packages
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+
+    - name: Configure Docker daemon
+      ansible.builtin.copy:
+        dest: /etc/docker/daemon.json
+        mode: "0644"
+        content: |
+          {
+            "log-driver": "json-file",
+            "log-opts": {
+              "max-size": "10m",
+              "max-file": "3"
+            }
+          }
+      notify: Restart docker
+
+    - name: Enable and start Docker service
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+        daemon_reload: true
+
+    - name: Verify Docker is running
+      ansible.builtin.command: docker info
+      register: docker_info
+      changed_when: false
+
+    - name: Show Docker info summary
+      ansible.builtin.debug:
+        msg: "Docker is running — {{ docker_info.stdout_lines | select('search', 'Server Version') | list }}"
+
+  handlers:
+    - name: Restart docker
+      ansible.builtin.systemd:
+        name: docker
+        state: restarted
+
+# ---------------------------------------------------------------------------
+# Play 3: Create directory structure
+# ---------------------------------------------------------------------------
+- name: Create directory structure
+  hosts: hearth
+  become: true
+  tags: [dirs]
+
+  tasks:
+    - name: Create /opt/haven root with sticky bit
+      ansible.builtin.file:
+        path: /opt/haven
+        state: directory
+        mode: "1755"
+        owner: root
+        group: root
+
+    - name: Create haven service directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+      loop: "{{ haven_dirs }}"
+
+# ---------------------------------------------------------------------------
+# Play 4: Deploy Compose stack
+# ---------------------------------------------------------------------------
+- name: Deploy Compose stack
+  hosts: hearth
+  become: true
+  tags: [deploy]
+
+  tasks:
+    - name: Check if docker-compose.yml exists
+      ansible.builtin.stat:
+        path: "{{ compose_dir }}/docker-compose.yml"
+      register: compose_file
+
+    - name: Abort with guidance when compose artifact is missing
+      ansible.builtin.fail:
+        msg: >-
+          docker-compose.yml not found in {{ compose_dir }} —
+          run `strata build run` first to generate compose artifacts,
+          then copy the build output to {{ compose_dir }} on the target host.
+      when: not compose_file.stat.exists
+
+    - name: Deploy Compose stack (community.docker.docker_compose_v2)
+      community.docker.docker_compose_v2:
+        project_src: "{{ compose_dir }}"
+        files:
+          - docker-compose.yml
+        env_files:
+          - "{{ compose_dir }}/.env"
+        state: present
+        remove_orphans: true
+      register: compose_result
+      ignore_errors: true
+
+    - name: Fall back to docker compose CLI if module unavailable
+      ansible.builtin.command:
+        cmd: >-
+          docker compose
+          -f {{ compose_dir }}/docker-compose.yml
+          --env-file {{ compose_dir }}/.env
+          up -d --remove-orphans
+      when: compose_result is failed
+      register: compose_cli_result
+      changed_when: "'Started' in compose_cli_result.stderr or 'Created' in compose_cli_result.stderr"
+
+    - name: Show running service status
+      ansible.builtin.command:
+        cmd: >-
+          docker compose
+          -f {{ compose_dir }}/docker-compose.yml
+          --env-file {{ compose_dir }}/.env
+          ps
+      register: compose_ps
+      changed_when: false
+
+    - name: Print service status
+      ansible.builtin.debug:
+        msg: "{{ compose_ps.stdout_lines }}"

@@ -82,3 +82,7 @@ spec:
     - key: INFISICAL_ESO_TOKEN
       store: environment
       value: INFISICAL_ESO_TOKEN
+    # Ansible — SSH key for Hearth VPS provisioning
+    - key: HEARTH_SSH_PRIVATE_KEY
+      store: infisical
+      description: SSH private key for Hearth VPS (PEM format)

@@ -18,6 +18,18 @@ spec:
       source:
         repository: haven
         source_path: terraform
+    - name: hearth_ansible
+      provisioner: ansible
+      source:
+        repository: haven
+        source_path: ansible/hearth
+      configuration:
+        playbook: site.yml
+        inventory: inventory.yml
+        ssh_private_key_secret: HEARTH_SSH_PRIVATE_KEY
+        extra_vars:
+          install_path: /opt/haven
+          compose_dir: /opt/haven/etc/compose
 
   topology:
     - name: hetzner_hearth

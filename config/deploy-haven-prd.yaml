@@ -36,13 +36,13 @@ spec:
       depends_on: null
       on_failure: stop
 
-    # Stage 2 — configure Hearth VPS: Docker Compose bootstrap (Caddy, Authentik, Vaultwarden, Infisical)
-    # TODO: pending strata configuration deployer (Wave 2)
-    # - name: hearth_bootstrap
-    #   type: configuration
-    #   scope: hetzner_hearth
-    #   depends_on: [infrastructure]
-    #   on_failure: stop
+    # Stage 2 — configure Hearth VPS: install Docker, create directories, deploy Docker Compose stack
+    - name: hearth_bootstrap
+      type: configuration
+      scope: hetzner_hearth
+      provisioner: hearth_ansible
+      depends_on: [infrastructure]
+      on_failure: stop
 
     # Stage 3 — Forge deploy (pending: Wave 2)
     # - name: forge_deploy
