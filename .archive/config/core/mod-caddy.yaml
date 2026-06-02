@@ -1,0 +1,36 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: caddy
+  annotations:
+    description: Caddy reverse proxy with automatic HTTPS via ACME/Let's Encrypt
+  tags: [caddy, proxy, tls, core]
+spec:
+  source:
+    repository: haven
+    source_path: config/core
+  type: compose
+  references:
+    variables:
+      - DOMAIN_PRIMARY
+      - SUBDOMAIN_AUTH
+      - SUBDOMAIN_VAULT
+      - SUBDOMAIN_SECRETS
+  services:
+    - name: caddy
+      image: caddy:2-alpine
+      restart: unless-stopped
+      ports:
+        - "80:80"
+        - "443:443"
+        - "443:443/udp"
+      environment:
+        - key: TZ
+          value: Europe/Brussels
+      mounts:
+        - name: config
+          source_path: /opt/haven/etc/caddy
+          target_path: /etc/caddy
+        - name: data
+          target_path: /data
+          volume_ref: caddydata

@@ -6,6 +6,7 @@ haven_user: root
 
 haven_dirs:
   - /opt/haven/etc
+  - /opt/haven/etc/caddy
   - /opt/haven/etc/compose
   - /opt/haven/var/data
   - /opt/haven/var/logs

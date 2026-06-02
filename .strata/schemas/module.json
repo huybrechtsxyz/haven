@@ -379,7 +379,7 @@
             }
           ],
           "default": null,
-          "description": "Source path of the mount",
+          "description": "Source path of the mount (bind mount host path)",
           "title": "Source Path"
         },
         "description": {
@@ -394,6 +394,58 @@
           "default": null,
           "description": "Description of the mount",
           "title": "Description"
+        },
+        "volume_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Name of a WorkspaceVolumeModel to mount. Builder emits a Docker named volume. Mutually exclusive with storage_class.",
+          "title": "Volume Ref"
+        },
+        "storage_class": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Kubernetes StorageClass name (e.g. 'standard', 'fast-ssd'). When set, builder generates a PVC. Mutually exclusive with volume_ref.",
+          "title": "Storage Class"
+        },
+        "access_mode": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "PVC access mode (e.g. 'ReadWriteOnce', 'ReadWriteMany'). Defaults to 'ReadWriteOnce'.",
+          "title": "Access Mode"
+        },
+        "storage_size": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "PVC storage size (e.g. '10Gi'). Required when storage_class is set.",
+          "title": "Storage Size"
         }
       },
       "title": "ModuleMountModel",
@@ -512,6 +564,223 @@
       "title": "ModuleReferenceModel",
       "type": "object"
     },
+    "ModuleServiceEnvironmentModel": {
+      "description": "One environment variable on a service container.\n\nExactly one of value / var / secret / feature must be set:\n  - value:   literal string written directly into the artifact\n  - var:     key in module spec.references.variables \u2014 resolved at build time\n  - secret:  key in module spec.references.secrets \u2014 emitted as ${KEY} substitution,\n             injected via .env file (compose) or --set flag (helm) at deploy time\n  - feature: key in module spec.references.features \u2014 resolved to \"true\"/\"false\"\n\nExample::\n\n    environment:\n      - key: POSTGRES_PASSWORD\n        secret: DB_PASSWORD\n      - key: TZ\n        value: Europe/Brussels\n      - key: APP_VERSION\n        var: APP_VERSION",
+      "properties": {
+        "key": {
+          "description": "Environment variable name (e.g. POSTGRES_PASSWORD)",
+          "title": "Key",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Literal environment variable value",
+          "title": "Value"
+        },
+        "var": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Variable key from module references.variables \u2014 resolved at build time",
+          "title": "Var"
+        },
+        "secret": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Secret key from module references.secrets \u2014 emitted as ${KEY} substitution",
+          "title": "Secret"
+        },
+        "feature": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Feature flag key from module references.features \u2014 resolved to 'true'/'false'",
+          "title": "Feature"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "title": "ModuleServiceEnvironmentModel",
+      "type": "object"
+    },
+    "ModuleServiceModel": {
+      "description": "One container (or sub-chart component) within a module.\n\nFor compose modules, each service maps to a Docker Compose service entry.\nFor helm modules, each service maps to a values section / sub-chart configuration.\nService names are prefixed with the module name by the builder to avoid collisions\n(e.g. service 'redis' in module 'authentik' becomes 'authentik-redis' in compose).\nException: if module.name == service.name the prefix is omitted.\n\n``depends_on`` is intra-module only \u2014 list short service names within THIS module.\nThe builder rewrites them to the prefixed form automatically.",
+      "properties": {
+        "name": {
+          "description": "Service identifier within the module",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Container image and tag (e.g. 'postgres:16-alpine'). Omit for Helm charts that define their own image.",
+          "title": "Image"
+        },
+        "command": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override the container entrypoint/command (e.g. ['worker'] for Authentik worker)",
+          "title": "Command"
+        },
+        "restart": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Compose restart policy (e.g. 'unless-stopped'). Ignored by helm/argocd.",
+          "title": "Restart"
+        },
+        "environment": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ModuleServiceEnvironmentModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Environment variables for this service. Use var/secret/feature refs to avoid plaintext secrets.",
+          "title": "Environment"
+        },
+        "ports": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Port mappings in '\"host:container\"' format (e.g. '8080:80'). Compose only \u2014 ignored by helm/argocd (Kubernetes Services handle exposure).",
+          "title": "Ports"
+        },
+        "mounts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ModuleMountModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Volume and bind mounts for this service. Use volume_ref for named volumes, storage_class for Kubernetes PVCs.",
+          "title": "Mounts"
+        },
+        "depends_on": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Short service names within this module that must start before this service. Intra-module only. Builder rewrites to prefixed names automatically.",
+          "title": "Depends On"
+        },
+        "healthcheck": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModuleCheckModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Health check for this service. Maps to Docker Compose healthcheck or Kubernetes readinessProbe depending on module type."
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Deployer-specific overrides merged verbatim. For compose: merged into the service block. For helm: merged into values.{service.name}.",
+          "title": "Configuration"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ModuleServiceModel",
+      "type": "object"
+    },
     "ModuleSpecModel": {
       "description": "Model for module spec (lifecycle, modules, validation).",
       "properties": {
@@ -580,6 +849,61 @@
           "default": null,
           "description": "Module-specific configuration data",
           "title": "Configuration"
+        },
+        "services": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ModuleServiceModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of services (containers/sub-charts) that make up this module. When absent, the module is treated as single-service using the properties shape (backward compatible). When present, each entry defines one container (compose) or sub-chart section (helm).",
+          "title": "Services"
+        },
+        "compose_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Explicit path reference to an external docker-compose.yml file (@repo/path/to/docker-compose.yml or workspace-relative path). When set, ComposeBuilder copies this file verbatim to the build path instead of generating one from spec.services. Mutually exclusive with spec.services.",
+          "title": "Compose File"
+        },
+        "release_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Helm release name or ArgoCD Application name. Defaults to module.meta.name when not set.",
+          "title": "Release Name"
+        },
+        "kubernetes_namespace": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Kubernetes namespace to deploy this module into. Defaults to the strata namespace name when not set.",
+          "title": "Kubernetes Namespace"
         }
       },
       "required": [
@@ -679,21 +1003,37 @@
       "type": "string"
     },
     "SourceModel": {
-      "description": "Reusable model for source configuration that references a repository.\n\nUsed by resources, modules, and other components to specify where their\nsource artifacts come from and where they should be deployed/built.\n\nExample usage in a resource:\n    source:\n      repository: my-infra-repo\n      source_path: terraform/modules/vpc\n      target_path: build/vpc",
+      "description": "Reusable model for source configuration.\n\nTwo modes (mutually exclusive, validated):\n  1. Git-based: repository + source_path  \u2014 used for Terraform modules, local charts, etc.\n  2. Chart-based: chart_repository + chart_name  \u2014 used for Helm/ArgoCD chart registry pulls.\n\nExample \u2014 git-based:\n    source:\n      repository: my-infra-repo\n      source_path: terraform/modules/vpc\n      target_path: build/vpc\n\nExample \u2014 Helm chart registry:\n    source:\n      chart_name: authentik\n      chart_version: \"2024.12.0\"\n      chart_repository: https://charts.goauthentik.io",
       "properties": {
         "repository": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
           "description": "Name of the repository from configuration's repositories list",
-          "maxLength": 64,
-          "minLength": 1,
-          "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Repository",
-          "type": "string"
+          "title": "Repository"
         },
         "source_path": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
           "description": "Path to the source artifacts within the repository (relative path)",
-          "minLength": 1,
-          "title": "Source Path",
-          "type": "string"
+          "title": "Source Path"
         },
         "target_path": {
           "anyOf": [
@@ -721,12 +1061,47 @@
           "default": null,
           "description": "Optional description for documentation purposes",
           "title": "Description"
+        },
+        "chart_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Helm chart name (e.g. 'authentik'). Required when using chart_repository.",
+          "title": "Chart Name"
+        },
+        "chart_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Helm chart version (e.g. '2024.12.0'). Omit to use latest.",
+          "title": "Chart Version"
+        },
+        "chart_repository": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Helm chart repository URL or OCI reference (e.g. 'https://charts.goauthentik.io' or 'oci://ghcr.io/org/charts').",
+          "title": "Chart Repository"
         }
       },
-      "required": [
-        "repository",
-        "source_path"
-      ],
       "title": "SourceModel",
       "type": "object"
     }

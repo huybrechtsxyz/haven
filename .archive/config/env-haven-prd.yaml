@@ -63,6 +63,13 @@ spec:
     - key: STORAGE_BOX_TYPE
       store: constant
       value: bx11
+    # Service URLs (full https:// URLs used directly in service environment variables)
+    - key: VAULTWARDEN_DOMAIN
+      store: constant
+      value: https://vault.huybrechts.xyz
+    - key: INFISICAL_SITE_URL
+      store: constant
+      value: https://secrets.huybrechts.xyz
   secrets:
     # Bootstrap secrets — loaded from GitHub Secrets on first deploy only
     # After Core VPS is running, all runtime secrets are pulled from Infisical
@@ -85,4 +92,37 @@ spec:
     # Ansible — SSH key for Hearth VPS provisioning
     - key: HEARTH_SSH_PRIVATE_KEY
       store: infisical
+      value: HEARTH_SSH_PRIVATE_KEY
       description: SSH private key for Hearth VPS (PEM format)
+    # Application secrets — stored in Infisical after initial bootstrap
+    # Authentik
+    - key: AUTHENTIK_SECRET_KEY
+      store: infisical
+      value: AUTHENTIK_SECRET_KEY
+      description: Authentik internal encryption key (50+ random chars)
+    - key: AUTHENTIK_POSTGRES_PASSWORD
+      store: infisical
+      value: AUTHENTIK_POSTGRES_PASSWORD
+      description: PostgreSQL password for Authentik database
+    # Vaultwarden
+    - key: VAULTWARDEN_ADMIN_TOKEN
+      store: infisical
+      value: VAULTWARDEN_ADMIN_TOKEN
+      description: Vaultwarden admin panel access token
+    # Infisical
+    - key: INFISICAL_ENCRYPTION_KEY
+      store: infisical
+      value: INFISICAL_ENCRYPTION_KEY
+      description: Infisical symmetric encryption key (hex 32 chars)
+    - key: INFISICAL_AUTH_SECRET
+      store: infisical
+      value: INFISICAL_AUTH_SECRET
+      description: Infisical JWT signing secret (32+ random chars)
+    - key: INFISICAL_POSTGRES_PASSWORD
+      store: infisical
+      value: INFISICAL_POSTGRES_PASSWORD
+      description: PostgreSQL password for Infisical database
+    - key: INFISICAL_DB_CONNECTION_URI
+      store: infisical
+      value: INFISICAL_DB_CONNECTION_URI
+      description: Full PostgreSQL connection URI for Infisical backend (must match INFISICAL_POSTGRES_PASSWORD)

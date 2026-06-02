@@ -335,7 +335,7 @@
       "type": "object"
     },
     "DeploymentStageModel": {
-      "description": "Model for a deployment stage (pipeline execution step).\n\nStages enable:\n- Sequential multi-step execution (e.g., provision \u2192 configure \u2192 verify)\n- Execution ordering and dependency management (DAG execution via depends_on)\n- Failure handling per stage\n- Semantic provisioner selection via type with explicit override options\n\nProvisioner Selection Priority:\n1. Explicit 'provisioner' field (highest priority)\n2. Explicit 'topology' field (topology defines provisioner)\n3. Convention from 'type' field (auto-select based on stage type)\n4. ERROR if ambiguous (multiple provisioners match type)\n\nStages do NOT define environments or approvals - those are deployment-level.\nStages do NOT affect artifact paths - use deployment.spec.deployment for layering.",
+      "description": "Model for a deployment stage (pipeline execution step).\n\nStages enable:\n- Sequential multi-step execution (e.g., provision \u2192 configure \u2192 verify)\n- Execution ordering and dependency management (DAG execution via depends_on)\n- Failure handling per stage\n\nProvisioner Selection (mutually exclusive \u2014 exactly one required at runtime):\n- 'provisioner': name of a workspace provisioner entry (explicit, no filtering)\n- 'topology':    name of a workspace topology entry; derives the provisioner\n                 type from the topology definition and filters to its resources\n\nStages do NOT define environments or approvals - those are deployment-level.\nStages do NOT affect artifact paths - use deployment.spec.deployment for layering.",
       "properties": {
         "name": {
           "description": "Unique stage name - pipeline step identifier (e.g., 'provision', 'configure', 'verify')",
@@ -345,10 +345,18 @@
           "title": "Name",
           "type": "string"
         },
-        "type": {
-          "description": "Stage type - determines provisioner selection strategy and execution semantics",
-          "title": "Type",
-          "type": "string"
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional human-readable description of what this stage does (informational only \u2014 does not affect routing)",
+          "title": "Description"
         },
         "provisioner": {
           "anyOf": [
@@ -373,14 +381,21 @@
             }
           ],
           "default": null,
-          "description": "Explicit topology name from workspace (alternative to provisioner - topology defines provisioner and resources)",
+          "description": "Topology name from workspace (mutually exclusive with 'provisioner'). Derives the provisioner type from the topology definition and scopes execution to that topology's resources.",
           "title": "Topology"
         },
         "scope": {
-          "default": "all",
-          "description": "Resource scope filter: 'all' (deploy everything), 'changed' (incremental), 'tagged' (filtered)",
-          "title": "Scope",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Free-form label for CLI-level stage filtering. Pass --scope <label> to strata deploy run to execute only stages whose scope matches the supplied value. Omit to run all stages.",
+          "title": "Scope"
         },
         "scripts": {
           "anyOf": [
@@ -460,11 +475,26 @@
           ],
           "default": null,
           "description": "Per-operation subprocess timeouts. Overrides TerraformIntegration defaults (init=300s, validate=60s, plan=600s, apply=1800s, destroy=1800s)."
+        },
+        "secrets": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Allowlist of secret keys this stage may access from STRATA_SENSITIVE. Only these keys are passed to the deployer. Omit or set to null for no secret access. Use ['*'] to grant access to all secrets (escape hatch).",
+          "title": "Secrets"
         }
       },
       "required": [
-        "name",
-        "type"
+        "name"
       ],
       "title": "DeploymentStageModel",
       "type": "object"

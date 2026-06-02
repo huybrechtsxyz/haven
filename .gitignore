@@ -41,10 +41,7 @@ __pycache__/
 terraform.rc
 
 # Build output
-.build/
 build/
-dist/
 
 # Node (if tooling is ever added)
 node_modules/
-.strata/cli.yaml

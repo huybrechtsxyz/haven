@@ -22,7 +22,7 @@ spec:
       provisioner: ansible
       source:
         repository: haven
-        source_path: ansible/hearth
+        source_path: deploy/ansible/hearth
       configuration:
         playbook: site.yml
         inventory: inventory.yml
@@ -34,7 +34,7 @@ spec:
   topology:
     - name: hetzner_hearth
       provider: hetzner_dc_eu_de
-      provisioner: terraform
+      provisioner: haven_iac
       type: single_node # Docker Compose — Caddy, Authentik, Vaultwarden, Infisical
       volumes:
         - name: config
@@ -45,6 +45,8 @@ spec:
           type: local
         - name: certs
           type: local
+      namespaces:
+        - namespace: core
       components:
         - resource: haven_vm_hetzner_hearth
 
@@ -88,3 +90,7 @@ spec:
 
     # - name: haven_fw_hetzner_forge
     #   file: "stack/fw-hetzner-forge.yaml"
+
+  namespaces:
+    - name: core
+      file: config/core/ns-core.yaml

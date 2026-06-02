@@ -81,7 +81,9 @@
       "enum": [
         "terraform",
         "ansible",
-        "script"
+        "script",
+        "compose",
+        "helm"
       ],
       "title": "ProvisionerType",
       "type": "string"
@@ -141,21 +143,37 @@
       "type": "object"
     },
     "SourceModel": {
-      "description": "Reusable model for source configuration that references a repository.\n\nUsed by resources, modules, and other components to specify where their\nsource artifacts come from and where they should be deployed/built.\n\nExample usage in a resource:\n    source:\n      repository: my-infra-repo\n      source_path: terraform/modules/vpc\n      target_path: build/vpc",
+      "description": "Reusable model for source configuration.\n\nTwo modes (mutually exclusive, validated):\n  1. Git-based: repository + source_path  \u2014 used for Terraform modules, local charts, etc.\n  2. Chart-based: chart_repository + chart_name  \u2014 used for Helm/ArgoCD chart registry pulls.\n\nExample \u2014 git-based:\n    source:\n      repository: my-infra-repo\n      source_path: terraform/modules/vpc\n      target_path: build/vpc\n\nExample \u2014 Helm chart registry:\n    source:\n      chart_name: authentik\n      chart_version: \"2024.12.0\"\n      chart_repository: https://charts.goauthentik.io",
       "properties": {
         "repository": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
           "description": "Name of the repository from configuration's repositories list",
-          "maxLength": 64,
-          "minLength": 1,
-          "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Repository",
-          "type": "string"
+          "title": "Repository"
         },
         "source_path": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
           "description": "Path to the source artifacts within the repository (relative path)",
-          "minLength": 1,
-          "title": "Source Path",
-          "type": "string"
+          "title": "Source Path"
         },
         "target_path": {
           "anyOf": [
@@ -183,12 +201,47 @@
           "default": null,
           "description": "Optional description for documentation purposes",
           "title": "Description"
+        },
+        "chart_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Helm chart name (e.g. 'authentik'). Required when using chart_repository.",
+          "title": "Chart Name"
+        },
+        "chart_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Helm chart version (e.g. '2024.12.0'). Omit to use latest.",
+          "title": "Chart Version"
+        },
+        "chart_repository": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Helm chart repository URL or OCI reference (e.g. 'https://charts.goauthentik.io' or 'oci://ghcr.io/org/charts').",
+          "title": "Chart Repository"
         }
       },
-      "required": [
-        "repository",
-        "source_path"
-      ],
       "title": "SourceModel",
       "type": "object"
     },
@@ -230,6 +283,68 @@
         "file"
       ],
       "title": "WorkspaceFirewallModel",
+      "type": "object"
+    },
+    "WorkspaceIacAnsiblePropertiesModel": {
+      "description": "Typed properties for an Ansible provisioner entry.",
+      "properties": {
+        "playbook": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Playbook file to run, relative to the playbook directory (default: site.yml)",
+          "title": "Playbook"
+        },
+        "inventory": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Static inventory file path, relative to the playbook directory",
+          "title": "Inventory"
+        },
+        "ssh_private_key_secret": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Name of the secret holding the SSH private key (default: ssh_private_key)",
+          "title": "Ssh Private Key Secret"
+        },
+        "extra_vars": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Extra variables passed to ansible-playbook via --extra-vars",
+          "title": "Extra Vars"
+        }
+      },
+      "title": "WorkspaceIacAnsiblePropertiesModel",
       "type": "object"
     },
     "WorkspaceIacBackendModel": {
@@ -296,6 +411,18 @@
           ],
           "default": null,
           "description": "Backend configuration for state storage (e.g., Terraform Cloud, S3, Azure Storage)"
+        },
+        "properties": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorkspaceIacAnsiblePropertiesModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Provisioner-specific typed properties (currently supported: ansible)"
         },
         "configuration": {
           "anyOf": [
@@ -857,8 +984,10 @@
           "type": "string"
         },
         "provisioner": {
-          "$ref": "#/$defs/ProvisionerType",
-          "description": "IaC tool used for provisioning"
+          "description": "IaC provisioner name reference (must match a provisioner defined in spec.provisioners)",
+          "minLength": 1,
+          "title": "Provisioner",
+          "type": "string"
         },
         "type": {
           "description": "Topology type (e.g., dockerswarm, kubernetes, azure-native)",
