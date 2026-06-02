@@ -99,6 +99,4 @@ resource "hcloud_server" "hearth" {
 resource "hcloud_server_network" "hearth" {
   server_id  = hcloud_server.hearth.id
   network_id = var.network_id
-
-  depends_on = [var.subnet_id]
 }

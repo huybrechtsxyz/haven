@@ -1,0 +1,36 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: environment
+meta:
+  name: haven_env_prd
+  annotations:
+    description: Production environment for the family platform on Hetzner
+  labels:
+    version: "1.0.0"
+  tags: [haven, hetzner, family, production]
+spec:
+  variables:
+    - key: WORKSPACE
+      store: constant
+      value: haven
+    - key: DATACENTER
+      store: constant
+      value: hetzner-eu-de
+  secrets:
+    # Bootstrap secrets — loaded from GitHub Secrets on first deploy only
+    # After Core VPS is running, all runtime secrets are pulled from Infisical
+    - key: HETZNER_API_TOKEN
+      store: github
+      value: HETZNER_API_TOKEN
+    - key: HETZNER_PRIVATE_KEY
+      store: github
+      value: HETZNER_PRIVATE_KEY
+    - key: HETZNER_PUBLIC_KEY
+      store: github
+      value: HETZNER_PUBLIC_KEY
+    - key: HEARTH_SSH_PRIVATE_KEY
+      store: github
+      value: HEARTH_SSH_PRIVATE_KEY
+      description: SSH private key for Hearth VPS (PEM format)
+    - key: HETZNER_ROOT_PASSWORD
+      store: github
+      value: HETZNER_ROOT_PASSWORD

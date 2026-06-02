@@ -66,11 +66,6 @@ variable "network_id" {
   type        = string
 }
 
-variable "subnet_id" {
-  description = "Network subnet ID (for depends_on)"
-  type        = string
-}
-
 variable "labels" {
   description = "Common labels from root module"
   type        = map(string)

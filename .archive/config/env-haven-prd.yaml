@@ -19,16 +19,16 @@ spec:
       store: constant
       value: prd
     # Domains
-    - key: DOMAIN_PRIMARY
+    - key: DOMAIN_XYZ
       store: constant
       value: huybrechts.xyz
-    - key: DOMAIN_ALIAS_DEV
+    - key: DOMAIN_DEV
       store: constant
       value: huybrechts.dev
-    - key: DOMAIN_ALIAS_ALDERWYN
+    - key: DOMAIN_ALDERWYN
       store: constant
       value: alderwyn.xyz
-    - key: DOMAIN_ALIAS_JANA
+    - key: DOMAIN_JANA
       store: constant
       value: madebyjana.be
     # Subdomains (resolve to Core VPS IP)
@@ -54,15 +54,6 @@ spec:
     - key: HETZNER_LOCATION
       store: constant
       value: nbg1
-    - key: CORE_VM_TYPE
-      store: constant
-      value: cx22
-    - key: WORKLOAD_VM_TYPE
-      store: constant
-      value: cpx41
-    - key: STORAGE_BOX_TYPE
-      store: constant
-      value: bx11
     # Service URLs (full https:// URLs used directly in service environment variables)
     - key: VAULTWARDEN_DOMAIN
       store: constant

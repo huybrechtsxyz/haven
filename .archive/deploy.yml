@@ -70,6 +70,68 @@ jobs:
           terraform_wrapper: false
 
       # ------------------------------------------------------------------
+      # Secrets — Bitwarden
+      # Uncomment and configure for your secret manager
+      # ------------------------------------------------------------------
+      # [bitwarden]
+      # - name: Fetch Secrets (Bitwarden)
+      #   id: secrets
+      #   uses: bitwarden/sm-action@v3
+      #   with:
+      #     access_token: $${{ secrets.BITWARDEN_TOKEN }}
+      #     secrets: |
+      #       <secret-id-terraform-token> > TERRAFORM_API_TOKEN
+      #       <secret-id-kamatera-key> > KAMATERA_API_KEY
+      #       <secret-id-kamatera-secret> > KAMATERA_API_SECRET
+      #       <secret-id-kamatera-private-key> > KAMATERA_PRIVATE_KEY
+      #       <secret-id-kamatera-public-key> > KAMATERA_PUBLIC_KEY
+      #       <secret-id-kamatera-password> > KAMATERA_ROOT_PASSWORD
+
+      # ------------------------------------------------------------------
+      # Secrets — Azure Key Vault
+      # ------------------------------------------------------------------
+      # [azure]
+      # - name: Azure Login
+      #   uses: azure/login@v2
+      #   with:
+      #     creds: $${{ secrets.AZURE_CREDENTIALS }}
+      #
+      # - name: Fetch Secrets (Azure Key Vault)
+      #   run: |
+      #     echo "TF_VAR_TERRAFORM_API_TOKEN=$(az keyvault secret show --vault-name <vault> --name terraform-token --query value -o tsv)" >> $GITHUB_ENV
+      #     echo "TF_VAR_KAMATERA_API_KEY=$(az keyvault secret show --vault-name <vault> --name kamatera-api-key --query value -o tsv)" >> $GITHUB_ENV
+      #     echo "TF_VAR_KAMATERA_API_SECRET=$(az keyvault secret show --vault-name <vault> --name kamatera-api-secret --query value -o tsv)" >> $GITHUB_ENV
+
+      # ------------------------------------------------------------------
+      # Secrets — HashiCorp Vault
+      # ------------------------------------------------------------------
+      # [vault]
+      # - name: Fetch Secrets (Vault)
+      #   uses: hashicorp/vault-action@v3
+      #   with:
+      #     url: https://vault.example.com
+      #     method: approle
+      #     roleId: $${{ secrets.VAULT_ROLE_ID }}
+      #     secretId: $${{ secrets.VAULT_SECRET_ID }}
+      #     secrets: |
+      #       secret/data/platform TERRAFORM_API_TOKEN | TF_VAR_TERRAFORM_API_TOKEN ;
+      #       secret/data/platform KAMATERA_API_KEY | TF_VAR_KAMATERA_API_KEY ;
+      #       secret/data/platform KAMATERA_API_SECRET | TF_VAR_KAMATERA_API_SECRET
+
+      # ------------------------------------------------------------------
+      # Secrets — GitHub Secrets (simplest)
+      # ------------------------------------------------------------------
+      # [github]
+      # - name: Export Secrets
+      #   run: |
+      #     echo "TF_VAR_TERRAFORM_API_TOKEN=$${{ secrets.TERRAFORM_API_TOKEN }}" >> $GITHUB_ENV
+      #     echo "TF_VAR_KAMATERA_API_KEY=$${{ secrets.KAMATERA_API_KEY }}" >> $GITHUB_ENV
+      #     echo "TF_VAR_KAMATERA_API_SECRET=$${{ secrets.KAMATERA_API_SECRET }}" >> $GITHUB_ENV
+      #     echo "TF_VAR_KAMATERA_PRIVATE_KEY=$${{ secrets.KAMATERA_PRIVATE_KEY }}" >> $GITHUB_ENV
+      #     echo "TF_VAR_KAMATERA_PUBLIC_KEY=$${{ secrets.KAMATERA_PUBLIC_KEY }}" >> $GITHUB_ENV
+      #     echo "TF_VAR_KAMATERA_ROOT_PASSWORD=$${{ secrets.KAMATERA_ROOT_PASSWORD }}" >> $GITHUB_ENV
+
+      # ------------------------------------------------------------------
       # Validate
       # ------------------------------------------------------------------
       - name: Validate deployment file

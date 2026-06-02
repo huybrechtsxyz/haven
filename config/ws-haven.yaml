@@ -1,0 +1,50 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: workspace
+meta:
+  name: haven_platform
+  annotations:
+    description: Family platform workspace — Hearth VPS (Docker Compose) + Forge VPS (k3s) on Hetzner
+  labels:
+    version: "1.0.0"
+  tags: [haven, hetzner, platform, family]
+spec:
+  providers:
+    - name: hetzner_dc_eu_de
+      file: "config/dc-hetzner-eu-de.yaml"
+
+  provisioners:
+    - name: haven_iac
+      provisioner: terraform
+      source:
+        repository: haven
+        source_path: deploy/terraform
+        target_path: terraform
+
+  topology:
+    - name: hetzner_hearth
+      provider: hetzner_dc_eu_de
+      provisioner: haven_iac
+      type: single_node # Docker Compose — Caddy, Authentik, Vaultwarden, Infisical
+      volumes:
+        - name: config
+          type: local
+        - name: data
+          type: local
+        - name: logs
+          type: local
+        - name: certs
+          type: local
+      components:
+        - resource: haven_vm_hetzner_hearth
+
+  resources:
+    - name: haven_vm_hetzner_hearth
+      file: "config/hearth/vm-hetzner-hearth.yaml"
+      role: hearth
+      count: 1
+      firewalls:
+        - haven_fw_hetzner_hearth
+
+  firewalls:
+    - name: haven_fw_hetzner_hearth
+      file: "config/hearth/fw-hetzner-hearth.yaml"
