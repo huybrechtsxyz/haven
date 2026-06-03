@@ -71,9 +71,6 @@ spec:
           secret: AUTHENTIK_POSTGRESQL__PASSWORD
         - key: AUTHENTIK_SECRET_KEY
           secret: AUTHENTIK_SECRET_KEY
-      ports:
-        - "9000:9000"
-        - "9443:9443"
       mounts:
         - name: media
           type: bind
