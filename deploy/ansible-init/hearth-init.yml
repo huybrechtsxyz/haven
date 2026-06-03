@@ -262,13 +262,12 @@
     # =========================================================================
 
     - name: Scan Storage Box host key
-      ansible.builtin.known_hosts:
-        name: "{{ storagebox_host }}"
-        key: "{{ lookup('pipe', 'ssh-keyscan -t ed25519 ' + storagebox_host) }}"
-        path: "{{ haven_install_path }}/.ssh/known_hosts"
-        state: present
-      become: true
-      become_user: "{{ haven_user }}"
+      ansible.builtin.shell:
+        cmd: |
+          ssh-keyscan -t ed25519 {{ storagebox_host }} >> {{ haven_install_path }}/.ssh/known_hosts
+          chown {{ haven_user }}:{{ haven_group }} {{ haven_install_path }}/.ssh/known_hosts
+          chmod 644 {{ haven_install_path }}/.ssh/known_hosts
+        creates: "{{ haven_install_path }}/.ssh/known_hosts"
       when: configure_borg | bool
 
     - name: Check if BorgBackup repo already exists
