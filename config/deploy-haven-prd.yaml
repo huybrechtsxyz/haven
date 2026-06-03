@@ -31,7 +31,7 @@ spec:
   stages:
     # Stage 1 — provision both VPS nodes and storage box via Terraform
     - name: infrastructure
-      type: infrastructure
+      topology: hetzner_hearth
       scope: all
       depends_on: null
       on_failure: stop
