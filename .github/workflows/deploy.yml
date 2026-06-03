@@ -151,10 +151,19 @@ jobs:
         env:
           HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
         run: |
-          id=$(curl -sf \
+          RESPONSE=$(curl -sf \
             -H "Authorization: Bearer $HETZNER_API_TOKEN" \
-            "https://api.hetzner.cloud/v1/firewalls?name=haven-platform-fw-hearth" \
-            | jq -r '.firewalls[0].id')
+            "https://api.hetzner.cloud/v1/firewalls?name=haven-platform-fw-hearth")
+          echo "API response: $RESPONSE"
+          id=$(echo "$RESPONSE" | jq -r '.firewalls[0].id // empty')
+          if [ -z "$id" ]; then
+            echo "ERROR: firewall 'haven-platform-fw-hearth' not found"
+            echo "Available firewalls:"
+            curl -sf -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+              "https://api.hetzner.cloud/v1/firewalls" | jq -r '.firewalls[].name'
+            exit 1
+          fi
+          echo "Firewall ID: $id"
           echo "id=$id" >> $GITHUB_OUTPUT
 
       - name: Open temporary SSH rule for runner
