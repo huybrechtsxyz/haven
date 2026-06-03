@@ -38,11 +38,11 @@ on:
       run_config:
         description: "Run idempotent configuration enforcement (hearth-config Ansible playbook)"
         type: boolean
-        default: false
+        default: true
       run_deploy:
         description: "Deploy Docker Compose services to Hearth (hearth-deploy Ansible playbook)"
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
