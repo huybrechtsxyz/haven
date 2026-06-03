@@ -3,7 +3,7 @@
 > Plan: [hosting-steps-v2.md](hosting-steps-v2.md) | Design: [hosting-design.md](hosting-design.md)
 > This file is a living workbook. Fill in results as you go. Use it to track progress and collect the data needed for each next step.
 
-**Status:** � In Progress
+**Status:** 🔴 Not started
 
 ---
 
@@ -21,15 +21,15 @@
 
 ## Wave 1 — Infrastructure & Developer Services
 
-**Wave 1 status:** � In Progress  
-**Wave 1 started:** 2026-05-27  
+**Wave 1 status:** � In progress  
+**Wave 1 started:** 2026-06-02  
 **Wave 1 completed:** ___________
 
 ---
 
 ### Phase 1.1 — Domain transfer to INWX
 
-**Status:** � In Progress
+**Status:** � Complete — 2026-06-02
 
 > **Decision: `meeus.family` will NOT be transferred.** Renewal cost jumps to ~€52/yr from year 2. Let it expire at Versio. Steps 3 and 7 are skipped.
 >
@@ -148,28 +148,28 @@ A     TTL 300  → 185.47.174.65  (old server — must recreate at INWX after tr
 
 #### Steps
 
-| #     | Task                                                                                    | Result / Notes                                                                                                                        | Done |
-| ----- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1     | Unlock `huybrechts.xyz` at Versio                                                       | ✓ 2026-05-27                                                                                                                          | [x]  |
-| 2     | Unlock `huybrechts.dev` at Versio                                                       | ✓ 2026-05-27                                                                                                                          | [x]  |
-| ~~3~~ | ~~Unlock `meeus.family` at Versio~~                                                     | ✗ decommissioned — let expire at Versio                                                                                               | —    |
-| 4     | Contact ClouDNS support — unlock `alderwyn.xyz` + `madebyjana.be` and request EPP codes | ✓ 2026-05-27 — tickets submitted, awaiting response                                                                                   | [x]  |
-| 5     | Request EPP code for `huybrechts.xyz` at Versio                                         | ✓ 2026-05-27                                                                                                                          | [x]  |
-| 6     | Request EPP code for `huybrechts.dev` at Versio                                         | ✓ 2026-05-27                                                                                                                          | [x]  |
-| ~~7~~ | ~~Request EPP code for `meeus.family`~~                                                 | ✗ decommissioned — no transfer needed                                                                                                 | —    |
-| 8     | Receive EPP codes for `alderwyn.xyz` + `madebyjana.be` from ClouDNS support             | `alderwyn.xyz` ✓ 2026-05-27 · `madebyjana.be` ✓ n/a (.be uses DNS.be email confirmation, no EPP code)                                 | [x]  |
-| 9     | Initiate transfer for all 4 domains at INWX                                             | `alderwyn.xyz` ✓ STARTED · `huybrechts.dev` ✓ STARTED · `huybrechts.xyz` ✓ REQUESTED · `madebyjana.be` ✓ in progress — all 2026-05-27 | [x]  |
-| 10    | Approve transfer confirmation emails                                                    |                                                                                                                                       | [ ]  |
-| 11    | Confirm all 4 domains appear in INWX panel                                              | Completed: ___________                                                                                                                | [ ]  |
-| 12    | Recreate DNS records at INWX for `huybrechts.xyz` and `huybrechts.dev` identically      | ⚠ MX must stay pointing to Google; `alderwyn.xyz` and `madebyjana.be` had no records — nothing to recreate                            | [ ]  |
-| 13    | Enable WHOIS privacy on `huybrechts.xyz`, `huybrechts.dev`, `alderwyn.xyz`              | `alderwyn.xyz` ✓ 2026-05-27 · others pending · `.be` does not support WHOIS privacy                                                   | [ ]  |
-| 14    | Send test email — verify mail still works                                               | Sent to / from: ___________ ✓                                                                                                         | [ ]  |
+| #     | Task                                                                                    | Result / Notes                                                                                                                                                                               | Done |
+| ----- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1     | Unlock `huybrechts.xyz` at Versio                                                       | ✓ 2026-05-27                                                                                                                                                                                 | [x]  |
+| 2     | Unlock `huybrechts.dev` at Versio                                                       | ✓ 2026-05-27                                                                                                                                                                                 | [x]  |
+| ~~3~~ | ~~Unlock `meeus.family` at Versio~~                                                     | ✗ decommissioned — let expire at Versio                                                                                                                                                      | —    |
+| 4     | Contact ClouDNS support — unlock `alderwyn.xyz` + `madebyjana.be` and request EPP codes | ✓ 2026-05-27 — tickets submitted, awaiting response                                                                                                                                          | [x]  |
+| 5     | Request EPP code for `huybrechts.xyz` at Versio                                         | ✓ 2026-05-27                                                                                                                                                                                 | [x]  |
+| 6     | Request EPP code for `huybrechts.dev` at Versio                                         | ✓ 2026-05-27                                                                                                                                                                                 | [x]  |
+| ~~7~~ | ~~Request EPP code for `meeus.family`~~                                                 | ✗ decommissioned — no transfer needed                                                                                                                                                        | —    |
+| 8     | Receive EPP codes for `alderwyn.xyz` + `madebyjana.be` from ClouDNS support             | `alderwyn.xyz` ✓ 2026-05-27 · `madebyjana.be` ✓ n/a (.be uses DNS.be email confirmation, no EPP code)                                                                                        | [x]  |
+| 9     | Initiate transfer for all 4 domains at INWX                                             | `alderwyn.xyz` ✓ STARTED · `huybrechts.dev` ✓ STARTED · `huybrechts.xyz` ✓ REQUESTED · `madebyjana.be` ✓ in progress — all 2026-05-27                                                        | [x]  |
+| 10    | Approve transfer confirmation emails                                                    | ✓ 2026-06-01                                                                                                                                                                                 | [x]  |
+| 11    | Confirm all 4 domains appear in INWX panel                                              | ✓ 2026-06-02 — `huybrechts.xyz` confirmed; NS switched to INWX (`ns1.inwx.de` / `ns2.inwx.de` / `ns3.inwx.de`)                                                                               | [x]  |
+| 12    | Recreate DNS records at INWX for `huybrechts.xyz` and `huybrechts.dev` identically      | ✓ 2026-06-02 — MX/A/TXT/DKIM/CAA all added; email and website confirmed working · DNSSEC not configured (confirmed in INWX) — transient validation error during NS propagation, now resolved | [x]  |
+| 13    | Enable WHOIS privacy on `huybrechts.xyz`, `huybrechts.dev`, `alderwyn.xyz`              | `alderwyn.xyz` ✓ 2026-05-27 · `huybrechts.xyz` ✓ 2026-06-02 · `huybrechts.dev` ✓ 2026-06-02 · `.be` does not support WHOIS privacy                                                           | [x]  |
+| 14    | Send test email — verify mail still works                                               | ✓ 2026-06-02 — test email received from work address                                                                                                                                         | [x]  |
 
 #### Expiry dates after transfer (fill in)
 
 | Domain             | Expiry at INWX                                                |
 | ------------------ | ------------------------------------------------------------- |
-| `huybrechts.xyz`   |                                                               |
+| `huybrechts.xyz`   | 2027-10-04                                                    |
 | `huybrechts.dev`   |                                                               |
 | ~~`meeus.family`~~ | ✗ decommissioned — not transferred                            |
 | `alderwyn.xyz`     | ✓ transferred 2026-05-27 — fill in new expiry from INWX panel |
@@ -179,7 +179,7 @@ A     TTL 300  → 185.47.174.65  (old server — must recreate at INWX after tr
 
 ### Phase 1.2 — Provision Hetzner VPS + Storage Box
 
-**Status:** 🔴 Not started
+**Status:** � In progress
 
 #### Hetzner Steps
 
