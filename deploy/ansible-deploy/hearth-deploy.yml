@@ -36,7 +36,7 @@
     # Directory structure — ensure service data dirs exist
     # =========================================================================
 
-    - name: Create service data and config directories
+    - name: Create service config and non-postgres data directories
       ansible.builtin.file:
         path: "{{ item }}"
         state: directory
@@ -47,10 +47,23 @@
         - "{{ haven_install_path }}/etc/caddy"
         - "{{ haven_install_path }}/etc/caddy/config"
         - "{{ haven_install_path }}/etc/authentik/templates"
-        - "{{ haven_install_path }}/var/data/authentik/postgresql"
         - "{{ haven_install_path }}/var/data/authentik/media"
         - "{{ haven_install_path }}/var/data/vaultwarden"
-        - "{{ haven_install_path }}/var/data/infisical/postgresql"
+
+    # PostgreSQL data dirs must NOT be pre-created with haven ownership.
+    # The postgres image (uid 999) needs to chown and initdb them on first start.
+    # Docker Compose creates bind-mount host paths as root (mode 755) automatically,
+    # which allows the postgres entrypoint to take ownership.
+    - name: Ensure parent dirs for postgres data exist (root-owned)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - "{{ haven_install_path }}/var/data/authentik"
+        - "{{ haven_install_path }}/var/data/infisical"
 
     # =========================================================================
     # Sync build artifacts — compose file and Caddyfile
@@ -130,7 +143,18 @@
     # Health — wait for services to be healthy
     # =========================================================================
 
-    - name: Wait for authentik-db to be healthy
+    # Wait for the container to be in 'running' state before attempting exec.
+    # A restarting container returns an error from 'docker compose exec'.
+    - name: Wait for authentik-db container to reach running state
+      ansible.builtin.command:
+        cmd: docker ps -q --filter name=^haven-authentik-db-1$ --filter status=running
+      register: authentik_db_running
+      until: authentik_db_running.stdout | trim != ''
+      retries: 30
+      delay: 5
+      changed_when: false
+
+    - name: Wait for authentik-db to accept connections
       ansible.builtin.command:
         cmd: >
           docker compose
@@ -144,7 +168,16 @@
       delay: 5
       changed_when: false
 
-    - name: Wait for infisical-db to be healthy
+    - name: Wait for infisical-db container to reach running state
+      ansible.builtin.command:
+        cmd: docker ps -q --filter name=^haven-infisical-db-1$ --filter status=running
+      register: infisical_db_running
+      until: infisical_db_running.stdout | trim != ''
+      retries: 30
+      delay: 5
+      changed_when: false
+
+    - name: Wait for infisical-db to accept connections
       ansible.builtin.command:
         cmd: >
           docker compose
