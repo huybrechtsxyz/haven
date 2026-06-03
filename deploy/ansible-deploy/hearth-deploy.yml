@@ -106,6 +106,34 @@
       no_log: true
 
     # =========================================================================
+    # Cleanup — remove postgres data dirs if incorrectly owned by haven user.
+    # This happens when a prior run pre-created them before the ownership fix.
+    # Once postgres owns them (uid 999) this check is a no-op.
+    # =========================================================================
+
+    - name: Stat authentik-db data dir
+      ansible.builtin.stat:
+        path: "{{ haven_install_path }}/var/data/authentik/postgresql"
+      register: authentik_db_stat
+
+    - name: Remove authentik-db data dir if owned by haven (wrong owner for postgres)
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/var/data/authentik/postgresql"
+        state: absent
+      when: authentik_db_stat.stat.exists and authentik_db_stat.stat.pw_name == haven_user
+
+    - name: Stat infisical-db data dir
+      ansible.builtin.stat:
+        path: "{{ haven_install_path }}/var/data/infisical/postgresql"
+      register: infisical_db_stat
+
+    - name: Remove infisical-db data dir if owned by haven (wrong owner for postgres)
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/var/data/infisical/postgresql"
+        state: absent
+      when: infisical_db_stat.stat.exists and infisical_db_stat.stat.pw_name == haven_user
+
+    # =========================================================================
     # Docker Compose — pull images and bring services up
     # =========================================================================
 
