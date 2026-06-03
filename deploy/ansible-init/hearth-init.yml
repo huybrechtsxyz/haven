@@ -6,7 +6,13 @@
 #
 # SSH CONNECTIVITY NOTE:
 #   The Hetzner Cloud Firewall restricts SSH to the private network (10.0.0.0/8).
-#   To run this playbook you must either:
+#
+#   Via pipeline (recommended):
+#     The deploy.yml workflow handles this automatically when run_init=true:
+#     it opens a temporary SSH rule scoped to the runner's IP before running
+#     this playbook, and always removes it afterwards (even on failure).
+#
+#   Manually:
 #     a) Temporarily add your public IP to the Hetzner firewall via the console
 #        (Security → Firewalls → haven-platform-fw-hearth → Add rule: TCP 22 from <your-ip>)
 #        and remove it after the playbook completes.
@@ -41,7 +47,6 @@
     - vars/main.yml
 
   tasks:
-
     # =========================================================================
     # System baseline
     # =========================================================================

@@ -31,6 +31,10 @@ on:
         description: "Limit to a specific stage (empty = all)"
         type: string
         required: false
+      run_init:
+        description: "Run one-time server initialisation (hearth-init Ansible playbook)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -117,3 +121,101 @@ jobs:
             ARGS="$ARGS --stage ${{ inputs.stage }}"
           fi
           strata deploy run $ARGS
+
+      # ------------------------------------------------------------------
+      # Init (one-time server initialisation — run_init=true only)
+      # Temporarily opens SSH on the Hetzner firewall for the runner IP,
+      # runs hearth-init.yml, then always removes the rule.
+      # ------------------------------------------------------------------
+
+      - name: Get runner public IP
+        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
+        id: runner_ip
+        run: echo "ip=$(curl -sf https://api.ipify.org)" >> $GITHUB_OUTPUT
+
+      - name: Get Hearth server public IP
+        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
+        id: hearth_ip
+        env:
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          ip=$(curl -sf \
+            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+            "https://api.hetzner.cloud/v1/servers?name=haven-platform-hearth" \
+            | jq -r '.servers[0].public_net.ipv4.ip')
+          echo "ip=$ip" >> $GITHUB_OUTPUT
+
+      - name: Get Hetzner firewall ID
+        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
+        id: fw
+        env:
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          id=$(curl -sf \
+            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+            "https://api.hetzner.cloud/v1/firewalls?name=haven-platform-fw-hearth" \
+            | jq -r '.firewalls[0].id')
+          echo "id=$id" >> $GITHUB_OUTPUT
+
+      - name: Open temporary SSH rule for runner
+        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
+        env:
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          curl -sf -X POST \
+            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.hetzner.cloud/v1/firewalls/${{ steps.fw.outputs.id }}/actions/add_rules" \
+            -d "{
+              \"rules\": [{
+                \"direction\": \"in\",
+                \"protocol\": \"tcp\",
+                \"port\": \"22\",
+                \"source_ips\": [\"${{ steps.runner_ip.outputs.ip }}/32\"],
+                \"description\": \"CI init SSH run-${{ github.run_id }}\"
+              }]
+            }"
+
+      - name: Install Ansible
+        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
+        run: pip install ansible-core
+
+      - name: Install Ansible collections
+        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
+        working-directory: deploy/ansible-init
+        run: ansible-galaxy collection install -r requirements.yml -p ./collections
+
+      - name: Write deploy SSH private key
+        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_PRIVATE_KEY }}" > ~/.ssh/haven_ed25519
+          chmod 600 ~/.ssh/haven_ed25519
+
+      - name: Run hearth-init playbook
+        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
+        working-directory: deploy/ansible-init
+        run: |
+          ansible-playbook hearth-init.yml \
+            -i "${{ steps.hearth_ip.outputs.ip }}," \
+            --private-key ~/.ssh/haven_ed25519 \
+            -e configure_borg=false
+
+      - name: Remove temporary SSH rule for runner
+        if: ${{ always() && inputs.run_init == true && inputs.dry_run != true }}
+        env:
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          curl -sf -X POST \
+            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.hetzner.cloud/v1/firewalls/${{ steps.fw.outputs.id }}/actions/delete_rules" \
+            -d "{
+              \"rules\": [{
+                \"direction\": \"in\",
+                \"protocol\": \"tcp\",
+                \"port\": \"22\",
+                \"source_ips\": [\"${{ steps.runner_ip.outputs.ip }}/32\"],
+                \"description\": \"CI init SSH run-${{ github.run_id }}\"
+              }]
+            }" || true
