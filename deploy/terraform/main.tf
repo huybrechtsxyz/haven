@@ -13,6 +13,10 @@
 # =============================================================================
 
 locals {
+  # Hetzner resource names must be valid RFC 1123 hostnames (no underscores).
+  # workspace_name from strata uses underscores (e.g. "haven_platform") — replace with hyphens.
+  safe_name = replace(var.workspace_name, "_", "-")
+
   common_labels = merge(var.labels, {
     workspace   = var.workspace_name
     environment = var.environment
@@ -36,7 +40,7 @@ locals {
 # =============================================================================
 
 resource "hcloud_ssh_key" "haven" {
-  name       = "${var.workspace_name}-deploy"
+  name       = "${local.safe_name}-deploy"
   public_key = var.HETZNER_PUBLIC_KEY
   labels     = local.common_labels
 }
@@ -46,7 +50,7 @@ resource "hcloud_ssh_key" "haven" {
 # =============================================================================
 
 resource "hcloud_network" "haven" {
-  name     = "${var.workspace_name}-net"
+  name     = "${local.safe_name}-net"
   ip_range = var.network_cidr
   labels   = local.common_labels
 }

@@ -36,7 +36,7 @@ locals {
 # =============================================================================
 
 resource "hcloud_firewall" "hearth" {
-  name   = "${var.workspace_name}-fw-hearth"
+  name   = "${replace(var.workspace_name, "_", "-")}-fw-hearth"
   labels = merge(var.labels, { role = "hearth" })
 
   # Inbound rules
@@ -79,7 +79,7 @@ resource "hcloud_firewall" "hearth" {
 #   remove ignore_changes, apply once, then restore it.
 
 resource "hcloud_server" "hearth" {
-  name        = "${var.workspace_name}-hearth"
+  name        = "${replace(var.workspace_name, "_", "-")}-hearth"
   server_type = var.resource_config.configuration.server_type
   image       = var.resource_config.configuration.image
   location    = var.resource_config.configuration.location
