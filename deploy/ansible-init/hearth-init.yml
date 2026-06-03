@@ -39,7 +39,7 @@
 # =============================================================================
 
 - name: Hearth — one-time initialisation
-  hosts: hearth
+  hosts: all
   remote_user: root
   gather_facts: true
 
