@@ -3,7 +3,7 @@ kind: resource
 meta:
   name: haven_vm_hetzner_hearth
   annotations:
-    description: Hetzner CX22 — Hearth VPS (Caddy, Authentik, Vaultwarden, Infisical)
+    description: Hetzner CX23 — Hearth VPS (Caddy, Authentik, Vaultwarden, Infisical)
   labels:
     version: "1.0.0"
   tags: [haven, hetzner, vm, hearth, family]
@@ -12,10 +12,10 @@ spec:
   properties:
     provider_type: hetzner
     resource_type: virtualmachine
-    unit_cost: 4.15 # EUR per month (CX22)
+    unit_cost: 4.15 # EUR per month (CX23)
   configuration:
     image: ubuntu-24.04
-    server_type: cx22
+    server_type: cx23
     location: nbg1
   storage:
     install_path: /opt/haven
