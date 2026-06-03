@@ -120,7 +120,7 @@
       ansible.builtin.file:
         path: "{{ haven_install_path }}/var/data/authentik/postgresql"
         state: absent
-      when: authentik_db_stat.stat.exists and authentik_db_stat.stat.pw_name == haven_user
+      when: authentik_db_stat.stat.exists and (authentik_db_stat.stat.get('pw_name', '') == haven_user)
 
     - name: Stat infisical-db data dir
       ansible.builtin.stat:
@@ -131,7 +131,7 @@
       ansible.builtin.file:
         path: "{{ haven_install_path }}/var/data/infisical/postgresql"
         state: absent
-      when: infisical_db_stat.stat.exists and infisical_db_stat.stat.pw_name == haven_user
+      when: infisical_db_stat.stat.exists and (infisical_db_stat.stat.get('pw_name', '') == haven_user)
 
     # =========================================================================
     # Docker Compose — pull images and bring services up
