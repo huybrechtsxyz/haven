@@ -137,6 +137,23 @@
     # Docker Compose — pull images and bring services up
     # =========================================================================
 
+    # Stop any lingering compose stacks from previous runs (e.g. wrong project name)
+    # and forcibly release ports 80/443 before we bring up Caddy.
+    - name: Stop any old etc-prefixed compose stack (pre-project-name fix)
+      ansible.builtin.shell:
+        cmd: |
+          docker compose -p etc down --remove-orphans 2>/dev/null || true
+          docker compose -p haven_deploy_prd down --remove-orphans 2>/dev/null || true
+      changed_when: false
+
+    - name: Release ports 80 and 443 before starting services
+      ansible.builtin.shell:
+        cmd: |
+          fuser -k 80/tcp 2>/dev/null || true
+          fuser -k 443/tcp 2>/dev/null || true
+        executable: /bin/bash
+      changed_when: false
+
     - name: Pull latest Docker images
       ansible.builtin.command:
         cmd: >
