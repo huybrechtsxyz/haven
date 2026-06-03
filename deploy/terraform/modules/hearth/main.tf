@@ -46,7 +46,7 @@ resource "hcloud_firewall" "hearth" {
       description = rule.value.comment
       direction   = "in"
       protocol    = rule.value.proto
-      port        = rule.value.port != null ? (can(tolist(rule.value.port)) ? "${tolist(rule.value.port)[0]}-${tolist(rule.value.port)[length(tolist(rule.value.port)) - 1]}" : tostring(rule.value.port)) : null
+      port        = rule.value.port != null ? (length(rule.value.port) == 1 ? tostring(rule.value.port[0]) : "${rule.value.port[0]}-${rule.value.port[length(rule.value.port) - 1]}") : null
       source_ips  = rule.value.from != null ? [rule.value.from] : ["0.0.0.0/0", "::/0"]
     }
   }
@@ -58,7 +58,7 @@ resource "hcloud_firewall" "hearth" {
       description     = rule.value.comment
       direction       = "out"
       protocol        = rule.value.proto
-      port            = rule.value.port != null ? (can(tolist(rule.value.port)) ? "${tolist(rule.value.port)[0]}-${tolist(rule.value.port)[length(tolist(rule.value.port)) - 1]}" : tostring(rule.value.port)) : null
+      port            = rule.value.port != null ? (length(rule.value.port) == 1 ? tostring(rule.value.port[0]) : "${rule.value.port[0]}-${rule.value.port[length(rule.value.port) - 1]}") : null
       destination_ips = ["0.0.0.0/0", "::/0"]
     }
   }

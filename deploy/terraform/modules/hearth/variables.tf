@@ -47,7 +47,7 @@ variable "firewall_config" {
       allow = list(object({
         direction = string
         proto     = optional(string)
-        port      = optional(any)
+        port      = optional(list(number))
         from      = optional(string)
         interface = optional(string)
         comment   = optional(string, "")
