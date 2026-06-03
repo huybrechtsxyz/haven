@@ -1,0 +1,23 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: namespace
+meta:
+  name: hearth
+  annotations:
+    description: Hearth namespace — Caddy, Authentik, Vaultwarden, Infisical (Docker Compose on CX23)
+  labels:
+    version: "1.0.0"
+  tags: [haven, hearth, docker-compose, family]
+spec:
+  modules:
+    - name: caddy
+      description: Reverse proxy with automatic TLS (ACME)
+      file: config/hearth/modules/mod-caddy.yaml
+    - name: authentik
+      description: Identity provider and SSO (OIDC / OAuth2)
+      file: config/hearth/modules/mod-authentik.yaml
+    - name: vaultwarden
+      description: Bitwarden-compatible password manager
+      file: config/hearth/modules/mod-vaultwarden.yaml
+    - name: infisical
+      description: Secrets manager and application configuration store
+      file: config/hearth/modules/mod-infisical.yaml

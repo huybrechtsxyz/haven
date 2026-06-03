@@ -1,0 +1,39 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: vaultwarden
+  annotations:
+    description: Vaultwarden — Bitwarden-compatible password manager for the family
+  labels:
+    version: "1.0.0"
+  tags: [haven, hearth, vaultwarden, bitwarden, passwords]
+spec:
+  source:
+    repository: haven
+    source_path: services/hearth/vaultwarden
+  type: compose
+  references:
+    secrets:
+      - VAULTWARDEN_ADMIN_TOKEN
+  services:
+    - name: vaultwarden
+      image: vaultwarden/server:1.32.7-alpine
+      restart: unless-stopped
+      environment:
+        - key: SIGNUPS_ALLOWED
+          value: "false"
+        - key: INVITATIONS_ALLOWED
+          value: "true"
+        - key: ADMIN_TOKEN
+          secret: VAULTWARDEN_ADMIN_TOKEN
+        - key: WEBSOCKET_ENABLED
+          value: "true"
+        - key: TZ
+          value: Europe/Brussels
+        - key: LOG_LEVEL
+          value: warn
+      mounts:
+        - name: data
+          type: bind
+          source_path: /opt/haven/var/data/vaultwarden
+          target_path: /data

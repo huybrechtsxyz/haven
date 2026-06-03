@@ -20,11 +20,17 @@ spec:
         source_path: deploy/terraform
         target_path: terraform
 
+  namespaces:
+    - name: hearth
+      file: config/hearth/ns-hearth.yaml
+
   topology:
     - name: hetzner_hearth
       provider: hetzner_dc_eu_de
       provisioner: haven_iac
       type: single_node # Docker Compose — Caddy, Authentik, Vaultwarden, Infisical
+      namespaces:
+        - namespace: hearth
       volumes:
         - name: config
           type: local
