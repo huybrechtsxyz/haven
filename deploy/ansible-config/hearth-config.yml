@@ -1,0 +1,202 @@
+---
+# =============================================================================
+# Playbook: hearth-config.yml
+# Idempotent configuration enforcement — runs on every deployment.
+# Ensures server configuration drift is corrected without re-installing software.
+#
+# Prerequisites:
+#   hearth-init.yml must have been run once before this playbook.
+#
+# SSH CONNECTIVITY NOTE:
+#   The deploy.yml workflow handles firewall access automatically when
+#   run_config=true. See hearth-init.yml for manual access instructions.
+#
+# Install collections first (once):
+#   ansible-galaxy collection install -r requirements.yml -p ./collections
+#
+# Run manually:
+#   ansible-playbook hearth-config.yml \
+#     -i <hearth_public_ip>, \
+#     --private-key ~/.ssh/haven_ed25519
+# =============================================================================
+
+- name: Hearth — configuration enforcement
+  hosts: all
+  remote_user: root
+  gather_facts: true
+
+  vars_files:
+    - vars/main.yml
+
+  tasks:
+    # =========================================================================
+    # System — security updates
+    # =========================================================================
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Apply security-only upgrades
+      ansible.builtin.apt:
+        upgrade: safe
+      register: apt_upgrade
+
+    - name: Remove unused packages
+      ansible.builtin.apt:
+        autoremove: true
+
+    # =========================================================================
+    # Ensure required packages are present
+    # =========================================================================
+
+    - name: Ensure system packages are present
+      ansible.builtin.apt:
+        name:
+          - curl
+          - wget
+          - gnupg
+          - ca-certificates
+          - borgbackup
+          - htop
+          - ncdu
+          - fail2ban
+          - jq
+          - unattended-upgrades
+          - apt-listchanges
+        state: present
+
+    # =========================================================================
+    # Timezone
+    # =========================================================================
+
+    - name: Ensure timezone is {{ haven_timezone }}
+      community.general.timezone:
+        name: "{{ haven_timezone }}"
+
+    # =========================================================================
+    # Unattended security upgrades
+    # =========================================================================
+
+    - name: Ensure unattended-upgrades configuration (security only, no auto-reboot)
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/50unattended-upgrades
+        mode: "0644"
+        content: |
+          Unattended-Upgrade::Allowed-Origins {
+              "${distro_id}:${distro_codename}-security";
+          };
+          Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+          Unattended-Upgrade::MinimalSteps "true";
+          Unattended-Upgrade::Remove-Unused-Dependencies "true";
+          Unattended-Upgrade::Automatic-Reboot "false";
+
+    - name: Ensure unattended-upgrades timer is enabled
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        mode: "0644"
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+
+    # =========================================================================
+    # Docker
+    # =========================================================================
+
+    - name: Ensure Docker service is running and enabled
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    # =========================================================================
+    # haven service user
+    # =========================================================================
+
+    - name: Ensure haven group exists
+      ansible.builtin.group:
+        name: "{{ haven_group }}"
+        system: true
+
+    - name: Ensure haven user exists with correct settings
+      ansible.builtin.user:
+        name: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        groups: docker
+        home: "{{ haven_install_path }}"
+        create_home: false
+        system: true
+        shell: /bin/bash
+
+    # =========================================================================
+    # Directory structure
+    # =========================================================================
+
+    - name: Ensure haven directory tree exists with correct ownership
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0750"
+      loop:
+        - "{{ haven_install_path }}"
+        - "{{ haven_install_path }}/etc"
+        - "{{ haven_install_path }}/var/data"
+        - "{{ haven_install_path }}/var/logs"
+        - "{{ haven_install_path }}/var/certs"
+        - "{{ haven_install_path }}/.ssh"
+
+    - name: Ensure .ssh has strict permissions
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/.ssh"
+        state: directory
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0700"
+
+    # =========================================================================
+    # fail2ban
+    # =========================================================================
+
+    - name: Ensure fail2ban is running and enabled
+      ansible.builtin.systemd:
+        name: fail2ban
+        enabled: true
+        state: started
+
+    # =========================================================================
+    # SSH hardening
+    # =========================================================================
+
+    - name: Ensure SSH — password authentication disabled
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PasswordAuthentication"
+        line: "PasswordAuthentication no"
+      notify: Restart sshd
+
+    - name: Ensure SSH — empty passwords disabled
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PermitEmptyPasswords"
+        line: "PermitEmptyPasswords no"
+      notify: Restart sshd
+
+    - name: Ensure SSH — root key-only (no password login)
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PermitRootLogin"
+        line: "PermitRootLogin prohibit-password"
+      notify: Restart sshd
+
+  # ===========================================================================
+  # Handlers
+  # ===========================================================================
+
+  handlers:
+    - name: Restart sshd
+      ansible.builtin.systemd:
+        name: ssh
+        state: restarted

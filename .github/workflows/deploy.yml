@@ -35,6 +35,10 @@ on:
         description: "Run one-time server initialisation (hearth-init Ansible playbook)"
         type: boolean
         default: false
+      run_config:
+        description: "Run idempotent configuration enforcement (hearth-config Ansible playbook)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -129,12 +133,12 @@ jobs:
       # ------------------------------------------------------------------
 
       - name: Get runner public IP
-        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
+        if: ${{ (inputs.run_init == true || inputs.run_config == true) && inputs.dry_run != true }}
         id: runner_ip
         run: echo "ip=$(curl -sf https://api.ipify.org)" >> $GITHUB_OUTPUT
 
       - name: Get Hearth server public IP
-        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
+        if: ${{ (inputs.run_init == true || inputs.run_config == true) && inputs.dry_run != true }}
         id: hearth_ip
         env:
           HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
@@ -146,7 +150,7 @@ jobs:
           echo "ip=$ip" >> $GITHUB_OUTPUT
 
       - name: Get Hetzner firewall ID
-        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
+        if: ${{ (inputs.run_init == true || inputs.run_config == true) && inputs.dry_run != true }}
         id: fw
         env:
           HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
@@ -167,7 +171,7 @@ jobs:
           echo "id=$id" >> $GITHUB_OUTPUT
 
       - name: Open temporary SSH rule for runner
-        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
+        if: ${{ (inputs.run_init == true || inputs.run_config == true) && inputs.dry_run != true }}
         env:
           HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
         run: |
@@ -192,20 +196,20 @@ jobs:
           [ "$HTTP" -lt 400 ]
 
       - name: Install Ansible
-        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
+        if: ${{ (inputs.run_init == true || inputs.run_config == true) && inputs.dry_run != true }}
         run: pip install ansible-core
 
-      - name: Install Ansible collections
-        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
-        working-directory: deploy/ansible-init
-        run: ansible-galaxy collection install -r requirements.yml -p ./collections
-
       - name: Write deploy SSH private key
-        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
+        if: ${{ (inputs.run_init == true || inputs.run_config == true) && inputs.dry_run != true }}
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.HETZNER_PRIVATE_KEY }}" > ~/.ssh/haven_ed25519
           chmod 600 ~/.ssh/haven_ed25519
+
+      - name: Install Ansible collections (init)
+        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
+        working-directory: deploy/ansible-init
+        run: ansible-galaxy collection install -r requirements.yml -p ./collections
 
       - name: Run hearth-init playbook
         if: ${{ inputs.run_init == true && inputs.dry_run != true }}
@@ -216,8 +220,21 @@ jobs:
             --private-key ~/.ssh/haven_ed25519 \
             -e configure_borg=false
 
+      - name: Install Ansible collections (config)
+        if: ${{ inputs.run_config == true && inputs.dry_run != true }}
+        working-directory: deploy/ansible-config
+        run: ansible-galaxy collection install -r requirements.yml -p ./collections
+
+      - name: Run hearth-config playbook
+        if: ${{ inputs.run_config == true && inputs.dry_run != true }}
+        working-directory: deploy/ansible-config
+        run: |
+          ansible-playbook hearth-config.yml \
+            -i "${{ steps.hearth_ip.outputs.ip }}," \
+            --private-key ~/.ssh/haven_ed25519
+
       - name: Remove temporary SSH rule for runner
-        if: ${{ always() && inputs.run_init == true && inputs.dry_run != true }}
+        if: ${{ always() && (inputs.run_init == true || inputs.run_config == true) && inputs.dry_run != true }}
         env:
           HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
         run: |

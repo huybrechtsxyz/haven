@@ -1,0 +1,11 @@
+# =============================================================================
+# Non-sensitive configuration variables for hearth-config.yml
+# =============================================================================
+
+# haven service account (runs Docker containers)
+haven_user: haven
+haven_group: haven
+haven_install_path: /opt/haven
+
+# Server timezone
+haven_timezone: Europe/Brussels
