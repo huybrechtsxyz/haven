@@ -39,6 +39,10 @@ on:
         description: "Run idempotent configuration enforcement (hearth-config Ansible playbook)"
         type: boolean
         default: false
+      run_deploy:
+        description: "Deploy Docker Compose services to Hearth (hearth-deploy Ansible playbook)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -133,12 +137,12 @@ jobs:
       # ------------------------------------------------------------------
 
       - name: Get runner public IP
-        if: ${{ (inputs.run_init == true || inputs.run_config == true) && inputs.dry_run != true }}
+        if: ${{ (inputs.run_init == true || inputs.run_config == true || inputs.run_deploy == true) && inputs.dry_run != true }}
         id: runner_ip
         run: echo "ip=$(curl -sf https://api.ipify.org)" >> $GITHUB_OUTPUT
 
       - name: Get Hearth server public IP
-        if: ${{ (inputs.run_init == true || inputs.run_config == true) && inputs.dry_run != true }}
+        if: ${{ (inputs.run_init == true || inputs.run_config == true || inputs.run_deploy == true) && inputs.dry_run != true }}
         id: hearth_ip
         env:
           HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
@@ -150,7 +154,7 @@ jobs:
           echo "ip=$ip" >> $GITHUB_OUTPUT
 
       - name: Get Hetzner firewall ID
-        if: ${{ (inputs.run_init == true || inputs.run_config == true) && inputs.dry_run != true }}
+        if: ${{ (inputs.run_init == true || inputs.run_config == true || inputs.run_deploy == true) && inputs.dry_run != true }}
         id: fw
         env:
           HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
@@ -171,7 +175,7 @@ jobs:
           echo "id=$id" >> $GITHUB_OUTPUT
 
       - name: Open temporary SSH rule for runner
-        if: ${{ (inputs.run_init == true || inputs.run_config == true) && inputs.dry_run != true }}
+        if: ${{ (inputs.run_init == true || inputs.run_config == true || inputs.run_deploy == true) && inputs.dry_run != true }}
         env:
           HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
         run: |
@@ -196,11 +200,11 @@ jobs:
           [ "$HTTP" -lt 400 ]
 
       - name: Install Ansible
-        if: ${{ (inputs.run_init == true || inputs.run_config == true) && inputs.dry_run != true }}
+        if: ${{ (inputs.run_init == true || inputs.run_config == true || inputs.run_deploy == true) && inputs.dry_run != true }}
         run: pip install ansible-core
 
       - name: Write deploy SSH private key
-        if: ${{ (inputs.run_init == true || inputs.run_config == true) && inputs.dry_run != true }}
+        if: ${{ (inputs.run_init == true || inputs.run_config == true || inputs.run_deploy == true) && inputs.dry_run != true }}
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.HETZNER_PRIVATE_KEY }}" > ~/.ssh/haven_ed25519
@@ -233,8 +237,33 @@ jobs:
             -i "${{ steps.hearth_ip.outputs.ip }}," \
             --private-key ~/.ssh/haven_ed25519
 
+      - name: Write Ansible vars file for deploy secrets
+        if: ${{ inputs.run_deploy == true && inputs.dry_run != true }}
+        run: |
+          cat > /tmp/deploy_vars.yml << 'VARSEOF'
+          authentik_secret_key: "${{ secrets.AUTHENTIK_SECRET_KEY }}"
+          authentik_postgresql_password: "${{ secrets.AUTHENTIK_POSTGRESQL__PASSWORD }}"
+          vaultwarden_admin_token: "${{ secrets.VAULTWARDEN_ADMIN_TOKEN }}"
+          infisical_auth_secret: "${{ secrets.INFISICAL_AUTH_SECRET }}"
+          infisical_encryption_key: "${{ secrets.INFISICAL_ENCRYPTION_KEY }}"
+          infisical_postgresql_password: "${{ secrets.INFISICAL_POSTGRESQL__PASSWORD }}"
+          VARSEOF
+
+      - name: Run hearth-deploy playbook
+        if: ${{ inputs.run_deploy == true && inputs.dry_run != true }}
+        working-directory: deploy/ansible-deploy
+        run: |
+          ansible-playbook hearth-deploy.yml \
+            -i "${{ steps.hearth_ip.outputs.ip }}," \
+            --private-key ~/.ssh/haven_ed25519 \
+            -e @/tmp/deploy_vars.yml
+
+      - name: Clean up vars file
+        if: ${{ always() && inputs.run_deploy == true && inputs.dry_run != true }}
+        run: rm -f /tmp/deploy_vars.yml
+
       - name: Remove temporary SSH rule for runner
-        if: ${{ always() && (inputs.run_init == true || inputs.run_config == true) && inputs.dry_run != true }}
+        if: ${{ always() && (inputs.run_init == true || inputs.run_config == true || inputs.run_deploy == true) && inputs.dry_run != true }}
         env:
           HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
         run: |

@@ -1,0 +1,19 @@
+{
+    # Global options
+    email admin@huybrechts.xyz
+}
+
+# Authentik — Identity Provider & SSO
+auth.huybrechts.xyz {
+    reverse_proxy authentik-server:9000
+}
+
+# Vaultwarden — Password Manager
+vault.huybrechts.xyz {
+    reverse_proxy vaultwarden:80
+}
+
+# Infisical — Secrets Manager
+secrets.huybrechts.xyz {
+    reverse_proxy infisical:8080
+}

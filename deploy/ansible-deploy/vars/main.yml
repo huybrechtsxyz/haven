@@ -1,0 +1,15 @@
+# =============================================================================
+# Non-sensitive configuration variables for hearth-deploy.yml
+# Sensitive values (service passwords, tokens, keys) are passed via
+# --extra-vars at run time and never committed to the repository.
+# =============================================================================
+
+haven_user: haven
+haven_group: haven
+haven_install_path: /opt/haven
+
+# Build output path (relative to workspace root, used on the Ansible controller)
+build_output_path: build/haven_deploy_prd-1.0.0/hearth
+
+# Deployment name — used to locate build artifacts
+deployment_name: haven_deploy_prd-1.0.0

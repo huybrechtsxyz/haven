@@ -1,0 +1,137 @@
+---
+# =============================================================================
+# Playbook: hearth-deploy.yml
+# Idempotent service deployment — runs on every pipeline push.
+# Syncs compose file, Caddyfile, and .env to the server then brings
+# all services up with docker compose up -d --remove-orphans.
+#
+# Prerequisites:
+#   hearth-init.yml and hearth-config.yml must have been run first.
+#
+# Run manually (from repo root):
+#   ansible-playbook deploy/ansible-deploy/hearth-deploy.yml \
+#     -i <hearth_public_ip>, \
+#     --private-key ~/.ssh/haven_ed25519 \
+#     -e @/tmp/deploy_secrets.yml
+#
+# Required extra-vars (pass via -e @file or -e key=value):
+#   authentik_secret_key
+#   authentik_postgresql_password
+#   vaultwarden_admin_token
+#   infisical_auth_secret
+#   infisical_encryption_key
+#   infisical_postgresql_password
+# =============================================================================
+
+- name: Hearth — deploy Docker Compose services
+  hosts: all
+  remote_user: root
+  gather_facts: false
+
+  vars_files:
+    - vars/main.yml
+
+  tasks:
+    # =========================================================================
+    # Directory structure — ensure service data dirs exist
+    # =========================================================================
+
+    - name: Create service data and config directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0750"
+      loop:
+        - "{{ haven_install_path }}/etc/caddy"
+        - "{{ haven_install_path }}/etc/caddy/config"
+        - "{{ haven_install_path }}/etc/authentik/templates"
+        - "{{ haven_install_path }}/var/data/authentik/postgresql"
+        - "{{ haven_install_path }}/var/data/authentik/media"
+        - "{{ haven_install_path }}/var/data/vaultwarden"
+        - "{{ haven_install_path }}/var/data/infisical/postgresql"
+
+    # =========================================================================
+    # Sync build artifacts — compose file and Caddyfile
+    # =========================================================================
+
+    - name: Copy docker-compose.yml to server
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../build/{{ deployment_name }}/hearth/docker-compose.yml"
+        dest: "{{ haven_install_path }}/etc/docker-compose.yml"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0640"
+
+    - name: Copy Caddyfile to server
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../services/hearth/caddy/Caddyfile"
+        dest: "{{ haven_install_path }}/etc/caddy/Caddyfile"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0640"
+
+    # =========================================================================
+    # .env file — secrets injected at deploy time, never committed
+    # =========================================================================
+
+    - name: Write .env file with service secrets
+      ansible.builtin.copy:
+        dest: "{{ haven_install_path }}/etc/.env"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0600"
+        content: |
+          AUTHENTIK_SECRET_KEY={{ authentik_secret_key }}
+          AUTHENTIK_POSTGRESQL__PASSWORD={{ authentik_postgresql_password }}
+          VAULTWARDEN_ADMIN_TOKEN={{ vaultwarden_admin_token }}
+          INFISICAL_AUTH_SECRET={{ infisical_auth_secret }}
+          INFISICAL_ENCRYPTION_KEY={{ infisical_encryption_key }}
+          INFISICAL_POSTGRESQL__PASSWORD={{ infisical_postgresql_password }}
+          INFISICAL_DB_CONNECTION_URI=postgresql://infisical:{{ infisical_postgresql_password }}@infisical-db:5432/infisical
+      no_log: true
+
+    # =========================================================================
+    # Docker Compose — pull images and bring services up
+    # =========================================================================
+
+    - name: Pull latest Docker images
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          --env-file {{ haven_install_path }}/etc/.env
+          pull
+      changed_when: true
+
+    - name: Start / update services (up -d)
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          --env-file {{ haven_install_path }}/etc/.env
+          up -d --remove-orphans
+      changed_when: true
+
+    # =========================================================================
+    # Health — wait for services to be healthy
+    # =========================================================================
+
+    - name: Wait for authentik-db to be healthy
+      ansible.builtin.command:
+        cmd: docker inspect --format "{{ '{{' }}.State.Health.Status{{ '}}' }}" authentik-db
+      register: db_health
+      until: db_health.stdout == "healthy"
+      retries: 20
+      delay: 5
+      changed_when: false
+
+    - name: Wait for infisical-db to be healthy
+      ansible.builtin.command:
+        cmd: docker inspect --format "{{ '{{' }}.State.Health.Status{{ '}}' }}" infisical-db
+      register: infisical_db_health
+      until: infisical_db_health.stdout == "healthy"
+      retries: 20
+      delay: 5
+      changed_when: false
