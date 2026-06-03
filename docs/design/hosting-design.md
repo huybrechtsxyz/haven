@@ -31,7 +31,7 @@ graph TB
         Contacts[Contacts<br/>CardDAV]
     end
 
-    subgraph CoreVPS["🛡️ Core VPS — Hetzner CX22 🇩🇪 (Docker Compose)"]
+    subgraph CoreVPS["🛡️ Core VPS — Hetzner CX23 🇩🇪 (Docker Compose)"]
         Caddy[Caddy<br/>Reverse Proxy + TLS]
         Authentik[Authentik<br/>Identity / SSO / 2FA]
         Vaultwarden[Vaultwarden<br/>Password Manager]
@@ -98,7 +98,7 @@ graph TB
 | Passwords          | Vaultwarden              | Hetzner VPS (DE 🇩🇪)                                                | Bitwarden-compatible; same Firefox extension + iPhone app for family                                                                                                                      |
 | Secrets & config   | Infisical                | Hetzner VPS (DE 🇩🇪)                                                | Per-app/env secrets + key-value config; CLI/SDK; replaces App Config/Consul                                                                                                               |
 | Identity (SSO)     | Authentik                | Hetzner VPS (DE 🇩🇪)                                                | OIDC/OAuth2 for all VPS services; 2FA enforcement; user lifecycle                                                                                                                         |
-| Compute — Core     | Docker Compose           | Hetzner CX22 VPS (DE 🇩🇪)                                           | Authentik, Vaultwarden, Infisical, Caddy — stable core; bootstrapped via GitHub Secrets; never experiments run here                                                                       |
+| Compute — Core     | Docker Compose           | Hetzner CX23 VPS (DE 🇩🇪)                                           | Authentik, Vaultwarden, Infisical, Caddy — stable core; bootstrapped via GitHub Secrets; never experiments run here                                                                       |
 | Compute — Workload | k3s (single-node)        | Hetzner CPX41 VPS (DE 🇩🇪)                                          | Immich, Gatus, home-grown apps via Helm; expendable — destroy/rebuild freely; secrets via Infisical token only (External Secrets Operator)                                                |
 | IaC — tool         | strata (Python CLI)      | [`huybrechtsxyz/strata`](https://github.com/huybrechtsxyz/strata) | Own Terragrunt alternative; orchestrates OpenTofu + Ansible against `haven` config                                                                                                        |
 | IaC — config       | haven (config repo)      | [`huybrechtsxyz/haven`](https://github.com/huybrechtsxyz/haven)   | All infra + app declarations: OpenTofu .tf, Ansible vars, Docker Compose, Helm values                                                                                                     |
@@ -210,7 +210,7 @@ Runs the identity and secrets infrastructure. Boring by design — deployed once
 
 | Spec          | Value                                                                       |
 | ------------- | --------------------------------------------------------------------------- |
-| Model         | Hetzner CX22                                                                |
+| Model         | Hetzner CX23                                                                |
 | vCPU          | 2                                                                           |
 | RAM           | 4 GB                                                                        |
 | SSD           | 40 GB                                                                       |
@@ -222,7 +222,7 @@ Runs the identity and secrets infrastructure. Boring by design — deployed once
 | Skill req.    | Docker Compose, basic Linux                                                 |
 
 **Bootstrap sequence:**
-1. GitHub Actions uses GitHub Secrets (Hetzner API key, SSH key) to provision the CX22 via OpenTofu and run Ansible
+1. GitHub Actions uses GitHub Secrets (Hetzner API key, SSH key) to provision the CX23 via OpenTofu and run Ansible
 2. Ansible deploys Docker Compose stack: Caddy → Infisical → Authentik → Vaultwarden
 3. After Infisical is running, all subsequent deployments pull secrets from Infisical — GitHub Secrets no longer needed at runtime
 
@@ -261,7 +261,7 @@ Runs all family apps. Can be destroyed and rebuilt at any time without affecting
 | Cert management  | Caddy auto-TLS                              | cert-manager + Let's Encrypt     |
 | Cost             | ~€4/mo                                      | ~€26/mo                          |
 
-> **Decision:** two-node split. Core VPS (CX22, Docker Compose) is the trust anchor — stable, minimal, never an experiment. Workload VPS (CPX41, k3s) is the platform — extend it, break it, rebuild it freely. The k3s node only needs an Infisical token; it has no knowledge of Hetzner API keys, SSH keys, or admin credentials.
+> **Decision:** two-node split. Core VPS (CX23, Docker Compose) is the trust anchor — stable, minimal, never an experiment. Workload VPS (CPX41, k3s) is the platform — extend it, break it, rebuild it freely. The k3s node only needs an Infisical token; it has no knowledge of Hetzner API keys, SSH keys, or admin credentials.
 
 ---
 
@@ -289,7 +289,7 @@ Runs all family apps. Can be destroyed and rebuilt at any time without affecting
 | -------------------------------------------- | -------------- |
 | Infomaniak kSuite (5 users, kDrive 3 TB)     | ~€25-35/mo     |
 | Infomaniak kDrive extra storage (to ~5 TB)   | ~€5-10/mo      |
-| Hetzner CX22 VPS (Core — Docker Compose)     | ~€4/mo         |
+| Hetzner CX23 VPS (Core — Docker Compose)     | ~€4/mo         |
 | Hetzner CPX41 VPS (Workload — k3s)           | ~€26/mo        |
 | Hetzner BX11 Storage Box (1 TB)              | ~€4/mo         |
 | Domains (4 × INWX, steady-state)             | ~€6.30/mo      |
@@ -312,7 +312,7 @@ Savings: Bitwarden Team (~€15/mo) eliminated. 2 extra users added vs current G
 | Infisical over Vault/Consul       | MIT licence, no IBM/BSL risk, covers secrets + config in one tool                                                                                                                          |
 | Authentik over Keycloak           | Lighter (300-500 MB vs 1-2 GB), MIT, excellent UI, proxy provider                                                                                                                          |
 | BorgBackup over restic            | Mature, deduplication, encryption built-in, Hetzner Storage Box native                                                                                                                     |
-| Two-node split (Core + Workload)  | Core VPS (CX22, Docker Compose) is the trust anchor — Authentik, Vaultwarden, Infisical never disrupted by experiments; Workload VPS (CPX41, k3s) is expendable — break and rebuild freely |
+| Two-node split (Core + Workload)  | Core VPS (CX23, Docker Compose) is the trust anchor — Authentik, Vaultwarden, Infisical never disrupted by experiments; Workload VPS (CPX41, k3s) is expendable — break and rebuild freely |
 | k3s for workload                  | Helm-native upgrades, rollback, ESO secrets integration; easy to add worker nodes; family-5 apps fit comfortably on CPX41                                                                  |
 | GitHub Secrets for Core bootstrap | Chicken-and-egg: Infisical not running yet during first deploy; acceptable for one-time bootstrap only; runtime uses Infisical                                                             |
 | Infisical token only for Workload | k3s node has no Hetzner API key, SSH key, or admin credentials — only an ESO token scoped to its own secrets namespace                                                                     |
@@ -342,7 +342,7 @@ Savings: Bitwarden Team (~€15/mo) eliminated. 2 extra users added vs current G
 - **Add CPX31 worker node** to k3s if Workload VPS RAM becomes the bottleneck (easy — k3s designed for this).
 - **Add Flagsmith** if feature-flag rollout percentages or A/B testing are needed beyond Infisical boolean config.
 - **Tailscale mesh** for admin-only VPS access (SSH + Infisical API) without public exposure; replaces UFW SSH exception for admin sessions.
-- **Promote Core VPS to HA** (second CX22 + keepalived) if uptime SLA becomes critical.
+- **Promote Core VPS to HA** (second CX23 + keepalived) if uptime SLA becomes critical.
 - **Nextcloud** on Workload VPS only if kDrive becomes insufficient for power-user file workflows.
 
 ---
@@ -377,7 +377,7 @@ kind: resource
 meta:
   name: haven_vm_core
   annotations:
-    description: Hetzner CX22 — Core VPS (Caddy, Authentik, Vaultwarden, Infisical)
+    description: Hetzner CX23 — Core VPS (Caddy, Authentik, Vaultwarden, Infisical)
   tags: [haven, vm, core]
 spec:
   properties:
@@ -792,7 +792,7 @@ spec:
     SUBDOMAIN_STATUS:   status.huybrechts.xyz
     # Infrastructure
     HETZNER_REGION:     eu-central
-    CORE_VM_TYPE:       cx22
+    CORE_VM_TYPE:       cx23
     WORKLOAD_VM_TYPE:   cpx41
     STORAGE_BOX_TYPE:   bx11
     # Secrets — all values stored in Infisical (not here)

@@ -183,7 +183,7 @@ Once manual deployment works:
 │                                                         │
 │  ┌─────────────┐    10.0.1.0/24     ┌──────────────┐   │
 │  │   Hearth    │◄──────────────────►│    Forge     │   │
-│  │   CX22      │   private net      │    CPX41     │   │
+│  │   CX23      │   private net      │    CPX41     │   │
 │  │             │                    │   (Wave 2)   │   │
 │  │ Caddy       │                    │ k3s          │   │
 │  │ Authentik   │                    │ Immich       │   │
@@ -204,7 +204,7 @@ Once manual deployment works:
 
 | Resource             | Monthly                |
 | -------------------- | ---------------------- |
-| Hearth CX22          | ~€4.15                 |
+| Hearth CX23          | ~€4.15                 |
 | Forge CPX41 (Wave 2) | ~€26.00                |
 | Storage Box BX11     | ~€3.81                 |
 | Terraform Cloud      | Free (< 500 resources) |

@@ -67,9 +67,16 @@ resource "hcloud_firewall" "hearth" {
 # =============================================================================
 # Server
 # =============================================================================
-# CX22: 2 vCPU, 4 GB RAM, 40 GB SSD
+# CX23: 2 vCPU, 4 GB RAM, 40 GB SSD
 # Volumes at /opt/haven/ are directories on root disk, not block volumes.
-# lifecycle.prevent_destroy — this is production, accidental destroy is catastrophic.
+# lifecycle.prevent_destroy  — this is production, accidental destroy is catastrophic.
+# lifecycle.ignore_changes   — server_type is ignored after creation.
+#   Hetzner periodically renames server type identifiers (e.g. cx22 → cx23 in 2025).
+#   Existing servers keep running under the old name but the API rejects it on new creates.
+#   Without this ignore, Terraform sees a perpetual drift between the declared name and
+#   what the API reports, and attempts an unwanted resize/reboot on every apply.
+#   To intentionally resize: update server_type in vm-hetzner-hearth.yaml, temporarily
+#   remove ignore_changes, apply once, then restore it.
 
 resource "hcloud_server" "hearth" {
   name        = "${var.workspace_name}-hearth"
@@ -89,6 +96,7 @@ resource "hcloud_server" "hearth" {
 
   lifecycle {
     prevent_destroy = true
+    ignore_changes  = [server_type]
   }
 }
 
