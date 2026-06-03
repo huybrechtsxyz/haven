@@ -100,19 +100,31 @@
       ansible.builtin.command:
         cmd: >
           docker compose
+          --project-name haven
           -f {{ haven_install_path }}/etc/docker-compose.yml
           --env-file {{ haven_install_path }}/etc/.env
           pull
+      register: compose_pull
       changed_when: true
+
+    - name: Show image pull output
+      ansible.builtin.debug:
+        var: compose_pull.stdout_lines
 
     - name: Start / update services (up -d)
       ansible.builtin.command:
         cmd: >
           docker compose
+          --project-name haven
           -f {{ haven_install_path }}/etc/docker-compose.yml
           --env-file {{ haven_install_path }}/etc/.env
           up -d --remove-orphans
+      register: compose_up
       changed_when: true
+
+    - name: Show compose up output
+      ansible.builtin.debug:
+        var: compose_up.stdout_lines
 
     # =========================================================================
     # Health — wait for services to be healthy
@@ -120,18 +132,28 @@
 
     - name: Wait for authentik-db to be healthy
       ansible.builtin.command:
-        cmd: docker inspect --format "{{ '{{' }}.State.Health.Status{{ '}}' }}" authentik-db
-      register: db_health
-      until: db_health.stdout == "healthy"
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          --env-file {{ haven_install_path }}/etc/.env
+          exec -T authentik-db pg_isready -d authentik -U authentik
+      register: authentik_db_ready
+      until: authentik_db_ready.rc == 0
       retries: 20
       delay: 5
       changed_when: false
 
     - name: Wait for infisical-db to be healthy
       ansible.builtin.command:
-        cmd: docker inspect --format "{{ '{{' }}.State.Health.Status{{ '}}' }}" infisical-db
-      register: infisical_db_health
-      until: infisical_db_health.stdout == "healthy"
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          --env-file {{ haven_install_path }}/etc/.env
+          exec -T infisical-db pg_isready -d infisical -U infisical
+      register: infisical_db_ready
+      until: infisical_db_ready.rc == 0
       retries: 20
       delay: 5
       changed_when: false
