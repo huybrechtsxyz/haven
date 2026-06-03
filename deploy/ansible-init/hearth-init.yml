@@ -122,14 +122,17 @@
         mode: "0644"
         force: false
 
-    - name: Add Docker apt repository
-      ansible.builtin.apt_repository:
-        repo: >-
-          deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc]
-          https://download.docker.com/linux/ubuntu
-          {{ ansible_distribution_release }} stable
-        filename: docker
-        state: present
+    - name: Add Docker apt repository (deb822 format for Ubuntu 24.04+)
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/docker.sources
+        mode: "0644"
+        content: |
+          Types: deb
+          URIs: https://download.docker.com/linux/ubuntu
+          Suites: {{ ansible_distribution_release }}
+          Components: stable
+          Architectures: amd64
+          Signed-By: /etc/apt/keyrings/docker.asc
 
     - name: Install Docker Engine and Compose plugin
       ansible.builtin.apt:
@@ -227,7 +230,7 @@
     #         in Hetzner Robot, then re-runs with configure_borg=true.
 
     - name: Generate BorgBackup SSH key for haven user
-      ansible.builtin.openssh_keypair:
+      community.crypto.openssh_keypair:
         path: "{{ haven_install_path }}/.ssh/borg_ed25519"
         type: ed25519
         comment: "haven-borg@hearth"
