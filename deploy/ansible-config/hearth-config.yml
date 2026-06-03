@@ -30,6 +30,24 @@
 
   tasks:
     # =========================================================================
+    # Ensure no competing web servers hold ports 80/443
+    # =========================================================================
+
+    - name: Stop and disable apache2 if present
+      ansible.builtin.systemd:
+        name: apache2
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Stop and disable nginx if present
+      ansible.builtin.systemd:
+        name: nginx
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    # =========================================================================
     # System — security updates
     # =========================================================================
 
