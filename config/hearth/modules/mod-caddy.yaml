@@ -19,7 +19,7 @@ spec:
       ports:
         - "80:80"
         - "443:443"
-        - "443:443/udp"  # HTTP/3 QUIC
+        - "443:443/udp" # HTTP/3 QUIC
       mounts:
         - name: caddyfile
           type: bind
