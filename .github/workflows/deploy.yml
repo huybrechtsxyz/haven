@@ -35,6 +35,10 @@ on:
         description: "Run one-time server initialisation (hearth-init Ansible playbook)"
         type: boolean
         default: false
+      configure_borg:
+        description: "Initialise BorgBackup repo on Storage Box (run only after SSH key is authorised in Hetzner Robot)"
+        type: boolean
+        default: false
       run_config:
         description: "Run idempotent configuration enforcement (hearth-config Ansible playbook)"
         type: boolean
@@ -219,14 +223,33 @@ jobs:
         working-directory: deploy/ansible-init
         run: ansible-galaxy collection install -r requirements.yml -p ./collections
 
+      - name: Write Ansible vars file for borg init
+        if: ${{ inputs.run_init == true && inputs.configure_borg == true && inputs.dry_run != true }}
+        run: |
+          STORAGEBOX_HOST=$(grep 'storagebox_host:' deploy/ansible-config/vars/main.yml | awk '{print $2}' | tr -d '"')
+          cat > /tmp/init_vars.yml << VARSEOF
+          configure_borg: true
+          storagebox_host: "${STORAGEBOX_HOST}"
+          borg_passphrase: "${{ secrets.BORG_PASSPHRASE }}"
+          VARSEOF
+
       - name: Run hearth-init playbook
         if: ${{ inputs.run_init == true && inputs.dry_run != true }}
         working-directory: deploy/ansible-init
         run: |
+          if [ "${{ inputs.configure_borg }}" = "true" ]; then
+            EXTRA_ARGS="-e @/tmp/init_vars.yml"
+          else
+            EXTRA_ARGS="-e configure_borg=false"
+          fi
           ansible-playbook hearth-init.yml \
             -i "${{ steps.hearth_ip.outputs.ip }}," \
             --private-key ~/.ssh/haven_ed25519 \
-            -e configure_borg=false
+            $EXTRA_ARGS
+
+      - name: Clean up init vars file
+        if: ${{ always() && inputs.run_init == true && inputs.configure_borg == true && inputs.dry_run != true }}
+        run: rm -f /tmp/init_vars.yml
 
       - name: Install Ansible collections (config)
         if: ${{ inputs.run_config == true && inputs.dry_run != true }}
