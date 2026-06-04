@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# =============================================================================
+# Haven Hearth — BorgBackup daily backup script
+# Managed by Ansible (hearth-config.yml) — do not edit manually.
+# =============================================================================
+set -euo pipefail
+
+PASSPHRASE_FILE="{{ haven_install_path }}/.borg_passphrase"
+if [[ ! -f "$PASSPHRASE_FILE" ]]; then
+  echo "ERROR: passphrase file $PASSPHRASE_FILE not found" >&2
+  exit 1
+fi
+
+export BORG_PASSPHRASE
+BORG_PASSPHRASE="$(cat "$PASSPHRASE_FILE")"
+export BORG_RSH="ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -o StrictHostKeyChecking=yes"
+export BORG_REPO="{{ storagebox_subaccount }}@{{ storagebox_host }}:./hearth"
+
+ARCHIVE="hearth-$(date --utc +%Y-%m-%dT%H:%M)"
+LOG_PREFIX="[$(date --utc +%Y-%m-%dT%H:%M:%SZ)] haven-backup"
+
+echo "$LOG_PREFIX — starting archive $ARCHIVE"
+
+borg create \
+  --verbose \
+  --filter AME \
+  --list \
+  --stats \
+  --show-rc \
+  --compression lz4 \
+  --exclude-caches \
+  "$BORG_REPO::$ARCHIVE" \
+  {{ haven_install_path }}/var/data/authentik \
+  {{ haven_install_path }}/var/data/vaultwarden \
+  {{ haven_install_path }}/var/data/infisical \
+  {{ haven_install_path }}/etc
+
+echo "$LOG_PREFIX — pruning old archives"
+borg prune \
+  --list \
+  --glob-archives "hearth-*" \
+  --show-rc \
+  --keep-daily  {{ borg_keep_daily }} \
+  --keep-weekly {{ borg_keep_weekly }} \
+  --keep-monthly {{ borg_keep_monthly }} \
+  "$BORG_REPO"
+
+echo "$LOG_PREFIX — compacting repository"
+borg compact "$BORG_REPO"
+
+echo "$LOG_PREFIX — completed successfully"

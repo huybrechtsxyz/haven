@@ -218,6 +218,63 @@
         line: "PermitRootLogin prohibit-password"
       notify: Restart sshd
 
+    # =========================================================================
+    # BorgBackup — backup script + cron (only when configure_borg=true)
+    # =========================================================================
+    # Requires that hearth-init.yml has already been run with configure_borg=true
+    # to generate the SSH key and initialise the repo on the Storage Box.
+
+    - name: Ensure scripts directory exists
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/scripts"
+        state: directory
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0750"
+      when: configure_borg | bool
+
+    - name: Deploy backup script from template
+      ansible.builtin.template:
+        src: templates/backup.sh.j2
+        dest: "{{ haven_install_path }}/scripts/backup.sh"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0750"
+      when: configure_borg | bool
+
+    - name: Write BorgBackup passphrase to protected file
+      ansible.builtin.copy:
+        content: "{{ borg_passphrase }}"
+        dest: "{{ haven_install_path }}/.borg_passphrase"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0400"
+      when: configure_borg | bool
+      no_log: true  # contains borg_passphrase
+
+    - name: Install BorgBackup cron job (daily at 02:00 UTC)
+      ansible.builtin.cron:
+        name: "haven-borg-backup"
+        user: "{{ haven_user }}"
+        minute: "0"
+        hour: "2"
+        job: >-
+          {{ haven_install_path }}/scripts/backup.sh
+          >> /var/log/haven-backup.log 2>&1
+        state: present
+      when: configure_borg | bool
+
+    - name: Ensure backup log file exists and is owned by haven user
+      ansible.builtin.file:
+        path: /var/log/haven-backup.log
+        state: touch
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0640"
+        modification_time: preserve
+        access_time: preserve
+      when: configure_borg | bool
+
   # ===========================================================================
   # Handlers
   # ===========================================================================

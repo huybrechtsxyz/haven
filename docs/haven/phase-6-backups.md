@@ -2,15 +2,15 @@
 
 > [← Phase 5](phase-5-service-setup.md) | [← Overview](README.md)
 
-Set up automated encrypted backups of all service data to the Hetzner Storage Box.
+Automated encrypted backups of all service data to a Hetzner Storage Box via BorgBackup.
 
-**Automated:** BorgBackup cron on the server (after one-time manual setup).  
-**Manual:** SSH key exchange with Storage Box, initial repo creation, passphrase storage.  
-**Estimated time:** 30 minutes setup.
+**Automated:** Backup script + daily cron deployed by `hearth-config.yml`.  
+**Manual (one-time):** SSH key exchange with Storage Box, initial repo creation.  
+**Estimated time:** 30 minutes for the one-time setup.
 
 ---
 
-## What needs to be backed up
+## What gets backed up
 
 | Directory                          | Contents                                  |
 | ---------------------------------- | ----------------------------------------- |
@@ -19,157 +19,207 @@ Set up automated encrypted backups of all service data to the Hetzner Storage Bo
 | `/opt/haven/var/data/infisical/`   | Infisical PostgreSQL data                 |
 | `/opt/haven/etc/`                  | docker-compose.yml, Caddyfile             |
 
-> **Not backed up:** TLS certificates (`/opt/haven/var/certs/`) — Caddy re-obtains these automatically from Let's Encrypt.
+> **Not backed up:** TLS certificates — Caddy re-obtains these from Let's Encrypt automatically.
+> **Not backed up:** Container images — re-pulled on next deploy.
 
-> **Not backed up separately:** Container images — re-pulled on next deploy.
+**Retention policy:** 7 daily, 4 weekly, 6 monthly archives (configurable in `vars/main.yml`).
 
 ---
 
-## 6.1 — Generate a BorgBackup passphrase
+## Architecture
 
-Generate a strong passphrase and store it in Vaultwarden immediately:
+```
+Server (Hearth)                         Hetzner Storage Box
+─────────────────                       ────────────────────
+haven user cron (02:00 UTC)
+  └─ /opt/haven/scripts/backup.sh  →  hearth_backup@uXXXXXX.your-storagebox.de:./hearth
+       reads passphrase from
+       /opt/haven/.borg_passphrase
+       SSH key: /opt/haven/.ssh/borg_ed25519
+```
+
+All three components are deployed and maintained by Ansible:
+
+- `hearth-init.yml` — generates the SSH keypair, initialises the Borg repo (one-time)
+- `hearth-config.yml` — deploys `backup.sh`, writes the passphrase file, installs the cron job (every deploy when `configure_borg: true`)
+
+---
+
+## Step 1 — Order the Hetzner Storage Box
+
+In [Hetzner Robot](https://robot.hetzner.com) → Storage Boxes → Order.
+
+- **Product:** BX11 (1 TB, EUR 3.81/month)
+- **Location:** NBG1 (same region as the Hearth VPS)
+
+After provisioning, note the hostname: `uXXXXXX.your-storagebox.de`
+
+---
+
+## Step 2 — Generate a BorgBackup passphrase
 
 ```powershell
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-Store this in Vaultwarden as: **"Haven BorgBackup passphrase"** — losing it means losing access to all backups.
+Store it immediately in Vaultwarden as: **"Haven BorgBackup passphrase"** — losing it means permanent loss of all backup data.
 
 ---
 
-## 6.2 — Set up SSH access to the Storage Box
+## Step 3 — Add GitHub Secret
 
-On the **server** (SSH in as root or haven):
+In GitHub repository Settings → Secrets and variables → Actions → **New repository secret**:
 
-```bash
-# Generate a key specifically for the Storage Box
-ssh-keygen -t ed25519 -C "hearth-borgbackup" -f /root/.ssh/borg_ed25519 -N ""
-
-# Copy the public key to the Storage Box
-# Replace uXXXXXX with your Storage Box username
-ssh-copy-id -i /root/.ssh/borg_ed25519.pub hearth_backup@uXXXXXX.your-storagebox.de
-```
-
-Test the connection:
-
-```bash
-ssh -i /root/.ssh/borg_ed25519 hearth_backup@uXXXXXX.your-storagebox.de
-```
+| Secret name       | Value                    |
+| ----------------- | ------------------------ |
+| `BORG_PASSPHRASE` | The passphrase from Step 2 |
 
 ---
 
-## 6.3 — Initialize the Borg repository
+## Step 4 — Configure storagebox in `vars/main.yml`
 
-On the **server**:
+Edit `deploy/ansible-config/vars/main.yml` and fill in your Storage Box hostname:
 
-```bash
-export BORG_PASSPHRASE="your-passphrase-from-61"
-export BORG_RSH="ssh -i /root/.ssh/borg_ed25519"
-export BORG_REPO="ssh://hearth_backup@uXXXXXX.your-storagebox.de:23/./haven-hearth"
+```yaml
+# leave configure_borg: false for now — set it true only after Step 7
+configure_borg: false
 
-# Initialize (once)
-borg init --encryption=repokey-blake2 "$BORG_REPO"
-
-# Export and store the repo key in Vaultwarden too
-borg key export "$BORG_REPO" /tmp/borg-repo-key.txt
-cat /tmp/borg-repo-key.txt
-# → copy this into Vaultwarden alongside the passphrase
-rm /tmp/borg-repo-key.txt
+storagebox_host: "uXXXXXX.your-storagebox.de"   # fill in your actual hostname
+storagebox_subaccount: hearth-backup             # must match sub-account in Hetzner Robot
 ```
+
+Commit and push this change before running the pipeline.
 
 ---
 
-## 6.4 — Create the backup script
+## Step 5 — Run hearth-init (generate SSH key)
 
-On the **server**, create `/opt/haven/scripts/backup.sh`:
+Run the pipeline with:
 
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
+- `run_init: true`
+- `run_config: false`
+- `run_deploy: false` (optional)
 
-export BORG_PASSPHRASE="your-passphrase"
-export BORG_RSH="ssh -i /root/.ssh/borg_ed25519"
-export BORG_REPO="ssh://hearth_backup@uXXXXXX.your-storagebox.de:23/./haven-hearth"
+The playbook generates an Ed25519 key at `/opt/haven/.ssh/borg_ed25519` and **prints the public key** in the pipeline log.
 
-ARCHIVE="hearth-$(date +%Y-%m-%dT%H:%M)"
-
-borg create \
-  --verbose \
-  --filter AME \
-  --list \
-  --stats \
-  --show-rc \
-  --compression lz4 \
-  --exclude-caches \
-  "$BORG_REPO::$ARCHIVE" \
-  /opt/haven/var/data/authentik \
-  /opt/haven/var/data/vaultwarden \
-  /opt/haven/var/data/infisical \
-  /opt/haven/etc
-
-# Prune: keep 7 daily, 4 weekly, 6 monthly
-borg prune \
-  --list \
-  --glob-archives "hearth-*" \
-  --show-rc \
-  --keep-daily 7 \
-  --keep-weekly 4 \
-  --keep-monthly 6 \
-  "$BORG_REPO"
-
-# Compact freed space
-borg compact "$BORG_REPO"
-```
-
-```bash
-chmod +x /opt/haven/scripts/backup.sh
-```
-
-> **Note:** Store the passphrase in the script only after confirming it's protected (root-only readable, not in git). Long-term, consider storing it in Infisical and fetching at runtime.
+Look for the task **"Display borg SSH public key"** in the workflow output and copy the public key.
 
 ---
 
-## 6.5 — Schedule with cron
+## Step 6 — Authorise the SSH key on the Storage Box
+
+In Hetzner Robot → Storage Box → Sub-accounts:
+
+1. Find or create the sub-account **`hearth_backup`**
+2. Paste the public key from Step 5 into the **SSH Public Keys** field
+3. Save
+
+Test the connection manually (optional, SSH into the server first):
 
 ```bash
-# Add to root crontab
-crontab -e
-
-# Run daily at 02:00 UTC
-0 2 * * * /opt/haven/scripts/backup.sh >> /var/log/haven-backup.log 2>&1
+ssh -i /opt/haven/.ssh/borg_ed25519 hearth_backup@uXXXXXX.your-storagebox.de
 ```
 
 ---
 
-## 6.6 — Test the backup and restore
+## Step 7 — Initialise the Borg repository (one-time)
 
-### Test backup runs
+> This must be run **exactly once**. Running it again on an existing repo will fail safely (Borg refuses to re-init a non-empty repo).
+
+Run the hearth-init playbook manually with `configure_borg=true`:
 
 ```bash
-/opt/haven/scripts/backup.sh
-
-# List archives
-borg list "$BORG_REPO"
+ansible-playbook deploy/ansible-init/hearth-init.yml \
+  -i "<hearth_public_ip>," \
+  --private-key ~/.ssh/haven_ed25519 \
+  -e configure_borg=true \
+  -e storagebox_host=uXXXXXX.your-storagebox.de \
+  -e borg_passphrase=<your-passphrase>
 ```
 
-### Test a restore (dry run)
+The playbook will:
+1. Initialise the repo with `--encryption=repokey-blake2`
+2. Display the **repo key** in the output (task: "Display borg repo key")
 
-```bash
-# Extract a specific file to verify it's readable
-borg extract --dry-run "$BORG_REPO::hearth-<latest>" opt/haven/etc/docker-compose.yml
+**Copy the repo key and store it in Vaultwarden** as **"Haven BorgBackup repo key"**.  
+You need both the passphrase AND the repo key to recover from a complete server loss.
+
+---
+
+## Step 8 — Enable automated backups
+
+In `deploy/ansible-config/vars/main.yml`, set:
+
+```yaml
+configure_borg: true
 ```
 
-### Full restore procedure
+Commit and push. From this point on, every `run_config: true` pipeline run will:
+
+- Deploy `/opt/haven/scripts/backup.sh` from the Ansible template
+- Write the passphrase to `/opt/haven/.borg_passphrase` (mode `0400`, haven-only)
+- Install the cron job to run the backup daily at **02:00 UTC**
+
+---
+
+## Verifying backups
+
+### Check the backup log
 
 ```bash
-# Stop services first
+tail -50 /var/log/haven-backup.log
+```
+
+### List all archives
+
+```bash
+sudo -u haven bash -c '
+  export BORG_RSH="ssh -i /opt/haven/.ssh/borg_ed25519"
+  export BORG_PASSPHRASE="$(cat /opt/haven/.borg_passphrase)"
+  borg list hearth_backup@uXXXXXX.your-storagebox.de:./hearth
+'
+```
+
+### Run a manual backup
+
+```bash
+sudo -u haven /opt/haven/scripts/backup.sh
+```
+
+---
+
+## Restore procedure
+
+### 1. Stop services
+
+```bash
 docker compose -p haven -f /opt/haven/etc/docker-compose.yml down
+```
 
-# Restore all data
-cd /
-borg extract "$BORG_REPO::hearth-<archive-name>"
+### 2. List available archives
 
-# Restart services
+```bash
+sudo -u haven bash -c '
+  export BORG_RSH="ssh -i /opt/haven/.ssh/borg_ed25519"
+  export BORG_PASSPHRASE="$(cat /opt/haven/.borg_passphrase)"
+  borg list hearth_backup@uXXXXXX.your-storagebox.de:./hearth
+'
+```
+
+### 3. Extract data
+
+```bash
+sudo -u haven bash -c '
+  export BORG_RSH="ssh -i /opt/haven/.ssh/borg_ed25519"
+  export BORG_PASSPHRASE="$(cat /opt/haven/.borg_passphrase)"
+  cd /
+  borg extract hearth_backup@uXXXXXX.your-storagebox.de:./hearth::hearth-YYYY-MM-DDTHH:MM
+'
+```
+
+### 4. Restart services
+
+```bash
 docker compose -p haven -f /opt/haven/etc/docker-compose.yml up -d
 ```
 
@@ -177,12 +227,15 @@ docker compose -p haven -f /opt/haven/etc/docker-compose.yml up -d
 
 ## Checklist
 
+- [ ] Hetzner Storage Box ordered (BX11, NBG1)
 - [ ] BorgBackup passphrase generated and stored in Vaultwarden
-- [ ] SSH key created on server for Storage Box access
-- [ ] SSH connection to Storage Box verified
-- [ ] Borg repo initialized with `--encryption=repokey-blake2`
+- [ ] `BORG_PASSPHRASE` added to GitHub Secrets
+- [ ] `storagebox_host` filled in `deploy/ansible-config/vars/main.yml` and committed
+- [ ] SSH key generated (pipeline `run_init=true`, Step 5)
+- [ ] SSH public key authorised on Storage Box sub-account in Hetzner Robot (Step 6)
+- [ ] Borg repo initialised with `configure_borg=true` (Step 7)
 - [ ] Repo key exported and stored in Vaultwarden
-- [ ] Backup script created at `/opt/haven/scripts/backup.sh`
-- [ ] Manual test run successful (`borg list` shows an archive)
-- [ ] Restore dry run successful
-- [ ] Cron job scheduled (daily at 02:00 UTC)
+- [ ] `configure_borg: true` set in `vars/main.yml` and committed (Step 8)
+- [ ] Pipeline `run_config=true` — backup script + cron deployed
+- [ ] First backup verified in `/var/log/haven-backup.log`
+- [ ] Restore dry run performed

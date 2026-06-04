@@ -122,6 +122,7 @@ Create an **environment** named `production` and add these secrets to it:
 | `INFISICAL_AUTH_SECRET`         | 64 hex chars exactly            | `token_hex(32)`                              |
 | `INFISICAL_ENCRYPTION_KEY`      | **32 chars exactly**            | `token_hex(16)` — not 64!                    |
 | `INFISICAL_POSTGRESQL_PASSWORD` | Random password                 | From generate step above                     |
+| `BORG_PASSPHRASE`               | Strong random passphrase        | See [Phase 6](phase-6-backups.md) — add when ordering Storage Box |
 
 > **Note:** The workflow uses `environment: production` on the deploy job. Secrets must be in the `production` environment, not just repository-level secrets, or the job won't see them.
 
@@ -134,5 +135,5 @@ Create an **environment** named `production` and add these secrets to it:
 - [ ] All 6 service secrets generated and stored in password manager
 - [ ] Terraform Cloud organization + workspace created (Local execution mode)
 - [ ] GitHub `production` environment created
-- [ ] All 11 GitHub Secrets added with correct names and values
+- [ ] All 11 GitHub Secrets added with correct names and values (+ `BORG_PASSPHRASE` when ready)
 - [ ] `strata` can see the haven repo config: `strata build list`

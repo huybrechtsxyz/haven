@@ -1,5 +1,6 @@
 # =============================================================================
 # Non-sensitive configuration variables for hearth-config.yml
+# Sensitive values (borg_passphrase) are passed via GitHub Secrets at run time.
 # =============================================================================
 
 # haven service account (runs Docker containers)
@@ -9,3 +10,25 @@ haven_install_path: /opt/haven
 
 # Server timezone
 haven_timezone: Europe/Brussels
+
+# =============================================================================
+# BorgBackup — set configure_borg: true after completing hearth-init Step 2
+# (SSH key authorised on Storage Box and repo initialised)
+# =============================================================================
+
+# Set to true once the borg SSH key has been added to the Storage Box
+# sub-account in Hetzner Robot AND hearth-init Step 2 has been run.
+configure_borg: false
+
+# Hetzner Storage Box hostname — fill in after ordering in Hetzner Robot
+# Format: uXXXXXX.your-storagebox.de
+storagebox_host: ""
+
+# Storage Box sub-account username (created in Hetzner Robot)
+storagebox_subaccount: hearth-backup
+
+# Backup retention policy
+borg_keep_daily: 7
+borg_keep_weekly: 4
+borg_keep_monthly: 6
+

@@ -229,13 +229,25 @@ jobs:
         working-directory: deploy/ansible-config
         run: ansible-galaxy collection install -r requirements.yml -p ./collections
 
+      - name: Write Ansible vars file for config secrets
+        if: ${{ inputs.run_config == true && inputs.dry_run != true }}
+        run: |
+          cat > /tmp/config_vars.yml << 'VARSEOF'
+          borg_passphrase: "${{ secrets.BORG_PASSPHRASE }}"
+          VARSEOF
+
       - name: Run hearth-config playbook
         if: ${{ inputs.run_config == true && inputs.dry_run != true }}
         working-directory: deploy/ansible-config
         run: |
           ansible-playbook hearth-config.yml \
             -i "${{ steps.hearth_ip.outputs.ip }}," \
-            --private-key ~/.ssh/haven_ed25519
+            --private-key ~/.ssh/haven_ed25519 \
+            -e @/tmp/config_vars.yml
+
+      - name: Clean up config vars file
+        if: ${{ always() && inputs.run_config == true && inputs.dry_run != true }}
+        run: rm -f /tmp/config_vars.yml
 
       - name: Write Ansible vars file for deploy secrets
         if: ${{ inputs.run_deploy == true && inputs.dry_run != true }}
