@@ -209,6 +209,28 @@
         var: authentik_db_logs.stderr_lines
       when: authentik_db_logs.stderr_lines | default([]) | length > 0
 
+    - name: Capture authentik-worker logs
+      ansible.builtin.shell:
+        cmd: docker logs haven-authentik-worker-1 --tail 100 2>&1
+      register: authentik_worker_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display authentik-worker logs
+      ansible.builtin.debug:
+        var: authentik_worker_logs.stdout_lines
+
+    - name: Capture authentik-server logs
+      ansible.builtin.shell:
+        cmd: docker logs haven-authentik-server-1 --tail 50 2>&1
+      register: authentik_server_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display authentik-server logs
+      ansible.builtin.debug:
+        var: authentik_server_logs.stdout_lines
+
     - name: Capture infisical-db logs
       ansible.builtin.command:
         cmd: docker logs haven-infisical-db-1 --tail 50
