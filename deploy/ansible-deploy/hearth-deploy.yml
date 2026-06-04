@@ -202,15 +202,34 @@
         var: infisical_db_logs.stdout_lines
 
     - name: Capture caddy logs
-      ansible.builtin.command:
-        cmd: docker logs haven-caddy-1 --tail 30
+      ansible.builtin.shell:
+        cmd: docker logs haven-caddy-1 --tail 60 2>&1
       register: caddy_logs
       changed_when: false
       failed_when: false
 
-    - name: Display caddy logs
+    - name: Display caddy logs (stdout + stderr)
       ansible.builtin.debug:
         var: caddy_logs.stdout_lines
+
+    - name: Check TLS certificate status for all domains
+      ansible.builtin.shell:
+        cmd: |
+          for domain in auth.huybrechts.xyz vault.huybrechts.xyz secrets.huybrechts.xyz; do
+            echo "=== $domain ==="
+            echo | openssl s_client -connect "$domain:443" -servername "$domain" 2>&1 \
+              | openssl x509 -noout -issuer -subject -dates 2>/dev/null \
+              || echo "  [no valid cert yet]"
+          done
+        executable: /bin/bash
+      register: cert_check
+      changed_when: false
+      failed_when: false
+      delegate_to: localhost
+
+    - name: Display TLS cert status
+      ansible.builtin.debug:
+        var: cert_check.stdout_lines
 
     # =========================================================================
     # Health — wait for services to be healthy
