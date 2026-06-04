@@ -160,9 +160,9 @@
     # Diagnostics — show container state and logs for debugging
     # =========================================================================
 
-    - name: Wait 15 seconds for containers to stabilise
+    - name: Wait 60 seconds for containers to stabilise and ACME to complete
       ansible.builtin.pause:
-        seconds: 15
+        seconds: 60
 
     - name: Show all container states
       ansible.builtin.command:
