@@ -242,11 +242,11 @@ jobs:
         run: |
           cat > /tmp/deploy_vars.yml << 'VARSEOF'
           authentik_secret_key: "${{ secrets.AUTHENTIK_SECRET_KEY }}"
-          authentik_postgresql_password: "${{ secrets.AUTHENTIK_POSTGRESQL__PASSWORD }}"
+          authentik_postgresql_password: "${{ secrets.AUTHENTIK_POSTGRESQL_PASSWORD }}"
           vaultwarden_admin_token: "${{ secrets.VAULTWARDEN_ADMIN_TOKEN }}"
           infisical_auth_secret: "${{ secrets.INFISICAL_AUTH_SECRET }}"
           infisical_encryption_key: "${{ secrets.INFISICAL_ENCRYPTION_KEY }}"
-          infisical_postgresql_password: "${{ secrets.INFISICAL_POSTGRESQL__PASSWORD }}"
+          infisical_postgresql_password: "${{ secrets.INFISICAL_POSTGRESQL_PASSWORD }}"
           VARSEOF
 
       - name: Run hearth-deploy playbook
