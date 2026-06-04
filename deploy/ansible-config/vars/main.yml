@@ -22,7 +22,7 @@ configure_borg: false
 
 # Hetzner Storage Box hostname — fill in after ordering in Hetzner Robot
 # Format: uXXXXXX.your-storagebox.de
-storagebox_host: ""
+storagebox_host: "u604953.your-storagebox.de"
 
 # Storage Box sub-account username (created in Hetzner Robot)
 storagebox_subaccount: hearth-backup
