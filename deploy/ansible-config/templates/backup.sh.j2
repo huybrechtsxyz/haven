@@ -13,7 +13,7 @@ fi
 
 export BORG_PASSPHRASE
 BORG_PASSPHRASE="$(cat "$PASSPHRASE_FILE")"
-export BORG_RSH="ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -o StrictHostKeyChecking=yes"
+export BORG_RSH="ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes"
 export BORG_REPO="{{ storagebox_subaccount }}@{{ storagebox_host }}:./hearth"
 
 ARCHIVE="hearth-$(date --utc +%Y-%m-%dT%H:%M)"

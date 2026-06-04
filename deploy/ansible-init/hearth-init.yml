@@ -264,10 +264,14 @@
     - name: Scan Storage Box host key
       ansible.builtin.shell:
         cmd: |
-          ssh-keyscan -t ed25519 {{ storagebox_host }} >> {{ haven_install_path }}/.ssh/known_hosts
+          if ! grep -q '{{ storagebox_host }}' {{ haven_install_path }}/.ssh/known_hosts 2>/dev/null; then
+            ssh-keyscan -t ed25519 -p 23 {{ storagebox_host }} >> {{ haven_install_path }}/.ssh/known_hosts
+            echo "CHANGED"
+          fi
           chown {{ haven_user }}:{{ haven_group }} {{ haven_install_path }}/.ssh/known_hosts
           chmod 644 {{ haven_install_path }}/.ssh/known_hosts
-        creates: "{{ haven_install_path }}/.ssh/known_hosts"
+      register: keyscan_result
+      changed_when: "'CHANGED' in keyscan_result.stdout"
       when: configure_borg | bool
 
     - name: Check if BorgBackup repo already exists
@@ -275,7 +279,7 @@
         cmd: borg info "{{ storagebox_subaccount }}@{{ storagebox_host }}:./hearth"
       environment:
         BORG_PASSPHRASE: "{{ borg_passphrase | default('') }}"
-        BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -o StrictHostKeyChecking=yes"
+        BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes"
       become: true
       become_user: "{{ haven_user }}"
       register: borg_info
@@ -288,7 +292,7 @@
         cmd: borg init --encryption=repokey-blake2 "{{ storagebox_subaccount }}@{{ storagebox_host }}:./hearth"
       environment:
         BORG_PASSPHRASE: "{{ borg_passphrase | default('') }}"
-        BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -o StrictHostKeyChecking=yes"
+        BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes"
       become: true
       become_user: "{{ haven_user }}"
       when: configure_borg | bool and borg_info.rc != 0
@@ -298,7 +302,7 @@
         cmd: borg key export "{{ storagebox_subaccount }}@{{ storagebox_host }}:./hearth" -
       environment:
         BORG_PASSPHRASE: "{{ borg_passphrase | default('') }}"
-        BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -o StrictHostKeyChecking=yes"
+        BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes"
       become: true
       become_user: "{{ haven_user }}"
       register: borg_key_export

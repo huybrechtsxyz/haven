@@ -78,15 +78,16 @@ Internet → Caddy (TLS) → auth.huybrechts.xyz    → Authentik  (SSO / identi
 
 ## Phase guides
 
-| File                                                   | Description                                 |
-| ------------------------------------------------------ | ------------------------------------------- |
-| [phase-0-prerequisites.md](phase-0-prerequisites.md)   | Tools, accounts, SSH keys, GitHub Secrets   |
-| [phase-1-dns-domain.md](phase-1-dns-domain.md)         | INWX DNS setup, A records, DNSSEC warning   |
-| [phase-2-infrastructure.md](phase-2-infrastructure.md) | strata build + Terraform provisioning       |
-| [phase-3-hearth-init.md](phase-3-hearth-init.md)       | Ansible server bootstrap                    |
-| [phase-4-hearth-deploy.md](phase-4-hearth-deploy.md)   | GitHub Actions deployment, all 9 containers |
-| [phase-5-service-setup.md](phase-5-service-setup.md)   | Admin accounts, first-run setup per service |
-| [phase-6-backups.md](phase-6-backups.md)               | BorgBackup to Hetzner Storage Box           |
+| File                                                   | Description                                     |
+| ------------------------------------------------------ | ----------------------------------------------- |
+| [**deploy.md**](deploy.md)                             | **Single-page deployment runbook (start here)** |
+| [phase-0-prerequisites.md](phase-0-prerequisites.md)   | Tools, accounts, SSH keys, GitHub Secrets       |
+| [phase-1-dns-domain.md](phase-1-dns-domain.md)         | INWX DNS setup, A records, DNSSEC warning       |
+| [phase-2-infrastructure.md](phase-2-infrastructure.md) | strata build + Terraform provisioning           |
+| [phase-3-hearth-init.md](phase-3-hearth-init.md)       | Ansible server bootstrap                        |
+| [phase-4-hearth-deploy.md](phase-4-hearth-deploy.md)   | GitHub Actions deployment, all 9 containers     |
+| [phase-5-service-setup.md](phase-5-service-setup.md)   | Admin accounts, first-run setup per service     |
+| [phase-6-backups.md](phase-6-backups.md)               | BorgBackup to Hetzner Storage Box               |
 
 ---
 

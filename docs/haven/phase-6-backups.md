@@ -37,10 +37,10 @@ haven user cron (02:00 UTC)
        key:   /opt/haven/.ssh/borg_ed25519
 ```
 
-| Component              | Managed by         | When                            |
-| ---------------------- | ------------------ | ------------------------------- |
-| SSH keypair + repo init | `hearth-init.yml` | Once (pipeline Steps 1 + 3)     |
-| Backup script + cron   | `hearth-config.yml`| Every deploy (when `configure_borg: true`) |
+| Component               | Managed by          | When                                       |
+| ----------------------- | ------------------- | ------------------------------------------ |
+| SSH keypair + repo init | `hearth-init.yml`   | Once (pipeline Steps 1 + 3)                |
+| Backup script + cron    | `hearth-config.yml` | Every deploy (when `configure_borg: true`) |
 
 ---
 
@@ -57,23 +57,15 @@ Complete these before running any pipeline step.
 
 Hostname after provisioning: `u604953.your-storagebox.de`
 
-### 2. Generate passphrase
-
-```powershell
-python -c "import secrets; print(secrets.token_urlsafe(48))"
-```
-
-Save immediately to Vaultwarden as **"Haven BorgBackup passphrase"** — losing it means permanent loss of all backup data.
-
-### 3. Add GitHub Secret
+### 2. Add GitHub Secret
 
 GitHub repo → Settings → Secrets and variables → Actions → Environments → **production** → New secret:
 
-| Secret name       | Value                    |
-| ----------------- | ------------------------ |
-| `BORG_PASSPHRASE` | Passphrase from Step 2   |
+| Secret name       | Value                                                       |
+| ----------------- | ----------------------------------------------------------- |
+| `BORG_PASSPHRASE` | Passphrase generated in [Phase 0](phase-0-prerequisites.md) |
 
-### 4. Set storagebox hostname in `vars/main.yml`
+### 3. Set storagebox hostname in `vars/main.yml`
 
 `deploy/ansible-config/vars/main.yml` is already set to `u604953.your-storagebox.de`. Verify and commit if not already done.
 
@@ -85,12 +77,12 @@ GitHub repo → Settings → Secrets and variables → Actions → Environments 
 
 Run pipeline with:
 
-| Input             | Value   |
-| ----------------- | ------- |
-| `run_init`        | `true`  |
-| `configure_borg`  | `false` |
-| `run_config`      | `false` |
-| `run_deploy`      | `false` |
+| Input            | Value   |
+| ---------------- | ------- |
+| `run_init`       | `true`  |
+| `configure_borg` | `false` |
+| `run_config`     | `false` |
+| `run_deploy`     | `false` |
 
 In the workflow log, find task **"Display borg SSH public key"** and copy the `ssh-ed25519 ...` line.
 
@@ -108,12 +100,12 @@ In the workflow log, find task **"Display borg SSH public key"** and copy the `s
 
 Run pipeline with:
 
-| Input             | Value  |
-| ----------------- | ------ |
-| `run_init`        | `true` |
-| `configure_borg`  | `true` |
-| `run_config`      | `false`|
-| `run_deploy`      | `false`|
+| Input            | Value   |
+| ---------------- | ------- |
+| `run_init`       | `true`  |
+| `configure_borg` | `true`  |
+| `run_config`     | `false` |
+| `run_deploy`     | `false` |
 
 > Run this **exactly once**. Borg refuses to re-init a non-empty repo, so re-running is safe but a no-op.
 

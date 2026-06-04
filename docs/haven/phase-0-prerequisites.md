@@ -87,6 +87,9 @@ python -c "import secrets; print(secrets.token_hex(16))"
 
 # Infisical PostgreSQL password
 python -c "import secrets; print(secrets.token_urlsafe(32))"
+
+# BorgBackup passphrase — used to encrypt the off-site backup repo
+python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
 > **Critical:** `INFISICAL_ENCRYPTION_KEY` must be **exactly 32 characters**. Using 64 chars causes Infisical to crash at startup with "Invalid key length". Use `token_hex(16)` (16 bytes = 32 hex chars).
@@ -109,20 +112,20 @@ Go to your repo → **Settings → Secrets and variables → Actions → New rep
 
 Create an **environment** named `production` and add these secrets to it:
 
-| Secret name                     | Value                           | Notes                                                             |
-| ------------------------------- | ------------------------------- | ----------------------------------------------------------------- |
-| `TERRAFORM_API_TOKEN`           | Terraform Cloud API token       |                                                                   |
-| `HETZNER_API_TOKEN`             | Hetzner Cloud project API token | Read/write                                                        |
-| `HETZNER_PUBLIC_KEY`            | SSH public key (`.pub` content) | Single line                                                       |
-| `HETZNER_PRIVATE_KEY`           | SSH private key (full content)  | Including headers                                                 |
-| `HETZNER_ROOT_PASSWORD`         | Strong random password          | Used only for initial Terraform provisioning                      |
-| `AUTHENTIK_SECRET_KEY`          | 50+ char random string          | From generate step above                                          |
-| `AUTHENTIK_POSTGRESQL_PASSWORD` | Random password                 | From generate step above                                          |
-| `VAULTWARDEN_ADMIN_TOKEN`       | Random token                    | From generate step above                                          |
-| `INFISICAL_AUTH_SECRET`         | 64 hex chars exactly            | `token_hex(32)`                                                   |
-| `INFISICAL_ENCRYPTION_KEY`      | **32 chars exactly**            | `token_hex(16)` — not 64!                                         |
-| `INFISICAL_POSTGRESQL_PASSWORD` | Random password                 | From generate step above                                          |
-| `BORG_PASSPHRASE`               | Strong random passphrase        | See [Phase 6](phase-6-backups.md) — add when ordering Storage Box |
+| Secret name                     | Value                           | Notes                                                           |
+| ------------------------------- | ------------------------------- | --------------------------------------------------------------- |
+| `TERRAFORM_API_TOKEN`           | Terraform Cloud API token       |                                                                 |
+| `HETZNER_API_TOKEN`             | Hetzner Cloud project API token | Read/write                                                      |
+| `HETZNER_PUBLIC_KEY`            | SSH public key (`.pub` content) | Single line                                                     |
+| `HETZNER_PRIVATE_KEY`           | SSH private key (full content)  | Including headers                                               |
+| `HETZNER_ROOT_PASSWORD`         | Strong random password          | Used only for initial Terraform provisioning                    |
+| `AUTHENTIK_SECRET_KEY`          | 50+ char random string          | From generate step above                                        |
+| `AUTHENTIK_POSTGRESQL_PASSWORD` | Random password                 | From generate step above                                        |
+| `VAULTWARDEN_ADMIN_TOKEN`       | Random token                    | From generate step above                                        |
+| `INFISICAL_AUTH_SECRET`         | 64 hex chars exactly            | `token_hex(32)`                                                 |
+| `INFISICAL_ENCRYPTION_KEY`      | **32 chars exactly**            | `token_hex(16)` — not 64!                                       |
+| `INFISICAL_POSTGRESQL_PASSWORD` | Random password                 | From generate step above                                        |
+| `BORG_PASSPHRASE`               | Strong random passphrase        | From generate step above — add to GitHub Secrets before Phase 6 |
 
 > **Note:** The workflow uses `environment: production` on the deploy job. Secrets must be in the `production` environment, not just repository-level secrets, or the job won't see them.
 
