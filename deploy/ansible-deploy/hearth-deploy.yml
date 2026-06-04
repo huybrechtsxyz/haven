@@ -170,6 +170,14 @@
       ansible.builtin.debug:
         var: compose_up.stdout_lines
 
+    # Restart authentik containers so they pick up the correct /media ownership.
+    # docker compose up -d skips containers whose config hasn't changed, so
+    # without an explicit restart the old gunicorn process keeps the stale state.
+    - name: Restart authentik-server and authentik-worker
+      ansible.builtin.command:
+        cmd: docker restart haven-authentik-server-1 haven-authentik-worker-1
+      changed_when: true
+
     # =========================================================================
     # Caddy — restart if Caddyfile changed or no TLS certs yet
     # =========================================================================
