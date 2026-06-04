@@ -161,15 +161,15 @@
     # Caddy — restart if Caddyfile changed or no TLS certs yet
     # =========================================================================
 
-    - name: Find existing TLS certificates
+    - name: Find existing LE production TLS certificates
       ansible.builtin.find:
-        paths: "{{ haven_install_path }}/var/certs"
+        paths: "{{ haven_install_path }}/var/certs/caddy/certificates/acme-v02.api.letsencrypt.org-directory"
         recurse: true
         patterns: "*.crt"
       register: existing_certs
       failed_when: false
 
-    - name: Restart Caddy (Caddyfile changed or no TLS certs found)
+    - name: Restart Caddy (Caddyfile changed or no valid LE certs found)
       ansible.builtin.command:
         cmd: docker restart haven-caddy-1
       when: copy_caddyfile.changed or (existing_certs.matched | default(0)) == 0
