@@ -163,8 +163,17 @@
         - "{{ haven_install_path }}/etc"
         - "{{ haven_install_path }}/var/data"
         - "{{ haven_install_path }}/var/logs"
-        - "{{ haven_install_path }}/var/certs"
         - "{{ haven_install_path }}/.ssh"
+
+    # Caddy cert storage must be world-writable — Caddy runs as non-root
+    # and needs to write ACME certificates to this directory.
+    - name: Ensure Caddy cert storage dir is world-writable
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/var/certs"
+        state: directory
+        owner: root
+        group: root
+        mode: "0777"
 
     - name: Ensure .ssh has strict permissions
       ansible.builtin.file:
