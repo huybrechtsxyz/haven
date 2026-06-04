@@ -307,7 +307,7 @@
       become_user: "{{ haven_user }}"
       register: borg_key_export
       changed_when: false
-      when: configure_borg | bool and borg_info.rc != 0
+      when: configure_borg | bool
 
     - name: Show BorgBackup repokey (save this in Vaultwarden immediately)
       ansible.builtin.debug:
@@ -319,7 +319,7 @@
 
           Without this key + the passphrase, backups cannot be restored.
           ============================================================
-      when: configure_borg | bool and borg_info.rc != 0
+      when: configure_borg | bool
 
   # ===========================================================================
   # Handlers
