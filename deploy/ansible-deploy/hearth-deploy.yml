@@ -106,32 +106,30 @@
       no_log: true
 
     # =========================================================================
-    # Cleanup — remove postgres data dirs if incorrectly owned by haven user.
-    # This happens when a prior run pre-created them before the ownership fix.
-    # Once postgres owns them (uid 999) this check is a no-op.
+    # Cleanup — force-reset postgres data dirs on first deploy.
+    # Remove unconditionally because the initial bad deploy left them in a
+    # corrupt state (partial initdb). Safe: no production data exists yet.
+    # TODO: Remove this block once initial deployment succeeds.
     # =========================================================================
 
-    - name: Stat authentik-db data dir
-      ansible.builtin.stat:
-        path: "{{ haven_install_path }}/var/data/authentik/postgresql"
-      register: authentik_db_stat
+    - name: Tear down running compose stack for clean re-init
+      ansible.builtin.shell:
+        cmd: |
+          docker compose --project-name haven \
+            -f {{ haven_install_path }}/etc/docker-compose.yml \
+            --env-file {{ haven_install_path }}/etc/.env \
+            down --volumes --remove-orphans 2>/dev/null || true
+      changed_when: false
 
-    - name: Remove authentik-db data dir if owned by haven (wrong owner for postgres)
+    - name: Remove authentik-db data dir (corrupt from initial deploy)
       ansible.builtin.file:
         path: "{{ haven_install_path }}/var/data/authentik/postgresql"
         state: absent
-      when: authentik_db_stat.stat.exists and (authentik_db_stat.stat.get('pw_name', '') == haven_user)
 
-    - name: Stat infisical-db data dir
-      ansible.builtin.stat:
-        path: "{{ haven_install_path }}/var/data/infisical/postgresql"
-      register: infisical_db_stat
-
-    - name: Remove infisical-db data dir if owned by haven (wrong owner for postgres)
+    - name: Remove infisical-db data dir (corrupt from initial deploy)
       ansible.builtin.file:
         path: "{{ haven_install_path }}/var/data/infisical/postgresql"
         state: absent
-      when: infisical_db_stat.stat.exists and (infisical_db_stat.stat.get('pw_name', '') == haven_user)
 
     # =========================================================================
     # Docker Compose — pull images and bring services up
