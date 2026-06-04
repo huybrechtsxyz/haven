@@ -106,32 +106,6 @@
       no_log: true
 
     # =========================================================================
-    # Cleanup — force-reset postgres data dirs on first deploy.
-    # Remove unconditionally because the initial bad deploy left them in a
-    # corrupt state (partial initdb). Safe: no production data exists yet.
-    # TODO: Remove this block once initial deployment succeeds.
-    # =========================================================================
-
-    - name: Tear down running compose stack for clean re-init
-      ansible.builtin.shell:
-        cmd: |
-          docker compose --project-name haven \
-            -f {{ haven_install_path }}/etc/docker-compose.yml \
-            --env-file {{ haven_install_path }}/etc/.env \
-            down --volumes --remove-orphans 2>/dev/null || true
-      changed_when: false
-
-    - name: Remove authentik-db data dir (corrupt from initial deploy)
-      ansible.builtin.file:
-        path: "{{ haven_install_path }}/var/data/authentik/postgresql"
-        state: absent
-
-    - name: Remove infisical-db data dir (corrupt from initial deploy)
-      ansible.builtin.file:
-        path: "{{ haven_install_path }}/var/data/infisical/postgresql"
-        state: absent
-
-    # =========================================================================
     # Docker Compose — pull images and bring services up
     # =========================================================================
 
