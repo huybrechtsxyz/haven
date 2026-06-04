@@ -95,15 +95,15 @@ After account creation:
 
 After completing all setups, store these in Vaultwarden:
 
-| Service | What to store |
-|---------|--------------|
-| Authentik | Admin email + password + TOTP seed |
-| Vaultwarden | Admin token + master passwords |
-| Infisical | Admin email + password |
-| Hetzner | API token, SSH key pair |
-| INWX | Account credentials |
-| Terraform Cloud | API token |
-| GitHub | Personal access token (if used) |
+| Service         | What to store                      |
+| --------------- | ---------------------------------- |
+| Authentik       | Admin email + password + TOTP seed |
+| Vaultwarden     | Admin token + master passwords     |
+| Infisical       | Admin email + password             |
+| Hetzner         | API token, SSH key pair            |
+| INWX            | Account credentials                |
+| Terraform Cloud | API token                          |
+| GitHub          | Personal access token (if used)    |
 
 ---
 

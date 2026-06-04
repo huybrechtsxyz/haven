@@ -12,17 +12,17 @@ Bootstrap the server: install Docker, create the `haven` service user, create th
 
 ## 3.1 — What hearth-init does
 
-| Task | Details |
-|------|---------|
-| Set timezone | `Europe/Brussels` |
-| Install packages | `curl`, `ca-certificates`, `gnupg`, `ufw`, `fail2ban` |
-| Install Docker | Official Docker CE repository, pinned version |
-| Add Docker keyring | `/etc/apt/keyrings/docker.asc` |
-| Create `haven` group | System group |
-| Create `haven` user | System user, home `{{ haven_install_path }}`, member of `docker` group |
-| Create directory tree | `/opt/haven/etc`, `/opt/haven/var/data`, `/opt/haven/var/certs`, etc. |
+| Task                     | Details                                                                          |
+| ------------------------ | -------------------------------------------------------------------------------- |
+| Set timezone             | `Europe/Brussels`                                                                |
+| Install packages         | `curl`, `ca-certificates`, `gnupg`, `ufw`, `fail2ban`                            |
+| Install Docker           | Official Docker CE repository, pinned version                                    |
+| Add Docker keyring       | `/etc/apt/keyrings/docker.asc`                                                   |
+| Create `haven` group     | System group                                                                     |
+| Create `haven` user      | System user, home `{{ haven_install_path }}`, member of `docker` group           |
+| Create directory tree    | `/opt/haven/etc`, `/opt/haven/var/data`, `/opt/haven/var/certs`, etc.            |
 | Set cert dir permissions | `/opt/haven/var/certs` → `root:root 0777` (Caddy needs to write as its own user) |
-| SSH hardening | `PermitRootLogin no`, `PasswordAuthentication no`, key-only auth |
+| SSH hardening            | `PermitRootLogin no`, `PasswordAuthentication no`, key-only auth                 |
 
 ---
 

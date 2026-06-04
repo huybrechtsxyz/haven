@@ -10,13 +10,13 @@ Everything you need before running a single command.
 
 Install these on your workstation:
 
-| Tool | Version | Install |
-|------|---------|---------|
-| `strata` | ≥ 0.0.9 | `pip install xyz-strata==0.0.9` |
-| OpenTofu | ≥ 1.6 | `choco install opentofu` or [opentofu.org](https://opentofu.org/docs/intro/install/) |
-| Ansible | ≥ 2.14 | `pip install ansible-core` |
-| GitHub CLI | latest | `winget install GitHub.cli` |
-| Git | latest | `winget install Git.Git` |
+| Tool       | Version | Install                                                                              |
+| ---------- | ------- | ------------------------------------------------------------------------------------ |
+| `strata`   | ≥ 0.0.9 | `pip install xyz-strata==0.0.9`                                                      |
+| OpenTofu   | ≥ 1.6   | `choco install opentofu` or [opentofu.org](https://opentofu.org/docs/intro/install/) |
+| Ansible    | ≥ 2.14  | `pip install ansible-core`                                                           |
+| GitHub CLI | latest  | `winget install GitHub.cli`                                                          |
+| Git        | latest  | `winget install Git.Git`                                                             |
 
 Verify:
 
@@ -31,13 +31,13 @@ gh --version
 
 ## External accounts
 
-| Service | Purpose | URL |
-|---------|---------|-----|
-| Hetzner Cloud | VPS hosting | [console.hetzner.cloud](https://console.hetzner.cloud) |
-| Hetzner Robot | Storage Box (manual order) | [robot.hetzner.com](https://robot.hetzner.com) |
-| Terraform Cloud | Remote state storage | [app.terraform.io](https://app.terraform.io) |
-| GitHub | Repo + CI/CD | [github.com](https://github.com) |
-| INWX | DNS / domain registrar | [my.inwx.de](https://my.inwx.de) |
+| Service         | Purpose                    | URL                                                    |
+| --------------- | -------------------------- | ------------------------------------------------------ |
+| Hetzner Cloud   | VPS hosting                | [console.hetzner.cloud](https://console.hetzner.cloud) |
+| Hetzner Robot   | Storage Box (manual order) | [robot.hetzner.com](https://robot.hetzner.com)         |
+| Terraform Cloud | Remote state storage       | [app.terraform.io](https://app.terraform.io)           |
+| GitHub          | Repo + CI/CD               | [github.com](https://github.com)                       |
+| INWX            | DNS / domain registrar     | [my.inwx.de](https://my.inwx.de)                       |
 
 ---
 
@@ -109,19 +109,19 @@ Go to your repo → **Settings → Secrets and variables → Actions → New rep
 
 Create an **environment** named `production` and add these secrets to it:
 
-| Secret name | Value | Notes |
-|-------------|-------|-------|
-| `TERRAFORM_API_TOKEN` | Terraform Cloud API token | |
-| `HETZNER_API_TOKEN` | Hetzner Cloud project API token | Read/write |
-| `HETZNER_PUBLIC_KEY` | SSH public key (`.pub` content) | Single line |
-| `HETZNER_PRIVATE_KEY` | SSH private key (full content) | Including headers |
-| `HETZNER_ROOT_PASSWORD` | Strong random password | Used only for initial Terraform provisioning |
-| `AUTHENTIK_SECRET_KEY` | 50+ char random string | From generate step above |
-| `AUTHENTIK_POSTGRESQL_PASSWORD` | Random password | From generate step above |
-| `VAULTWARDEN_ADMIN_TOKEN` | Random token | From generate step above |
-| `INFISICAL_AUTH_SECRET` | 64 hex chars exactly | `token_hex(32)` |
-| `INFISICAL_ENCRYPTION_KEY` | **32 chars exactly** | `token_hex(16)` — not 64! |
-| `INFISICAL_POSTGRESQL_PASSWORD` | Random password | From generate step above |
+| Secret name                     | Value                           | Notes                                        |
+| ------------------------------- | ------------------------------- | -------------------------------------------- |
+| `TERRAFORM_API_TOKEN`           | Terraform Cloud API token       |                                              |
+| `HETZNER_API_TOKEN`             | Hetzner Cloud project API token | Read/write                                   |
+| `HETZNER_PUBLIC_KEY`            | SSH public key (`.pub` content) | Single line                                  |
+| `HETZNER_PRIVATE_KEY`           | SSH private key (full content)  | Including headers                            |
+| `HETZNER_ROOT_PASSWORD`         | Strong random password          | Used only for initial Terraform provisioning |
+| `AUTHENTIK_SECRET_KEY`          | 50+ char random string          | From generate step above                     |
+| `AUTHENTIK_POSTGRESQL_PASSWORD` | Random password                 | From generate step above                     |
+| `VAULTWARDEN_ADMIN_TOKEN`       | Random token                    | From generate step above                     |
+| `INFISICAL_AUTH_SECRET`         | 64 hex chars exactly            | `token_hex(32)`                              |
+| `INFISICAL_ENCRYPTION_KEY`      | **32 chars exactly**            | `token_hex(16)` — not 64!                    |
+| `INFISICAL_POSTGRESQL_PASSWORD` | Random password                 | From generate step above                     |
 
 > **Note:** The workflow uses `environment: production` on the deploy job. Secrets must be in the `production` environment, not just repository-level secrets, or the job won't see them.
 

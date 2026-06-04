@@ -12,17 +12,17 @@ Deploy all 9 containers and obtain TLS certificates.
 
 ## 4.1 — The 9 containers
 
-| Container | Image | Purpose |
-|-----------|-------|---------|
-| `haven-caddy-1` | `caddy:2-alpine` | Reverse proxy + TLS termination |
-| `haven-authentik-server-1` | `ghcr.io/goauthentik/server:2024.12.3` | Authentik web server |
-| `haven-authentik-worker-1` | `ghcr.io/goauthentik/server:2024.12.3` | Authentik Celery worker |
-| `haven-authentik-db-1` | `postgres:16-alpine` | Authentik database |
-| `haven-authentik-redis-1` | `redis:7-alpine` | Authentik task queue |
-| `haven-vaultwarden-1` | `vaultwarden/server:latest` | Password manager |
-| `haven-infisical-1` | `infisical/infisical:latest` | Secrets manager |
-| `haven-infisical-db-1` | `postgres:16-alpine` | Infisical database |
-| `haven-infisical-redis-1` | `redis:7-alpine` | Infisical cache |
+| Container                  | Image                                  | Purpose                         |
+| -------------------------- | -------------------------------------- | ------------------------------- |
+| `haven-caddy-1`            | `caddy:2-alpine`                       | Reverse proxy + TLS termination |
+| `haven-authentik-server-1` | `ghcr.io/goauthentik/server:2024.12.3` | Authentik web server            |
+| `haven-authentik-worker-1` | `ghcr.io/goauthentik/server:2024.12.3` | Authentik Celery worker         |
+| `haven-authentik-db-1`     | `postgres:16-alpine`                   | Authentik database              |
+| `haven-authentik-redis-1`  | `redis:7-alpine`                       | Authentik task queue            |
+| `haven-vaultwarden-1`      | `vaultwarden/server:latest`            | Password manager                |
+| `haven-infisical-1`        | `infisical/infisical:latest`           | Secrets manager                 |
+| `haven-infisical-db-1`     | `postgres:16-alpine`                   | Infisical database              |
+| `haven-infisical-redis-1`  | `redis:7-alpine`                       | Infisical cache                 |
 
 ---
 
@@ -105,13 +105,13 @@ The diagnostics section of the playbook captures and prints:
 
 **Common failure modes:**
 
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| Worker `Restarting (1)` | `PermissionError: '/media/public'` | Media dir not owned by uid 1000 — already fixed in playbook |
-| `authentik-core.sock` error in browser | Server gunicorn crashed / not yet ready | Wait 2 min after pipeline, or run pipeline again (triggers restart) |
-| Caddy gets staging cert instead of production | DNSSEC broken → ACME fails → fallback | Fix DNSSEC (Phase 1), delete staging certs, restart Caddy |
-| `INFISICAL_ENCRYPTION_KEY` error | Key is 64 chars instead of 32 | Regenerate with `token_hex(16)` — exactly 32 chars |
-| Infisical `connect ECONNREFUSED 127.0.0.1:587` | SMTP not configured | Cosmetic — email features disabled, services still work |
+| Symptom                                        | Cause                                   | Fix                                                                 |
+| ---------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------- |
+| Worker `Restarting (1)`                        | `PermissionError: '/media/public'`      | Media dir not owned by uid 1000 — already fixed in playbook         |
+| `authentik-core.sock` error in browser         | Server gunicorn crashed / not yet ready | Wait 2 min after pipeline, or run pipeline again (triggers restart) |
+| Caddy gets staging cert instead of production  | DNSSEC broken → ACME fails → fallback   | Fix DNSSEC (Phase 1), delete staging certs, restart Caddy           |
+| `INFISICAL_ENCRYPTION_KEY` error               | Key is 64 chars instead of 32           | Regenerate with `token_hex(16)` — exactly 32 chars                  |
+| Infisical `connect ECONNREFUSED 127.0.0.1:587` | SMTP not configured                     | Cosmetic — email features disabled, services still work             |
 
 ---
 

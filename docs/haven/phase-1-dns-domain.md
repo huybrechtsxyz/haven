@@ -13,12 +13,12 @@ Set up DNS at INWX so all Hearth subdomains resolve to the server.
 
 After provisioning the VPS (Phase 2), you will have a public IP. Add these A records in the INWX DNS panel for `huybrechts.xyz`:
 
-| Type | Name | Value | TTL |
-|------|------|-------|-----|
-| A | `huybrechts.xyz` | `<server-ip>` | 300 |
-| A | `auth.huybrechts.xyz` | `<server-ip>` | 300 |
-| A | `vault.huybrechts.xyz` | `<server-ip>` | 300 |
-| A | `secrets.huybrechts.xyz` | `<server-ip>` | 300 |
+| Type | Name                     | Value         | TTL |
+| ---- | ------------------------ | ------------- | --- |
+| A    | `huybrechts.xyz`         | `<server-ip>` | 300 |
+| A    | `auth.huybrechts.xyz`    | `<server-ip>` | 300 |
+| A    | `vault.huybrechts.xyz`   | `<server-ip>` | 300 |
+| A    | `secrets.huybrechts.xyz` | `<server-ip>` | 300 |
 
 > Increase TTL to 3600 once everything is verified and stable.
 

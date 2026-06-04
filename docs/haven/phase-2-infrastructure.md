@@ -47,13 +47,13 @@ Build output goes to: `build/haven_deploy_prd-1.0.0/terraform/`
 
 The `terraform/` directory (and modules `forge/` + `hearth/`) create:
 
-| Resource | Details |
-|----------|---------|
-| Hetzner VPS | CX23 (2 vCPU, 4 GB RAM, 40 GB SSD), Nuremberg, Ubuntu 24.04 |
-| SSH key | Uploaded from `HETZNER_PUBLIC_KEY` |
-| Firewall | Inbound: 80/TCP, 443/TCP, 22/TCP (restricted). Outbound: all |
-| Private network | `10.0.0.0/8`, subnet `10.0.1.0/24` |
-| Server attachment | VPS attached to private network |
+| Resource          | Details                                                      |
+| ----------------- | ------------------------------------------------------------ |
+| Hetzner VPS       | CX23 (2 vCPU, 4 GB RAM, 40 GB SSD), Nuremberg, Ubuntu 24.04  |
+| SSH key           | Uploaded from `HETZNER_PUBLIC_KEY`                           |
+| Firewall          | Inbound: 80/TCP, 443/TCP, 22/TCP (restricted). Outbound: all |
+| Private network   | `10.0.0.0/8`, subnet `10.0.1.0/24`                           |
+| Server attachment | VPS attached to private network                              |
 
 ---
 

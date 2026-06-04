@@ -12,12 +12,12 @@ Set up automated encrypted backups of all service data to the Hetzner Storage Bo
 
 ## What needs to be backed up
 
-| Directory | Contents |
-|-----------|---------|
-| `/opt/haven/var/data/authentik/` | Authentik PostgreSQL data + media uploads |
-| `/opt/haven/var/data/vaultwarden/` | Vaultwarden database (all passwords) |
-| `/opt/haven/var/data/infisical/` | Infisical PostgreSQL data |
-| `/opt/haven/etc/` | docker-compose.yml, Caddyfile |
+| Directory                          | Contents                                  |
+| ---------------------------------- | ----------------------------------------- |
+| `/opt/haven/var/data/authentik/`   | Authentik PostgreSQL data + media uploads |
+| `/opt/haven/var/data/vaultwarden/` | Vaultwarden database (all passwords)      |
+| `/opt/haven/var/data/infisical/`   | Infisical PostgreSQL data                 |
+| `/opt/haven/etc/`                  | docker-compose.yml, Caddyfile             |
 
 > **Not backed up:** TLS certificates (`/opt/haven/var/certs/`) — Caddy re-obtains these automatically from Let's Encrypt.
 
