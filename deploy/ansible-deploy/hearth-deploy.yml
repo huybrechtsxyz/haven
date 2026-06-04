@@ -46,9 +46,22 @@
       loop:
         - "{{ haven_install_path }}/etc/caddy"
         - "{{ haven_install_path }}/etc/caddy/config"
+        - "{{ haven_install_path }}/var/data/vaultwarden"
+
+    # Authentik containers run as uid 1000 (non-root). The media and templates
+    # bind-mount dirs must be owned by 1000:1000 so the container process can
+    # traverse and write them. Using numeric uid/gid avoids a host-user mismatch.
+    - name: Create authentik media and templates dirs (owned by container uid 1000)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "1000"
+        group: "1000"
+        mode: "0750"
+      loop:
         - "{{ haven_install_path }}/etc/authentik/templates"
         - "{{ haven_install_path }}/var/data/authentik/media"
-        - "{{ haven_install_path }}/var/data/vaultwarden"
+        - "{{ haven_install_path }}/var/data/authentik/media/public"
 
     # PostgreSQL data dirs must NOT be pre-created with haven ownership.
     # The postgres image (uid 999) needs to chown and initdb them on first start.
