@@ -183,6 +183,62 @@
         var: compose_up.stdout_lines
 
     # =========================================================================
+    # Diagnostics — show container state and logs for debugging
+    # =========================================================================
+
+    - name: Wait 15 seconds for containers to stabilise
+      ansible.builtin.pause:
+        seconds: 15
+
+    - name: Show all container states
+      ansible.builtin.command:
+        cmd: docker ps -a --format "table {{'{{'}}.Names{{'}}'}}\t{{'{{'}}.Status{{'}}'}}\t{{'{{'}}.Ports{{'}}'}}"
+      register: container_states
+      changed_when: false
+
+    - name: Display container states
+      ansible.builtin.debug:
+        var: container_states.stdout_lines
+
+    - name: Capture authentik-db logs
+      ansible.builtin.command:
+        cmd: docker logs haven-authentik-db-1 --tail 50
+      register: authentik_db_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display authentik-db logs
+      ansible.builtin.debug:
+        var: authentik_db_logs.stdout_lines
+
+    - name: Display authentik-db error logs
+      ansible.builtin.debug:
+        var: authentik_db_logs.stderr_lines
+      when: authentik_db_logs.stderr_lines | default([]) | length > 0
+
+    - name: Capture infisical-db logs
+      ansible.builtin.command:
+        cmd: docker logs haven-infisical-db-1 --tail 50
+      register: infisical_db_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display infisical-db logs
+      ansible.builtin.debug:
+        var: infisical_db_logs.stdout_lines
+
+    - name: Capture caddy logs
+      ansible.builtin.command:
+        cmd: docker logs haven-caddy-1 --tail 30
+      register: caddy_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display caddy logs
+      ansible.builtin.debug:
+        var: caddy_logs.stdout_lines
+
+    # =========================================================================
     # Health — wait for services to be healthy
     # =========================================================================
 
