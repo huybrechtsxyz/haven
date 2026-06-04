@@ -250,7 +250,7 @@
         group: "{{ haven_group }}"
         mode: "0400"
       when: configure_borg | bool
-      no_log: true  # contains borg_passphrase
+      no_log: true # contains borg_passphrase
 
     - name: Install BorgBackup cron job (daily at 02:00 UTC)
       ansible.builtin.cron:

@@ -43,6 +43,10 @@ on:
         description: "Deploy Docker Compose services to Hearth (hearth-deploy Ansible playbook)"
         type: boolean
         default: true
+      backup_before_deploy:
+        description: "Run a BorgBackup snapshot before deploying (requires configure_borg=true on server)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -248,6 +252,22 @@ jobs:
       - name: Clean up config vars file
         if: ${{ always() && inputs.run_config == true && inputs.dry_run != true }}
         run: rm -f /tmp/config_vars.yml
+
+      # ------------------------------------------------------------------
+      # Pre-deploy backup (backup_before_deploy=true + run_deploy=true)
+      # Runs a BorgBackup snapshot before any container changes are made.
+      # Only active when configure_borg=true is set in vars/main.yml.
+      # ------------------------------------------------------------------
+
+      - name: Run pre-deploy backup
+        if: ${{ inputs.backup_before_deploy == true && inputs.run_deploy == true && inputs.dry_run != true }}
+        run: |
+          ansible all \
+            -i "${{ steps.hearth_ip.outputs.ip }}," \
+            -u root \
+            --private-key ~/.ssh/haven_ed25519 \
+            -m command \
+            -a "sudo -u haven /opt/haven/scripts/backup.sh"
 
       - name: Write Ansible vars file for deploy secrets
         if: ${{ inputs.run_deploy == true && inputs.dry_run != true }}

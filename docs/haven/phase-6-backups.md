@@ -70,8 +70,8 @@ Store it immediately in Vaultwarden as: **"Haven BorgBackup passphrase"** — lo
 
 In GitHub repository Settings → Secrets and variables → Actions → **New repository secret**:
 
-| Secret name       | Value                    |
-| ----------------- | ------------------------ |
+| Secret name       | Value                      |
+| ----------------- | -------------------------- |
 | `BORG_PASSPHRASE` | The passphrase from Step 2 |
 
 ---
