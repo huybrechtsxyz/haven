@@ -192,7 +192,7 @@
     # A restarting container returns an error from 'docker compose exec'.
     - name: Wait for authentik-db container to reach running state
       ansible.builtin.command:
-        cmd: docker ps -q --filter name=^haven-authentik-db-1$ --filter status=running
+        cmd: docker ps -q --filter name=haven-authentik-db-1 --filter status=running
       register: authentik_db_running
       until: authentik_db_running.stdout | trim != ''
       retries: 30
@@ -215,7 +215,7 @@
 
     - name: Wait for infisical-db container to reach running state
       ansible.builtin.command:
-        cmd: docker ps -q --filter name=^haven-infisical-db-1$ --filter status=running
+        cmd: docker ps -q --filter name=haven-infisical-db-1 --filter status=running
       register: infisical_db_running
       until: infisical_db_running.stdout | trim != ''
       retries: 30
