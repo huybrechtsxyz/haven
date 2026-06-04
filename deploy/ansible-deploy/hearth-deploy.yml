@@ -84,6 +84,7 @@
         owner: "{{ haven_user }}"
         group: "{{ haven_group }}"
         mode: "0640"
+      register: copy_caddyfile
 
     # =========================================================================
     # .env file — secrets injected at deploy time, never committed
@@ -157,6 +158,24 @@
         var: compose_up.stdout_lines
 
     # =========================================================================
+    # Caddy — restart if Caddyfile changed or no TLS certs yet
+    # =========================================================================
+
+    - name: Find existing TLS certificates
+      ansible.builtin.find:
+        paths: "{{ haven_install_path }}/var/certs"
+        recurse: true
+        patterns: "*.crt"
+      register: existing_certs
+      failed_when: false
+
+    - name: Restart Caddy (Caddyfile changed or no TLS certs found)
+      ansible.builtin.command:
+        cmd: docker restart haven-caddy-1
+      when: copy_caddyfile.changed or (existing_certs.matched | default(0)) == 0
+      changed_when: true
+
+    # =========================================================================
     # Diagnostics — show container state and logs for debugging
     # =========================================================================
 
@@ -203,7 +222,7 @@
 
     - name: Capture caddy logs
       ansible.builtin.shell:
-        cmd: docker logs haven-caddy-1 --tail 60 2>&1
+        cmd: docker logs haven-caddy-1 --tail 200 2>&1
       register: caddy_logs
       changed_when: false
       failed_when: false
@@ -211,6 +230,29 @@
     - name: Display caddy logs (stdout + stderr)
       ansible.builtin.debug:
         var: caddy_logs.stdout_lines
+
+    - name: Capture infisical app logs
+      ansible.builtin.shell:
+        cmd: docker logs haven-infisical-1 --tail 80 2>&1
+      register: infisical_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display infisical app logs
+      ansible.builtin.debug:
+        var: infisical_logs.stdout_lines
+
+    - name: Check port 80 reachability from runner
+      ansible.builtin.shell:
+        cmd: curl -sS -o /dev/null -w "%{http_code}" --max-time 10 http://91.98.78.36/ || echo "FAILED"
+      register: port80_check
+      changed_when: false
+      failed_when: false
+      delegate_to: localhost
+
+    - name: Display port 80 check result
+      ansible.builtin.debug:
+        msg: "Port 80 HTTP response code: {{ port80_check.stdout }}"
 
     - name: Check TLS certificate status for all domains
       ansible.builtin.shell:
