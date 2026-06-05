@@ -274,6 +274,9 @@
       changed_when: "'CHANGED' in keyscan_result.stdout"
       when: configure_borg | bool
 
+    # Pipelining must be disabled for become_user tasks — Ansible's pipelining
+    # sends module code over stdin through the become mechanism, which can break
+    # when switching to a non-root user (UNREACHABLE error).
     - name: Check if BorgBackup repo already exists
       ansible.builtin.command:
         cmd: borg info "{{ storagebox_subaccount }}@{{ storagebox_host }}:./hearth"
@@ -282,6 +285,8 @@
         BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes"
       become: true
       become_user: "{{ haven_user }}"
+      vars:
+        ansible_ssh_pipelining: false
       register: borg_info
       changed_when: false
       failed_when: false
@@ -295,6 +300,8 @@
         BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes"
       become: true
       become_user: "{{ haven_user }}"
+      vars:
+        ansible_ssh_pipelining: false
       when: configure_borg | bool and borg_info.rc != 0
 
     - name: Export and display BorgBackup repokey (store this in Vaultwarden!)
@@ -305,6 +312,8 @@
         BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes"
       become: true
       become_user: "{{ haven_user }}"
+      vars:
+        ansible_ssh_pipelining: false
       register: borg_key_export
       changed_when: false
       when: configure_borg | bool

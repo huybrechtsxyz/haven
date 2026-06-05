@@ -283,6 +283,8 @@
         BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes"
       become: true
       become_user: "{{ haven_user }}"
+      vars:
+        ansible_ssh_pipelining: false
       register: borg_key_export
       changed_when: false
       when: configure_borg | bool
