@@ -262,13 +262,31 @@
     - name: Upload SSH key to Storage Box via install-ssh-key
       ansible.builtin.shell:
         cmd: |
-          sshpass -p "{{ storagebox_password }}" ssh -p 23 \
+          cat {{ haven_install_path }}/.ssh/borg_ed25519.pub | \
+            sshpass -p "{{ storagebox_password }}" ssh -p 23 \
             -o StrictHostKeyChecking=no \
             {{ storagebox_subaccount }}@{{ storagebox_host }} \
-            install-ssh-key <<< "$(cat {{ haven_install_path }}/.ssh/borg_ed25519.pub)"
+            install-ssh-key
+        executable: /bin/bash
       when: configure_borg | bool and storagebox_password | default('') | length > 0
+      register: ssh_key_upload
       changed_when: true
+      failed_when: false
       no_log: true
+
+    - name: Fail if SSH key upload failed
+      ansible.builtin.fail:
+        msg: |
+          SSH key upload to Storage Box failed (exit code {{ ssh_key_upload.rc }}).
+          Stderr: {{ ssh_key_upload.stderr | default('no output') }}
+          Stdout: {{ ssh_key_upload.stdout | default('no output') }}
+
+          Verify:
+          1. HETZNER_STORAGEBOX_PASSWORD secret is correct
+          2. Sub-account username is correct: {{ storagebox_subaccount }}
+          3. Storage Box hostname is correct: {{ storagebox_host }}
+          4. External reachability is enabled on the Storage Box
+      when: configure_borg | bool and storagebox_password | default('') | length > 0 and ssh_key_upload.rc != 0
 
     - name: Scan Storage Box host key
       ansible.builtin.shell:
