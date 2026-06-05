@@ -25,7 +25,7 @@ configure_borg: false
 storagebox_host: "u604953.your-storagebox.de"
 
 # Storage Box sub-account username (created in Hetzner Robot)
-storagebox_subaccount: hearth-backup
+storagebox_subaccount: u604953-sub1
 
 # Backup retention policy
 borg_keep_daily: 7
