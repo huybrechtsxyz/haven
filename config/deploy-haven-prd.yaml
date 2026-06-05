@@ -31,17 +31,7 @@ spec:
   stages:
     # Stage 1 — provision both VPS nodes and storage box via Terraform
     - name: infrastructure
-      type: infrastructure
+      topology: hetzner_hearth
       scope: all
       depends_on: null
       on_failure: stop
-
-    # Stage 2 — configure Hearth VPS: Docker Compose bootstrap (Caddy, Authentik, Vaultwarden, Infisical)
-    - name: hearth_bootstrap
-      type: configuration
-      scope: hetzner_hearth
-      depends_on: [infrastructure]
-      on_failure: stop
-
-    # Stage 3 — Forge deploy (pending: Wave 2)
-    # - name: forge_deploy

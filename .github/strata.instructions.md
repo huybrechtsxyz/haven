@@ -1,5 +1,5 @@
 ---
-description: Instructions for AI agents working with the strata CLI tool to manage infrastructure deployments
+description: Instructions for AI agents working with the strata CLI tool in the haven infrastructure project
 applyTo: '**'
 ---
 

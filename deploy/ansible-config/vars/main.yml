@@ -1,0 +1,36 @@
+# =============================================================================
+# Non-sensitive configuration variables for hearth-config.yml
+# Sensitive values (borg_passphrase) are passed via GitHub Secrets at run time.
+# =============================================================================
+
+# haven service account (runs Docker containers)
+haven_user: haven
+haven_group: haven
+haven_install_path: /opt/haven
+
+# Server timezone
+haven_timezone: Europe/Brussels
+
+# =============================================================================
+# BorgBackup — set configure_borg: true after completing hearth-init Step 2
+# (SSH key authorised on Storage Box and repo initialised)
+# =============================================================================
+
+# Set to true once the borg SSH key has been added to the Storage Box
+# sub-account in Hetzner Robot AND hearth-init Step 2 has been run.
+configure_borg: true
+
+# Hetzner Storage Box connection details — sourced from GitHub Environment
+# Variables (vars.STORAGEBOX_HOST, vars.STORAGEBOX_SUBACCOUNT) and passed in
+# via the pipeline's extra-vars file. Values below are fallback defaults.
+storagebox_host: "{{ storagebox_host | default('u604953.your-storagebox.de') }}"
+storagebox_subaccount: "{{ storagebox_subaccount | default('u604953-sub1') }}"
+
+# Backup retention policy
+borg_keep_daily: 7
+borg_keep_weekly: 4
+borg_keep_monthly: 6
+
+# Healthchecks.io ping URL for backup monitoring (dead man's switch)
+# Leave empty to disable. Set after creating the check at healthchecks.io.
+healthcheck_ping_url: ""

@@ -1,0 +1,116 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: authentik
+  annotations:
+    description: Authentik identity provider — OIDC/OAuth2 SSO and 2FA for all Hearth services
+  labels:
+    version: "1.0.0"
+  tags: [haven, hearth, authentik, sso, oidc, identity]
+spec:
+  source:
+    repository: haven
+    source_path: services/hearth/authentik
+  type: compose
+  references:
+    secrets:
+      - AUTHENTIK_SECRET_KEY
+      - AUTHENTIK_POSTGRESQL__PASSWORD
+  services:
+    - name: db
+      image: docker.io/library/postgres:16-alpine
+      restart: unless-stopped
+      environment:
+        - key: POSTGRES_DB
+          value: authentik
+        - key: POSTGRES_USER
+          value: authentik
+        - key: POSTGRES_PASSWORD
+          secret: AUTHENTIK_POSTGRESQL__PASSWORD
+      mounts:
+        - name: data
+          type: bind
+          source_path: /opt/haven/var/data/authentik/postgresql
+          target_path: /var/lib/postgresql/data
+      healthcheck:
+        name: pg-ready
+        type: command
+        command: ["pg_isready", "-d", "authentik", "-U", "authentik"]
+        interval: 30s
+        timeout: 5s
+        retries: 5
+
+    - name: redis
+      image: docker.io/library/redis:7-alpine
+      restart: unless-stopped
+      healthcheck:
+        name: redis-ping
+        type: command
+        command: ["redis-cli", "ping"]
+        interval: 30s
+        timeout: 3s
+        retries: 5
+
+    - name: server
+      image: ghcr.io/goauthentik/server:2024.12.3
+      restart: unless-stopped
+      command: ["server"]
+      depends_on:
+        - db
+        - redis
+      environment:
+        - key: AUTHENTIK_REDIS__HOST
+          value: authentik-redis
+        - key: AUTHENTIK_POSTGRESQL__HOST
+          value: authentik-db
+        - key: AUTHENTIK_POSTGRESQL__USER
+          value: authentik
+        - key: AUTHENTIK_POSTGRESQL__NAME
+          value: authentik
+        - key: AUTHENTIK_POSTGRESQL__PASSWORD
+          secret: AUTHENTIK_POSTGRESQL__PASSWORD
+        - key: AUTHENTIK_SECRET_KEY
+          secret: AUTHENTIK_SECRET_KEY
+      mounts:
+        - name: media
+          type: bind
+          source_path: /opt/haven/var/data/authentik/media
+          target_path: /media
+        - name: templates
+          type: bind
+          source_path: /opt/haven/etc/authentik/templates
+          target_path: /templates
+
+    - name: worker
+      image: ghcr.io/goauthentik/server:2024.12.3
+      restart: unless-stopped
+      command: ["worker"]
+      depends_on:
+        - db
+        - redis
+      environment:
+        - key: AUTHENTIK_REDIS__HOST
+          value: authentik-redis
+        - key: AUTHENTIK_POSTGRESQL__HOST
+          value: authentik-db
+        - key: AUTHENTIK_POSTGRESQL__USER
+          value: authentik
+        - key: AUTHENTIK_POSTGRESQL__NAME
+          value: authentik
+        - key: AUTHENTIK_POSTGRESQL__PASSWORD
+          secret: AUTHENTIK_POSTGRESQL__PASSWORD
+        - key: AUTHENTIK_SECRET_KEY
+          secret: AUTHENTIK_SECRET_KEY
+      mounts:
+        - name: media
+          type: bind
+          source_path: /opt/haven/var/data/authentik/media
+          target_path: /media
+        - name: templates
+          type: bind
+          source_path: /opt/haven/etc/authentik/templates
+          target_path: /templates
+        - name: certs
+          type: bind
+          source_path: /opt/haven/var/certs
+          target_path: /certs

@@ -17,13 +17,20 @@ spec:
       provisioner: terraform
       source:
         repository: haven
-        source_path: terraform
+        source_path: deploy/terraform
+        target_path: terraform
+
+  namespaces:
+    - name: hearth
+      file: config/hearth/ns-hearth.yaml
 
   topology:
     - name: hetzner_hearth
       provider: hetzner_dc_eu_de
-      provisioner: terraform
+      provisioner: haven_iac
       type: single_node # Docker Compose — Caddy, Authentik, Vaultwarden, Infisical
+      namespaces:
+        - namespace: hearth
       volumes:
         - name: config
           type: local
@@ -36,20 +43,6 @@ spec:
       components:
         - resource: haven_vm_hetzner_hearth
 
-    # - name: hetzner_forge
-    #   provider: hetzner_dc_eu_de
-    #   provisioner: terraform
-    #   type: k3s_single # k3s single-node — Immich, Gatus, apps
-    #   volumes:
-    #     - name: immich-library
-    #       type: local
-    #     - name: k3s-data
-    #       type: local
-    #     - name: logs
-    #       type: local
-    #   components:
-    #     - resource: haven_vm_hetzner_forge
-
   resources:
     - name: haven_vm_hetzner_hearth
       file: "config/hearth/vm-hetzner-hearth.yaml"
@@ -58,21 +51,6 @@ spec:
       firewalls:
         - haven_fw_hetzner_hearth
 
-    # - name: haven_vm_hetzner_forge
-    #   file: "stack/vm-hetzner-forge.yaml"
-    #   role: forge
-    #   count: 1
-    #   firewalls:
-    #     - haven_fw_hetzner_forge
-
-    - name: haven_sb_hetzner_hearth
-      file: "config/hearth/sb-hetzner-hearth.yaml"
-      role: backup
-      count: 1
-
   firewalls:
     - name: haven_fw_hetzner_hearth
       file: "config/hearth/fw-hetzner-hearth.yaml"
-
-    # - name: haven_fw_hetzner_forge
-    #   file: "stack/fw-hetzner-forge.yaml"

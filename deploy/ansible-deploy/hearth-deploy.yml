@@ -1,0 +1,369 @@
+---
+# =============================================================================
+# Playbook: hearth-deploy.yml
+# Idempotent service deployment — runs on every pipeline push.
+# Syncs compose file, Caddyfile, and .env to the server then brings
+# all services up with docker compose up -d --remove-orphans.
+#
+# Prerequisites:
+#   hearth-init.yml and hearth-config.yml must have been run first.
+#
+# Run manually (from repo root):
+#   ansible-playbook deploy/ansible-deploy/hearth-deploy.yml \
+#     -i <hearth_public_ip>, \
+#     --private-key ~/.ssh/haven_ed25519 \
+#     -e @/tmp/deploy_secrets.yml
+#
+# Required extra-vars (pass via -e @file or -e key=value):
+#   authentik_secret_key
+#   authentik_postgresql_password
+#   vaultwarden_admin_token
+#   infisical_auth_secret
+#   infisical_encryption_key
+#   infisical_postgresql_password
+# =============================================================================
+
+- name: Hearth — deploy Docker Compose services
+  hosts: all
+  remote_user: root
+  gather_facts: false
+
+  vars_files:
+    - vars/main.yml
+
+  tasks:
+    # =========================================================================
+    # Directory structure — ensure service data dirs exist
+    # =========================================================================
+
+    - name: Create service config and non-postgres data directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0750"
+      loop:
+        - "{{ haven_install_path }}/etc/caddy"
+        - "{{ haven_install_path }}/etc/caddy/config"
+        - "{{ haven_install_path }}/var/data/vaultwarden"
+
+    # Authentik containers run as uid 1000 (non-root). The media and templates
+    # bind-mount dirs must be owned by 1000:1000 so the container process can
+    # traverse and write them. Using numeric uid/gid avoids a host-user mismatch.
+    - name: Create authentik media and templates dirs (owned by container uid 1000)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "1000"
+        group: "1000"
+        mode: "0750"
+      loop:
+        - "{{ haven_install_path }}/etc/authentik/templates"
+        - "{{ haven_install_path }}/var/data/authentik/media"
+        - "{{ haven_install_path }}/var/data/authentik/media/public"
+
+    # PostgreSQL data dirs must NOT be pre-created with haven ownership.
+    # The postgres image (uid 999) needs to chown and initdb them on first start.
+    # Docker Compose creates bind-mount host paths as root (mode 755) automatically,
+    # which allows the postgres entrypoint to take ownership.
+    - name: Ensure parent dirs for postgres data exist (root-owned)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - "{{ haven_install_path }}/var/data/authentik"
+        - "{{ haven_install_path }}/var/data/infisical"
+
+    # =========================================================================
+    # Sync build artifacts — compose file and Caddyfile
+    # =========================================================================
+
+    - name: Copy docker-compose.yml to server
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../build/{{ deployment_name }}/hearth/docker-compose.yml"
+        dest: "{{ haven_install_path }}/etc/docker-compose.yml"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0640"
+
+    - name: Copy Caddyfile to server
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../services/hearth/caddy/Caddyfile"
+        dest: "{{ haven_install_path }}/etc/caddy/Caddyfile"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0640"
+      register: copy_caddyfile
+
+    # =========================================================================
+    # .env file — secrets injected at deploy time, never committed
+    # =========================================================================
+
+    - name: Write .env file with service secrets
+      ansible.builtin.copy:
+        dest: "{{ haven_install_path }}/etc/.env"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0600"
+        content: |
+          AUTHENTIK_SECRET_KEY={{ authentik_secret_key }}
+          AUTHENTIK_POSTGRESQL__PASSWORD={{ authentik_postgresql_password }}
+          VAULTWARDEN_ADMIN_TOKEN={{ vaultwarden_admin_token }}
+          INFISICAL_AUTH_SECRET={{ infisical_auth_secret }}
+          INFISICAL_ENCRYPTION_KEY={{ infisical_encryption_key }}
+          INFISICAL_POSTGRESQL__PASSWORD={{ infisical_postgresql_password }}
+          INFISICAL_DB_CONNECTION_URI=postgresql://infisical:{{ infisical_postgresql_password }}@infisical-db:5432/infisical
+      no_log: true
+
+    # =========================================================================
+    # Docker Compose — pull images and bring services up
+    # =========================================================================
+
+    # Stop any lingering compose stacks from previous runs (e.g. wrong project name)
+    # and forcibly release ports 80/443 before we bring up Caddy.
+    - name: Stop any old etc-prefixed compose stack (pre-project-name fix)
+      ansible.builtin.shell:
+        cmd: |
+          docker compose -p etc down --remove-orphans 2>/dev/null || true
+          docker compose -p haven_deploy_prd down --remove-orphans 2>/dev/null || true
+      changed_when: false
+
+    - name: Release ports 80 and 443 before starting services
+      ansible.builtin.shell:
+        cmd: |
+          fuser -k 80/tcp 2>/dev/null || true
+          fuser -k 443/tcp 2>/dev/null || true
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Pull latest Docker images
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          --env-file {{ haven_install_path }}/etc/.env
+          pull
+      register: compose_pull
+      changed_when: true
+
+    - name: Show image pull output
+      ansible.builtin.debug:
+        var: compose_pull.stdout_lines
+
+    - name: Start / update services (up -d)
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          --env-file {{ haven_install_path }}/etc/.env
+          up -d --remove-orphans
+      register: compose_up
+      changed_when: true
+
+    - name: Show compose up output
+      ansible.builtin.debug:
+        var: compose_up.stdout_lines
+
+    # Restart authentik containers so they pick up the correct /media ownership.
+    # docker compose up -d skips containers whose config hasn't changed, so
+    # without an explicit restart the old gunicorn process keeps the stale state.
+    - name: Restart authentik-server and authentik-worker
+      ansible.builtin.command:
+        cmd: docker restart haven-authentik-server-1 haven-authentik-worker-1
+      changed_when: true
+
+    # =========================================================================
+    # Caddy — restart if Caddyfile changed or no TLS certs yet
+    # =========================================================================
+
+    - name: Find existing LE production TLS certificates
+      ansible.builtin.find:
+        paths: "{{ haven_install_path }}/var/certs/caddy/certificates/acme-v02.api.letsencrypt.org-directory"
+        recurse: true
+        patterns: "*.crt"
+      register: existing_certs
+      failed_when: false
+
+    - name: Restart Caddy (Caddyfile changed or no valid LE certs found)
+      ansible.builtin.command:
+        cmd: docker restart haven-caddy-1
+      when: copy_caddyfile.changed or (existing_certs.matched | default(0)) == 0
+      changed_when: true
+
+    # =========================================================================
+    # Diagnostics — show container state and logs for debugging
+    # =========================================================================
+
+    - name: Wait 60 seconds for containers to stabilise and ACME to complete
+      ansible.builtin.pause:
+        seconds: 60
+
+    - name: Show all container states
+      ansible.builtin.command:
+        cmd: docker ps -a --format "table {{'{{'}}.Names{{'}}'}}\t{{'{{'}}.Status{{'}}'}}\t{{'{{'}}.Ports{{'}}'}}"
+      register: container_states
+      changed_when: false
+
+    - name: Display container states
+      ansible.builtin.debug:
+        var: container_states.stdout_lines
+
+    - name: Capture authentik-db logs
+      ansible.builtin.command:
+        cmd: docker logs haven-authentik-db-1 --tail 50
+      register: authentik_db_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display authentik-db logs
+      ansible.builtin.debug:
+        var: authentik_db_logs.stdout_lines
+
+    - name: Display authentik-db error logs
+      ansible.builtin.debug:
+        var: authentik_db_logs.stderr_lines
+      when: authentik_db_logs.stderr_lines | default([]) | length > 0
+
+    - name: Capture authentik-worker logs
+      ansible.builtin.shell:
+        cmd: docker logs haven-authentik-worker-1 --tail 100 2>&1
+      register: authentik_worker_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display authentik-worker logs
+      ansible.builtin.debug:
+        var: authentik_worker_logs.stdout_lines
+
+    - name: Capture authentik-server logs
+      ansible.builtin.shell:
+        cmd: docker logs haven-authentik-server-1 --tail 50 2>&1
+      register: authentik_server_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display authentik-server logs
+      ansible.builtin.debug:
+        var: authentik_server_logs.stdout_lines
+
+    - name: Capture infisical-db logs
+      ansible.builtin.command:
+        cmd: docker logs haven-infisical-db-1 --tail 50
+      register: infisical_db_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display infisical-db logs
+      ansible.builtin.debug:
+        var: infisical_db_logs.stdout_lines
+
+    - name: Capture caddy logs
+      ansible.builtin.shell:
+        cmd: docker logs haven-caddy-1 --tail 200 2>&1
+      register: caddy_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display caddy logs (stdout + stderr)
+      ansible.builtin.debug:
+        var: caddy_logs.stdout_lines
+
+    - name: Capture infisical app logs
+      ansible.builtin.shell:
+        cmd: docker logs haven-infisical-1 --tail 80 2>&1
+      register: infisical_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display infisical app logs
+      ansible.builtin.debug:
+        var: infisical_logs.stdout_lines
+
+    - name: Check port 80 reachability from runner
+      ansible.builtin.shell:
+        cmd: curl -sS -o /dev/null -w "%{http_code}" --max-time 10 http://91.98.78.36/ || echo "FAILED"
+      register: port80_check
+      changed_when: false
+      failed_when: false
+      delegate_to: localhost
+
+    - name: Display port 80 check result
+      ansible.builtin.debug:
+        msg: "Port 80 HTTP response code: {{ port80_check.stdout }}"
+
+    - name: Check TLS certificate status for all domains
+      ansible.builtin.shell:
+        cmd: |
+          for domain in auth.huybrechts.xyz vault.huybrechts.xyz secrets.huybrechts.xyz; do
+            echo "=== $domain ==="
+            echo | openssl s_client -connect "$domain:443" -servername "$domain" 2>&1 \
+              | openssl x509 -noout -issuer -subject -dates 2>/dev/null \
+              || echo "  [no valid cert yet]"
+          done
+        executable: /bin/bash
+      register: cert_check
+      changed_when: false
+      failed_when: false
+      delegate_to: localhost
+
+    - name: Display TLS cert status
+      ansible.builtin.debug:
+        var: cert_check.stdout_lines
+
+    # =========================================================================
+    # Health — wait for services to be healthy
+    # =========================================================================
+
+    # Wait for the container to be in 'running' state before attempting exec.
+    # A restarting container returns an error from 'docker compose exec'.
+    - name: Wait for authentik-db container to reach running state
+      ansible.builtin.command:
+        cmd: docker ps -q --filter name=haven-authentik-db-1 --filter status=running
+      register: authentik_db_running
+      until: authentik_db_running.stdout | trim != ''
+      retries: 30
+      delay: 5
+      changed_when: false
+
+    - name: Wait for authentik-db to accept connections
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          --env-file {{ haven_install_path }}/etc/.env
+          exec -T authentik-db pg_isready -d authentik -U authentik
+      register: authentik_db_ready
+      until: authentik_db_ready.rc == 0
+      retries: 20
+      delay: 5
+      changed_when: false
+
+    - name: Wait for infisical-db container to reach running state
+      ansible.builtin.command:
+        cmd: docker ps -q --filter name=haven-infisical-db-1 --filter status=running
+      register: infisical_db_running
+      until: infisical_db_running.stdout | trim != ''
+      retries: 30
+      delay: 5
+      changed_when: false
+
+    - name: Wait for infisical-db to accept connections
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          --env-file {{ haven_install_path }}/etc/.env
+          exec -T infisical-db pg_isready -d infisical -U infisical
+      register: infisical_db_ready
+      until: infisical_db_ready.rc == 0
+      retries: 20
+      delay: 5
+      changed_when: false

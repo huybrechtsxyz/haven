@@ -833,7 +833,7 @@
             }
           ],
           "default": null,
-          "description": "Allowed secret store types. If None, all stores are allowed (dev mode). For production, restrict to secure stores only.",
+          "description": "Allowed secret store types. If None, all stores are allowed (dev mode). Valid values: constant, environment, github, azure-keyvault, bitwarden, vault, infisical. For production, restrict to secure stores only. 'github' and 'environment' are pipeline-trust stores (resolved from environment variables) \u2014 add them explicitly to permit use.",
           "title": "Allowed Secret Stores"
         },
         "allowed_variable_stores": {
@@ -1169,7 +1169,7 @@
           "type": "string"
         },
         "capabilities": {
-          "description": "Set of capabilities this integration provides: repository, infrastructure, secrets, variables, features, keyvalue, api",
+          "description": "Set of capabilities this integration provides. Valid values: api, container, features, infrastructure, keyvalue, repository, secrets, variables. Use 'infrastructure' for IaC and configuration-management tools (Terraform, Ansible, OpenTofu). Use 'container' for container runtimes and container-native deployment tools (Docker, Helm, Podman).",
           "items": {
             "type": "string"
           },

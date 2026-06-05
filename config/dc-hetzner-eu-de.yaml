@@ -11,3 +11,7 @@ spec:
   properties:
     type: hetzner
     region: eu-de
+    location: nbg1
+    organization: huybrechts-xyz
+    engine: hetznercloud/hcloud
+    version: "~> 1.49"

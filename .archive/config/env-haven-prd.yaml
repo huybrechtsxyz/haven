@@ -1,0 +1,119 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: environment
+meta:
+  name: haven_env_prd
+  annotations:
+    description: Production environment for the family platform on Hetzner
+  labels:
+    version: "1.0.0"
+  tags: [haven, hetzner, family, production]
+spec:
+  variables:
+    - key: WORKSPACE
+      store: constant
+      value: haven
+    - key: DATACENTER
+      store: constant
+      value: hetzner-eu-de
+    - key: ENVIRONMENT
+      store: constant
+      value: prd
+    # Domains
+    - key: DOMAIN_XYZ
+      store: constant
+      value: huybrechts.xyz
+    - key: DOMAIN_DEV
+      store: constant
+      value: huybrechts.dev
+    - key: DOMAIN_ALDERWYN
+      store: constant
+      value: alderwyn.xyz
+    - key: DOMAIN_JANA
+      store: constant
+      value: madebyjana.be
+    # Subdomains (resolve to Core VPS IP)
+    - key: SUBDOMAIN_AUTH
+      store: constant
+      value: auth.huybrechts.xyz
+    - key: SUBDOMAIN_VAULT
+      store: constant
+      value: vault.huybrechts.xyz
+    - key: SUBDOMAIN_SECRETS
+      store: constant
+      value: secrets.huybrechts.xyz
+    - key: SUBDOMAIN_PHOTOS
+      store: constant
+      value: photos.huybrechts.xyz
+    - key: SUBDOMAIN_STATUS
+      store: constant
+      value: status.huybrechts.xyz
+    # Infrastructure
+    - key: HETZNER_REGION
+      store: constant
+      value: eu-de
+    - key: HETZNER_LOCATION
+      store: constant
+      value: nbg1
+    # Service URLs (full https:// URLs used directly in service environment variables)
+    - key: VAULTWARDEN_DOMAIN
+      store: constant
+      value: https://vault.huybrechts.xyz
+    - key: INFISICAL_SITE_URL
+      store: constant
+      value: https://secrets.huybrechts.xyz
+  secrets:
+    # Bootstrap secrets — loaded from GitHub Secrets on first deploy only
+    # After Core VPS is running, all runtime secrets are pulled from Infisical
+    - key: HETZNER_API_TOKEN
+      store: environment
+      value: HETZNER_API_TOKEN
+    - key: HETZNER_PRIVATE_KEY
+      store: environment
+      value: HETZNER_PRIVATE_KEY
+    - key: HETZNER_PUBLIC_KEY
+      store: environment
+      value: HETZNER_PUBLIC_KEY
+    - key: HETZNER_ROOT_PASSWORD
+      store: environment
+      value: HETZNER_ROOT_PASSWORD
+    # Workload VPS — Infisical ESO token only (no other secrets)
+    - key: INFISICAL_ESO_TOKEN
+      store: environment
+      value: INFISICAL_ESO_TOKEN
+    # Ansible — SSH key for Hearth VPS provisioning
+    - key: HEARTH_SSH_PRIVATE_KEY
+      store: infisical
+      value: HEARTH_SSH_PRIVATE_KEY
+      description: SSH private key for Hearth VPS (PEM format)
+    # Application secrets — stored in Infisical after initial bootstrap
+    # Authentik
+    - key: AUTHENTIK_SECRET_KEY
+      store: infisical
+      value: AUTHENTIK_SECRET_KEY
+      description: Authentik internal encryption key (50+ random chars)
+    - key: AUTHENTIK_POSTGRES_PASSWORD
+      store: infisical
+      value: AUTHENTIK_POSTGRES_PASSWORD
+      description: PostgreSQL password for Authentik database
+    # Vaultwarden
+    - key: VAULTWARDEN_ADMIN_TOKEN
+      store: infisical
+      value: VAULTWARDEN_ADMIN_TOKEN
+      description: Vaultwarden admin panel access token
+    # Infisical
+    - key: INFISICAL_ENCRYPTION_KEY
+      store: infisical
+      value: INFISICAL_ENCRYPTION_KEY
+      description: Infisical symmetric encryption key (hex 32 chars)
+    - key: INFISICAL_AUTH_SECRET
+      store: infisical
+      value: INFISICAL_AUTH_SECRET
+      description: Infisical JWT signing secret (32+ random chars)
+    - key: INFISICAL_POSTGRES_PASSWORD
+      store: infisical
+      value: INFISICAL_POSTGRES_PASSWORD
+      description: PostgreSQL password for Infisical database
+    - key: INFISICAL_DB_CONNECTION_URI
+      store: infisical
+      value: INFISICAL_DB_CONNECTION_URI
+      description: Full PostgreSQL connection URI for Infisical backend (must match INFISICAL_POSTGRES_PASSWORD)

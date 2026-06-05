@@ -1,0 +1,36 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: caddy
+  annotations:
+    description: Caddy 2 reverse proxy — terminates TLS for all Hearth services via ACME
+  labels:
+    version: "1.0.0"
+  tags: [haven, hearth, caddy, proxy, tls, acme]
+spec:
+  source:
+    repository: haven
+    source_path: services/hearth/caddy
+  type: compose
+  services:
+    - name: caddy
+      image: caddy:2-alpine
+      restart: unless-stopped
+      ports:
+        - "80:80"
+        - "443:443"
+        - "443:443/udp" # HTTP/3 QUIC
+      mounts:
+        - name: caddyfile
+          type: bind
+          source_path: /opt/haven/etc/caddy/Caddyfile
+          target_path: /etc/caddy/Caddyfile
+          chmod: "0644"
+        - name: data
+          type: bind
+          source_path: /opt/haven/var/certs
+          target_path: /data
+        - name: config
+          type: bind
+          source_path: /opt/haven/etc/caddy/config
+          target_path: /config

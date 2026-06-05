@@ -1,0 +1,312 @@
+---
+# =============================================================================
+# Playbook: hearth-config.yml
+# Idempotent configuration enforcement — runs on every deployment.
+# Ensures server configuration drift is corrected without re-installing software.
+#
+# Prerequisites:
+#   hearth-init.yml must have been run once before this playbook.
+#
+# SSH CONNECTIVITY NOTE:
+#   The deploy.yml workflow handles firewall access automatically when
+#   run_config=true. See hearth-init.yml for manual access instructions.
+#
+# Install collections first (once):
+#   ansible-galaxy collection install -r requirements.yml -p ./collections
+#
+# Run manually:
+#   ansible-playbook hearth-config.yml \
+#     -i <hearth_public_ip>, \
+#     --private-key ~/.ssh/haven_ed25519
+# =============================================================================
+
+- name: Hearth — configuration enforcement
+  hosts: all
+  remote_user: root
+  gather_facts: true
+
+  vars_files:
+    - vars/main.yml
+
+  tasks:
+    # =========================================================================
+    # Ensure no competing web servers hold ports 80/443
+    # =========================================================================
+
+    - name: Stop and disable apache2 if present
+      ansible.builtin.systemd:
+        name: apache2
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Stop and disable nginx if present
+      ansible.builtin.systemd:
+        name: nginx
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    # =========================================================================
+    # System — security updates
+    # =========================================================================
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Apply security-only upgrades
+      ansible.builtin.apt:
+        upgrade: safe
+      register: apt_upgrade
+
+    - name: Remove unused packages
+      ansible.builtin.apt:
+        autoremove: true
+
+    # =========================================================================
+    # Ensure required packages are present
+    # =========================================================================
+
+    - name: Ensure system packages are present
+      ansible.builtin.apt:
+        name:
+          - curl
+          - wget
+          - gnupg
+          - ca-certificates
+          - borgbackup
+          - htop
+          - ncdu
+          - fail2ban
+          - jq
+          - unattended-upgrades
+          - apt-listchanges
+        state: present
+
+    # =========================================================================
+    # Timezone
+    # =========================================================================
+
+    - name: Ensure timezone is {{ haven_timezone }}
+      community.general.timezone:
+        name: "{{ haven_timezone }}"
+
+    # =========================================================================
+    # Unattended security upgrades
+    # =========================================================================
+
+    - name: Ensure unattended-upgrades configuration (security only, no auto-reboot)
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/50unattended-upgrades
+        mode: "0644"
+        content: |
+          Unattended-Upgrade::Allowed-Origins {
+              "${distro_id}:${distro_codename}-security";
+          };
+          Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+          Unattended-Upgrade::MinimalSteps "true";
+          Unattended-Upgrade::Remove-Unused-Dependencies "true";
+          Unattended-Upgrade::Automatic-Reboot "false";
+
+    - name: Ensure unattended-upgrades timer is enabled
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        mode: "0644"
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+
+    # =========================================================================
+    # Docker
+    # =========================================================================
+
+    - name: Ensure Docker service is running and enabled
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    # =========================================================================
+    # haven service user
+    # =========================================================================
+
+    - name: Ensure haven group exists
+      ansible.builtin.group:
+        name: "{{ haven_group }}"
+        system: true
+
+    - name: Ensure haven user exists with correct settings
+      ansible.builtin.user:
+        name: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        groups: docker
+        home: "{{ haven_install_path }}"
+        create_home: false
+        system: true
+        shell: /bin/bash
+
+    # =========================================================================
+    # Directory structure
+    # =========================================================================
+
+    - name: Ensure haven directory tree exists with correct ownership
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0750"
+      loop:
+        - "{{ haven_install_path }}"
+        - "{{ haven_install_path }}/etc"
+        - "{{ haven_install_path }}/var/data"
+        - "{{ haven_install_path }}/var/logs"
+        - "{{ haven_install_path }}/.ssh"
+
+    # Caddy cert storage must be world-writable — Caddy runs as non-root
+    # and needs to write ACME certificates to this directory.
+    - name: Ensure Caddy cert storage dir is world-writable
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/var/certs"
+        state: directory
+        owner: root
+        group: root
+        mode: "0777"
+
+    - name: Ensure .ssh has strict permissions
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/.ssh"
+        state: directory
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0700"
+
+    # =========================================================================
+    # fail2ban
+    # =========================================================================
+
+    - name: Ensure fail2ban is running and enabled
+      ansible.builtin.systemd:
+        name: fail2ban
+        enabled: true
+        state: started
+
+    # =========================================================================
+    # SSH hardening
+    # =========================================================================
+
+    - name: Ensure SSH — password authentication disabled
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PasswordAuthentication"
+        line: "PasswordAuthentication no"
+      notify: Restart sshd
+
+    - name: Ensure SSH — empty passwords disabled
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PermitEmptyPasswords"
+        line: "PermitEmptyPasswords no"
+      notify: Restart sshd
+
+    - name: Ensure SSH — root key-only (no password login)
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PermitRootLogin"
+        line: "PermitRootLogin prohibit-password"
+      notify: Restart sshd
+
+    # =========================================================================
+    # BorgBackup — backup script + cron (only when configure_borg=true)
+    # =========================================================================
+    # Requires that hearth-init.yml has already been run with configure_borg=true
+    # to generate the SSH key and initialise the repo on the Storage Box.
+
+    - name: Ensure scripts directory exists
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/scripts"
+        state: directory
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0750"
+      when: configure_borg | bool
+
+    - name: Deploy backup script from template
+      ansible.builtin.template:
+        src: templates/backup.sh.j2
+        dest: "{{ haven_install_path }}/scripts/backup.sh"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0750"
+      when: configure_borg | bool
+
+    - name: Write BorgBackup passphrase to protected file
+      ansible.builtin.copy:
+        content: "{{ borg_passphrase }}"
+        dest: "{{ haven_install_path }}/.borg_passphrase"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0400"
+      when: configure_borg | bool
+      no_log: true # contains borg_passphrase
+
+    - name: Install BorgBackup cron job (daily at 02:00 UTC)
+      ansible.builtin.cron:
+        name: "haven-borg-backup"
+        user: "{{ haven_user }}"
+        minute: "0"
+        hour: "2"
+        job: >-
+          {{ haven_install_path }}/scripts/backup.sh
+          >> /var/log/haven-backup.log 2>&1
+        state: present
+      when: configure_borg | bool
+
+    - name: Ensure backup log file exists and is owned by haven user
+      ansible.builtin.file:
+        path: /var/log/haven-backup.log
+        state: touch
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0640"
+        modification_time: preserve
+        access_time: preserve
+      when: configure_borg | bool
+
+    - name: Export BorgBackup repokey
+      ansible.builtin.command:
+        cmd: borg key export "{{ storagebox_subaccount }}@{{ storagebox_host }}:./hearth" -
+      environment:
+        BORG_PASSPHRASE: "{{ borg_passphrase }}"
+        BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes"
+      become: true
+      become_user: "{{ haven_user }}"
+      vars:
+        ansible_ssh_pipelining: false
+      register: borg_key_export
+      changed_when: false
+      when: configure_borg | bool
+
+    - name: Show BorgBackup repokey
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          BORG REPOKEY — store this in Vaultwarden under "BorgBackup Hearth":
+
+          {{ borg_key_export.stdout }}
+
+          Without this key + the passphrase, backups cannot be restored.
+          ============================================================
+      when: configure_borg | bool
+
+  # ===========================================================================
+  # Handlers
+  # ===========================================================================
+
+  handlers:
+    - name: Restart sshd
+      ansible.builtin.systemd:
+        name: ssh
+        state: restarted

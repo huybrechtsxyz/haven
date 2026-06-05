@@ -17,7 +17,7 @@ handlers:
     class: logging.handlers.RotatingFileHandler
     level: INFO
     formatter: json
-    filename: /var/log/haven/application.json
+    filename: .strata/logs/application.json
     maxBytes: 52428800 # 50MB
     backupCount: 10
     encoding: utf8

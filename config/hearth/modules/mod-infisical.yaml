@@ -1,0 +1,74 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: infisical
+  annotations:
+    description: Infisical — open-source secrets manager and application configuration store
+  labels:
+    version: "1.0.0"
+  tags: [haven, hearth, infisical, secrets, config]
+spec:
+  source:
+    repository: haven
+    source_path: services/hearth/infisical
+  type: compose
+  references:
+    secrets:
+      - INFISICAL_AUTH_SECRET
+      - INFISICAL_ENCRYPTION_KEY
+      - INFISICAL_POSTGRESQL__PASSWORD
+      - INFISICAL_DB_CONNECTION_URI
+  services:
+    - name: db
+      image: docker.io/library/postgres:14-alpine
+      restart: unless-stopped
+      environment:
+        - key: POSTGRES_DB
+          value: infisical
+        - key: POSTGRES_USER
+          value: infisical
+        - key: POSTGRES_PASSWORD
+          secret: INFISICAL_POSTGRESQL__PASSWORD
+      mounts:
+        - name: data
+          type: bind
+          source_path: /opt/haven/var/data/infisical/postgresql
+          target_path: /var/lib/postgresql/data
+      healthcheck:
+        name: pg-ready
+        type: command
+        command: ["pg_isready", "-d", "infisical", "-U", "infisical"]
+        interval: 30s
+        timeout: 5s
+        retries: 5
+
+    - name: redis
+      image: docker.io/library/redis:7-alpine
+      restart: unless-stopped
+      healthcheck:
+        name: redis-ping
+        type: command
+        command: ["redis-cli", "ping"]
+        interval: 30s
+        timeout: 3s
+        retries: 5
+
+    - name: infisical
+      image: infisical/infisical:latest-postgres
+      restart: unless-stopped
+      depends_on:
+        - db
+        - redis
+      environment:
+        - key: NODE_ENV
+          value: production
+        - key: DB_CONNECTION_URI
+          secret: INFISICAL_DB_CONNECTION_URI
+        - key: AUTH_SECRET
+          secret: INFISICAL_AUTH_SECRET
+        - key: ENCRYPTION_KEY
+          secret: INFISICAL_ENCRYPTION_KEY
+        - key: REDIS_URL
+          value: redis://infisical-redis:6379
+        - key: SITE_URL
+          value: https://secrets.huybrechts.xyz

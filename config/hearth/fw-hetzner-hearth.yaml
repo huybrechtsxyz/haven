@@ -21,15 +21,15 @@ spec:
     # Essential system services
     - direction: out
       proto: udp
-      port: 53
+      port: [53]
       comment: DNS (UDP)
     - direction: out
       proto: tcp
-      port: 53
+      port: [53]
       comment: DNS (TCP)
     - direction: out
       proto: udp
-      port: 123
+      port: [123]
       comment: NTP
     - direction: in
       interface: lo
@@ -44,28 +44,33 @@ spec:
       comment: FTP (apt)
     - direction: out
       proto: tcp
-      port: 11371
+      port: [11371]
       comment: GPG keyserver
+    # BorgBackup — Hetzner Storage Box uses SSH on port 23
+    - direction: out
+      proto: tcp
+      port: [23]
+      comment: SSH to Storage Box (BorgBackup)
     # Public web ingress
     - direction: in
       proto: tcp
-      port: 80
+      port: [80]
       comment: HTTP (redirect to HTTPS)
     - direction: in
       proto: tcp
-      port: 443
+      port: [443]
       comment: HTTPS
     - direction: out
       proto: tcp
-      port: 80
+      port: [80]
       comment: HTTP outbound (image pulls, ACME)
     - direction: out
       proto: tcp
-      port: 443
+      port: [443]
       comment: HTTPS outbound
     # SSH — private network only (Hetzner private network or Tailscale CGNAT)
     - direction: in
       proto: tcp
-      port: 22
+      port: [22]
       from: 10.0.0.0/8
       comment: SSH (private network only)
