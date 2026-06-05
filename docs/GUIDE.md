@@ -177,6 +177,8 @@ Repo → Settings → Environments → create `production` → add these secrets
 | `INFISICAL_POSTGRESQL_PASSWORD` | Random password                  | `token_urlsafe(32)`                   |
 | `BORG_PASSPHRASE`               | Random passphrase                | `token_urlsafe(48)`                   |
 | `HETZNER_STORAGEBOX_PASSWORD`   | Storage Box sub-account password | Set when creating sub-account         |
+| `AUTHENTIK_EMAIL__USERNAME`     | SMTP username                    | e.g. Gmail address or app account     |
+| `AUTHENTIK_EMAIL__PASSWORD`     | SMTP password / app password     | Gmail: use App Password, not account  |
 
 ### GitHub Environment Variables
 
@@ -421,17 +423,20 @@ All three must show a login page:
 
 ## Service Initial Setup
 
+> Detailed configuration instructions: [AUTHENTIK.md](AUTHENTIK.md)
+
 ### Authentik
 
-Authentik is a SSO / identity provider. It requires a one-time initial setup to create the first admin account and configure basic settings. Follow these steps:
+Authentik is a SSO / identity provider. It requires a one-time initial setup to create the first admin account and configure basic settings.
 
 1. `https://auth.huybrechts.xyz/if/flow/initial-setup/`
 2. Create admin account (email + password)
 3. Store credentials in Vaultwarden
-4. Complete initial setup flow (organization name, SSO provider, etc.)
+4. Follow the full setup guide in [AUTHENTIK.md](AUTHENTIK.md) for:
+   - SMTP email configuration
+   - Creating family user accounts
+   - OIDC app setup for Vaultwarden and Infisical
 5. Test login at `https://auth.huybrechts.xyz/if/core/login/`
-6. Configure email provider (SMTP) for password resets and notifications
-7. Test email sending with password reset flow
 
 > **Note:**
 > - Authentik must be set up before Vaultwarden and Infisical, since they rely on Authentik for authentication.
