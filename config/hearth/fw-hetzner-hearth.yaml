@@ -46,6 +46,11 @@ spec:
       proto: tcp
       port: [11371]
       comment: GPG keyserver
+    # BorgBackup — Hetzner Storage Box uses SSH on port 23
+    - direction: out
+      proto: tcp
+      port: [23]
+      comment: SSH to Storage Box (BorgBackup)
     # Public web ingress
     - direction: in
       proto: tcp
