@@ -162,21 +162,21 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 Repo → Settings → Environments → create `production` → add these secrets:
 
-| Secret                          | Value                          | Notes                                 |
-| ------------------------------- | ------------------------------ | ------------------------------------- |
-| `TERRAFORM_API_TOKEN`           | Terraform Cloud API token      |                                       |
-| `HETZNER_API_TOKEN`             | Hetzner Cloud project token    | Read/write                            |
-| `HETZNER_PUBLIC_KEY`            | SSH public key (`.pub`)        | Single line                           |
-| `HETZNER_PRIVATE_KEY`           | SSH private key (full content) | Including `-----BEGIN/END-----` lines |
-| `HETZNER_ROOT_PASSWORD`         | Random password                | From generate step                    |
-| `AUTHENTIK_SECRET_KEY`          | Random string (86 chars)       | `token_urlsafe(64)`                   |
-| `AUTHENTIK_POSTGRESQL_PASSWORD` | Random password                | `token_urlsafe(32)`                   |
-| `VAULTWARDEN_ADMIN_TOKEN`       | Random token                   | `token_urlsafe(48)`                   |
-| `INFISICAL_AUTH_SECRET`         | 64 hex chars                   | `token_hex(32)`                       |
-| `INFISICAL_ENCRYPTION_KEY`      | **32 chars exactly**           | `token_hex(16)` — not 64!             |
-| `INFISICAL_POSTGRESQL_PASSWORD` | Random password                | `token_urlsafe(32)`                   |
-| `BORG_PASSPHRASE`               | Random passphrase              | `token_urlsafe(48)`                   |
-| `HETZNER_STORAGEBOX_PASSWORD`   | Storage Box sub-account password | Set when creating sub-account       |
+| Secret                          | Value                            | Notes                                 |
+| ------------------------------- | -------------------------------- | ------------------------------------- |
+| `TERRAFORM_API_TOKEN`           | Terraform Cloud API token        |                                       |
+| `HETZNER_API_TOKEN`             | Hetzner Cloud project token      | Read/write                            |
+| `HETZNER_PUBLIC_KEY`            | SSH public key (`.pub`)          | Single line                           |
+| `HETZNER_PRIVATE_KEY`           | SSH private key (full content)   | Including `-----BEGIN/END-----` lines |
+| `HETZNER_ROOT_PASSWORD`         | Random password                  | From generate step                    |
+| `AUTHENTIK_SECRET_KEY`          | Random string (86 chars)         | `token_urlsafe(64)`                   |
+| `AUTHENTIK_POSTGRESQL_PASSWORD` | Random password                  | `token_urlsafe(32)`                   |
+| `VAULTWARDEN_ADMIN_TOKEN`       | Random token                     | `token_urlsafe(48)`                   |
+| `INFISICAL_AUTH_SECRET`         | 64 hex chars                     | `token_hex(32)`                       |
+| `INFISICAL_ENCRYPTION_KEY`      | **32 chars exactly**             | `token_hex(16)` — not 64!             |
+| `INFISICAL_POSTGRESQL_PASSWORD` | Random password                  | `token_urlsafe(32)`                   |
+| `BORG_PASSPHRASE`               | Random passphrase                | `token_urlsafe(48)`                   |
+| `HETZNER_STORAGEBOX_PASSWORD`   | Storage Box sub-account password | Set when creating sub-account         |
 
 > Secrets must be in the `production` **environment**, not repository-level, or the workflow won't see them.
 > This must match the `production` environment referenced in the workflow YAML (`deploy.yml`).
