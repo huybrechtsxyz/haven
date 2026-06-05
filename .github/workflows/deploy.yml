@@ -264,6 +264,7 @@ jobs:
           borg_passphrase: "${{ secrets.BORG_PASSPHRASE }}"
           storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
           storagebox_subaccount: "${{ vars.STORAGEBOX_SUBACCOUNT_HEARTH }}"
+          healthcheck_ping_url: "${{ vars.HEALTHCHECK_PING_URL_BACKUP }}"
           VARSEOF
 
       - name: Run hearth-config playbook

@@ -30,3 +30,7 @@ storagebox_subaccount: "{{ storagebox_subaccount | default('u604953-sub1') }}"
 borg_keep_daily: 7
 borg_keep_weekly: 4
 borg_keep_monthly: 6
+
+# Healthchecks.io ping URL for backup monitoring (dead man's switch)
+# Leave empty to disable. Set after creating the check at healthchecks.io.
+healthcheck_ping_url: ""

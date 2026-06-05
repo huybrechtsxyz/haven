@@ -187,6 +187,7 @@ Repo → Settings → Environments → `production` → add these **variables** 
 | `STORAGEBOX_HOST`              | `u604953.your-storagebox.de` | Storage Box hostname (shared across systems) |
 | `STORAGEBOX_SUBACCOUNT_HEARTH` | `u604953-sub1`               | Hearth sub-account username                  |
 | `STORAGEBOX_SUBACCOUNT_FORGE`  | _(future)_                   | Forge sub-account username                   |
+| `HEALTHCHECK_PING_URL_BACKUP`  | `https://hc-ping.com/<uuid>` | Healthchecks.io ping URL for backup cron     |
 
 > Variables are non-sensitive configuration values that differ per environment. Moving them here (instead of hardcoding in repo files) means the same code can target a different Storage Box by changing only the environment variables.
 
@@ -524,20 +525,42 @@ For routine updates (code changes, image updates):
 
 ### Healthchecks.io
 
+Healthchecks.io monitors **cron job execution** — it alerts when a scheduled task (like BorgBackup) fails to check in on time.
+
 1. Sign up at <https://healthchecks.io>
 2. Create a project named `haven`
-3. Create checks for each service URL (`auth`, `vault`, `secrets`)
-4. Store credentials in Vaultwarden
+3. Create checks:
+
+| Check name      | Period   | Grace  | Purpose                           |
+| --------------- | -------- | ------ | --------------------------------- |
+| `hearth-backup` | 24 hours | 1 hour | BorgBackup daily cron (02:00 UTC) |
+
+4. Copy the ping URL (e.g. `https://hc-ping.com/<uuid>`)
+5. Add it as GitHub Environment Variable `HEALTHCHECK_PING_URL_BACKUP`
+6. Run pipeline with `run_config: true` to deploy the updated backup script
+7. Configure alert integrations (email, Telegram, or Pushover)
+8. Store credentials in Vaultwarden
+
+> Healthchecks.io is for **dead man's switch** monitoring — it alerts on *absence* of activity. If the backup cron doesn't ping within 25 hours, you get an alert.
 
 ### UptimeRobot
 
+UptimeRobot monitors **service availability** — it alerts when a URL returns errors or becomes unreachable.
+
 1. Sign up at <https://uptimerobot.com>
-2. Add HTTPS monitors for:
-   - `https://auth.huybrechts.xyz`
-   - `https://vault.huybrechts.xyz`
-   - `https://secrets.huybrechts.xyz`
-3. Configure alert contacts (email)
-4. Store credentials in Vaultwarden
+2. Add HTTPS monitors (keyword check for 200 OK):
+
+| Monitor name | URL                              | Interval | Keyword         |
+| ------------ | -------------------------------- | -------- | --------------- |
+| Authentik    | `https://auth.huybrechts.xyz`    | 5 min    | _(none needed)_ |
+| Vaultwarden  | `https://vault.huybrechts.xyz`   | 5 min    | _(none needed)_ |
+| Infisical    | `https://secrets.huybrechts.xyz` | 5 min    | _(none needed)_ |
+
+3. Configure alert contacts (email + optional Telegram/Pushover)
+4. Optional: create a public status page at `status.huybrechts.xyz` (CNAME to UptimeRobot)
+5. Store credentials in Vaultwarden
+
+> UptimeRobot free tier gives 50 monitors at 5-minute intervals — more than enough for haven.
 
 ## Email (future)
 

@@ -5,6 +5,13 @@
 # =============================================================================
 set -euo pipefail
 
+HEALTHCHECK_URL="{{ healthcheck_ping_url | default('') }}"
+
+# Signal start to healthchecks.io (optional)
+if [[ -n "$HEALTHCHECK_URL" ]]; then
+  curl -fsS -m 10 --retry 3 "${HEALTHCHECK_URL}/start" >/dev/null 2>&1 || true
+fi
+
 PASSPHRASE_FILE="{{ haven_install_path }}/.borg_passphrase"
 if [[ ! -f "$PASSPHRASE_FILE" ]]; then
   echo "ERROR: passphrase file $PASSPHRASE_FILE not found" >&2
@@ -49,3 +56,8 @@ echo "$LOG_PREFIX — compacting repository"
 borg compact "$BORG_REPO"
 
 echo "$LOG_PREFIX — completed successfully"
+
+# Signal success to healthchecks.io
+if [[ -n "$HEALTHCHECK_URL" ]]; then
+  curl -fsS -m 10 --retry 3 "$HEALTHCHECK_URL" >/dev/null 2>&1 || true
+fi
