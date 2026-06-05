@@ -277,12 +277,41 @@
     # Pipelining must be disabled for become_user tasks — Ansible's pipelining
     # sends module code over stdin through the become mechanism, which can break
     # when switching to a non-root user (UNREACHABLE error).
+    - name: Test SSH connectivity to Storage Box (port 23)
+      ansible.builtin.command:
+        cmd: ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o BatchMode=yes {{ storagebox_subaccount }}@{{ storagebox_host }} "echo OK"
+      become: true
+      become_user: "{{ haven_user }}"
+      vars:
+        ansible_ssh_pipelining: false
+      register: ssh_test
+      changed_when: false
+      failed_when: false
+      timeout: 30
+      when: configure_borg | bool
+
+    - name: Fail if Storage Box is not reachable
+      ansible.builtin.fail:
+        msg: |
+          Cannot reach Storage Box via SSH on port 23.
+          Host: {{ storagebox_host }}
+          User: {{ storagebox_subaccount }}
+          Return code: {{ ssh_test.rc }}
+          Stderr: {{ ssh_test.stderr | default('') }}
+
+          Checklist:
+          1. Hetzner Robot → Storage Box → External reachability: ENABLED
+          2. Sub-account → SSH: ENABLED
+          3. Sub-account → SSH Keys: public key authorised
+          4. Hetzner Cloud Firewall → Outbound TCP port 23: ALLOWED
+      when: configure_borg | bool and ssh_test.rc != 0
+
     - name: Check if BorgBackup repo already exists
       ansible.builtin.command:
         cmd: borg info "{{ storagebox_subaccount }}@{{ storagebox_host }}:./hearth"
       environment:
         BORG_PASSPHRASE: "{{ borg_passphrase | default('') }}"
-        BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes"
+        BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes -o ConnectTimeout=30"
       become: true
       become_user: "{{ haven_user }}"
       vars:
@@ -297,7 +326,7 @@
         cmd: borg init --encryption=repokey-blake2 "{{ storagebox_subaccount }}@{{ storagebox_host }}:./hearth"
       environment:
         BORG_PASSPHRASE: "{{ borg_passphrase | default('') }}"
-        BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes"
+        BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes -o ConnectTimeout=30"
       become: true
       become_user: "{{ haven_user }}"
       vars:
@@ -309,7 +338,7 @@
         cmd: borg key export "{{ storagebox_subaccount }}@{{ storagebox_host }}:./hearth" -
       environment:
         BORG_PASSPHRASE: "{{ borg_passphrase | default('') }}"
-        BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes"
+        BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes -o ConnectTimeout=30"
       become: true
       become_user: "{{ haven_user }}"
       vars:

@@ -209,12 +209,15 @@ Hetzner Cloud is the VPS hosting provider for haven. You will need to create a p
 
 1. [robot.hetzner.com](https://robot.hetzner.com) → Storage Boxes → Order **BX11** (1 TB, Nuremberg)
 2. Once activated, create sub-account: username `hearth_backup`, SSH access enabled
-3. Note the hostname (e.g. `u999999.your-storagebox.de`)
-4. Set it in `deploy/ansible-config/vars/main.yml`:
+3. Enable **External reachability** on both the main Storage Box and the sub-account
+4. Note the hostname (e.g. `u999999.your-storagebox.de`)
+5. Set it in `deploy/ansible-config/vars/main.yml`:
    ```yaml
    storagebox_host: "u999999.your-storagebox.de"
    ```
-5. Commit and push
+6. Commit and push
+
+> ⚠️ **External reachability must be enabled** — without it, only Hetzner-internal traffic can reach port 23. The VPS connects via its public IP, so BorgBackup will time out if this is off.
 
 ### Provision VPS (pipeline)
 
