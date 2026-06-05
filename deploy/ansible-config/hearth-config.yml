@@ -275,6 +275,30 @@
         access_time: preserve
       when: configure_borg | bool
 
+    - name: Export BorgBackup repokey
+      ansible.builtin.command:
+        cmd: borg key export "{{ storagebox_subaccount }}@{{ storagebox_host }}:./hearth" -
+      environment:
+        BORG_PASSPHRASE: "{{ borg_passphrase }}"
+        BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes"
+      become: true
+      become_user: "{{ haven_user }}"
+      register: borg_key_export
+      changed_when: false
+      when: configure_borg | bool
+
+    - name: Show BorgBackup repokey
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          BORG REPOKEY — store this in Vaultwarden under "BorgBackup Hearth":
+
+          {{ borg_key_export.stdout }}
+
+          Without this key + the passphrase, backups cannot be restored.
+          ============================================================
+      when: configure_borg | bool
+
   # ===========================================================================
   # Handlers
   # ===========================================================================

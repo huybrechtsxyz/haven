@@ -471,9 +471,11 @@ In the workflow log → task **"Display borg SSH public key"** → copy the `ssh
 
 Run pipeline with `run_init: true`, `configure_borg: true`, `run_config: false`, `run_deploy: false`.
 
-In the workflow log → task **"Display borg repo key"** → copy and save to Vaultwarden as **"Haven BorgBackup repo key"**.
+In the workflow log → task **"Show BorgBackup repokey"** → copy and save to Vaultwarden as **"Haven BorgBackup repo key"**.
 
 > ⚠️ Without this key + the passphrase, backups cannot be restored.
+>
+> The repokey is also displayed on every `run_config` run (when `configure_borg: true`), so you can retrieve it later without re-running init.
 
 ### Step 4 — Enable automated backups
 
