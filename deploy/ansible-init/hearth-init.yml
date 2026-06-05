@@ -306,7 +306,7 @@
     # when switching to a non-root user (UNREACHABLE error).
     - name: Test SSH connectivity to Storage Box (port 23)
       ansible.builtin.command:
-        cmd: ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o BatchMode=yes {{ storagebox_subaccount }}@{{ storagebox_host }} "echo OK"
+        cmd: ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o BatchMode=yes {{ storagebox_subaccount }}@{{ storagebox_host }} ls
       become: true
       become_user: "{{ haven_user }}"
       vars:
@@ -331,7 +331,7 @@
           2. Sub-account → SSH: ENABLED
           3. Sub-account → SSH Keys: public key authorised
           4. Hetzner Cloud Firewall → Outbound TCP port 23: ALLOWED
-      when: configure_borg | bool and ssh_test.rc != 0
+      when: configure_borg | bool and ssh_test.rc == 255
 
     - name: Check if BorgBackup repo already exists
       ansible.builtin.command:
