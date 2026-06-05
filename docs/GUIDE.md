@@ -176,6 +176,7 @@ Repo → Settings → Environments → create `production` → add these secrets
 | `INFISICAL_ENCRYPTION_KEY`      | **32 chars exactly**           | `token_hex(16)` — not 64!             |
 | `INFISICAL_POSTGRESQL_PASSWORD` | Random password                | `token_urlsafe(32)`                   |
 | `BORG_PASSPHRASE`               | Random passphrase              | `token_urlsafe(48)`                   |
+| `HETZNER_STORAGEBOX_PASSWORD`   | Storage Box sub-account password | Set when creating sub-account       |
 
 > Secrets must be in the `production` **environment**, not repository-level, or the workflow won't see them.
 > This must match the `production` environment referenced in the workflow YAML (`deploy.yml`).
@@ -208,14 +209,15 @@ Hetzner Cloud is the VPS hosting provider for haven. You will need to create a p
 ### Hetzner Storage Box (manual — no API)
 
 1. [robot.hetzner.com](https://robot.hetzner.com) → Storage Boxes → Order **BX11** (1 TB, Nuremberg)
-2. Once activated, create sub-account: username `hearth_backup`, SSH access enabled
+2. Once activated, create sub-account: username `hearth_backup`, set a password, enable SSH access
 3. Enable **External reachability** on both the main Storage Box and the sub-account
 4. Note the hostname (e.g. `u999999.your-storagebox.de`)
-5. Set it in `deploy/ansible-config/vars/main.yml`:
+5. Save the sub-account password in Vaultwarden and add it as GitHub Secret `HETZNER_STORAGEBOX_PASSWORD`
+6. Set the hostname in `deploy/ansible-config/vars/main.yml`:
    ```yaml
    storagebox_host: "u999999.your-storagebox.de"
    ```
-6. Commit and push
+7. Commit and push
 
 > ⚠️ **External reachability must be enabled** — without it, only Hetzner-internal traffic can reach port 23. The VPS connects via its public IP, so BorgBackup will time out if this is off.
 
@@ -460,27 +462,31 @@ BorgBackup backs up critical data to the Hetzner Storage Box with `repokey-blake
 - **Retention:** 7 daily, 4 weekly, 6 monthly
 - **Log:** `/var/log/haven-backup.log`
 
-### Step 1 — Generate SSH key
+### Step 1 — Generate SSH key and initialise repository
 
-Run pipeline with `run_init: true`, `configure_borg: false`, `run_config: false`, `run_deploy: false`.
-
-In the workflow log → task **"Display borg SSH public key"** → copy the `ssh-ed25519 ...` line.
-
-### Step 2 — Authorise SSH key *(manual — Hetzner Robot only)*
-
-[console.hetzner.com](https://console.hetzner.com) → Storage Boxes → `u999999` → Sub-accounts → `hearth_backup` → SSH Keys → paste the key → Save.
-
-### Step 3 — Initialise Borg repository
+Add the `HETZNER_STORAGEBOX_PASSWORD` secret (the sub-account password from Hetzner Robot) to GitHub Environment Secrets.
 
 Run pipeline with `run_init: true`, `configure_borg: true`, `run_config: false`, `run_deploy: false`.
 
-In the workflow log → task **"Show BorgBackup repokey"** → copy and save to Vaultwarden as **"Haven BorgBackup repo key"**.
+The pipeline will automatically:
 
-> ⚠️ Without this key + the passphrase, backups cannot be restored.
+1. Generate an ed25519 SSH key pair on the VPS (`/opt/haven/.ssh/borg_ed25519`)
+2. Upload the public key to the Storage Box using Hetzner's `install-ssh-key` command (requires `STORAGEBOX_PASSWORD`)
+3. Scan the Storage Box host key and add it to `known_hosts`
+4. Initialise the BorgBackup repository with `repokey-blake2` encryption
+5. Export and display the repository key
+
+> **How SSH key upload works:** Hetzner Storage Boxes require SSH keys to be uploaded via the `install-ssh-key` SSH command — the Robot web UI does not support this for port 23 access. The pipeline automates this using `sshpass` with the sub-account password. See [Hetzner docs: Add SSH keys](https://docs.hetzner.com/storage/storage-box/backup-space-ssh-keys/) for details.
+
+### Step 2 — Save the repository key
+
+In the workflow log → task **"Show BorgBackup repokey"** → copy the key block and save to Vaultwarden as **"Haven BorgBackup repo key"**.
+
+> ⚠️ Without this key + the passphrase, backups **cannot** be restored.
 >
 > The repokey is also displayed on every `run_config` run (when `configure_borg: true`), so you can retrieve it later without re-running init.
 
-### Step 4 — Enable automated backups
+### Step 3 — Enable automated backups
 
 In `deploy/ansible-config/vars/main.yml`:
 

@@ -70,6 +70,7 @@
           - unattended-upgrades
           - apt-listchanges
           - borgbackup
+          - sshpass
           - htop
           - ncdu
           - fail2ban
@@ -247,19 +248,27 @@
 
           {{ borg_key.public_key }}
 
-          In Hetzner Robot:
-            Storage Box → Sub-accounts → {{ storagebox_subaccount }}
-            → Authorised keys → paste the above key
+          The key will be uploaded automatically if configure_borg=true
+          and storagebox_password is provided. Otherwise, upload manually:
 
-          Then re-run with:
-            -e configure_borg=true
-            -e storagebox_host=<uXXXXXX.your-storagebox.de>
-            -e borg_passphrase=<strong-passphrase>
+            cat /opt/haven/.ssh/borg_ed25519.pub | \
+              ssh -p23 {{ storagebox_subaccount }}@{{ storagebox_host }} install-ssh-key
           ============================================================
 
     # =========================================================================
     # BorgBackup repository init (Step 2 — only when configure_borg=true)
     # =========================================================================
+
+    - name: Upload SSH key to Storage Box via install-ssh-key
+      ansible.builtin.shell:
+        cmd: |
+          sshpass -p "{{ storagebox_password }}" ssh -p 23 \
+            -o StrictHostKeyChecking=no \
+            {{ storagebox_subaccount }}@{{ storagebox_host }} \
+            install-ssh-key <<< "$(cat {{ haven_install_path }}/.ssh/borg_ed25519.pub)"
+      when: configure_borg | bool and storagebox_password | default('') | length > 0
+      changed_when: true
+      no_log: true
 
     - name: Scan Storage Box host key
       ansible.builtin.shell:
