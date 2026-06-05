@@ -18,7 +18,7 @@ haven_timezone: Europe/Brussels
 
 # Set to true once the borg SSH key has been added to the Storage Box
 # sub-account in Hetzner Robot AND hearth-init Step 2 has been run.
-configure_borg: false
+configure_borg: true
 
 # Hetzner Storage Box hostname — fill in after ordering in Hetzner Robot
 # Format: uXXXXXX.your-storagebox.de
