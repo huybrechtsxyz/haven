@@ -178,6 +178,18 @@ Repo → Settings → Environments → create `production` → add these secrets
 | `BORG_PASSPHRASE`               | Random passphrase                | `token_urlsafe(48)`                   |
 | `HETZNER_STORAGEBOX_PASSWORD`   | Storage Box sub-account password | Set when creating sub-account         |
 
+### GitHub Environment Variables
+
+Repo → Settings → Environments → `production` → add these **variables** (not secrets):
+
+| Variable                       | Value                        | Notes                                        |
+| ------------------------------ | ---------------------------- | -------------------------------------------- |
+| `STORAGEBOX_HOST`              | `u604953.your-storagebox.de` | Storage Box hostname (shared across systems) |
+| `STORAGEBOX_SUBACCOUNT_HEARTH` | `u604953-sub1`               | Hearth sub-account username                  |
+| `STORAGEBOX_SUBACCOUNT_FORGE`  | _(future)_                   | Forge sub-account username                   |
+
+> Variables are non-sensitive configuration values that differ per environment. Moving them here (instead of hardcoding in repo files) means the same code can target a different Storage Box by changing only the environment variables.
+
 > Secrets must be in the `production` **environment**, not repository-level, or the workflow won't see them.
 > This must match the `production` environment referenced in the workflow YAML (`deploy.yml`).
 
@@ -198,9 +210,13 @@ Hetzner Cloud is the VPS hosting provider for haven. You will need to create a p
 1. Sign up at <https://robot.hetzner.com> (same Hetzner account)
 2. Order a **BX11** Storage Box (1 TB, Nuremberg region)
 3. Once activated, go to Storage Box settings → Sub-accounts
-4. Create sub-account: username `hearth_backup`, enable SSH access
-5. Note the hostname (e.g. `u604953.your-storagebox.de`)
-6. Store credentials in Vaultwarden
+4. Create sub-account (e.g. `u604953-sub1`), set a password, enable SSH access
+5. Enable **External reachability** on the sub-account (required for port 23 access from VPS public IP)
+6. Note the hostname (e.g. `u604953.your-storagebox.de`) and sub-account username
+7. Store credentials in Vaultwarden
+8. Add to GitHub Environment Variables (see table below):
+   - `STORAGEBOX_HOST` = hostname
+   - `STORAGEBOX_SUBACCOUNT` = sub-account username
 
 > **⚠️ Hetzner Storage Boxes have no API or Terraform provider. This step is entirely manual and cannot be automated.**
 
@@ -209,14 +225,11 @@ Hetzner Cloud is the VPS hosting provider for haven. You will need to create a p
 ### Hetzner Storage Box (manual — no API)
 
 1. [robot.hetzner.com](https://robot.hetzner.com) → Storage Boxes → Order **BX11** (1 TB, Nuremberg)
-2. Once activated, create sub-account: username `hearth_backup`, set a password, enable SSH access
+2. Once activated, create sub-account (e.g. `u604953-sub1`), set a password, enable SSH access
 3. Enable **External reachability** on both the main Storage Box and the sub-account
-4. Note the hostname (e.g. `u999999.your-storagebox.de`)
+4. Note the hostname (e.g. `u604953.your-storagebox.de`) and sub-account username
 5. Save the sub-account password in Vaultwarden and add it as GitHub Secret `HETZNER_STORAGEBOX_PASSWORD`
-6. Set the hostname in `deploy/ansible-config/vars/main.yml`:
-   ```yaml
-   storagebox_host: "u999999.your-storagebox.de"
-   ```
+6. Add GitHub Environment Variables: `STORAGEBOX_HOST` and `STORAGEBOX_SUBACCOUNT`
 7. Commit and push
 
 > ⚠️ **External reachability must be enabled** — without it, only Hetzner-internal traffic can reach port 23. The VPS connects via its public IP, so BorgBackup will time out if this is off.
@@ -457,7 +470,7 @@ Infisical is a secrets management platform. After Authentik is set up, you can c
 
 BorgBackup backs up critical data to the Hetzner Storage Box with `repokey-blake2` encryption, daily at 02:00 UTC.
 
-- **Target:** `hearth-backup@u999999.your-storagebox.de:./hearth` (SSH port 23)
+- **Target:** `<STORAGEBOX_SUBACCOUNT>@<STORAGEBOX_HOST>:./hearth` (SSH port 23)
 - **Data:** Authentik, Vaultwarden, Infisical volumes + `/opt/haven/etc`
 - **Retention:** 7 daily, 4 weekly, 6 monthly
 - **Log:** `/var/log/haven-backup.log`
@@ -507,116 +520,16 @@ For routine updates (code changes, image updates):
 | `backup_before_deploy` | `true` | Optional — snapshot data before deploying       |
 | `dry_run`              | `true` | Optional — plan only, no changes applied        |
 
+## Monitoring
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-### Subsequent deploys
-
-For routine updates (code change, image update), run with `run_config: true` and `run_deploy: true`. Add `backup_before_deploy: true` to snapshot data before deploying. Use `dry_run: true` for a plan-only check.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## Infomaniak — Email hosting
-
-1. Sign up at <https://manager.infomaniak.com>
-2. Order kSuite (or Mail Service) for `huybrechts.xyz`
-3. This is a future Wave 2 migration target — no configuration needed now
-4. Store credentials in Vaultwarden
-
-### Healthchecks.io — Uptime monitoring
+### Healthchecks.io
 
 1. Sign up at <https://healthchecks.io>
 2. Create a project named `haven`
 3. Create checks for each service URL (`auth`, `vault`, `secrets`)
 4. Store credentials in Vaultwarden
 
-### UptimeRobot — Uptime monitoring (backup)
+### UptimeRobot
 
 1. Sign up at <https://uptimerobot.com>
 2. Add HTTPS monitors for:
@@ -626,76 +539,14 @@ For routine updates (code change, image update), run with `run_config: true` and
 3. Configure alert contacts (email)
 4. Store credentials in Vaultwarden
 
+## Email (future)
 
+### Infomaniak
 
-
-
-
-
-### Server init + deploy (pipeline)
-
-Run the pipeline twice (or combine into one run):
-
-**Init** — installs Docker, creates `haven` user, hardens SSH:
-
-| Input            | Value   |
-| ---------------- | ------- |
-| `run_init`       | `true`  |
-| `configure_borg` | `false` |
-| `run_config`     | `false` |
-| `run_deploy`     | `false` |
-
-**Config + Deploy** — writes system config, starts all 9 containers:
-
-| Input        | Value  |
-| ------------ | ------ |
-| `run_config` | `true` |
-| `run_deploy` | `true` |
-
-### Verify services
-
-All three must show a login page:
-
-- `https://auth.huybrechts.xyz` — Authentik
-- `https://vault.huybrechts.xyz` — Vaultwarden
-- `https://secrets.huybrechts.xyz` — Infisical
-
-### Service first-run setup
-
-**Authentik** — create admin account (one-time only):
-`https://auth.huybrechts.xyz/if/flow/initial-setup/`
-
-**Vaultwarden** — enable registration, create accounts, then disable:
-
-1. `https://vault.huybrechts.xyz/admin` → enter `VAULTWARDEN_ADMIN_TOKEN`
-2. General Settings → Allow new signups → **enable** → Save
-3. `https://vault.huybrechts.xyz/#/register` → create each user account
-4. Admin panel → Allow new signups → **disable** → Save
-
-**Infisical** — create admin account:
-`https://secrets.huybrechts.xyz` → Sign Up
-
-### Enable backups (BorgBackup)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+1. Sign up at <https://manager.infomaniak.com>
+2. Order kSuite (or Mail Service) for `huybrechts.xyz`
+3. This is a future Wave 2 migration target — no configuration needed now
+4. Store credentials in Vaultwarden
 
 ### DNS Email records
 
@@ -708,15 +559,3 @@ All three must show a login page:
 | `huybrechts.xyz`                   | MX   | 10       | `ALT4.ASPMX.L.GOOGLE.COM`             | 14400 |
 | `huybrechts.xyz`                   | TXT  |          | `v=spf1 include:_spf.google.com ~all` | 14400 |
 | `google._domainkey.huybrechts.xyz` | TXT  |          | `v=DKIM1; k=rsa; p=MIIBIjAN...`       | 14400 |
-
-### Other domains (managed at INWX, not part of haven deployment)
-
-| Domain           | Current use      | Notes |
-| ---------------- | ---------------- | ----- |
-| `huybrechts.dev` | Develop services |       |
-| `alderwyn.xyz`   | Reserved         |       |
-| `madebyjana.be`  | Personal site    |       |
-
-
-
-

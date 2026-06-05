@@ -226,12 +226,10 @@ jobs:
       - name: Write Ansible vars file for borg init
         if: ${{ inputs.run_init == true && inputs.configure_borg == true && inputs.dry_run != true }}
         run: |
-          STORAGEBOX_HOST=$(grep 'storagebox_host:' deploy/ansible-config/vars/main.yml | awk '{print $2}' | tr -d '"')
-          STORAGEBOX_SUB=$(grep 'storagebox_subaccount:' deploy/ansible-config/vars/main.yml | awk '{print $2}' | tr -d '"')
           cat > /tmp/init_vars.yml << VARSEOF
           configure_borg: true
-          storagebox_host: "${STORAGEBOX_HOST}"
-          storagebox_subaccount: "${STORAGEBOX_SUB}"
+          storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
+          storagebox_subaccount: "${{ vars.STORAGEBOX_SUBACCOUNT_HEARTH }}"
           borg_passphrase: "${{ secrets.BORG_PASSPHRASE }}"
           storagebox_password: "${{ secrets.HETZNER_STORAGEBOX_PASSWORD }}"
           VARSEOF
@@ -262,8 +260,10 @@ jobs:
       - name: Write Ansible vars file for config secrets
         if: ${{ inputs.run_config == true && inputs.dry_run != true }}
         run: |
-          cat > /tmp/config_vars.yml << 'VARSEOF'
+          cat > /tmp/config_vars.yml << VARSEOF
           borg_passphrase: "${{ secrets.BORG_PASSPHRASE }}"
+          storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
+          storagebox_subaccount: "${{ vars.STORAGEBOX_SUBACCOUNT_HEARTH }}"
           VARSEOF
 
       - name: Run hearth-config playbook
