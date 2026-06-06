@@ -15,6 +15,8 @@ spec:
     - key: DATACENTER
       store: constant
       value: hetzner-eu-de
+  secrets:
+    # Infrastructure — Hetzner & Storage
     - key: HEALTHCHECK_PING_URL_BACKUP
       store: github
       value: HEALTHCHECK_PING_URL_BACKUP
@@ -27,9 +29,6 @@ spec:
       store: github
       value: STORAGEBOX_SUBACCOUNT_HEARTH
       description: Storage Box sub-account for Hearth backups
-  secrets:
-    # Bootstrap secrets — loaded from GitHub Secrets on first deploy only
-    # After Core VPS is running, all runtime secrets are pulled from Infisical
     - key: HETZNER_API_TOKEN
       store: github
       value: HETZNER_API_TOKEN
