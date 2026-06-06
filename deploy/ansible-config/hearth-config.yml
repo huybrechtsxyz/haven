@@ -338,4 +338,4 @@
 
     - name: Restart authentik-worker
       ansible.builtin.command:
-        cmd: docker restart haven-worker-1
+        cmd: docker restart haven-authentik-worker-1
