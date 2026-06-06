@@ -483,16 +483,23 @@ Vaultwarden is a password manager. After Authentik is set up, you can create the
 
 ### Infisical
 
-Infisical is a secrets management platform. After Authentik is set up, you can create the first admin account in Infisical and log in to the dashboard.
+Infisical is a secrets management platform. After Authentik is set up, configure Infisical and enable SSO.
 
-1. `https://secrets.huybrechts.xyz` → Sign Up → create admin account
-2. Store credentials in Vaultwarden
-3. Test login at `https://secrets.huybrechts.xyz/login`
-4. Configure Authentik as SSO provider
-   - Settings → Authentication → Add provider → OpenID Connect
-   - Provider URL: `https://auth.huybrechts.xyz/if/realms/master/protocol/openid-connect`
+1. `https://secrets.huybrechts.xyz` → Sign Up → create the first admin account (email + password)
+2. Store credentials in Vaultwarden under "Infisical Admin"
+3. Complete the onboarding wizard (create an organisation and a first project)
+
+**Enable OIDC SSO:**
+
+4. Organisation Settings → Security → Single Sign-On → OIDC → Configure
+5. Settings:
+   - Issuer URL: `https://auth.huybrechts.xyz/application/o/infisical/`
    - Client ID: `infisical`
-   - Save, then test SSO login
+   - Client Secret: _(value of `INFISICAL_SSO_CLIENT_SECRET` — retrieve from Vaultwarden)_
+6. Save → Test → Enable
+7. Test SSO login: log out → Sign in with SSO → redirects to Authentik → back to Infisical
+
+> The SSO env vars (`SSO_OIDC_ISSUER`, `SSO_OIDC_CLIENT_ID`, `SSO_OIDC_CLIENT_SECRET`) are already wired in `config/hearth/modules/mod-infisical.yaml`. The OIDC provider in Authentik is created automatically by the blueprint.
 
 ## Configure BorgBackup
 

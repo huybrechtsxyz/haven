@@ -269,6 +269,7 @@ jobs:
           vaultwarden_sso_client_secret: "${{ secrets.VAULTWARDEN_SSO_CLIENT_SECRET }}"
           infisical_sso_client_secret: "${{ secrets.INFISICAL_SSO_CLIENT_SECRET }}"
           wud_sso_client_secret: "${{ secrets.WUD_SSO_CLIENT_SECRET }}"
+          portainer_sso_client_secret: "${{ secrets.PORTAINER_SSO_CLIENT_SECRET }}"
           VARSEOF
 
       - name: Run hearth-config playbook
