@@ -85,7 +85,7 @@ jobs:
         run: pip install "xyz-strata==0.0.9"
 
       - name: Install Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_wrapper: false
 
