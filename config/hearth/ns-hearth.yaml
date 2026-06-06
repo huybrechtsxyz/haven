@@ -24,3 +24,6 @@ spec:
     - name: portainer
       description: Docker container management UI with console access
       file: config/hearth/modules/mod-portainer.yaml
+    - name: wud
+      description: Container image update notifications with web UI
+      file: config/hearth/modules/mod-wud.yaml

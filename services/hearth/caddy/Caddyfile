@@ -27,3 +27,8 @@ portainer.huybrechts.xyz {
         }
     }
 }
+
+# WUD — Container Update Notifications
+wud.huybrechts.xyz {
+    reverse_proxy wud:3000
+}

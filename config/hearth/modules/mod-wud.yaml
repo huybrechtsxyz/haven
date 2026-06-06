@@ -1,33 +1,31 @@
 apiVersion: strata.huybrechts.xyz/v1
 kind: module
 meta:
-  name: portainer
+  name: wud
   annotations:
-    description: Portainer CE — Docker container management UI with console access
+    description: What's Up Docker — container image update notifications with web UI
   labels:
     version: "1.0.0"
-  tags: [haven, hearth, portainer, management, console]
+  tags: [haven, hearth, wud, monitoring, updates]
 spec:
   source:
     repository: haven
-    source_path: services/hearth/portainer
+    source_path: services/hearth/wud
   type: compose
   references:
     secrets: []
   services:
-    - name: portainer
-      image: portainer/portainer-ce:2.39.3-alpine
+    - name: wud
+      image: fmartinou/whats-up-docker:6.6.1
       restart: unless-stopped
-      command: ["--http-disabled"]
       environment:
         - key: TZ
           value: Europe/Brussels
+        - key: WUD_WATCHER_LOCAL_WATCHBYDEFAULT
+          value: "true"
       mounts:
-        - name: data
-          type: bind
-          source_path: /opt/haven/var/data/portainer
-          target_path: /data
         - name: docker-socket
           type: bind
           source_path: /var/run/docker.sock
           target_path: /var/run/docker.sock
+          read_only: true

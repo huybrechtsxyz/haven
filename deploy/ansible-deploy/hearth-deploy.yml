@@ -301,7 +301,7 @@
     - name: Check TLS certificate status for all domains
       ansible.builtin.shell:
         cmd: |
-          for domain in auth.huybrechts.xyz vault.huybrechts.xyz secrets.huybrechts.xyz portainer.huybrechts.xyz; do
+          for domain in auth.huybrechts.xyz vault.huybrechts.xyz secrets.huybrechts.xyz portainer.huybrechts.xyz wud.huybrechts.xyz; do
             echo "=== $domain ==="
             echo | openssl s_client -connect "$domain:443" -servername "$domain" 2>&1 \
               | openssl x509 -noout -issuer -subject -dates 2>/dev/null \

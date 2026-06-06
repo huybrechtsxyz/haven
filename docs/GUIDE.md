@@ -19,7 +19,8 @@ haven (workspace)
 │   ├── Authentik      — SSO / identity    → auth.huybrechts.xyz
 │   ├── Vaultwarden    — passwords         → vault.huybrechts.xyz
 │   ├── Infisical      — secrets mgmt      → secrets.huybrechts.xyz
-│   └── Portainer      — container mgmt    → portainer.huybrechts.xyz
+│   ├── Portainer      — container mgmt    → portainer.huybrechts.xyz
+│   └── WUD            — update notifier   → wud.huybrechts.xyz
 │
 ├── forge (VPS — k3s)                      ← future
 │   └── (workload services TBD)
@@ -265,8 +266,9 @@ Once you have the server IP, add the A records listed in [DNS Haven records](#dn
 | `auth.huybrechts.xyz`      | A    | `<server-ip-address>`         | 3600 | Authentik (SSO)          |
 | `vault.huybrechts.xyz`     | A    | `<server-ip-address>`         | 3600 | Vaultwarden (passwords)  |
 | `secrets.huybrechts.xyz`   | A    | `<server-ip-address>`         | 3600 | Infisical (secrets)      |
-| `portainer.huybrechts.xyz` | A    | `<server-ip-address>`         | 3600 | Portainer (container UI) |
-| `huybrechts.xyz`           | CAA  | `128 issue "letsencrypt.org"` | 3600 | Allow Let's Encrypt only |
+| `portainer.huybrechts.xyz` | A    | `<server-ip-address>`         | 3600 | Portainer (container UI)    |
+| `wud.huybrechts.xyz`        | A    | `<server-ip-address>`         | 3600 | WUD (update notifications)  |
+| `huybrechts.xyz`           | CAA  | `128 issue "letsencrypt.org"` | 3600 | Allow Let's Encrypt only    |
 
 ## Initializing Hearth
 
@@ -409,7 +411,7 @@ Caddy obtains Let's Encrypt certificates automatically on first start (~30 secon
 
 ```powershell
 # All must return 91.98.78.36
-foreach ($h in @("huybrechts.xyz","auth.huybrechts.xyz","vault.huybrechts.xyz","secrets.huybrechts.xyz","portainer.huybrechts.xyz")) {
+foreach ($h in @("huybrechts.xyz","auth.huybrechts.xyz","vault.huybrechts.xyz","secrets.huybrechts.xyz","portainer.huybrechts.xyz","wud.huybrechts.xyz")) {
     Resolve-DnsName $h -Type A | Select-Object Name, IPAddress
 }
 
@@ -425,6 +427,7 @@ All must show a login page:
 - `https://vault.huybrechts.xyz` — Vaultwarden
 - `https://secrets.huybrechts.xyz` — Infisical
 - `https://portainer.huybrechts.xyz` — Portainer
+- `https://wud.huybrechts.xyz` — WUD (What's Up Docker)
 
 ## Service Initial Setup
 
@@ -566,6 +569,7 @@ UptimeRobot monitors **service availability** — it alerts when a URL returns e
 | Vaultwarden  | `https://vault.huybrechts.xyz`     | 5 min    | _(none needed)_ |
 | Infisical    | `https://secrets.huybrechts.xyz`   | 5 min    | _(none needed)_ |
 | Portainer    | `https://portainer.huybrechts.xyz` | 5 min    | _(none needed)_ |
+| WUD          | `https://wud.huybrechts.xyz`       | 5 min    | _(none needed)_ |
 
 3. Configure alert contacts (email + optional Telegram/Pushover)
 4. Optional: create a public status page (paid feature):
