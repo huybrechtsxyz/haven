@@ -343,6 +343,10 @@ jobs:
           infisical_auth_secret: "${{ secrets.INFISICAL_AUTH_SECRET }}"
           infisical_encryption_key: "${{ secrets.INFISICAL_ENCRYPTION_KEY }}"
           infisical_postgresql_password: "${{ secrets.INFISICAL_POSTGRESQL_PASSWORD }}"
+          vaultwarden_sso_client_secret: "${{ secrets.VAULTWARDEN_SSO_CLIENT_SECRET }}"
+          infisical_sso_client_secret: "${{ secrets.INFISICAL_SSO_CLIENT_SECRET }}"
+          wud_sso_client_secret: "${{ secrets.WUD_SSO_CLIENT_SECRET }}"
+          portainer_sso_client_secret: "${{ secrets.PORTAINER_SSO_CLIENT_SECRET }}"
           VARSEOF
 
       - name: Run hearth-deploy playbook

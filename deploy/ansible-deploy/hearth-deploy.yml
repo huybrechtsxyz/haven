@@ -114,10 +114,14 @@
           AUTHENTIK_SECRET_KEY={{ authentik_secret_key }}
           AUTHENTIK_POSTGRESQL__PASSWORD={{ authentik_postgresql_password }}
           VAULTWARDEN_ADMIN_TOKEN={{ vaultwarden_admin_token }}
+          VAULTWARDEN_SSO_CLIENT_SECRET={{ vaultwarden_sso_client_secret }}
           INFISICAL_AUTH_SECRET={{ infisical_auth_secret }}
           INFISICAL_ENCRYPTION_KEY={{ infisical_encryption_key }}
           INFISICAL_POSTGRESQL__PASSWORD={{ infisical_postgresql_password }}
+          INFISICAL_SSO_CLIENT_SECRET={{ infisical_sso_client_secret }}
           INFISICAL_DB_CONNECTION_URI=postgresql://infisical:{{ infisical_postgresql_password }}@infisical-db:5432/infisical
+          WUD_SSO_CLIENT_SECRET={{ wud_sso_client_secret }}
+          PORTAINER_SSO_CLIENT_SECRET={{ portainer_sso_client_secret }}
       no_log: true
 
     # =========================================================================
