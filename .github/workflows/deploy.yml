@@ -59,6 +59,7 @@ env:
   STRATA_OUTPUT: json
   STRATA_WORK_PATH: ${{ github.workspace }}
   DEPLOYMENT_FILE: "config/deploy-haven-prd.yaml"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   deploy:
@@ -71,7 +72,7 @@ jobs:
       # Checkout
       # ------------------------------------------------------------------
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # ------------------------------------------------------------------
       # Install tools

@@ -16,7 +16,7 @@ spec:
     secrets: []
   services:
     - name: portainer
-      image: portainer/portainer-ce:2.27.3-alpine
+      image: portainer/portainer-ce:2.39.3-alpine
       restart: unless-stopped
       command: ["--http-disabled"]
       environment:
