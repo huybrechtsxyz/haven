@@ -18,6 +18,7 @@ spec:
       - INFISICAL_ENCRYPTION_KEY
       - INFISICAL_POSTGRESQL__PASSWORD
       - INFISICAL_DB_CONNECTION_URI
+      - INFISICAL_SSO_CLIENT_SECRET
   services:
     - name: db
       image: docker.io/library/postgres:14-alpine
@@ -72,3 +73,9 @@ spec:
           value: redis://infisical-redis:6379
         - key: SITE_URL
           value: https://secrets.huybrechts.xyz
+        - key: SSO_OIDC_CLIENT_ID
+          value: infisical
+        - key: SSO_OIDC_CLIENT_SECRET
+          secret: INFISICAL_SSO_CLIENT_SECRET
+        - key: SSO_OIDC_ISSUER
+          value: https://auth.huybrechts.xyz/application/o/infisical/

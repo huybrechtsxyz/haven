@@ -265,6 +265,8 @@ jobs:
           storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
           storagebox_subaccount: "${{ vars.STORAGEBOX_SUBACCOUNT_HEARTH }}"
           healthcheck_ping_url: "${{ vars.HEALTHCHECK_PING_URL_BACKUP }}"
+          vaultwarden_sso_client_secret: "${{ secrets.VAULTWARDEN_SSO_CLIENT_SECRET }}"
+          infisical_sso_client_secret: "${{ secrets.INFISICAL_SSO_CLIENT_SECRET }}"
           VARSEOF
 
       - name: Run hearth-config playbook

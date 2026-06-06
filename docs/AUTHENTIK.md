@@ -74,95 +74,85 @@ docker compose exec worker ak test_email your@email.com
 
 ### Enforce MFA (recommended)
 
-1. Admin Interface → Flows & Stages → Stages → Create
-2. Type: `Authenticator Validation Stage`
-3. Configure: require TOTP or WebAuthn
-4. Add this stage to the default authentication flow (after password stage)
+MFA enforcement requires three steps: create a TOTP setup stage (enrollment), create a validation stage (enforcement), then bind the validation stage to the login flow.
+
+#### Step 1 — Verify the TOTP setup stage exists
+
+Authentik ships this stage by default — you likely don't need to create it.
+
+1. Admin Interface → Flows & Stages → Stages
+2. Search for `default-authenticator-totp-setup`
+3. If it exists, skip to Step 2
+4. If not, create it: Type **Authenticator TOTP Stage**, Name `default-authenticator-totp-setup`, Digits `6`
+
+#### Step 2 — Configure the Authenticator Validation Stage
+
+Authentik also ships `default-authentication-mfa-validation` by default — edit it rather than creating a new one.
+
+1. Admin Interface → Flows & Stages → Stages
+2. Search for `default-authentication-mfa-validation` → Edit (pencil icon)
+3. Settings:
+   - Device classes: check `TOTP Authenticators` (add `WebAuthn Authenticators` if desired)
+   - Not configured action: **Force the user to configure an authenticator**
+   - Configuration stages: select `default-authenticator-totp-setup`
+4. Save
+
+#### Step 3 — Bind the validation stage to the login flow
+
+1. Admin Interface → Flows & Stages → Flows
+2. Click `default-authentication-flow`
+3. Open the **Stage Bindings** tab → Create
+4. Settings:
+   - Stage: `default-authentication-mfa-validation`
+   - Order: `30` (password stage is order `20` — this runs after it)
+5. Save
+
+From this point, every login will prompt for TOTP after the password step. Users without MFA configured will be taken through the TOTP setup flow automatically.
+
+> To verify the flow order: the Stage Bindings tab should show — `10` identification → `20` password → `30` mfa-validation.
 
 ---
 
-## OIDC Application: Vaultwarden
+## OIDC Applications: Vaultwarden + Infisical
 
-### Create OAuth2 provider
+Both applications are configured automatically via an **Authentik Blueprint** — no manual UI steps.
 
-1. Admin Interface → Applications → Providers → Create
-2. Type: **OAuth2/OpenID Connect**
-3. Settings:
-   - Name: `Vaultwarden`
-   - Authorization flow: `default-provider-authorization-implicit-consent`
-   - Client type: `Confidential`
-   - Client ID: `vaultwarden` (or auto-generated — note it down)
-   - Client Secret: generate and copy
-   - Redirect URIs: `https://vault.huybrechts.xyz/identity/connect/oidc-signin`
-   - Signing Key: select `authentik Self-signed Certificate`
-4. Save
+### How it works
 
-### Create application
+1. `VAULTWARDEN_SSO_CLIENT_SECRET` and `INFISICAL_SSO_CLIENT_SECRET` are pre-generated and stored as GitHub Secrets
+2. The config pipeline renders `authentik-blueprint.yaml.j2` (with secrets substituted) and copies it to `/opt/haven/etc/authentik/blueprints/haven-apps.yaml` on the server
+3. That directory is mounted into both the Authentik server and worker containers at `/blueprints/custom/`
+4. Authentik worker auto-applies the blueprint on startup — creating/updating providers and applications idempotently
 
-1. Admin Interface → Applications → Applications → Create
-2. Settings:
-   - Name: `Vaultwarden`
-   - Slug: `vaultwarden`
-   - Provider: select the provider created above
-   - Launch URL: `https://vault.huybrechts.xyz`
-3. Save
+### Prerequisites (one-time)
 
-### Configure Vaultwarden
+Generate two client secrets and add them to the `production` GitHub Environment Secrets:
 
-In the Vaultwarden admin panel (`https://vault.huybrechts.xyz/admin`):
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
 
-1. OpenID Connect Authentication → Enable
-2. Settings:
-   - Authority: `https://auth.huybrechts.xyz/application/o/vaultwarden/`
-   - Client ID: _(from provider above)_
-   - Client Secret: _(from provider above)_
-   - SSO Organization name: `haven`
+| Secret                          | Notes                   |
+| ------------------------------- | ----------------------- |
+| `VAULTWARDEN_SSO_CLIENT_SECRET` | One generated value     |
+| `INFISICAL_SSO_CLIENT_SECRET`   | Another generated value |
 
-> Store the Client ID and Secret in Vaultwarden itself under "Haven SSO — Vaultwarden".
+### Deploy
 
----
+Run the pipeline with `run_config: true` + `run_deploy: true`. After Authentik restarts, verify in the admin UI:
 
-## OIDC Application: Infisical
+- Admin Interface → Applications → Providers — should show `Vaultwarden` and `Infisical`
+- Admin Interface → Applications → Applications — should show both apps
 
-### Create OAuth2 provider
+> If providers are missing, check: Admin Interface → System → Tasks — look for blueprint apply errors.
 
-1. Admin Interface → Applications → Providers → Create
-2. Type: **OAuth2/OpenID Connect**
-3. Settings:
-   - Name: `Infisical`
-   - Authorization flow: `default-provider-authorization-implicit-consent`
-   - Client type: `Confidential`
-   - Client ID: `infisical`
-   - Client Secret: generate and copy
-   - Redirect URIs: `https://secrets.huybrechts.xyz/api/v1/sso/oidc/callback`
-   - Signing Key: select `authentik Self-signed Certificate`
-4. Save
+### Vaultwarden SSO env vars
 
-### Create application
+Vaultwarden reads SSO config from environment variables set in `config/hearth/modules/mod-vaultwarden.yaml`. No additional configuration needed — `SSO_AUTHORITY`, `SSO_CLIENT_ID`, and `SSO_CLIENT_SECRET` are already wired.
 
-1. Admin Interface → Applications → Applications → Create
-2. Settings:
-   - Name: `Infisical`
-   - Slug: `infisical`
-   - Provider: select the provider created above
-   - Launch URL: `https://secrets.huybrechts.xyz`
-3. Save
+### Infisical SSO env vars
 
-### Configure Infisical
-
-In the Infisical dashboard (`https://secrets.huybrechts.xyz`):
-
-1. Settings → Authentication → OIDC
-2. Settings:
-   - Issuer: `https://auth.huybrechts.xyz/application/o/infisical/`
-   - Authorization endpoint: `https://auth.huybrechts.xyz/application/o/authorize/`
-   - Token endpoint: `https://auth.huybrechts.xyz/application/o/token/`
-   - Userinfo endpoint: `https://auth.huybrechts.xyz/application/o/userinfo/`
-   - Client ID: _(from provider above)_
-   - Client Secret: _(from provider above)_
-3. Save and test
-
-> Store the Client ID and Secret in Vaultwarden under "Haven SSO — Infisical".
+Infisical reads OIDC config from environment variables set in `config/hearth/modules/mod-infisical.yaml`. `SSO_OIDC_ISSUER`, `SSO_OIDC_CLIENT_ID`, and `SSO_OIDC_CLIENT_SECRET` are already wired.
 
 ---
 

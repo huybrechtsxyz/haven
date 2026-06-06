@@ -16,8 +16,9 @@ spec:
     secrets:
       - AUTHENTIK_SECRET_KEY
       - AUTHENTIK_POSTGRESQL__PASSWORD
-      - AUTHENTIK_EMAIL__USERNAME
-      - AUTHENTIK_EMAIL__PASSWORD
+      # SMTP — enable after Infomaniak migration
+      # - AUTHENTIK_EMAIL__USERNAME
+      # - AUTHENTIK_EMAIL__PASSWORD
   services:
     - name: db
       image: docker.io/library/postgres:16-alpine
@@ -73,22 +74,23 @@ spec:
           secret: AUTHENTIK_POSTGRESQL__PASSWORD
         - key: AUTHENTIK_SECRET_KEY
           secret: AUTHENTIK_SECRET_KEY
-        - key: AUTHENTIK_EMAIL__HOST
-          value: smtp.gmail.com
-        - key: AUTHENTIK_EMAIL__PORT
-          value: "587"
-        - key: AUTHENTIK_EMAIL__USERNAME
-          secret: AUTHENTIK_EMAIL__USERNAME
-        - key: AUTHENTIK_EMAIL__PASSWORD
-          secret: AUTHENTIK_EMAIL__PASSWORD
-        - key: AUTHENTIK_EMAIL__USE_TLS
-          value: "true"
-        - key: AUTHENTIK_EMAIL__USE_SSL
-          value: "false"
-        - key: AUTHENTIK_EMAIL__TIMEOUT
-          value: "30"
-        - key: AUTHENTIK_EMAIL__FROM
-          value: authentik@huybrechts.xyz
+        # SMTP — enable after Infomaniak migration
+        # - key: AUTHENTIK_EMAIL__HOST
+        #   value: mail.infomaniak.com
+        # - key: AUTHENTIK_EMAIL__PORT
+        #   value: "587"
+        # - key: AUTHENTIK_EMAIL__USERNAME
+        #   secret: AUTHENTIK_EMAIL__USERNAME
+        # - key: AUTHENTIK_EMAIL__PASSWORD
+        #   secret: AUTHENTIK_EMAIL__PASSWORD
+        # - key: AUTHENTIK_EMAIL__USE_TLS
+        #   value: "true"
+        # - key: AUTHENTIK_EMAIL__USE_SSL
+        #   value: "false"
+        # - key: AUTHENTIK_EMAIL__TIMEOUT
+        #   value: "30"
+        # - key: AUTHENTIK_EMAIL__FROM
+        #   value: authentik@huybrechts.xyz
       mounts:
         - name: media
           type: bind
@@ -98,6 +100,10 @@ spec:
           type: bind
           source_path: /opt/haven/etc/authentik/templates
           target_path: /templates
+        - name: blueprints
+          type: bind
+          source_path: /opt/haven/etc/authentik/blueprints
+          target_path: /blueprints/custom
 
     - name: worker
       image: ghcr.io/goauthentik/server:2026.5.2
@@ -119,22 +125,23 @@ spec:
           secret: AUTHENTIK_POSTGRESQL__PASSWORD
         - key: AUTHENTIK_SECRET_KEY
           secret: AUTHENTIK_SECRET_KEY
-        - key: AUTHENTIK_EMAIL__HOST
-          value: smtp.gmail.com
-        - key: AUTHENTIK_EMAIL__PORT
-          value: "587"
-        - key: AUTHENTIK_EMAIL__USERNAME
-          secret: AUTHENTIK_EMAIL__USERNAME
-        - key: AUTHENTIK_EMAIL__PASSWORD
-          secret: AUTHENTIK_EMAIL__PASSWORD
-        - key: AUTHENTIK_EMAIL__USE_TLS
-          value: "true"
-        - key: AUTHENTIK_EMAIL__USE_SSL
-          value: "false"
-        - key: AUTHENTIK_EMAIL__TIMEOUT
-          value: "30"
-        - key: AUTHENTIK_EMAIL__FROM
-          value: authentik@huybrechts.xyz
+        # SMTP — enable after Infomaniak migration
+        # - key: AUTHENTIK_EMAIL__HOST
+        #   value: mail.infomaniak.com
+        # - key: AUTHENTIK_EMAIL__PORT
+        #   value: "587"
+        # - key: AUTHENTIK_EMAIL__USERNAME
+        #   secret: AUTHENTIK_EMAIL__USERNAME
+        # - key: AUTHENTIK_EMAIL__PASSWORD
+        #   secret: AUTHENTIK_EMAIL__PASSWORD
+        # - key: AUTHENTIK_EMAIL__USE_TLS
+        #   value: "true"
+        # - key: AUTHENTIK_EMAIL__USE_SSL
+        #   value: "false"
+        # - key: AUTHENTIK_EMAIL__TIMEOUT
+        #   value: "30"
+        # - key: AUTHENTIK_EMAIL__FROM
+        #   value: authentik@huybrechts.xyz
       mounts:
         - name: media
           type: bind
@@ -144,6 +151,10 @@ spec:
           type: bind
           source_path: /opt/haven/etc/authentik/templates
           target_path: /templates
+        - name: blueprints
+          type: bind
+          source_path: /opt/haven/etc/authentik/blueprints
+          target_path: /blueprints/custom
         - name: certs
           type: bind
           source_path: /opt/haven/var/certs

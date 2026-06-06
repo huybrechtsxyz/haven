@@ -301,6 +301,30 @@
           ============================================================
       when: configure_borg | bool
 
+    # =========================================================================
+    # Authentik — SSO Blueprint
+    # =========================================================================
+    # Deploys the rendered blueprint to the Authentik blueprints directory.
+    # Authentik worker picks it up on startup and creates/updates providers
+    # and applications idempotently (state: present).
+
+    - name: Ensure Authentik blueprints directory exists
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/etc/authentik/blueprints"
+        state: directory
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0750"
+
+    - name: Deploy Authentik SSO blueprint
+      ansible.builtin.template:
+        src: templates/authentik-blueprint.yaml.j2
+        dest: "{{ haven_install_path }}/etc/authentik/blueprints/haven-apps.yaml"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0640"
+      no_log: true # contains client secrets
+
   # ===========================================================================
   # Handlers
   # ===========================================================================

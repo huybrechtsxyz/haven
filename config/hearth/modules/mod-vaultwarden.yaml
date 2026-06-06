@@ -15,6 +15,7 @@ spec:
   references:
     secrets:
       - VAULTWARDEN_ADMIN_TOKEN
+      - VAULTWARDEN_SSO_CLIENT_SECRET
   services:
     - name: vaultwarden
       image: vaultwarden/server:1.32.7-alpine
@@ -32,6 +33,14 @@ spec:
           value: Europe/Brussels
         - key: LOG_LEVEL
           value: warn
+        - key: SSO_ENABLED
+          value: "true"
+        - key: SSO_AUTHORITY
+          value: https://auth.huybrechts.xyz/application/o/vaultwarden/
+        - key: SSO_CLIENT_ID
+          value: vaultwarden
+        - key: SSO_CLIENT_SECRET
+          secret: VAULTWARDEN_SSO_CLIENT_SECRET
       mounts:
         - name: data
           type: bind
