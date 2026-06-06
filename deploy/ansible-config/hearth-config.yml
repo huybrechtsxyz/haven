@@ -337,7 +337,5 @@
         state: restarted
 
     - name: Restart authentik-worker
-      community.docker.docker_container:
-        name: authentik-worker
-        state: started
-        restart: true
+      ansible.builtin.command:
+        cmd: docker restart authentik-worker
