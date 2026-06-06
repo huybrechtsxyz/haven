@@ -18,7 +18,8 @@ haven (workspace)
 │   ├── Caddy          — reverse proxy + auto-TLS
 │   ├── Authentik      — SSO / identity    → auth.huybrechts.xyz
 │   ├── Vaultwarden    — passwords         → vault.huybrechts.xyz
-│   └── Infisical      — secrets mgmt      → secrets.huybrechts.xyz
+│   ├── Infisical      — secrets mgmt      → secrets.huybrechts.xyz
+│   └── Portainer      — container mgmt    → portainer.huybrechts.xyz
 │
 ├── forge (VPS — k3s)                      ← future
 │   └── (workload services TBD)
@@ -32,7 +33,7 @@ haven (workspace)
 | Configuration | strata (YAML → Terraform artifacts)       | This repo (`config/`)           |
 | Provisioning  | Terraform / OpenTofu via Hetzner provider | GitHub Actions pipeline         |
 | Server setup  | Ansible (init + config + deploy)          | GitHub Actions pipeline         |
-| Services      | Docker Compose (9 containers)             | Hearth VPS (`/opt/haven/`)      |
+| Services      | Docker Compose (10 containers)            | Hearth VPS (`/opt/haven/`)      |
 | DNS           | INWX                                      | `huybrechts.xyz` + subdomains   |
 | Backups       | BorgBackup → Hetzner Storage Box          | Daily 02:00 UTC, port 23        |
 | Secrets       | GitHub Environment Secrets (`production`) | Secrets in pipeline environment |
@@ -258,13 +259,14 @@ Once you have the server IP, add the A records listed in [DNS Haven records](#dn
 
 ### DNS Haven records (huybrechts.xyz)
 
-| Name                     | Type | Value                         | TTL  | Purpose                  |
-| ------------------------ | ---- | ----------------------------- | ---- | ------------------------ |
-| `huybrechts.xyz`         | A    | `<server-ip-address>`         | 3600 | Root domain → Hearth VPS |
-| `auth.huybrechts.xyz`    | A    | `<server-ip-address>`         | 3600 | Authentik (SSO)          |
-| `vault.huybrechts.xyz`   | A    | `<server-ip-address>`         | 3600 | Vaultwarden (passwords)  |
-| `secrets.huybrechts.xyz` | A    | `<server-ip-address>`         | 3600 | Infisical (secrets)      |
-| `huybrechts.xyz`         | CAA  | `128 issue "letsencrypt.org"` | 3600 | Allow Let's Encrypt only |
+| Name                       | Type | Value                         | TTL  | Purpose                  |
+| -------------------------- | ---- | ----------------------------- | ---- | ------------------------ |
+| `huybrechts.xyz`           | A    | `<server-ip-address>`         | 3600 | Root domain → Hearth VPS |
+| `auth.huybrechts.xyz`      | A    | `<server-ip-address>`         | 3600 | Authentik (SSO)          |
+| `vault.huybrechts.xyz`     | A    | `<server-ip-address>`         | 3600 | Vaultwarden (passwords)  |
+| `secrets.huybrechts.xyz`   | A    | `<server-ip-address>`         | 3600 | Infisical (secrets)      |
+| `portainer.huybrechts.xyz` | A    | `<server-ip-address>`         | 3600 | Portainer (container UI) |
+| `huybrechts.xyz`           | CAA  | `128 issue "letsencrypt.org"` | 3600 | Allow Let's Encrypt only |
 
 ## Initializing Hearth
 
@@ -407,7 +409,7 @@ Caddy obtains Let's Encrypt certificates automatically on first start (~30 secon
 
 ```powershell
 # All must return 91.98.78.36
-foreach ($h in @("huybrechts.xyz","auth.huybrechts.xyz","vault.huybrechts.xyz","secrets.huybrechts.xyz")) {
+foreach ($h in @("huybrechts.xyz","auth.huybrechts.xyz","vault.huybrechts.xyz","secrets.huybrechts.xyz","portainer.huybrechts.xyz")) {
     Resolve-DnsName $h -Type A | Select-Object Name, IPAddress
 }
 
@@ -417,11 +419,12 @@ Resolve-DnsName -Name huybrechts.xyz -Type DS -Server "x.nic.xyz"
 
 ### Verify services
 
-All three must show a login page:
+All must show a login page:
 
 - `https://auth.huybrechts.xyz` — Authentik
 - `https://vault.huybrechts.xyz` — Vaultwarden
 - `https://secrets.huybrechts.xyz` — Infisical
+- `https://portainer.huybrechts.xyz` — Portainer
 
 ## Service Initial Setup
 
@@ -557,11 +560,12 @@ UptimeRobot monitors **service availability** — it alerts when a URL returns e
 1. Sign up at <https://uptimerobot.com>
 2. Add HTTPS monitors (keyword check for 200 OK):
 
-| Monitor name | URL                              | Interval | Keyword         |
-| ------------ | -------------------------------- | -------- | --------------- |
-| Authentik    | `https://auth.huybrechts.xyz`    | 5 min    | _(none needed)_ |
-| Vaultwarden  | `https://vault.huybrechts.xyz`   | 5 min    | _(none needed)_ |
-| Infisical    | `https://secrets.huybrechts.xyz` | 5 min    | _(none needed)_ |
+| Monitor name | URL                                | Interval | Keyword         |
+| ------------ | ---------------------------------- | -------- | --------------- |
+| Authentik    | `https://auth.huybrechts.xyz`      | 5 min    | _(none needed)_ |
+| Vaultwarden  | `https://vault.huybrechts.xyz`     | 5 min    | _(none needed)_ |
+| Infisical    | `https://secrets.huybrechts.xyz`   | 5 min    | _(none needed)_ |
+| Portainer    | `https://portainer.huybrechts.xyz` | 5 min    | _(none needed)_ |
 
 3. Configure alert contacts (email + optional Telegram/Pushover)
 4. Optional: create a public status page (paid feature):

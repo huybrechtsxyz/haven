@@ -1,0 +1,33 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: portainer
+  annotations:
+    description: Portainer CE — Docker container management UI with console access
+  labels:
+    version: "1.0.0"
+  tags: [haven, hearth, portainer, management, console]
+spec:
+  source:
+    repository: haven
+    source_path: services/hearth/portainer
+  type: compose
+  references:
+    secrets: []
+  services:
+    - name: portainer
+      image: portainer/portainer-ce:2.27.3-alpine
+      restart: unless-stopped
+      command: ["--http-disabled"]
+      environment:
+        - key: TZ
+          value: Europe/Brussels
+      mounts:
+        - name: data
+          type: bind
+          source_path: /opt/haven/var/data/portainer
+          target_path: /data
+        - name: docker-socket
+          type: bind
+          source_path: /var/run/docker.sock
+          target_path: /var/run/docker.sock

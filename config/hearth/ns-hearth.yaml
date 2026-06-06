@@ -21,3 +21,6 @@ spec:
     - name: infisical
       description: Secrets manager and application configuration store
       file: config/hearth/modules/mod-infisical.yaml
+    - name: portainer
+      description: Docker container management UI with console access
+      file: config/hearth/modules/mod-portainer.yaml

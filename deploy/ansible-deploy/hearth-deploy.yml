@@ -47,6 +47,7 @@
         - "{{ haven_install_path }}/etc/caddy"
         - "{{ haven_install_path }}/etc/caddy/config"
         - "{{ haven_install_path }}/var/data/vaultwarden"
+        - "{{ haven_install_path }}/var/data/portainer"
 
     # Authentik containers run as uid 1000 (non-root). The media and templates
     # bind-mount dirs must be owned by 1000:1000 so the container process can
@@ -300,7 +301,7 @@
     - name: Check TLS certificate status for all domains
       ansible.builtin.shell:
         cmd: |
-          for domain in auth.huybrechts.xyz vault.huybrechts.xyz secrets.huybrechts.xyz; do
+          for domain in auth.huybrechts.xyz vault.huybrechts.xyz secrets.huybrechts.xyz portainer.huybrechts.xyz; do
             echo "=== $domain ==="
             echo | openssl s_client -connect "$domain:443" -servername "$domain" 2>&1 \
               | openssl x509 -noout -issuer -subject -dates 2>/dev/null \
