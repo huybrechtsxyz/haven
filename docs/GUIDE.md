@@ -260,15 +260,15 @@ Once you have the server IP, add the A records listed in [DNS Haven records](#dn
 
 ### DNS Haven records (huybrechts.xyz)
 
-| Name                       | Type | Value                         | TTL  | Purpose                  |
-| -------------------------- | ---- | ----------------------------- | ---- | ------------------------ |
-| `huybrechts.xyz`           | A    | `<server-ip-address>`         | 3600 | Root domain → Hearth VPS |
-| `auth.huybrechts.xyz`      | A    | `<server-ip-address>`         | 3600 | Authentik (SSO)          |
-| `vault.huybrechts.xyz`     | A    | `<server-ip-address>`         | 3600 | Vaultwarden (passwords)  |
-| `secrets.huybrechts.xyz`   | A    | `<server-ip-address>`         | 3600 | Infisical (secrets)      |
-| `portainer.huybrechts.xyz` | A    | `<server-ip-address>`         | 3600 | Portainer (container UI)    |
-| `wud.huybrechts.xyz`        | A    | `<server-ip-address>`         | 3600 | WUD (update notifications)  |
-| `huybrechts.xyz`           | CAA  | `128 issue "letsencrypt.org"` | 3600 | Allow Let's Encrypt only    |
+| Name                       | Type | Value                         | TTL  | Purpose                    |
+| -------------------------- | ---- | ----------------------------- | ---- | -------------------------- |
+| `huybrechts.xyz`           | A    | `<server-ip-address>`         | 3600 | Root domain → Hearth VPS   |
+| `auth.huybrechts.xyz`      | A    | `<server-ip-address>`         | 3600 | Authentik (SSO)            |
+| `vault.huybrechts.xyz`     | A    | `<server-ip-address>`         | 3600 | Vaultwarden (passwords)    |
+| `secrets.huybrechts.xyz`   | A    | `<server-ip-address>`         | 3600 | Infisical (secrets)        |
+| `portainer.huybrechts.xyz` | A    | `<server-ip-address>`         | 3600 | Portainer (container UI)   |
+| `wud.huybrechts.xyz`       | A    | `<server-ip-address>`         | 3600 | WUD (update notifications) |
+| `huybrechts.xyz`           | CAA  | `128 issue "letsencrypt.org"` | 3600 | Allow Let's Encrypt only   |
 
 ## Initializing Hearth
 
