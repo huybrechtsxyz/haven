@@ -39,14 +39,11 @@ After deploying, test delivery from the worker container:
 docker compose exec worker ak test_email your@email.com
 ```
 
-### 3. Branding (optional)
+### 3. Branding
 
-1. Admin Interface → System → Brands → Edit `authentik-default`
-2. Set:
-   - Title: `Haven`
-   - Logo: upload a logo or leave default
-   - Favicon: upload or leave default
-3. Save
+Branding is configured automatically by the blueprint — the `authentik-default` brand domain is updated to `auth.huybrechts.xyz` with title `Haven`.
+
+> ⚠️ One-time prerequisite: rename the existing default brand's domain from `*` to `auth.huybrechts.xyz` in the UI before the first blueprint apply: Admin Interface → System → Brands → edit `authentik-default` → set Domain to `auth.huybrechts.xyz` → Save.
 
 ---
 
@@ -59,18 +56,19 @@ docker compose exec worker ak test_email your@email.com
    - Username: first name (lowercase)
    - Name: full name
    - Email: `<name>@huybrechts.xyz`
-   - Group: add to `authentik Admins` (for you) or create a `family` group (for everyone else)
-3. Set initial password or send enrollment email
+3. Set initial password or send enrollment email (requires SMTP)
 
-### Create groups
+### Assign groups
 
-| Group    | Members            | Purpose                       |
-| -------- | ------------------ | ----------------------------- |
-| `admins` | You                | Full admin access to all apps |
-| `family` | All family members | Standard access to all apps   |
+Groups are created automatically by the blueprint. After creating users, assign them:
 
-1. Admin Interface → Directory → Groups → Create
-2. Add members to each group
+| Group     | Members               | App access                             |
+| --------- | --------------------- | -------------------------------------- |
+| `admins`  | You (tech admin)      | All applications                       |
+| `parents` | Parents               | All family applications                |
+| `members` | Everyone (kids, etc.) | Shared applications (e.g. Vaultwarden) |
+
+1. Admin Interface → Directory → Users → select user → Groups tab → Add to group
 
 ### Enforce MFA (recommended)
 
@@ -82,20 +80,29 @@ Users without MFA configured will be prompted to set up TOTP on their next login
 
 ---
 
-## OIDC Applications: Vaultwarden, Infisical & WUD
+## OIDC Applications: Vaultwarden, Infisical, WUD & Portainer
 
-All three applications are configured automatically via an **Authentik Blueprint** — no manual UI steps.
+All applications are configured automatically via an **Authentik Blueprint** — no manual UI steps for providers or applications.
 
 ### How it works
 
-1. `VAULTWARDEN_SSO_CLIENT_SECRET`, `INFISICAL_SSO_CLIENT_SECRET`, and `WUD_SSO_CLIENT_SECRET` are pre-generated and stored as GitHub Secrets
+1. Client secrets are pre-generated and stored as GitHub Secrets
 2. The config pipeline renders `authentik-blueprint.yaml.j2` (with secrets substituted) and copies it to `/opt/haven/etc/authentik/blueprints/haven-apps.yaml` on the server
 3. That directory is mounted into both the Authentik server and worker containers at `/blueprints/custom/`
-4. Authentik worker auto-applies the blueprint on startup — creating/updating providers and applications idempotently
+4. Authentik worker auto-applies the blueprint on startup — creating/updating providers, applications, groups, policies, and branding idempotently
+
+### Access control
+
+| Application | Access group | Who can log in        |
+| ----------- | ------------ | --------------------- |
+| Vaultwarden | `members`    | Everyone (all groups) |
+| Infisical   | `admins`     | Admins only           |
+| WUD         | `admins`     | Admins only           |
+| Portainer   | `admins`     | Admins only           |
 
 ### Prerequisites (one-time)
 
-Generate three client secrets and add them to the `production` GitHub Environment Secrets:
+Generate four client secrets and add them to the `production` GitHub Environment Secrets:
 
 ```powershell
 python -c "import secrets; print(secrets.token_urlsafe(48))"
@@ -106,13 +113,16 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 | `VAULTWARDEN_SSO_CLIENT_SECRET` | One generated value     |
 | `INFISICAL_SSO_CLIENT_SECRET`   | Another generated value |
 | `WUD_SSO_CLIENT_SECRET`         | Another generated value |
+| `PORTAINER_SSO_CLIENT_SECRET`   | Another generated value |
 
 ### Deploy
 
 Run the pipeline with `run_config: true` + `run_deploy: true`. After Authentik restarts, verify in the admin UI:
 
-- Admin Interface → Applications → Providers — should show `Vaultwarden`, `Infisical`, and `WUD`
-- Admin Interface → Applications → Applications — should show all three apps
+- Admin Interface → Applications → Providers — should show `Vaultwarden`, `Infisical`, `WUD`, and `Portainer`
+- Admin Interface → Applications → Applications — should show all four apps
+- Admin Interface → Directory → Groups — should show `admins`, `parents`, `members`
+- Admin Interface → System → Brands — `auth.huybrechts.xyz` should have title `Haven`
 
 > If providers are missing, check: Admin Interface → System → Tasks — look for blueprint apply errors.
 
@@ -127,6 +137,29 @@ Infisical reads OIDC config from environment variables set in `config/hearth/mod
 ### WUD SSO env vars
 
 WUD reads OIDC config from environment variables set in `config/hearth/modules/mod-wud.yaml`. `WUD_AUTH_OIDC_AUTHENTIK_CLIENTID`, `WUD_AUTH_OIDC_AUTHENTIK_CLIENTSECRET`, `WUD_AUTH_OIDC_AUTHENTIK_DISCOVERY`, and `WUD_PUBLIC_URL` are already wired. WUD is configured to auto-redirect to Authentik on login (skipping the WUD internal login page).
+
+### Portainer OAuth2 configuration
+
+Unlike other services, Portainer's OAuth2 is configured in its own UI (not via env vars).
+This is a **one-time manual step** after the blueprint has applied the provider in Authentik.
+
+1. Log in to Portainer at `https://portainer.huybrechts.xyz` with the local admin account
+2. Settings → Authentication → OAuth
+3. Configure:
+   - Provider: `Custom`
+   - Client ID: `portainer`
+   - Client Secret: _(value of `PORTAINER_SSO_CLIENT_SECRET`)_
+   - Authorization URL: `https://auth.huybrechts.xyz/application/o/authorize/`
+   - Token URL: `https://auth.huybrechts.xyz/application/o/token/`
+   - Resource URL: `https://auth.huybrechts.xyz/application/o/userinfo/`
+   - Redirect URL: `https://portainer.huybrechts.xyz/`
+   - Scopes: `openid email profile`
+   - User identifier: `preferred_username`
+   - Default team: _(leave empty)_
+4. Save
+5. Test by logging out and clicking **Login with OAuth**
+
+> Store the client secret in Vaultwarden under "Haven SSO — Portainer".
 
 ---
 
