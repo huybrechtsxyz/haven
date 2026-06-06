@@ -12,7 +12,7 @@ This guide walks through the entire deployment process for haven, from setting u
 
 The hearth system is the core of haven, running on a Hetzner VPS. It hosts all the main services (Authentik, Vaultwarden, Infisical, Caddy) in a single Docker Compose stack. The hearth system is provisioned with Terraform and configured with Ansible, all orchestrated through GitHub Actions pipelines.
 
-```
+```text
 haven (workspace)
 ├── hearth (VPS — Docker Compose)          ← deployed now
 │   ├── Caddy          — reverse proxy + auto-TLS

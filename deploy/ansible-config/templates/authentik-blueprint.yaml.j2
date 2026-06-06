@@ -12,6 +12,20 @@ version: 1
 entries:
 
   # ---------------------------------------------------------------------------
+  # MFA — bind validation stage to login flow (stages exist by default)
+  # ---------------------------------------------------------------------------
+
+  - model: authentik_flows.flowstagebinding
+    state: present
+    identifiers:
+      target: !Find [authentik_flows.flow, [slug, default-authentication-flow]]
+      stage: !Find [authentik_stages_authenticator_validate.authenticatorvalidatestage, [name, default-authentication-mfa-validation]]
+    attrs:
+      target: !Find [authentik_flows.flow, [slug, default-authentication-flow]]
+      stage: !Find [authentik_stages_authenticator_validate.authenticatorvalidatestage, [name, default-authentication-mfa-validation]]
+      order: 30
+
+  # ---------------------------------------------------------------------------
   # Vaultwarden — OAuth2/OIDC Provider + Application
   # ---------------------------------------------------------------------------
 

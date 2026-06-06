@@ -74,42 +74,11 @@ docker compose exec worker ak test_email your@email.com
 
 ### Enforce MFA (recommended)
 
-MFA enforcement requires three steps: create a TOTP setup stage (enrollment), create a validation stage (enforcement), then bind the validation stage to the login flow.
+MFA is configured automatically by the blueprint — the `default-authentication-mfa-validation` stage is bound to the login flow at order `30` (after password at `20`).
 
-#### Step 1 — Verify the TOTP setup stage exists
+After deploy, verify: Admin Interface → Flows & Stages → Flows → `default-authentication-flow` → Stage Bindings tab should show `10` identification → `20` password → `30` mfa-validation.
 
-Authentik ships this stage by default — you likely don't need to create it.
-
-1. Admin Interface → Flows & Stages → Stages
-2. Search for `default-authenticator-totp-setup`
-3. If it exists, skip to Step 2
-4. If not, create it: Type **Authenticator TOTP Stage**, Name `default-authenticator-totp-setup`, Digits `6`
-
-#### Step 2 — Configure the Authenticator Validation Stage
-
-Authentik also ships `default-authentication-mfa-validation` by default — edit it rather than creating a new one.
-
-1. Admin Interface → Flows & Stages → Stages
-2. Search for `default-authentication-mfa-validation` → Edit (pencil icon)
-3. Settings:
-   - Device classes: check `TOTP Authenticators` (add `WebAuthn Authenticators` if desired)
-   - Not configured action: **Force the user to configure an authenticator**
-   - Configuration stages: select `default-authenticator-totp-setup`
-4. Save
-
-#### Step 3 — Bind the validation stage to the login flow
-
-1. Admin Interface → Flows & Stages → Flows
-2. Click `default-authentication-flow`
-3. Open the **Stage Bindings** tab → Create
-4. Settings:
-   - Stage: `default-authentication-mfa-validation`
-   - Order: `30` (password stage is order `20` — this runs after it)
-5. Save
-
-From this point, every login will prompt for TOTP after the password step. Users without MFA configured will be taken through the TOTP setup flow automatically.
-
-> To verify the flow order: the Stage Bindings tab should show — `10` identification → `20` password → `30` mfa-validation.
+Users without MFA configured will be prompted to set up TOTP on their next login.
 
 ---
 
