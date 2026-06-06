@@ -124,6 +124,19 @@
           PORTAINER_SSO_CLIENT_SECRET={{ portainer_sso_client_secret }}
       no_log: true
 
+    - name: Verify .env keys (values masked)
+      ansible.builtin.shell:
+        cmd: |
+          echo "=== .env keys present on server ==="
+          while IFS='=' read -r key value; do
+            [ -z "$key" ] && continue
+            [[ "$key" =~ ^# ]] && continue
+            echo "  ✓ ${key}=$(echo "$value" | head -c3)***"
+          done < "{{ haven_install_path }}/etc/.env"
+          echo "=== end .env ==="
+        executable: /bin/bash
+      changed_when: false
+
     # =========================================================================
     # Docker Compose — pull images and bring services up
     # =========================================================================
