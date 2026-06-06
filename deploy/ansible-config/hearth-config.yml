@@ -324,6 +324,7 @@
         group: "{{ haven_group }}"
         mode: "0640"
       no_log: true # contains client secrets
+      notify: Restart authentik-worker
 
   # ===========================================================================
   # Handlers
@@ -334,3 +335,9 @@
       ansible.builtin.systemd:
         name: ssh
         state: restarted
+
+    - name: Restart authentik-worker
+      community.docker.docker_container:
+        name: authentik-worker
+        state: started
+        restart: true
