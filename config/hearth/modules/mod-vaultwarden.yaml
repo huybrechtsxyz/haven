@@ -18,7 +18,7 @@ spec:
       - VAULTWARDEN_SSO_CLIENT_SECRET
   services:
     - name: vaultwarden
-      image: vaultwarden/server:1.36.0-alpine
+      image: vaultwarden/server:1.32.7-alpine
       restart: unless-stopped
       environment:
         - key: SIGNUPS_ALLOWED
