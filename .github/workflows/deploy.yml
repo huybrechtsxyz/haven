@@ -23,6 +23,10 @@ name: Deploy - haven
 on:
   workflow_dispatch:
     inputs:
+      branch:
+        description: "Branch to deploy (cannot be 'main' — safety guard)"
+        type: string
+        required: true
       dry_run:
         description: "Dry run (plan only, no apply)"
         type: boolean
@@ -47,6 +51,10 @@ on:
         description: "Deploy Docker Compose services to Hearth (hearth-deploy Ansible playbook)"
         type: boolean
         default: true
+      full_restart:
+        description: "Stop ALL containers before deploying (clean restart — use when containers have stale state)"
+        type: boolean
+        default: false
       backup_before_deploy:
         description: "Run a BorgBackup snapshot before deploying (requires configure_borg=true on server)"
         type: boolean
@@ -73,6 +81,20 @@ jobs:
       # ------------------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v6
+
+      # ------------------------------------------------------------------
+      # Safety: block main branch deployments
+      # ------------------------------------------------------------------
+      - name: Block deployment from main branch
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "::error::Deployment from 'main' is blocked. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" = "main" ]; then
+            echo "::error::Branch input cannot be 'main'. Use a feature branch."
+            exit 1
+          fi
 
       # ------------------------------------------------------------------
       # Install tools
@@ -257,6 +279,16 @@ jobs:
         if: ${{ inputs.run_config == true && inputs.dry_run != true }}
         working-directory: deploy/ansible-config
         run: ansible-galaxy collection install -r requirements.yml -p ./collections
+
+      # ------------------------------------------------------------------
+      # Full restart: stop all haven containers (clean slate before redeploy)
+      # ------------------------------------------------------------------
+      - name: Stop all haven containers
+        if: ${{ inputs.full_restart == true && inputs.dry_run != true }}
+        run: |
+          ssh -i ~/.ssh/haven_ed25519 -o StrictHostKeyChecking=no \
+            root@${{ steps.hearth_ip.outputs.ip }} \
+            "cd /opt/haven && docker compose down || true"
 
       - name: Write Ansible vars file for config secrets
         if: ${{ inputs.run_config == true && inputs.dry_run != true }}
