@@ -39,10 +39,13 @@ entries:
     attrs:
       name: Vaultwarden
       authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
       client_type: confidential
       client_id: vaultwarden
       client_secret: "{{ vaultwarden_sso_client_secret }}"
-      redirect_uris: "https://vault.huybrechts.xyz/identity/connect/oidc-signin"
+      redirect_uris:
+        - matching_mode: strict
+          url: "https://vault.huybrechts.xyz/identity/connect/oidc-signin"
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
       sub_mode: hashed_user_id
       issuer_mode: per_provider
@@ -69,10 +72,13 @@ entries:
     attrs:
       name: Infisical
       authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
       client_type: confidential
       client_id: infisical
       client_secret: "{{ infisical_sso_client_secret }}"
-      redirect_uris: "https://secrets.huybrechts.xyz/api/v1/sso/oidc/callback"
+      redirect_uris:
+        - matching_mode: strict
+          url: "https://secrets.huybrechts.xyz/api/v1/sso/oidc/callback"
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
       sub_mode: hashed_user_id
       issuer_mode: per_provider
@@ -99,10 +105,13 @@ entries:
     attrs:
       name: WUD
       authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
       client_type: confidential
       client_id: wud
       client_secret: "{{ wud_sso_client_secret }}"
-      redirect_uris: "https://wud.huybrechts.xyz/auth/oidc/authentik/cb"
+      redirect_uris:
+        - matching_mode: strict
+          url: "https://wud.huybrechts.xyz/auth/oidc/authentik/cb"
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
       sub_mode: hashed_user_id
       issuer_mode: per_provider
