@@ -156,6 +156,42 @@
       ansible.builtin.debug:
         var: compose_pull.stdout_lines
 
+    # =========================================================================
+    # TEMPORARY — wipe Authentik DB for fresh 2026.5.2 schema
+    # REMOVE THIS BLOCK AFTER FIRST SUCCESSFUL DEPLOY
+    # =========================================================================
+
+    - name: Stop Authentik containers before DB wipe
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          --env-file {{ haven_install_path }}/etc/.env
+          stop authentik-server authentik-worker authentik-db
+      changed_when: true
+      failed_when: false
+
+    - name: Remove Authentik containers
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          --env-file {{ haven_install_path }}/etc/.env
+          rm -f authentik-server authentik-worker authentik-db
+      changed_when: true
+      failed_when: false
+
+    - name: Wipe Authentik PostgreSQL data
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/var/data/authentik/postgresql"
+        state: absent
+
+    # =========================================================================
+    # END TEMPORARY BLOCK
+    # =========================================================================
+
     - name: Start / update services (up -d)
       ansible.builtin.command:
         cmd: >
