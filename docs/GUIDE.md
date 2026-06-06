@@ -142,6 +142,15 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 # Vaultwarden admin token
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 
+# Vaultwarden SSO client secret
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+
+# Infisical SSO client secret
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+
+# WUD SSO client secret
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+
 # Infisical auth secret — MUST be exactly 64 hex chars
 python -c "import secrets; print(secrets.token_hex(32))"
 
@@ -176,6 +185,7 @@ Repo → Settings → Environments → create `production` → add these secrets
 | `VAULTWARDEN_ADMIN_TOKEN`       | Random token                     | `token_urlsafe(48)`                                    |
 | `VAULTWARDEN_SSO_CLIENT_SECRET` | Pre-generated OIDC client secret | `token_urlsafe(48)` — used in Authentik provider setup |
 | `INFISICAL_SSO_CLIENT_SECRET`   | Pre-generated OIDC client secret | `token_urlsafe(48)` — used in Authentik provider setup |
+| `WUD_SSO_CLIENT_SECRET`         | Pre-generated OIDC client secret | `token_urlsafe(48)` — used in Authentik provider setup |
 | `INFISICAL_AUTH_SECRET`         | 64 hex chars                     | `token_hex(32)`                                        |
 | `INFISICAL_ENCRYPTION_KEY`      | **32 chars exactly**             | `token_hex(16)` — not 64!                              |
 | `INFISICAL_POSTGRESQL_PASSWORD` | Random password                  | `token_urlsafe(32)`                                    |

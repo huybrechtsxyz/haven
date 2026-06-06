@@ -82,20 +82,20 @@ Users without MFA configured will be prompted to set up TOTP on their next login
 
 ---
 
-## OIDC Applications: Vaultwarden + Infisical
+## OIDC Applications: Vaultwarden, Infisical & WUD
 
-Both applications are configured automatically via an **Authentik Blueprint** — no manual UI steps.
+All three applications are configured automatically via an **Authentik Blueprint** — no manual UI steps.
 
 ### How it works
 
-1. `VAULTWARDEN_SSO_CLIENT_SECRET` and `INFISICAL_SSO_CLIENT_SECRET` are pre-generated and stored as GitHub Secrets
+1. `VAULTWARDEN_SSO_CLIENT_SECRET`, `INFISICAL_SSO_CLIENT_SECRET`, and `WUD_SSO_CLIENT_SECRET` are pre-generated and stored as GitHub Secrets
 2. The config pipeline renders `authentik-blueprint.yaml.j2` (with secrets substituted) and copies it to `/opt/haven/etc/authentik/blueprints/haven-apps.yaml` on the server
 3. That directory is mounted into both the Authentik server and worker containers at `/blueprints/custom/`
 4. Authentik worker auto-applies the blueprint on startup — creating/updating providers and applications idempotently
 
 ### Prerequisites (one-time)
 
-Generate two client secrets and add them to the `production` GitHub Environment Secrets:
+Generate three client secrets and add them to the `production` GitHub Environment Secrets:
 
 ```powershell
 python -c "import secrets; print(secrets.token_urlsafe(48))"
@@ -105,13 +105,14 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 | ------------------------------- | ----------------------- |
 | `VAULTWARDEN_SSO_CLIENT_SECRET` | One generated value     |
 | `INFISICAL_SSO_CLIENT_SECRET`   | Another generated value |
+| `WUD_SSO_CLIENT_SECRET`         | Another generated value |
 
 ### Deploy
 
 Run the pipeline with `run_config: true` + `run_deploy: true`. After Authentik restarts, verify in the admin UI:
 
-- Admin Interface → Applications → Providers — should show `Vaultwarden` and `Infisical`
-- Admin Interface → Applications → Applications — should show both apps
+- Admin Interface → Applications → Providers — should show `Vaultwarden`, `Infisical`, and `WUD`
+- Admin Interface → Applications → Applications — should show all three apps
 
 > If providers are missing, check: Admin Interface → System → Tasks — look for blueprint apply errors.
 
@@ -122,6 +123,10 @@ Vaultwarden reads SSO config from environment variables set in `config/hearth/mo
 ### Infisical SSO env vars
 
 Infisical reads OIDC config from environment variables set in `config/hearth/modules/mod-infisical.yaml`. `SSO_OIDC_ISSUER`, `SSO_OIDC_CLIENT_ID`, and `SSO_OIDC_CLIENT_SECRET` are already wired.
+
+### WUD SSO env vars
+
+WUD reads OIDC config from environment variables set in `config/hearth/modules/mod-wud.yaml`. `WUD_AUTH_OIDC_AUTHENTIK_CLIENTID`, `WUD_AUTH_OIDC_AUTHENTIK_CLIENTSECRET`, `WUD_AUTH_OIDC_AUTHENTIK_DISCOVERY`, and `WUD_PUBLIC_URL` are already wired. WUD is configured to auto-redirect to Authentik on login (skipping the WUD internal login page).
 
 ---
 
@@ -213,4 +218,5 @@ The initial setup flow is only available when no admin account exists. If you've
 | ----------- | ------------- | ----------------------------------------------------------- |
 | Vaultwarden | `vaultwarden` | `https://vault.huybrechts.xyz/identity/connect/oidc-signin` |
 | Infisical   | `infisical`   | `https://secrets.huybrechts.xyz/api/v1/sso/oidc/callback`   |
+| WUD         | `wud`         | `https://wud.huybrechts.xyz/auth/oidc/authentik/cb`         |
 | Immich      | `immich`      | `https://photos.huybrechts.xyz/auth/login`                  |

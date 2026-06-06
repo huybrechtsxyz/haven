@@ -86,3 +86,33 @@ entries:
       slug: infisical
       provider: !KeyOf provider-infisical
       meta_launch_url: https://secrets.huybrechts.xyz
+
+  # ---------------------------------------------------------------------------
+  # WUD (What's Up Docker) — OAuth2/OIDC Provider + Application
+  # ---------------------------------------------------------------------------
+
+  - model: authentik_providers_oauth2.oauth2provider
+    state: present
+    identifiers:
+      name: WUD
+    id: provider-wud
+    attrs:
+      name: WUD
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      client_type: confidential
+      client_id: wud
+      client_secret: "{{ wud_sso_client_secret }}"
+      redirect_uris: "https://wud.huybrechts.xyz/auth/oidc/authentik/cb"
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
+      sub_mode: hashed_user_id
+      issuer_mode: per_provider
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: wud
+    attrs:
+      name: WUD
+      slug: wud
+      provider: !KeyOf provider-wud
+      meta_launch_url: https://wud.huybrechts.xyz
