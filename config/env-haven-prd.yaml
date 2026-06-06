@@ -15,6 +15,18 @@ spec:
     - key: DATACENTER
       store: constant
       value: hetzner-eu-de
+    - key: HEALTHCHECK_PING_URL_BACKUP
+      store: github
+      value: HEALTHCHECK_PING_URL_BACKUP
+      description: Healthchecks.io ping URL for backup monitoring
+    - key: STORAGEBOX_HOST
+      store: github
+      value: STORAGEBOX_HOST
+      description: Hetzner Storage Box hostname
+    - key: STORAGEBOX_SUBACCOUNT_HEARTH
+      store: github
+      value: STORAGEBOX_SUBACCOUNT_HEARTH
+      description: Storage Box sub-account for Hearth backups
   secrets:
     # Bootstrap secrets — loaded from GitHub Secrets on first deploy only
     # After Core VPS is running, all runtime secrets are pulled from Infisical
@@ -27,10 +39,68 @@ spec:
     - key: HETZNER_PUBLIC_KEY
       store: github
       value: HETZNER_PUBLIC_KEY
-    - key: HEARTH_SSH_PRIVATE_KEY
-      store: github
-      value: HEARTH_SSH_PRIVATE_KEY
-      description: SSH private key for Hearth VPS (PEM format)
     - key: HETZNER_ROOT_PASSWORD
       store: github
       value: HETZNER_ROOT_PASSWORD
+    - key: HETZNER_STORAGEBOX_PASSWORD
+      store: github
+      value: HETZNER_STORAGEBOX_PASSWORD
+      description: Password for Hetzner Storage Box access
+    - key: TERRAFORM_API_TOKEN
+      store: github
+      value: TERRAFORM_API_TOKEN
+      description: Terraform Cloud API token
+    - key: BORG_PASSPHRASE
+      store: github
+      value: BORG_PASSPHRASE
+      description: BorgBackup encryption passphrase
+
+    # Application secrets — Authentik
+    - key: AUTHENTIK_SECRET_KEY
+      store: github
+      value: AUTHENTIK_SECRET_KEY
+      description: Authentik internal encryption key
+    - key: AUTHENTIK_POSTGRESQL_PASSWORD
+      store: github
+      value: AUTHENTIK_POSTGRESQL_PASSWORD
+      description: PostgreSQL password for Authentik database
+
+    # Application secrets — Vaultwarden
+    - key: VAULTWARDEN_ADMIN_TOKEN
+      store: github
+      value: VAULTWARDEN_ADMIN_TOKEN
+      description: Vaultwarden admin panel access token
+    - key: VAULTWARDEN_SSO_CLIENT_SECRET
+      store: github
+      value: VAULTWARDEN_SSO_CLIENT_SECRET
+      description: OIDC client secret for Vaultwarden SSO via Authentik
+
+    # Application secrets — Infisical
+    - key: INFISICAL_AUTH_SECRET
+      store: github
+      value: INFISICAL_AUTH_SECRET
+      description: Infisical JWT signing secret
+    - key: INFISICAL_ENCRYPTION_KEY
+      store: github
+      value: INFISICAL_ENCRYPTION_KEY
+      description: Infisical symmetric encryption key
+    - key: INFISICAL_POSTGRESQL_PASSWORD
+      store: github
+      value: INFISICAL_POSTGRESQL_PASSWORD
+      description: PostgreSQL password for Infisical database
+    - key: INFISICAL_SSO_CLIENT_SECRET
+      store: github
+      value: INFISICAL_SSO_CLIENT_SECRET
+      description: OIDC client secret for Infisical SSO via Authentik
+
+    # Application secrets — WUD
+    - key: WUD_SSO_CLIENT_SECRET
+      store: github
+      value: WUD_SSO_CLIENT_SECRET
+      description: OIDC client secret for WUD SSO via Authentik
+
+    # Application secrets — Portainer
+    - key: PORTAINER_SSO_CLIENT_SECRET
+      store: github
+      value: PORTAINER_SSO_CLIENT_SECRET
+      description: OIDC client secret for Portainer SSO via Authentik
