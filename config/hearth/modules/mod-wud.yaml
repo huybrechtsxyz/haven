@@ -28,4 +28,3 @@ spec:
           type: bind
           source_path: /var/run/docker.sock
           target_path: /var/run/docker.sock
-          read_only: true
