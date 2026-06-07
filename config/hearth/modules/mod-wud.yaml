@@ -31,7 +31,7 @@ spec:
         - key: WUD_AUTH_OIDC_AUTHENTIK_CLIENTSECRET
           secret: WUD_SSO_CLIENT_SECRET
         - key: WUD_AUTH_OIDC_AUTHENTIK_DISCOVERY
-          value: https://auth.huybrechts.xyz/application/o/wud/.well-known/openid-configuration
+          value: http://authentik-server:9000/application/o/wud/.well-known/openid-configuration
         - key: WUD_AUTH_OIDC_AUTHENTIK_REDIRECT
           value: "true"
       mounts:
