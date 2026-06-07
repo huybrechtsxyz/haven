@@ -69,6 +69,8 @@ spec:
         timeout: 5s
         retries: 5
       environment:
+        - key: AUTHENTIK_HOST
+          value: https://auth.huybrechts.xyz
         - key: AUTHENTIK_REDIS__HOST
           value: authentik-redis
         - key: AUTHENTIK_POSTGRESQL__HOST
@@ -120,6 +122,8 @@ spec:
         - db
         - redis
       environment:
+        - key: AUTHENTIK_HOST
+          value: https://auth.huybrechts.xyz
         - key: AUTHENTIK_REDIS__HOST
           value: authentik-redis
         - key: AUTHENTIK_POSTGRESQL__HOST

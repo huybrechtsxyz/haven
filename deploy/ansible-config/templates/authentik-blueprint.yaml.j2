@@ -111,9 +111,12 @@ entries:
       redirect_uris:
         - matching_mode: strict
           url: "https://vault.huybrechts.xyz/identity/connect/oidc-signin"
+      grant_types:
+        - authorization_code
+        - refresh_token
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
       sub_mode: hashed_user_id
-      issuer_mode: per_provider
+      issuer_mode: global
 
   - model: authentik_core.application
     state: present
@@ -157,9 +160,12 @@ entries:
       redirect_uris:
         - matching_mode: strict
           url: "https://secrets.huybrechts.xyz/api/v1/sso/oidc/callback"
+      grant_types:
+        - authorization_code
+        - refresh_token
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
       sub_mode: hashed_user_id
-      issuer_mode: per_provider
+      issuer_mode: global
 
   - model: authentik_core.application
     state: present
@@ -203,9 +209,12 @@ entries:
       redirect_uris:
         - matching_mode: strict
           url: "https://wud.huybrechts.xyz/auth/oidc/authentik/cb"
+      grant_types:
+        - authorization_code
+        - refresh_token
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
       sub_mode: hashed_user_id
-      issuer_mode: per_provider
+      issuer_mode: global
 
   - model: authentik_core.application
     state: present
@@ -249,9 +258,12 @@ entries:
       redirect_uris:
         - matching_mode: strict
           url: "https://portainer.huybrechts.xyz/"
+      grant_types:
+        - authorization_code
+        - refresh_token
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
       sub_mode: hashed_user_id
-      issuer_mode: per_provider
+      issuer_mode: global
 
   - model: authentik_core.application
     state: present
