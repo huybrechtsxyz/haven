@@ -180,7 +180,7 @@
           --project-name haven
           -f {{ haven_install_path }}/etc/docker-compose.yml
           --env-file {{ haven_install_path }}/etc/.env
-          up -d --remove-orphans --force-recreate
+          up -d --remove-orphans
       register: compose_up
       changed_when: true
 
