@@ -254,6 +254,7 @@
             cat /opt/haven/.ssh/borg_ed25519.pub | \
               ssh -p23 {{ storagebox_subaccount }}@{{ storagebox_host }} install-ssh-key
           ============================================================
+      when: storagebox_host is defined and storagebox_subaccount is defined
 
     # =========================================================================
     # BorgBackup repository init (Step 2 — only when configure_borg=true)
