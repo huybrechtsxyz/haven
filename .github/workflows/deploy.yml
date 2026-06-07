@@ -288,7 +288,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/haven_ed25519 -o StrictHostKeyChecking=no \
             root@${{ steps.hearth_ip.outputs.ip }} \
-            "cd /opt/haven && docker compose down || true"
+            "docker compose --project-name haven -f /opt/haven/etc/docker-compose.yml down || true"
 
       - name: Write Ansible vars file for config secrets
         if: ${{ inputs.run_config == true && inputs.dry_run != true }}
