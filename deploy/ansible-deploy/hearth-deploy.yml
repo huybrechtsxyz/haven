@@ -180,13 +180,23 @@
           --project-name haven
           -f {{ haven_install_path }}/etc/docker-compose.yml
           --env-file {{ haven_install_path }}/etc/.env
-          up -d --remove-orphans
+          up -d --remove-orphans --force-recreate
       register: compose_up
       changed_when: true
 
     - name: Show compose up output
       ansible.builtin.debug:
         var: compose_up.stdout_lines
+
+    - name: Show deployed docker-compose.yml
+      ansible.builtin.shell:
+        cmd: cat {{ haven_install_path }}/etc/docker-compose.yml
+      register: compose_file_content
+      changed_when: false
+
+    - name: Display docker-compose.yml
+      ansible.builtin.debug:
+        var: compose_file_content.stdout_lines
 
     # Restart authentik containers so they pick up the correct /media ownership.
     # docker compose up -d skips containers whose config hasn't changed, so
