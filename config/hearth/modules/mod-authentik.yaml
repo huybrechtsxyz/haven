@@ -61,6 +61,13 @@ spec:
       depends_on:
         - db
         - redis
+      healthcheck:
+        name: authentik-ready
+        type: command
+        command: ["curl", "--fail", "http://localhost:9000/-/health/ready/"]
+        interval: 30s
+        timeout: 5s
+        retries: 5
       environment:
         - key: AUTHENTIK_REDIS__HOST
           value: authentik-redis
