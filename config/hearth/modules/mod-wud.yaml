@@ -19,6 +19,12 @@ spec:
     - name: wud
       image: fmartinou/whats-up-docker:6.6.1
       restart: unless-stopped
+      # Cross-module depends_on via configuration block (verbatim merge into compose output)
+      # Requires strata >= 0.0.11 for configuration block to be merged correctly
+      configuration:
+        depends_on:
+          authentik-server:
+            condition: service_healthy
       environment:
         - key: TZ
           value: Europe/Brussels
