@@ -230,6 +230,24 @@
         cmd: docker restart haven-authentik-server-1 haven-authentik-worker-1
       changed_when: true
 
+    # Wait for Authentik to be healthy before restarting WUD.
+    # WUD only registers OIDC once at startup — if Authentik isn't ready
+    # then, OIDC silently fails and SSO never works for that session.
+    # Port 9000 is not exposed to the host so we check Docker's own health status.
+    - name: Wait for Authentik server to report healthy
+      ansible.builtin.command:
+        cmd: docker inspect --format "{{ '{{' }}.State.Health.Status{{ '}}' }}" haven-authentik-server-1
+      register: authentik_health
+      until: authentik_health.stdout | trim == "healthy"
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Restart WUD so it can register OIDC now that Authentik is ready
+      ansible.builtin.command:
+        cmd: docker restart haven-wud-1
+      changed_when: true
+
     # =========================================================================
     # Caddy — restart if Caddyfile changed or no TLS certs yet
     # =========================================================================
