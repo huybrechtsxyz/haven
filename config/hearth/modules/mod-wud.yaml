@@ -14,7 +14,7 @@ spec:
   type: compose
   references:
     secrets:
-      - WUD_SSO_CLIENT_SECRET
+      # - WUD_SSO_CLIENT_SECRET  # SSO disabled temporarily
   services:
     - name: wud
       image: fmartinou/whats-up-docker:6.6.1
@@ -26,14 +26,15 @@ spec:
           value: "true"
         - key: WUD_PUBLIC_URL
           value: https://wud.huybrechts.xyz
-        - key: WUD_AUTH_OIDC_AUTHENTIK_CLIENTID
-          value: wud
-        - key: WUD_AUTH_OIDC_AUTHENTIK_CLIENTSECRET
-          secret: WUD_SSO_CLIENT_SECRET
-        - key: WUD_AUTH_OIDC_AUTHENTIK_DISCOVERY
-          value: https://auth.huybrechts.xyz/application/o/wud/.well-known/openid-configuration
-        - key: WUD_AUTH_OIDC_AUTHENTIK_REDIRECT
-          value: "true"
+        # SSO — disabled temporarily, re-enable per service
+        # - key: WUD_AUTH_OIDC_AUTHENTIK_CLIENTID
+        #   value: wud
+        # - key: WUD_AUTH_OIDC_AUTHENTIK_CLIENTSECRET
+        #   secret: WUD_SSO_CLIENT_SECRET
+        # - key: WUD_AUTH_OIDC_AUTHENTIK_DISCOVERY
+        #   value: https://auth.huybrechts.xyz/application/o/wud/.well-known/openid-configuration
+        # - key: WUD_AUTH_OIDC_AUTHENTIK_REDIRECT
+        #   value: "true"
       mounts:
         - name: docker-socket
           type: bind
