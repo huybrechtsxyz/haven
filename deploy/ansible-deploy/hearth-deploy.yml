@@ -303,6 +303,28 @@
       ansible.builtin.debug:
         var: infisical_logs.stdout_lines
 
+    - name: Verify WUD OIDC env vars inside container
+      ansible.builtin.shell:
+        cmd: docker exec haven-wud-1 env 2>/dev/null | grep -i "WUD_AUTH_OIDC\|WUD_PUBLIC_URL" || echo "NO OIDC ENV VARS FOUND"
+      register: wud_env_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display WUD OIDC env vars
+      ansible.builtin.debug:
+        var: wud_env_check.stdout_lines
+
+    - name: Capture WUD logs
+      ansible.builtin.shell:
+        cmd: docker logs haven-wud-1 --tail 50 2>&1
+      register: wud_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display WUD logs
+      ansible.builtin.debug:
+        var: wud_logs.stdout_lines
+
     - name: Check port 80 reachability from runner
       ansible.builtin.shell:
         cmd: curl -sS -o /dev/null -w "%{http_code}" --max-time 10 http://91.98.78.36/ || echo "FAILED"
