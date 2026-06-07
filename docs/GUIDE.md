@@ -464,6 +464,26 @@ Authentik is a SSO / identity provider. It requires a one-time initial setup to 
 > - Authentik must be set up before Vaultwarden and Infisical, since they rely on Authentik for authentication.
 > - Do not use your personal email for the admin account. Create a dedicated email address (e.g. `admin@huybrechts.xyz`) and set up forwarding to your personal email.
 
+### Authentik — Assign users to groups (required for SSO access)
+
+The blueprint creates three groups automatically (`admins`, `parents`, `members`) and all SSO applications are gated by group policy. **No user can log in to any SSO application until they are assigned to at least one group.** This includes `akadmin`.
+
+Assign group membership after every new user is created:
+
+| User                              | Group     | Access          |
+| --------------------------------- | --------- | --------------- |
+| `akadmin` (or your admin account) | `admins`  | All apps        |
+| Adult family members              | `parents` | All family apps |
+| Other family members              | `members` | Shared apps     |
+
+**Steps:**
+
+1. Admin Interface → Directory → Groups → select the group
+2. Users tab → Add existing user → select the user → Add
+3. Repeat for each user
+
+> ⚠️ If this step is skipped, SSO logins will fail with **"Permission denied — Policy binding returned result False"**. The user is authenticated but not authorised.
+
 ### Vaultwarden
 
 Vaultwarden is a password manager. After Authentik is set up, you can create the first admin account in Vaultwarden and log in to the web vault.

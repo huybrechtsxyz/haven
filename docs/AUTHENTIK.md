@@ -233,6 +233,64 @@ The initial setup flow is only available when no admin account exists. If you've
 - Ensure the client secret matches between Authentik and the service
 - Check that the Authorization flow includes consent (use `implicit-consent` for internal apps)
 
+### `insufficient_scope` after successful redirect
+
+**Symptom:** Browser redirects to Authentik, user authenticates, but the service returns `insufficient_scope` or similar token error.
+
+**Cause:** The OAuth2 provider has no `property_mappings` configured, so Authentik issues a token with no scope claims (no `openid`, `email`, or `profile` data).
+
+**Fix:** In the blueprint, add `property_mappings` to every provider:
+
+```yaml
+property_mappings:
+  - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+  - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+  - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+```
+
+Or manually in the UI: Admin → Applications → Providers → \<provider\> → Edit → Advanced Protocol Settings → Scopes → add `openid`, `email`, `profile`.
+
+### `ECONNREFUSED <public-ip>:443` from inside Docker
+
+**Symptom:** A container (e.g. WUD) tries to reach a public hostname like `https://auth.huybrechts.xyz` and gets `ECONNREFUSED` against the server's public IP, even though the service is running.
+
+**Cause:** Docker containers on a bridge network cannot route back to the host via its public IP (hairpin NAT is not enabled). DNS resolves `auth.huybrechts.xyz` → `91.98.78.36`, which is unreachable from inside the `haven_default` network.
+
+**Fix:** Add network aliases to the Caddy service so Docker DNS resolves the public hostnames to Caddy's internal IP instead:
+
+```yaml
+# config/hearth/modules/mod-caddy.yaml — inside the caddy service entry
+configuration:
+  networks:
+    default:
+      aliases:
+        - auth.huybrechts.xyz
+        - wud.huybrechts.xyz
+        - vault.huybrechts.xyz
+        - secrets.huybrechts.xyz
+        - portainer.huybrechts.xyz
+```
+
+This is already configured in `mod-caddy.yaml`. If you add a new public hostname, add it to this list and redeploy.
+
+**Verify aliases are active:**
+```bash
+docker inspect haven-caddy-1 --format '{{json .NetworkSettings.Networks}}'
+# Look for "Aliases" containing your hostnames
+```
+
+### WUD OIDC fails at startup (registers before Authentik is ready)
+
+**Symptom:** WUD logs show OIDC registration error at startup even though Authentik is running.
+
+**Cause:** WUD registers OIDC once at startup. If it starts before Authentik is healthy, registration fails silently and SSO never works for that session.
+
+**Fix:** Two safeguards are in place in the deploy pipeline:
+1. `depends_on: authentik-server: condition: service_healthy` in the generated compose — WUD waits for Authentik's healthcheck before starting.
+2. The deploy playbook explicitly restarts WUD after waiting for Authentik to report `healthy`.
+
+If SSO stops working after a deploy, `docker restart haven-wud-1` while Authentik is healthy will fix it.
+
 ---
 
 ## Reference
@@ -247,9 +305,10 @@ The initial setup flow is only available when no admin account exists. If you've
 
 ### Provider settings summary
 
-| App         | Client ID     | Redirect URI                                                |
-| ----------- | ------------- | ----------------------------------------------------------- |
-| Vaultwarden | `vaultwarden` | `https://vault.huybrechts.xyz/identity/connect/oidc-signin` |
-| Infisical   | `infisical`   | `https://secrets.huybrechts.xyz/api/v1/sso/oidc/callback`   |
-| WUD         | `wud`         | `https://wud.huybrechts.xyz/auth/oidc/authentik/cb`         |
-| Immich      | `immich`      | `https://photos.huybrechts.xyz/auth/login`                  |
+| App         | Client ID     | Redirect URI                                                | Policy                 |
+| ----------- | ------------- | ----------------------------------------------------------- | ---------------------- |
+| Vaultwarden | `vaultwarden` | `https://vault.huybrechts.xyz/identity/connect/oidc-signin` | `policy-group-members` |
+| Infisical   | `infisical`   | `https://secrets.huybrechts.xyz/api/v1/sso/oidc/callback`   | `policy-group-admins`  |
+| WUD         | `wud`         | `https://wud.huybrechts.xyz/auth/oidc/authentik/cb`         | `policy-group-admins`  |
+| Portainer   | `portainer`   | `https://portainer.huybrechts.xyz/`                         | `policy-group-admins`  |
+| Immich      | `immich`      | `https://photos.huybrechts.xyz/auth/login`                  | —                      |
