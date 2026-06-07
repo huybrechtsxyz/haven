@@ -36,7 +36,7 @@
     # Directory structure — ensure service data dirs exist
     # =========================================================================
 
-    - name: Create service config and non-postgres data directories
+    - name: Create service config directories (haven-owned)
       ansible.builtin.file:
         path: "{{ item }}"
         state: directory
@@ -47,6 +47,15 @@
         - "{{ haven_install_path }}/etc/caddy"
         - "{{ haven_install_path }}/etc/caddy/config"
         - "{{ haven_install_path }}/var/data/vaultwarden"
+
+    - name: Create root-owned container data directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
         - "{{ haven_install_path }}/var/data/portainer"
 
     # Authentik containers run as uid 1000 (non-root). The media and templates
@@ -157,6 +166,21 @@
           fuser -k 443/tcp 2>/dev/null || true
         executable: /bin/bash
       changed_when: false
+
+    - name: Wipe Portainer data (full_restart only — forces fresh admin setup)
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/var/data/portainer"
+        state: absent
+      when: full_restart | default(false) | bool
+
+    - name: Recreate Portainer data directory after wipe
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/var/data/portainer"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      when: full_restart | default(false) | bool
 
     - name: Pull latest Docker images
       ansible.builtin.command:
