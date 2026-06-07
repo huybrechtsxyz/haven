@@ -64,7 +64,7 @@ spec:
       healthcheck:
         name: authentik-ready
         type: command
-        command: ["curl", "--fail", "http://localhost:9000/-/health/ready/"]
+        command: ["ak", "healthcheck"]
         interval: 30s
         timeout: 5s
         retries: 5

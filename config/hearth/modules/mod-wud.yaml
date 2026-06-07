@@ -19,13 +19,6 @@ spec:
     - name: wud
       image: fmartinou/whats-up-docker:6.6.1
       restart: unless-stopped
-      # Cross-module dependency: wait for Authentik to be healthy before starting
-      # Uses configuration block (merged verbatim) because depends_on only supports intra-module refs
-      # Hardcoded name will be replaced by @authentik/server when cross-module refs ship
-      configuration:
-        depends_on:
-          authentik-server:
-            condition: service_healthy
       environment:
         - key: TZ
           value: Europe/Brussels
