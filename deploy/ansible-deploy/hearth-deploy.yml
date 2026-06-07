@@ -249,8 +249,30 @@
       changed_when: true
 
     # =========================================================================
-    # Caddy — restart if Caddyfile changed or no TLS certs yet
+    # Caddy — force-recreate to apply any network alias changes, then reload
+    # if the Caddyfile changed or no TLS certs exist yet
     # =========================================================================
+
+    - name: Force-recreate Caddy to apply network alias changes
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          --env-file {{ haven_install_path }}/etc/.env
+          up -d --force-recreate caddy
+      changed_when: true
+
+    - name: Show Caddy network aliases (verify aliases applied)
+      ansible.builtin.command:
+        cmd: docker inspect haven-caddy-1 --format '{{ "{{" }}json .NetworkSettings.Networks{{ "}}" }}'
+      register: caddy_networks
+      changed_when: false
+      failed_when: false
+
+    - name: Display Caddy network aliases
+      ansible.builtin.debug:
+        var: caddy_networks.stdout
 
     - name: Find existing LE production TLS certificates
       ansible.builtin.find:
@@ -260,9 +282,9 @@
       register: existing_certs
       failed_when: false
 
-    - name: Restart Caddy (Caddyfile changed or no valid LE certs found)
+    - name: Reload Caddy config (Caddyfile changed or no valid LE certs found)
       ansible.builtin.command:
-        cmd: docker restart haven-caddy-1
+        cmd: docker exec haven-caddy-1 caddy reload --config /etc/caddy/Caddyfile
       when: copy_caddyfile.changed or (existing_certs.matched | default(0)) == 0
       changed_when: true
 
