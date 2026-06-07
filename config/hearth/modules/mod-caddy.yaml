@@ -34,3 +34,12 @@ spec:
           type: bind
           source_path: /opt/haven/etc/caddy/config
           target_path: /config
+  configuration:
+    networks:
+      default:
+        aliases:
+          - auth.huybrechts.xyz
+          - wud.huybrechts.xyz
+          - vault.huybrechts.xyz
+          - secrets.huybrechts.xyz
+          - portainer.huybrechts.xyz
