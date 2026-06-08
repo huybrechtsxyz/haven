@@ -190,6 +190,7 @@
           pull
       register: compose_pull
       changed_when: true
+      ignore_errors: true
 
     - name: Show image pull output
       ansible.builtin.debug:
