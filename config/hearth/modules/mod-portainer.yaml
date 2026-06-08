@@ -18,8 +18,7 @@ spec:
     - name: portainer
       image: portainer/portainer-ce:2.39.3-alpine
       restart: unless-stopped
-      command:
-        ["--http-disabled", "--base-url", "https://portainer.huybrechts.xyz"]
+      command: ["--http-disabled"]
       environment:
         - key: TZ
           value: Europe/Brussels
