@@ -144,13 +144,36 @@ jobs:
 
       - name: Deploy infrastructure
         env:
+          # Terraform Cloud/CLI expects TF_TOKEN_app_terraform_io for API authentication
+          # but we also set the plain TERRAFORM_API_TOKEN for strata value resolution in
+          # Ansible playbooks (e.g. hearth-deploy.yml).
           TERRAFORM_API_TOKEN: ${{ secrets.TERRAFORM_API_TOKEN }}
           TF_TOKEN_app_terraform_io: ${{ secrets.TERRAFORM_API_TOKEN }}
+          # TF_VAR_* still needed for Terraform to pick up directly
           TF_VAR_HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
           TF_VAR_HETZNER_PUBLIC_KEY: ${{ secrets.HETZNER_PUBLIC_KEY }}
           TF_VAR_HETZNER_PRIVATE_KEY: ${{ secrets.HETZNER_PRIVATE_KEY }}
           TF_VAR_HEARTH_SSH_PRIVATE_KEY: ${{ secrets.HETZNER_PRIVATE_KEY }}
           TF_VAR_HETZNER_ROOT_PASSWORD: ${{ secrets.HETZNER_ROOT_PASSWORD }}
+          # Plain names for strata value resolution
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+          HETZNER_PUBLIC_KEY: ${{ secrets.HETZNER_PUBLIC_KEY }}
+          HETZNER_PRIVATE_KEY: ${{ secrets.HETZNER_PRIVATE_KEY }}
+          HETZNER_ROOT_PASSWORD: ${{ secrets.HETZNER_ROOT_PASSWORD }}
+          HETZNER_STORAGEBOX_PASSWORD: ${{ secrets.HETZNER_STORAGEBOX_PASSWORD }}
+          # Application secrets (needed so strata resolves the full environment)
+          HEALTHCHECK_PING_URL_BACKUP: ${{ vars.HEALTHCHECK_PING_URL_BACKUP }}
+          STORAGEBOX_HOST: ${{ vars.STORAGEBOX_HOST }}
+          STORAGEBOX_SUBACCOUNT_HEARTH: ${{ vars.STORAGEBOX_SUBACCOUNT_HEARTH }}
+          BORG_PASSPHRASE: ${{ secrets.BORG_PASSPHRASE }}
+          AUTHENTIK_SECRET_KEY: ${{ secrets.AUTHENTIK_SECRET_KEY }}
+          AUTHENTIK_POSTGRESQL_PASSWORD: ${{ secrets.AUTHENTIK_POSTGRESQL_PASSWORD }}
+          VAULTWARDEN_ADMIN_TOKEN: ${{ secrets.VAULTWARDEN_ADMIN_TOKEN }}
+          VAULTWARDEN_SSO_CLIENT_SECRET: ${{ secrets.VAULTWARDEN_SSO_CLIENT_SECRET }}
+          INFISICAL_AUTH_SECRET: ${{ secrets.INFISICAL_AUTH_SECRET }}
+          INFISICAL_ENCRYPTION_KEY: ${{ secrets.INFISICAL_ENCRYPTION_KEY }}
+          INFISICAL_POSTGRESQL_PASSWORD: ${{ secrets.INFISICAL_POSTGRESQL_PASSWORD }}
+          WUD_SSO_CLIENT_SECRET: ${{ secrets.WUD_SSO_CLIENT_SECRET }}
         run: |
           ARGS="--file $DEPLOYMENT_FILE --force"
           if [ "${{ inputs.dry_run }}" = "true" ]; then
