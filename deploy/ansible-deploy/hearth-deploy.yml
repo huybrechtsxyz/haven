@@ -496,3 +496,148 @@
       retries: 20
       delay: 5
       changed_when: false
+
+    # =========================================================================
+    # Validation — post-deploy diagnostics
+    # =========================================================================
+    # All container-level checks run here, after docker compose up has started
+    # all services. Read this output to spot mount, config, or runtime issues.
+
+    # ----- Container states -----
+
+    - name: "Validate: All container states"
+      ansible.builtin.shell:
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          ps --format "table {{ '{{' }}.Name{{ '}}' }}\t{{ '{{' }}.Status{{ '}}' }}\t{{ '{{' }}.Ports{{ '}}' }}" 2>&1
+      register: deploy_container_states
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show container states"
+      ansible.builtin.debug:
+        var: deploy_container_states.stdout_lines
+
+    # ----- Caddy -----
+
+    - name: "Validate: Caddyfile inside caddy container"
+      ansible.builtin.shell:
+        cmd: docker exec haven-caddy-1 cat /etc/caddy/Caddyfile 2>&1 | head -40
+      register: caddy_caddyfile_inside
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show Caddyfile inside container (first 40 lines)"
+      ansible.builtin.debug:
+        var: caddy_caddyfile_inside.stdout_lines
+
+    - name: "Validate: Caddy TLS certificate storage"
+      ansible.builtin.shell:
+        cmd: ls -la {{ haven_install_path }}/var/certs/ 2>&1 | head -20
+      register: caddy_certs
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show Caddy cert storage"
+      ansible.builtin.debug:
+        var: caddy_certs.stdout_lines
+
+    # ----- Authentik -----
+
+    - name: "Validate: Blueprint inside authentik-worker container"
+      ansible.builtin.shell:
+        cmd: docker exec haven-authentik-worker-1 ls -la /blueprints/custom/ 2>&1
+      register: blueprint_container_ls
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show blueprint container listing"
+      ansible.builtin.debug:
+        var: blueprint_container_ls.stdout_lines
+
+    - name: "Validate: Authentik-worker volume mounts"
+      ansible.builtin.shell:
+        cmd: >
+          docker inspect haven-authentik-worker-1
+          --format '{{ '{{' }} json .Mounts {{ '}}' }}' 2>&1 | python3 -m json.tool
+      register: worker_mounts
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show authentik-worker mounts"
+      ansible.builtin.debug:
+        var: worker_mounts.stdout_lines
+
+    - name: "Validate: Blueprint-related entries in worker logs"
+      ansible.builtin.shell:
+        cmd: >
+          docker logs haven-authentik-worker-1 --tail 200 2>&1
+          | grep -i "blueprint" || echo "NO BLUEPRINT LOG ENTRIES FOUND"
+      register: blueprint_worker_logs
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show blueprint worker log entries"
+      ansible.builtin.debug:
+        var: blueprint_worker_logs.stdout_lines
+
+    - name: "Validate: Authentik DB connectivity"
+      ansible.builtin.shell:
+        cmd: docker exec haven-authentik-db-1 pg_isready -d authentik -U authentik 2>&1
+      register: authentik_db_check
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show authentik DB status"
+      ansible.builtin.debug:
+        var: authentik_db_check.stdout_lines
+
+    # ----- Vaultwarden -----
+
+    - name: "Validate: Vaultwarden data directory"
+      ansible.builtin.shell:
+        cmd: ls -la {{ haven_install_path }}/var/data/vaultwarden/ 2>&1 | head -20
+      register: vaultwarden_data
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show Vaultwarden data listing"
+      ansible.builtin.debug:
+        var: vaultwarden_data.stdout_lines
+
+    - name: "Validate: Vaultwarden config.json absent (env vars authoritative)"
+      ansible.builtin.stat:
+        path: "{{ haven_install_path }}/var/data/vaultwarden/config.json"
+      register: vw_config_json
+
+    - name: "Validate: Show Vaultwarden config.json status"
+      ansible.builtin.debug:
+        msg: "config.json exists={{ vw_config_json.stat.exists | default(false) }} — should be false (env vars are authoritative; Vaultwarden regenerates on startup)"
+
+    # ----- Portainer -----
+
+    - name: "Validate: Portainer data directory"
+      ansible.builtin.shell:
+        cmd: ls -la {{ haven_install_path }}/var/data/portainer/ 2>&1 | head -10
+      register: portainer_data
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show Portainer data listing"
+      ansible.builtin.debug:
+        var: portainer_data.stdout_lines
+
+    # ----- Infisical -----
+
+    - name: "Validate: Infisical DB connectivity"
+      ansible.builtin.shell:
+        cmd: docker exec haven-infisical-db-1 pg_isready -d infisical -U infisical 2>&1
+      register: infisical_db_check
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show Infisical DB status"
+      ansible.builtin.debug:
+        var: infisical_db_check.stdout_lines
