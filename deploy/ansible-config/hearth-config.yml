@@ -314,7 +314,7 @@
         state: directory
         owner: "{{ haven_user }}"
         group: "{{ haven_group }}"
-        mode: "0750"
+        mode: "0755"
 
     - name: Deploy Authentik SSO blueprint
       ansible.builtin.template:
