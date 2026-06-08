@@ -503,23 +503,49 @@ Vaultwarden is a password manager. After Authentik is set up, you can create the
 
 ### Infisical
 
-Infisical is a secrets management platform. After Authentik is set up, configure Infisical and enable SSO.
+Infisical is a secrets management platform used by admins to manage application secrets.
 
 1. `https://secrets.huybrechts.xyz` → Sign Up → create the first admin account (email + password)
 2. Store credentials in Vaultwarden under "Infisical Admin"
 3. Complete the onboarding wizard (create an organisation and a first project)
 
-**Enable OIDC SSO:**
+> **No SSO** — Infisical OIDC SSO requires the Pro plan (paid). Login with email + password only. This is acceptable since Infisical is an admin-only tool.
 
-4. Organisation Settings → Security → Single Sign-On → OIDC → Configure
-5. Settings:
-   - Issuer URL: `https://auth.huybrechts.xyz/application/o/infisical/`
-   - Client ID: `infisical`
-   - Client Secret: _(value of `INFISICAL_SSO_CLIENT_SECRET` — retrieve from Vaultwarden)_
-6. Save → Test → Enable
-7. Test SSO login: log out → Sign in with SSO → redirects to Authentik → back to Infisical
+**Enable MFA (TOTP):**
 
-> The SSO env vars (`SSO_OIDC_ISSUER`, `SSO_OIDC_CLIENT_ID`, `SSO_OIDC_CLIENT_SECRET`) are already wired in `config/hearth/modules/mod-infisical.yaml`. The OIDC provider in Authentik is created automatically by the blueprint.
+4. Log in to `https://secrets.huybrechts.xyz`
+5. Top-right avatar → Personal Settings → Security → Two-Factor Authentication → Enable
+6. Scan the QR code with an authenticator app (e.g. Vaultwarden TOTP, Aegis, or Authy)
+7. Enter the verification code to confirm → Save
+8. Store the backup codes in Vaultwarden under "Infisical Admin — MFA backup codes"
+
+> MFA is per-user and opt-in. For an admin-only tool with no SSO, enabling TOTP is strongly recommended.
+
+### Portainer
+
+Portainer CE is the container management UI. The Authentik OIDC provider is already configured by the blueprint — SSO is enabled via the Portainer UI.
+
+1. Log in to `https://portainer.huybrechts.xyz` with the initial admin password
+2. Settings → Authentication → OAuth → **Custom**
+3. Fill in the fields:
+
+| Field             | Value                                                              |
+| ----------------- | ------------------------------------------------------------------ |
+| Client ID         | `portainer`                                                        |
+| Client Secret     | value of `PORTAINER_SSO_CLIENT_SECRET` GitHub Secret               |
+| Authorization URL | `https://auth.huybrechts.xyz/application/o/authorize/`             |
+| Access Token URL  | `https://auth.huybrechts.xyz/application/o/token/`                 |
+| Resource URL      | `https://auth.huybrechts.xyz/application/o/userinfo/`              |
+| Redirect URL      | `https://portainer.huybrechts.xyz/`                                |
+| Logout URL        | `https://auth.huybrechts.xyz/application/o/portainer/end-session/` |
+| User identifier   | `email`                                                            |
+| Scopes            | `openid email profile`                                             |
+
+4. Enable **Automatic User Provisioning**
+5. Save → **Test OAuth** to verify the flow
+6. Test SSO login: open a private window → `https://portainer.huybrechts.xyz` → Sign in with OAuth
+
+> Access is controlled by `policy-group-admins` in Authentik — only users in the `admins` group can authenticate.
 
 ## Configure BorgBackup
 
