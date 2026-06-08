@@ -157,7 +157,7 @@
         state: directory
         owner: "{{ haven_user }}"
         group: "{{ haven_group }}"
-        mode: "0750"
+        mode: "0755"
       loop:
         - "{{ haven_install_path }}"
         - "{{ haven_install_path }}/etc"
@@ -230,7 +230,7 @@
         state: directory
         owner: "{{ haven_user }}"
         group: "{{ haven_group }}"
-        mode: "0750"
+        mode: "0755"
       when: configure_borg | bool
 
     - name: Deploy backup script from template
