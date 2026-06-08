@@ -87,19 +87,9 @@ spec:
       store: github
       value: INFISICAL_POSTGRESQL_PASSWORD
       description: PostgreSQL password for Infisical database
-    - key: INFISICAL_SSO_CLIENT_SECRET
-      store: github
-      value: INFISICAL_SSO_CLIENT_SECRET
-      description: OIDC client secret for Infisical SSO via Authentik
 
     # Application secrets — WUD
     - key: WUD_SSO_CLIENT_SECRET
       store: github
       value: WUD_SSO_CLIENT_SECRET
       description: OIDC client secret for WUD SSO via Authentik
-
-    # Application secrets — Portainer
-    - key: PORTAINER_SSO_CLIENT_SECRET
-      store: github
-      value: PORTAINER_SSO_CLIENT_SECRET
-      description: OIDC client secret for Portainer SSO via Authentik

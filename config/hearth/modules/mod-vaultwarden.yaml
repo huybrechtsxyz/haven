@@ -33,6 +33,8 @@ spec:
           value: Europe/Brussels
         - key: LOG_LEVEL
           value: warn
+        - key: DOMAIN
+          value: https://vault.huybrechts.xyz
         - key: SSO_ENABLED
           value: "true"
         - key: SSO_AUTHORITY
