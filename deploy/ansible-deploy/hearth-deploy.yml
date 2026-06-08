@@ -180,6 +180,14 @@
         mode: "0755"
       when: full_restart | default(false) | bool
 
+    # Vaultwarden stores runtime config in data/config.json which takes
+    # precedence over env vars. Delete it before every deploy so env vars
+    # (DOMAIN, SSO_*) are always authoritative. Vaultwarden recreates it.
+    - name: Remove Vaultwarden config.json so env vars take effect
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/var/data/vaultwarden/config.json"
+        state: absent
+
     - name: Pull latest Docker images
       ansible.builtin.command:
         cmd: >
