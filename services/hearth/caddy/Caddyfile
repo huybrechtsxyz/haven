@@ -21,7 +21,12 @@ secrets.huybrechts.xyz {
 
 # Portainer — Container Management
 portainer.huybrechts.xyz {
-    reverse_proxy portainer:9000
+    reverse_proxy portainer:9443 {
+        transport http {
+            tls_insecure_skip_verify
+        }
+        header_up Origin {scheme}://{host}
+    }
 }
 
 # WUD — Container Update Notifications
