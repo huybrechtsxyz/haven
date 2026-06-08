@@ -46,13 +46,13 @@ You will need accounts for the following services. Create them in the recommende
 
 | Service         | URL                              | Notes |
 | --------------- | -------------------------------- | ----- |
+| GitHub          | <https://github.com>             |       |
 | INWX            | <https://www.inwx.de>            |       |
 | Hetzner         | <https://console.hetzner.cloud>  |       |
 | Infomaniak      | <https://manager.infomaniak.com> |       |
 | Healthchecks.io | <https://healthchecks.io>        |       |
 | UptimeRobot     | <https://uptimerobot.com>        |       |
 | Terraform Cloud | <https://app.terraform.io>       |       |
-| GitHub          | <https://github.com>             |       |
 
 * Secure storage of credentials is critical. Use Vaultwarden or another password manager to store all account credentials, API keys, and secrets. Avoid hardcoding sensitive information in code or configuration files. If needed store them temporarily in a secure notes section while setting up, then move to the password manager. From this point forward, we will assume all credentials are stored securely and referenced from there.
 
@@ -65,9 +65,7 @@ Strata's Terraform provisioning can use Terraform Cloud as a remote backend for 
 3. Generate API token: User Settings → Tokens → Create token
 4. Store the API token in Vaultwarden
 
-Workspace will be created automatically by the workflow on first run, but you can pre-create it for convenience:
-
-5. Create workspace `haven_deploy_prd` (must match deployment name in strata config)
+> Note: Workspace will be created automatically by the workflow on first run, but you can pre-create it for convenience:
 
 ## Github Setup
 
@@ -75,7 +73,7 @@ Workspace will be created automatically by the workflow on first run, but you ca
 2. Fork the `huybrechtsxyz/haven` repository to your account.
 3. Clone your fork locally and set up the repository.
 4. Configure an Environment named `production` in your repository.
-5. Configure GitHub Environment Secrets for the repository (see [Configure GitHub Secrets](#configure-github-secrets) below).
+5. Configure GitHub Environment Secrets for the repository (see [GitHub Secrets](#github-secrets) below).
 
 ## INWX — Domain Registrar
 
@@ -113,9 +111,11 @@ The primary domain for haven is `huybrechts.xyz`. This is where the main service
 
 Generate all secrets once, store every value in Vaultwarden, then configure them in GitHub and Terraform Cloud.
 
+> Note. Strata can generate random secrets for you during provisioning. So no extra tools are needed. You do need to generate the secrets at least once and store them in Vaultwarden, because they are required as GitHub Secrets for the deployment workflow to run successfully.
+
 ### SSH deploy key
 
-Create an ed25519 SSH key pair for deployment. The public key goes to Hetzner (for Terraform provisioning and BorgBackup), the private key goes to GitHub Secrets (for the deployment workflow). You can generate the key pair using PowerShell or any SSH key generation tool.
+Create an ed25519 SSH key pair for deployment. The public key goes to Hetzner (for Terraform provisioning and BorgBackup), the private key goes to GitHub Secrets (for the deployment workflow). You can generate the key pair using PowerShell or any SSH key generation tool. Bitwarden/Vaultwarden also has a built-in SSH key generator that can create and store the key pair directly in your vault.
 
 ```powershell
 # Generate ed25519 SSH key pair
@@ -130,9 +130,12 @@ Get-Content ~/.ssh/haven_ed25519 -Raw
 
 ### Service secrets
 
-Run each command, copy the output, and save it in Vaultwarden under a "Haven Secrets" entry.
+Run each command, copy the output, and save it in Vaultwarden under a "Haven Secrets" entry. Use the "Secure Note" type and create fields for each secret (e.g. `AUTHENTIK_SECRET_KEY`, `VAULTWARDEN_ADMIN_TOKEN`, etc.) to keep them organized. You can also add notes about what each secret is for and where it's used.
 
 ```powershell
+# Strata
+strata secret generate --length 64 --format urlsafe
+
 # Authentik secret key
 python -c "import secrets; print(secrets.token_urlsafe(64))"
 
