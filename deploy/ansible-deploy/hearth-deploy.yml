@@ -220,6 +220,40 @@
       ansible.builtin.debug:
         var: compose_file_content.stdout_lines
 
+    # =========================================================================
+    # Caddy — force-recreate only when compose file changed (to apply network
+    # alias changes). Aliases are stable once applied so this is a no-op on
+    # normal deploys. Must happen BEFORE WUD restart so Caddy is ready when
+    # WUD fetches the OIDC discovery document.
+    # =========================================================================
+
+    - name: Force-recreate Caddy to apply network alias changes
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          --env-file {{ haven_install_path }}/etc/.env
+          up -d --force-recreate caddy
+      when: compose_up.changed
+      changed_when: true
+
+    - name: Wait for Caddy to be ready after recreate
+      ansible.builtin.pause:
+        seconds: 10
+      when: compose_up.changed
+
+    - name: Show Caddy network aliases (verify aliases applied)
+      ansible.builtin.command:
+        cmd: docker inspect haven-caddy-1 --format '{{ "{{" }}json .NetworkSettings.Networks{{ "}}" }}'
+      register: caddy_networks
+      changed_when: false
+      failed_when: false
+
+    - name: Display Caddy network aliases
+      ansible.builtin.debug:
+        var: caddy_networks.stdout
+
     # Restart authentik containers so they pick up the correct /media ownership.
     # docker compose up -d skips containers whose config hasn't changed, so
     # without an explicit restart the old gunicorn process keeps the stale state.
@@ -245,32 +279,6 @@
       ansible.builtin.command:
         cmd: docker restart haven-wud-1
       changed_when: true
-
-    # =========================================================================
-    # Caddy — force-recreate to apply any network alias changes, then reload
-    # if the Caddyfile changed or no TLS certs exist yet
-    # =========================================================================
-
-    - name: Force-recreate Caddy to apply network alias changes
-      ansible.builtin.command:
-        cmd: >
-          docker compose
-          --project-name haven
-          -f {{ haven_install_path }}/etc/docker-compose.yml
-          --env-file {{ haven_install_path }}/etc/.env
-          up -d --force-recreate caddy
-      changed_when: true
-
-    - name: Show Caddy network aliases (verify aliases applied)
-      ansible.builtin.command:
-        cmd: docker inspect haven-caddy-1 --format '{{ "{{" }}json .NetworkSettings.Networks{{ "}}" }}'
-      register: caddy_networks
-      changed_when: false
-      failed_when: false
-
-    - name: Display Caddy network aliases
-      ansible.builtin.debug:
-        var: caddy_networks.stdout
 
     - name: Find existing LE production TLS certificates
       ansible.builtin.find:
