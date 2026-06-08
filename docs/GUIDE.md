@@ -145,13 +145,7 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 # Vaultwarden SSO client secret
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 
-# Infisical SSO client secret
-python -c "import secrets; print(secrets.token_urlsafe(48))"
-
 # WUD SSO client secret
-python -c "import secrets; print(secrets.token_urlsafe(48))"
-
-# Portainer SSO client secret
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 
 # Infisical auth secret — MUST be exactly 64 hex chars
@@ -187,9 +181,7 @@ Repo → Settings → Environments → create `production` → add these secrets
 | `AUTHENTIK_POSTGRESQL_PASSWORD` | Random password                  | `token_urlsafe(32)`                                    |
 | `VAULTWARDEN_ADMIN_TOKEN`       | Random token                     | `token_urlsafe(48)`                                    |
 | `VAULTWARDEN_SSO_CLIENT_SECRET` | Pre-generated OIDC client secret | `token_urlsafe(48)` — used in Authentik provider setup |
-| `INFISICAL_SSO_CLIENT_SECRET`   | Pre-generated OIDC client secret | `token_urlsafe(48)` — used in Authentik provider setup |
 | `WUD_SSO_CLIENT_SECRET`         | Pre-generated OIDC client secret | `token_urlsafe(48)` — used in Authentik provider setup |
-| `PORTAINER_SSO_CLIENT_SECRET`   | Pre-generated OIDC client secret | `token_urlsafe(48)` — used in Authentik provider setup |
 | `INFISICAL_AUTH_SECRET`         | 64 hex chars                     | `token_hex(32)`                                        |
 | `INFISICAL_ENCRYPTION_KEY`      | **32 chars exactly**             | `token_hex(16)` — not 64!                              |
 | `INFISICAL_POSTGRESQL_PASSWORD` | Random password                  | `token_urlsafe(32)`                                    |
@@ -523,29 +515,18 @@ Infisical is a secrets management platform used by admins to manage application 
 
 ### Portainer
 
-Portainer CE is the container management UI. The Authentik OIDC provider is already configured by the blueprint — SSO is enabled via the Portainer UI.
+Portainer CE is the container management UI. Login with username + password only.
 
-1. Log in to `https://portainer.huybrechts.xyz` with the initial admin password
-2. Settings → Authentication → OAuth → **Custom**
-3. Fill in the fields:
+1. Log in to `https://portainer.huybrechts.xyz` with the admin credentials set during initial setup
+2. Store credentials in Vaultwarden under "Portainer Admin"
 
-| Field             | Value                                                              |
-| ----------------- | ------------------------------------------------------------------ |
-| Client ID         | `portainer`                                                        |
-| Client Secret     | value of `PORTAINER_SSO_CLIENT_SECRET` GitHub Secret               |
-| Authorization URL | `https://auth.huybrechts.xyz/application/o/authorize/`             |
-| Access Token URL  | `https://auth.huybrechts.xyz/application/o/token/`                 |
-| Resource URL      | `https://auth.huybrechts.xyz/application/o/userinfo/`              |
-| Redirect URL      | `https://portainer.huybrechts.xyz/`                                |
-| Logout URL        | `https://auth.huybrechts.xyz/application/o/portainer/end-session/` |
-| User identifier   | `email`                                                            |
-| Scopes            | `openid email profile`                                             |
-
-4. Enable **Automatic User Provisioning**
-5. Save → **Test OAuth** to verify the flow
-6. Test SSO login: open a private window → `https://portainer.huybrechts.xyz` → Sign in with OAuth
-
-> Access is controlled by `policy-group-admins` in Authentik — only users in the `admins` group can authenticate.
+> **No SSO** — Portainer CE does not support OAuth/OIDC. That feature requires Portainer Business Edition (BE). The free BE tier covers up to 3 nodes and 5 users — upgrade later via Settings → Licenses if SSO becomes a priority.
+>
+> When upgrading to BE, the Authentik OAuth config to use is:
+> - Authorization URL: `https://auth.huybrechts.xyz/application/o/authorize/`
+> - Access Token URL: `https://auth.huybrechts.xyz/application/o/token/`
+> - Resource URL: `https://auth.huybrechts.xyz/application/o/userinfo/`
+> - Client ID: `portainer` — add this provider back to the blueprint and run `run_config=true`
 
 ## Configure BorgBackup
 

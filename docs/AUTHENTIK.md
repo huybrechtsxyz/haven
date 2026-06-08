@@ -309,6 +309,6 @@ If SSO stops working after a deploy, `docker restart haven-wud-1` while Authenti
 | ----------- | ------------- | ----------------------------------------------------------- | ---------------------- |
 | Vaultwarden | `vaultwarden` | `https://vault.huybrechts.xyz/identity/connect/oidc-signin` | `policy-group-members` |
 | WUD         | `wud`         | `https://wud.huybrechts.xyz/auth/oidc/authentik/cb`         | `policy-group-admins`  |
-| Portainer   | `portainer`   | `https://portainer.huybrechts.xyz/`                         | `policy-group-admins`  |
+| Portainer   | —             | SSO requires Portainer BE — password login only             | —                      |
 | Immich      | `immich`      | `https://photos.huybrechts.xyz/auth/login`                  | —                      |
 | Infisical   | —             | SSO requires Pro plan — password login only                 | —                      |
