@@ -322,7 +322,7 @@
         dest: "{{ haven_install_path }}/etc/authentik/blueprints/haven-apps.yaml"
         owner: "{{ haven_user }}"
         group: "{{ haven_group }}"
-        mode: "0640"
+        mode: "0644"
       no_log: true # contains client secrets
       notify: Restart authentik-worker
 
