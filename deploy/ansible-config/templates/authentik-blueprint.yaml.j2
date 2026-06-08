@@ -120,7 +120,7 @@ entries:
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
       sub_mode: hashed_user_id
-      issuer_mode: global
+      issuer_mode: per_provider
       access_code_validity: minutes=1
       access_token_validity: hours=1
       refresh_token_validity: days=30

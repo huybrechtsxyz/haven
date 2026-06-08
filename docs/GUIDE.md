@@ -205,7 +205,7 @@ Repo → Settings → Environments → `production` → add these **variables** 
 | `HEALTHCHECK_PING_URL_BACKUP`  | `https://hc-ping.com/<uuid>` | Healthchecks.io ping URL for backup cron     |
 
 > Variables are non-sensitive configuration values that differ per environment. Moving them here (instead of hardcoding in repo files) means the same code can target a different Storage Box by changing only the environment variables.
-
+>
 > Secrets must be in the `production` **environment**, not repository-level, or the workflow won't see them.
 > This must match the `production` environment referenced in the workflow YAML (`deploy.yml`).
 
@@ -300,7 +300,7 @@ Bootstrap the server with Docker, the `haven` service user, directory structure,
 
 ### Directory structure created
 
-```
+```ascii
 /opt/haven/
 ├── etc/                    ← Config files (compose, Caddyfile, .env)
 │   ├── caddy/
