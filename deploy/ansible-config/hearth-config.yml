@@ -338,4 +338,10 @@
 
     - name: Restart authentik-worker
       ansible.builtin.command:
-        cmd: docker restart haven-authentik-worker-1
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          restart authentik-worker
+      ignore_errors: true
+      changed_when: true
