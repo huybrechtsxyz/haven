@@ -110,7 +110,7 @@ entries:
       client_secret: "{{ vaultwarden_sso_client_secret }}"
       redirect_uris:
         - matching_mode: strict
-          url: "https://vault.huybrechts.xyz/identity/connect/oidc-signin"
+          url: "https://vault.huybrechts.xyz/sso/callback"
       grant_types:
         - authorization_code
         - refresh_token
