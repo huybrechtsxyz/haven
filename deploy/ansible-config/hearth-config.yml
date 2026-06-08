@@ -326,6 +326,256 @@
       no_log: true # contains client secrets
       notify: Restart authentik-worker
 
+    # =========================================================================
+    # Validation — post-config diagnostics
+    # =========================================================================
+    # Verify critical files, directories, mounts, and services are in the
+    # expected state. Read this output to spot issues without SSH access.
+
+    # ----- Directory structure -----
+
+    - name: "Validate: Check expected directories on host"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: dir_checks
+      loop:
+        - "{{ haven_install_path }}/etc"
+        - "{{ haven_install_path }}/etc/caddy"
+        - "{{ haven_install_path }}/etc/caddy/config"
+        - "{{ haven_install_path }}/etc/authentik/blueprints"
+        - "{{ haven_install_path }}/etc/authentik/templates"
+        - "{{ haven_install_path }}/var/data"
+        - "{{ haven_install_path }}/var/data/authentik/media"
+        - "{{ haven_install_path }}/var/data/authentik/postgresql"
+        - "{{ haven_install_path }}/var/data/vaultwarden"
+        - "{{ haven_install_path }}/var/data/portainer"
+        - "{{ haven_install_path }}/var/data/infisical/postgresql"
+        - "{{ haven_install_path }}/var/certs"
+        - "{{ haven_install_path }}/var/logs"
+
+    - name: "Validate: Show directory status"
+      ansible.builtin.debug:
+        msg: "{{ item.item }} — exists={{ item.stat.exists | default(false) }}, mode={{ item.stat.mode | default('?') }}, owner={{ item.stat.pw_name | default('?') }}:{{ item.stat.gr_name | default('?') }}"
+      loop: "{{ dir_checks.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # ----- Critical config files on host -----
+
+    - name: "Validate: Check expected files on host"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: file_checks
+      loop:
+        - "{{ haven_install_path }}/etc/docker-compose.yml"
+        - "{{ haven_install_path }}/etc/.env"
+        - "{{ haven_install_path }}/etc/caddy/Caddyfile"
+        - "{{ haven_install_path }}/etc/authentik/blueprints/haven-apps.yaml"
+
+    - name: "Validate: Show file status"
+      ansible.builtin.debug:
+        msg: "{{ item.item }} — exists={{ item.stat.exists | default(false) }}, size={{ item.stat.size | default(0) }}B, mode={{ item.stat.mode | default('?') }}, owner={{ item.stat.pw_name | default('?') }}:{{ item.stat.gr_name | default('?') }}"
+      loop: "{{ file_checks.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # ----- Caddy -----
+
+    - name: "Validate: Caddyfile inside caddy container"
+      ansible.builtin.shell:
+        cmd: docker exec haven-caddy-1 cat /etc/caddy/Caddyfile 2>&1 | head -30
+      register: caddy_caddyfile
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show Caddyfile (first 30 lines)"
+      ansible.builtin.debug:
+        var: caddy_caddyfile.stdout_lines
+
+    - name: "Validate: Caddy TLS certificates"
+      ansible.builtin.shell:
+        cmd: ls -la {{ haven_install_path }}/var/certs/ 2>&1 | head -20
+      register: caddy_certs
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show Caddy cert storage"
+      ansible.builtin.debug:
+        var: caddy_certs.stdout_lines
+
+    # ----- Authentik -----
+
+    - name: "Validate: Blueprint inside authentik-worker container"
+      ansible.builtin.shell:
+        cmd: docker exec haven-authentik-worker-1 ls -la /blueprints/custom/ 2>&1
+      register: blueprint_container_ls
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show blueprint container listing"
+      ansible.builtin.debug:
+        var: blueprint_container_ls.stdout_lines
+
+    - name: "Validate: Authentik-worker volume mounts"
+      ansible.builtin.shell:
+        cmd: >
+          docker inspect haven-authentik-worker-1
+          --format '{{ '{{' }} json .Mounts {{ '}}' }}' 2>&1 | python3 -m json.tool
+      register: worker_mounts
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show authentik-worker mounts"
+      ansible.builtin.debug:
+        var: worker_mounts.stdout_lines
+
+    - name: "Validate: Blueprint-related entries in worker logs"
+      ansible.builtin.shell:
+        cmd: >
+          docker logs haven-authentik-worker-1 --tail 200 2>&1
+          | grep -i "blueprint" || echo "NO BLUEPRINT LOG ENTRIES FOUND"
+      register: blueprint_worker_logs
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show blueprint worker log entries"
+      ansible.builtin.debug:
+        var: blueprint_worker_logs.stdout_lines
+
+    - name: "Validate: Authentik DB connectivity"
+      ansible.builtin.shell:
+        cmd: docker exec haven-authentik-db-1 pg_isready -d authentik -U authentik 2>&1
+      register: authentik_db_ready
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show authentik DB status"
+      ansible.builtin.debug:
+        var: authentik_db_ready.stdout_lines
+
+    # ----- Vaultwarden -----
+
+    - name: "Validate: Vaultwarden data directory"
+      ansible.builtin.shell:
+        cmd: ls -la {{ haven_install_path }}/var/data/vaultwarden/ 2>&1 | head -20
+      register: vaultwarden_data
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show Vaultwarden data listing"
+      ansible.builtin.debug:
+        var: vaultwarden_data.stdout_lines
+
+    - name: "Validate: Vaultwarden config.json absent (env vars authoritative)"
+      ansible.builtin.stat:
+        path: "{{ haven_install_path }}/var/data/vaultwarden/config.json"
+      register: vw_config_json
+
+    - name: "Validate: Show Vaultwarden config.json status"
+      ansible.builtin.debug:
+        msg: "config.json exists={{ vw_config_json.stat.exists | default(false) }} — should be false before deploy (env vars are authoritative)"
+
+    # ----- Portainer -----
+
+    - name: "Validate: Portainer data directory"
+      ansible.builtin.shell:
+        cmd: ls -la {{ haven_install_path }}/var/data/portainer/ 2>&1 | head -10
+      register: portainer_data
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show Portainer data listing"
+      ansible.builtin.debug:
+        var: portainer_data.stdout_lines
+
+    # ----- Infisical -----
+
+    - name: "Validate: Infisical DB connectivity"
+      ansible.builtin.shell:
+        cmd: docker exec haven-infisical-db-1 pg_isready -d infisical -U infisical 2>&1
+      register: infisical_db_ready
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show Infisical DB status"
+      ansible.builtin.debug:
+        var: infisical_db_ready.stdout_lines
+
+    # ----- BorgBackup -----
+
+    - name: "Validate: BorgBackup configuration"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: borg_checks
+      loop:
+        - "{{ haven_install_path }}/scripts/backup.sh"
+        - "{{ haven_install_path }}/.borg_passphrase"
+        - "{{ haven_install_path }}/.ssh/borg_ed25519"
+      when: configure_borg | bool
+
+    - name: "Validate: Show BorgBackup file status"
+      ansible.builtin.debug:
+        msg: "{{ item.item }} — exists={{ item.stat.exists | default(false) }}, mode={{ item.stat.mode | default('?') }}"
+      loop: "{{ borg_checks.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: configure_borg | bool
+
+    - name: "Validate: BorgBackup cron job"
+      ansible.builtin.shell:
+        cmd: crontab -u {{ haven_user }} -l 2>&1 | grep -i borg || echo "NO BORG CRON FOUND"
+      register: borg_cron
+      changed_when: false
+      failed_when: false
+      when: configure_borg | bool
+
+    - name: "Validate: Show BorgBackup cron"
+      ansible.builtin.debug:
+        var: borg_cron.stdout_lines
+      when: configure_borg | bool
+
+    # ----- System services -----
+
+    - name: "Validate: System services running"
+      ansible.builtin.shell:
+        cmd: |
+          echo "=== System services ==="
+          for svc in docker fail2ban ssh; do
+            status=$(systemctl is-active "$svc" 2>/dev/null || echo "not-found")
+            enabled=$(systemctl is-enabled "$svc" 2>/dev/null || echo "not-found")
+            echo "  $svc: active=$status enabled=$enabled"
+          done
+          echo "=== Competing web servers (should be inactive) ==="
+          for svc in apache2 nginx; do
+            status=$(systemctl is-active "$svc" 2>/dev/null || echo "inactive")
+            echo "  $svc: $status"
+          done
+        executable: /bin/bash
+      register: system_services
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show system services"
+      ansible.builtin.debug:
+        var: system_services.stdout_lines
+
+    # ----- Container states (all services) -----
+
+    - name: "Validate: All container states"
+      ansible.builtin.shell:
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          ps --format "table {{ '{{' }}.Name{{ '}}' }}\t{{ '{{' }}.Status{{ '}}' }}\t{{ '{{' }}.Ports{{ '}}' }}" 2>&1
+      register: config_container_states
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show container states"
+      ansible.builtin.debug:
+        var: config_container_states.stdout_lines
+
   # ===========================================================================
   # Handlers
   # ===========================================================================
