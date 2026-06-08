@@ -37,6 +37,8 @@ spec:
           value: https://vault.huybrechts.xyz
         - key: SSO_ENABLED
           value: "true"
+        - key: SSO_SCOPES
+          value: "openid email profile"
         - key: SSO_AUTHORITY
           value: https://auth.huybrechts.xyz/application/o/vaultwarden/
         - key: SSO_CLIENT_ID
