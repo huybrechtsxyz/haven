@@ -93,6 +93,24 @@ entries:
       expression: "return ak_is_group_member(request.user, name='members') or ak_is_group_member(request.user, name='parents') or ak_is_group_member(request.user, name='admins')"
 
   # ---------------------------------------------------------------------------
+  # Custom scope mapping — force email_verified: true for internal trusted users
+  # ---------------------------------------------------------------------------
+  # Authentik does not mark emails as verified for manually created accounts.
+  # Vaultwarden rejects logins where email_verified is false. Since all users
+  # on this server are trusted family members, we assert verified unconditionally.
+
+  - model: authentik_providers_oauth2.scopemapping
+    state: present
+    identifiers:
+      name: haven-email-verified
+    id: mapping-email-verified
+    attrs:
+      name: haven-email-verified
+      scope_name: openid
+      description: Forces email_verified=true for trusted internal users
+      expression: "return {'email_verified': True}"
+
+  # ---------------------------------------------------------------------------
   # Vaultwarden — OAuth2/OIDC Provider + Application
   # ---------------------------------------------------------------------------
 
@@ -118,9 +136,10 @@ entries:
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !KeyOf mapping-email-verified
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
       sub_mode: hashed_user_id
-      issuer_mode: per_provider
+      issuer_mode: global
       access_code_validity: minutes=1
       access_token_validity: hours=1
       refresh_token_validity: days=30
