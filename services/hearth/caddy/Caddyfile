@@ -18,3 +18,18 @@ vault.huybrechts.xyz {
 secrets.huybrechts.xyz {
     reverse_proxy infisical:8080
 }
+
+# Portainer — Container Management
+portainer.huybrechts.xyz {
+    reverse_proxy portainer:9443 {
+        transport http {
+            tls_insecure_skip_verify
+        }
+        header_up Origin {scheme}://{host}
+    }
+}
+
+# WUD — Container Update Notifications
+wud.huybrechts.xyz {
+    reverse_proxy wud:3000
+}

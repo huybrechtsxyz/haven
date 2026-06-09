@@ -1,0 +1,47 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: wud
+  annotations:
+    description: What's Up Docker — container image update notifications with web UI
+  labels:
+    version: "1.0.0"
+  tags: [haven, hearth, wud, monitoring, updates]
+spec:
+  source:
+    repository: haven
+    source_path: services/hearth/wud
+  type: compose
+  references:
+    secrets:
+      - WUD_SSO_CLIENT_SECRET
+  services:
+    - name: wud
+      image: fmartinou/whats-up-docker:6.6.1
+      restart: unless-stopped
+      # Cross-module depends_on via configuration block (verbatim merge into compose output)
+      # Requires strata >= 0.0.11 for configuration block to be merged correctly
+      configuration:
+        depends_on:
+          authentik-server:
+            condition: service_healthy
+      environment:
+        - key: TZ
+          value: Europe/Brussels
+        - key: WUD_WATCHER_LOCAL_WATCHBYDEFAULT
+          value: "true"
+        - key: WUD_PUBLIC_URL
+          value: https://wud.huybrechts.xyz
+        - key: WUD_AUTH_OIDC_AUTHENTIK_CLIENTID
+          value: wud
+        - key: WUD_AUTH_OIDC_AUTHENTIK_CLIENTSECRET
+          secret: WUD_SSO_CLIENT_SECRET
+        - key: WUD_AUTH_OIDC_AUTHENTIK_DISCOVERY
+          value: https://auth.huybrechts.xyz/application/o/wud/.well-known/openid-configuration
+        - key: WUD_AUTH_OIDC_AUTHENTIK_REDIRECT
+          value: "true"
+      mounts:
+        - name: docker-socket
+          type: bind
+          source_path: /var/run/docker.sock
+          target_path: /var/run/docker.sock

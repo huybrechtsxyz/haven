@@ -16,3 +16,5 @@
 - **Wave 1 status (2026-05-29):** In progress — domain transfers to INWX initiated, Hetzner not yet provisioned
 
 ## Learnings
+
+- **2026-06-08:** Wrote `docs/hosting-landing.md` — analysis of landing page / dashboard options for Haven. Compared Authentik Application Portal, Homarr, Homepage, Glance, Heimdall. Recommended Authentik portal as zero-cost immediate baseline, Homarr as the longer-term pick (OIDC-aware, per-group board visibility, widget support). Documented full Homarr integration design: Compose service, Authentik OIDC wiring, Caddy entry, strata module, secrets, per-user board strategy, and open questions for Vincent.

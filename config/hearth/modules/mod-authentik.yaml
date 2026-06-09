@@ -16,6 +16,9 @@ spec:
     secrets:
       - AUTHENTIK_SECRET_KEY
       - AUTHENTIK_POSTGRESQL__PASSWORD
+      # SMTP — enable after Infomaniak migration
+      # - AUTHENTIK_EMAIL__USERNAME
+      # - AUTHENTIK_EMAIL__PASSWORD
   services:
     - name: db
       image: docker.io/library/postgres:16-alpine
@@ -52,13 +55,22 @@ spec:
         retries: 5
 
     - name: server
-      image: ghcr.io/goauthentik/server:2024.12.3
+      image: ghcr.io/goauthentik/server:2026.5.2
       restart: unless-stopped
       command: ["server"]
       depends_on:
         - db
         - redis
+      healthcheck:
+        name: authentik-ready
+        type: command
+        command: ["ak", "healthcheck"]
+        interval: 30s
+        timeout: 5s
+        retries: 5
       environment:
+        - key: AUTHENTIK_HOST
+          value: https://auth.huybrechts.xyz
         - key: AUTHENTIK_REDIS__HOST
           value: authentik-redis
         - key: AUTHENTIK_POSTGRESQL__HOST
@@ -71,6 +83,23 @@ spec:
           secret: AUTHENTIK_POSTGRESQL__PASSWORD
         - key: AUTHENTIK_SECRET_KEY
           secret: AUTHENTIK_SECRET_KEY
+        # SMTP — enable after Infomaniak migration
+        # - key: AUTHENTIK_EMAIL__HOST
+        #   value: mail.infomaniak.com
+        # - key: AUTHENTIK_EMAIL__PORT
+        #   value: "587"
+        # - key: AUTHENTIK_EMAIL__USERNAME
+        #   secret: AUTHENTIK_EMAIL__USERNAME
+        # - key: AUTHENTIK_EMAIL__PASSWORD
+        #   secret: AUTHENTIK_EMAIL__PASSWORD
+        # - key: AUTHENTIK_EMAIL__USE_TLS
+        #   value: "true"
+        # - key: AUTHENTIK_EMAIL__USE_SSL
+        #   value: "false"
+        # - key: AUTHENTIK_EMAIL__TIMEOUT
+        #   value: "30"
+        # - key: AUTHENTIK_EMAIL__FROM
+        #   value: authentik@huybrechts.xyz
       mounts:
         - name: media
           type: bind
@@ -80,15 +109,21 @@ spec:
           type: bind
           source_path: /opt/haven/etc/authentik/templates
           target_path: /templates
+        - name: blueprints
+          type: bind
+          source_path: /opt/haven/etc/authentik/blueprints
+          target_path: /blueprints/custom
 
     - name: worker
-      image: ghcr.io/goauthentik/server:2024.12.3
+      image: ghcr.io/goauthentik/server:2026.5.2
       restart: unless-stopped
       command: ["worker"]
       depends_on:
         - db
         - redis
       environment:
+        - key: AUTHENTIK_HOST
+          value: https://auth.huybrechts.xyz
         - key: AUTHENTIK_REDIS__HOST
           value: authentik-redis
         - key: AUTHENTIK_POSTGRESQL__HOST
@@ -101,6 +136,23 @@ spec:
           secret: AUTHENTIK_POSTGRESQL__PASSWORD
         - key: AUTHENTIK_SECRET_KEY
           secret: AUTHENTIK_SECRET_KEY
+        # SMTP — enable after Infomaniak migration
+        # - key: AUTHENTIK_EMAIL__HOST
+        #   value: mail.infomaniak.com
+        # - key: AUTHENTIK_EMAIL__PORT
+        #   value: "587"
+        # - key: AUTHENTIK_EMAIL__USERNAME
+        #   secret: AUTHENTIK_EMAIL__USERNAME
+        # - key: AUTHENTIK_EMAIL__PASSWORD
+        #   secret: AUTHENTIK_EMAIL__PASSWORD
+        # - key: AUTHENTIK_EMAIL__USE_TLS
+        #   value: "true"
+        # - key: AUTHENTIK_EMAIL__USE_SSL
+        #   value: "false"
+        # - key: AUTHENTIK_EMAIL__TIMEOUT
+        #   value: "30"
+        # - key: AUTHENTIK_EMAIL__FROM
+        #   value: authentik@huybrechts.xyz
       mounts:
         - name: media
           type: bind
@@ -110,6 +162,10 @@ spec:
           type: bind
           source_path: /opt/haven/etc/authentik/templates
           target_path: /templates
+        - name: blueprints
+          type: bind
+          source_path: /opt/haven/etc/authentik/blueprints
+          target_path: /blueprints/custom
         - name: certs
           type: bind
           source_path: /opt/haven/var/certs

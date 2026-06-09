@@ -12,13 +12,15 @@ This guide walks through the entire deployment process for haven, from setting u
 
 The hearth system is the core of haven, running on a Hetzner VPS. It hosts all the main services (Authentik, Vaultwarden, Infisical, Caddy) in a single Docker Compose stack. The hearth system is provisioned with Terraform and configured with Ansible, all orchestrated through GitHub Actions pipelines.
 
-```
+```text
 haven (workspace)
 ├── hearth (VPS — Docker Compose)          ← deployed now
 │   ├── Caddy          — reverse proxy + auto-TLS
 │   ├── Authentik      — SSO / identity    → auth.huybrechts.xyz
 │   ├── Vaultwarden    — passwords         → vault.huybrechts.xyz
-│   └── Infisical      — secrets mgmt      → secrets.huybrechts.xyz
+│   ├── Infisical      — secrets mgmt      → secrets.huybrechts.xyz
+│   ├── Portainer      — container mgmt    → portainer.huybrechts.xyz
+│   └── WUD            — update notifier   → wud.huybrechts.xyz
 │
 ├── forge (VPS — k3s)                      ← future
 │   └── (workload services TBD)
@@ -32,7 +34,7 @@ haven (workspace)
 | Configuration | strata (YAML → Terraform artifacts)       | This repo (`config/`)           |
 | Provisioning  | Terraform / OpenTofu via Hetzner provider | GitHub Actions pipeline         |
 | Server setup  | Ansible (init + config + deploy)          | GitHub Actions pipeline         |
-| Services      | Docker Compose (9 containers)             | Hearth VPS (`/opt/haven/`)      |
+| Services      | Docker Compose (10 containers)            | Hearth VPS (`/opt/haven/`)      |
 | DNS           | INWX                                      | `huybrechts.xyz` + subdomains   |
 | Backups       | BorgBackup → Hetzner Storage Box          | Daily 02:00 UTC, port 23        |
 | Secrets       | GitHub Environment Secrets (`production`) | Secrets in pipeline environment |
@@ -44,13 +46,13 @@ You will need accounts for the following services. Create them in the recommende
 
 | Service         | URL                              | Notes |
 | --------------- | -------------------------------- | ----- |
+| GitHub          | <https://github.com>             |       |
 | INWX            | <https://www.inwx.de>            |       |
 | Hetzner         | <https://console.hetzner.cloud>  |       |
 | Infomaniak      | <https://manager.infomaniak.com> |       |
 | Healthchecks.io | <https://healthchecks.io>        |       |
 | UptimeRobot     | <https://uptimerobot.com>        |       |
 | Terraform Cloud | <https://app.terraform.io>       |       |
-| GitHub          | <https://github.com>             |       |
 
 * Secure storage of credentials is critical. Use Vaultwarden or another password manager to store all account credentials, API keys, and secrets. Avoid hardcoding sensitive information in code or configuration files. If needed store them temporarily in a secure notes section while setting up, then move to the password manager. From this point forward, we will assume all credentials are stored securely and referenced from there.
 
@@ -63,9 +65,7 @@ Strata's Terraform provisioning can use Terraform Cloud as a remote backend for 
 3. Generate API token: User Settings → Tokens → Create token
 4. Store the API token in Vaultwarden
 
-Workspace will be created automatically by the workflow on first run, but you can pre-create it for convenience:
-
-5. Create workspace `haven_deploy_prd` (must match deployment name in strata config)
+> Note: Workspace will be created automatically by the workflow on first run, but you can pre-create it for convenience:
 
 ## Github Setup
 
@@ -73,7 +73,7 @@ Workspace will be created automatically by the workflow on first run, but you ca
 2. Fork the `huybrechtsxyz/haven` repository to your account.
 3. Clone your fork locally and set up the repository.
 4. Configure an Environment named `production` in your repository.
-5. Configure GitHub Environment Secrets for the repository (see [Configure GitHub Secrets](#configure-github-secrets) below).
+5. Configure GitHub Environment Secrets for the repository (see [GitHub Secrets](#github-secrets) below).
 
 ## INWX — Domain Registrar
 
@@ -111,9 +111,11 @@ The primary domain for haven is `huybrechts.xyz`. This is where the main service
 
 Generate all secrets once, store every value in Vaultwarden, then configure them in GitHub and Terraform Cloud.
 
+> Note. Strata can generate random secrets for you during provisioning. So no extra tools are needed. You do need to generate the secrets at least once and store them in Vaultwarden, because they are required as GitHub Secrets for the deployment workflow to run successfully.
+
 ### SSH deploy key
 
-Create an ed25519 SSH key pair for deployment. The public key goes to Hetzner (for Terraform provisioning and BorgBackup), the private key goes to GitHub Secrets (for the deployment workflow). You can generate the key pair using PowerShell or any SSH key generation tool.
+Create an ed25519 SSH key pair for deployment. The public key goes to Hetzner (for Terraform provisioning and BorgBackup), the private key goes to GitHub Secrets (for the deployment workflow). You can generate the key pair using PowerShell or any SSH key generation tool. Bitwarden/Vaultwarden also has a built-in SSH key generator that can create and store the key pair directly in your vault.
 
 ```powershell
 # Generate ed25519 SSH key pair
@@ -128,16 +130,26 @@ Get-Content ~/.ssh/haven_ed25519 -Raw
 
 ### Service secrets
 
-Run each command, copy the output, and save it in Vaultwarden under a "Haven Secrets" entry.
+Run each command, copy the output, and save it in Vaultwarden under a "Haven Secrets" entry. Use the "Secure Note" type and create fields for each secret (e.g. `AUTHENTIK_SECRET_KEY`, `VAULTWARDEN_ADMIN_TOKEN`, etc.) to keep them organized. You can also add notes about what each secret is for and where it's used.
 
 ```powershell
+# Strata
+strata secret generate --length 64 --format urlsafe
+
 # Authentik secret key
 python -c "import secrets; print(secrets.token_urlsafe(64))"
 
 # Authentik PostgreSQL password
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 
-# Vaultwarden admin token
+# Vaultwarden admin token — generate a plain-text token first, then hash it
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+# Then hash it with Argon2 (see GitHub Secrets note below)
+
+# Vaultwarden SSO client secret
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+
+# WUD SSO client secret
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 
 # Infisical auth secret — MUST be exactly 64 hex chars
@@ -158,25 +170,37 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 > ⚠️ `INFISICAL_ENCRYPTION_KEY` must be **exactly 32 characters**. Using <> 32 chars causes Infisical to crash with "Invalid key length". Use `token_hex(16)` (16 bytes = 32 hex chars).
 
+> ⚠️ `VAULTWARDEN_ADMIN_TOKEN` must be stored as an **Argon2 hash**, not plain text. Generate a plain-text token first, then hash it:
+> ```bash
+> docker exec -it haven-vaultwarden-1 /vaultwarden hash --preset owasp
+> # Enter your plain-text token when prompted — copy the $argon2id$... output
+> ```
+> Store the **plain-text token** in Vaultwarden (you type this to log in to the admin panel).
+> Store the **`$argon2id$...` hash** as the `VAULTWARDEN_ADMIN_TOKEN` GitHub Secret.
+
 ### GitHub Secrets
 
 Repo → Settings → Environments → create `production` → add these secrets:
 
-| Secret                          | Value                            | Notes                                 |
-| ------------------------------- | -------------------------------- | ------------------------------------- |
-| `TERRAFORM_API_TOKEN`           | Terraform Cloud API token        |                                       |
-| `HETZNER_API_TOKEN`             | Hetzner Cloud project token      | Read/write                            |
-| `HETZNER_PUBLIC_KEY`            | SSH public key (`.pub`)          | Single line                           |
-| `HETZNER_PRIVATE_KEY`           | SSH private key (full content)   | Including `-----BEGIN/END-----` lines |
-| `HETZNER_ROOT_PASSWORD`         | Random password                  | From generate step                    |
-| `AUTHENTIK_SECRET_KEY`          | Random string (86 chars)         | `token_urlsafe(64)`                   |
-| `AUTHENTIK_POSTGRESQL_PASSWORD` | Random password                  | `token_urlsafe(32)`                   |
-| `VAULTWARDEN_ADMIN_TOKEN`       | Random token                     | `token_urlsafe(48)`                   |
-| `INFISICAL_AUTH_SECRET`         | 64 hex chars                     | `token_hex(32)`                       |
-| `INFISICAL_ENCRYPTION_KEY`      | **32 chars exactly**             | `token_hex(16)` — not 64!             |
-| `INFISICAL_POSTGRESQL_PASSWORD` | Random password                  | `token_urlsafe(32)`                   |
-| `BORG_PASSPHRASE`               | Random passphrase                | `token_urlsafe(48)`                   |
-| `HETZNER_STORAGEBOX_PASSWORD`   | Storage Box sub-account password | Set when creating sub-account         |
+| Secret                          | Value                            | Notes                                                  |
+| ------------------------------- | -------------------------------- | ------------------------------------------------------ |
+| `TERRAFORM_API_TOKEN`           | Terraform Cloud API token        |                                                        |
+| `HETZNER_API_TOKEN`             | Hetzner Cloud project token      | Read/write                                             |
+| `HETZNER_PUBLIC_KEY`            | SSH public key (`.pub`)          | Single line                                            |
+| `HETZNER_PRIVATE_KEY`           | SSH private key (full content)   | Including `-----BEGIN/END-----` lines                  |
+| `HETZNER_ROOT_PASSWORD`         | Random password                  | From generate step                                     |
+| `AUTHENTIK_SECRET_KEY`          | Random string (86 chars)         | `token_urlsafe(64)`                                    |
+| `AUTHENTIK_POSTGRESQL_PASSWORD` | Random password                  | `token_urlsafe(32)`                                    |
+| `VAULTWARDEN_ADMIN_TOKEN`       | Argon2 hashed token              | See note below                                         |
+| `VAULTWARDEN_SSO_CLIENT_SECRET` | Pre-generated OIDC client secret | `token_urlsafe(48)` — used in Authentik provider setup |
+| `WUD_SSO_CLIENT_SECRET`         | Pre-generated OIDC client secret | `token_urlsafe(48)` — used in Authentik provider setup |
+| `INFISICAL_AUTH_SECRET`         | 64 hex chars                     | `token_hex(32)`                                        |
+| `INFISICAL_ENCRYPTION_KEY`      | **32 chars exactly**             | `token_hex(16)` — not 64!                              |
+| `INFISICAL_POSTGRESQL_PASSWORD` | Random password                  | `token_urlsafe(32)`                                    |
+| `BORG_PASSPHRASE`               | Random passphrase                | `token_urlsafe(48)`                                    |
+| `HETZNER_STORAGEBOX_PASSWORD`   | Storage Box sub-account password | Set when creating sub-account                          |
+| `AUTHENTIK_EMAIL__USERNAME`     | SMTP username                    | _(deferred — Infomaniak migration)_                    |
+| `AUTHENTIK_EMAIL__PASSWORD`     | SMTP password / app password     | _(deferred — Infomaniak migration)_                    |
 
 ### GitHub Environment Variables
 
@@ -190,7 +214,7 @@ Repo → Settings → Environments → `production` → add these **variables** 
 | `HEALTHCHECK_PING_URL_BACKUP`  | `https://hc-ping.com/<uuid>` | Healthchecks.io ping URL for backup cron     |
 
 > Variables are non-sensitive configuration values that differ per environment. Moving them here (instead of hardcoding in repo files) means the same code can target a different Storage Box by changing only the environment variables.
-
+>
 > Secrets must be in the `production` **environment**, not repository-level, or the workflow won't see them.
 > This must match the `production` environment referenced in the workflow YAML (`deploy.yml`).
 
@@ -254,13 +278,15 @@ Once you have the server IP, add the A records listed in [DNS Haven records](#dn
 
 ### DNS Haven records (huybrechts.xyz)
 
-| Name                     | Type | Value                         | TTL  | Purpose                  |
-| ------------------------ | ---- | ----------------------------- | ---- | ------------------------ |
-| `huybrechts.xyz`         | A    | `<server-ip-address>`         | 3600 | Root domain → Hearth VPS |
-| `auth.huybrechts.xyz`    | A    | `<server-ip-address>`         | 3600 | Authentik (SSO)          |
-| `vault.huybrechts.xyz`   | A    | `<server-ip-address>`         | 3600 | Vaultwarden (passwords)  |
-| `secrets.huybrechts.xyz` | A    | `<server-ip-address>`         | 3600 | Infisical (secrets)      |
-| `huybrechts.xyz`         | CAA  | `128 issue "letsencrypt.org"` | 3600 | Allow Let's Encrypt only |
+| Name                       | Type | Value                         | TTL  | Purpose                    |
+| -------------------------- | ---- | ----------------------------- | ---- | -------------------------- |
+| `huybrechts.xyz`           | A    | `<server-ip-address>`         | 3600 | Root domain → Hearth VPS   |
+| `auth.huybrechts.xyz`      | A    | `<server-ip-address>`         | 3600 | Authentik (SSO)            |
+| `vault.huybrechts.xyz`     | A    | `<server-ip-address>`         | 3600 | Vaultwarden (passwords)    |
+| `secrets.huybrechts.xyz`   | A    | `<server-ip-address>`         | 3600 | Infisical (secrets)        |
+| `portainer.huybrechts.xyz` | A    | `<server-ip-address>`         | 3600 | Portainer (container UI)   |
+| `wud.huybrechts.xyz`       | A    | `<server-ip-address>`         | 3600 | WUD (update notifications) |
+| `huybrechts.xyz`           | CAA  | `128 issue "letsencrypt.org"` | 3600 | Allow Let's Encrypt only   |
 
 ## Initializing Hearth
 
@@ -283,7 +309,7 @@ Bootstrap the server with Docker, the `haven` service user, directory structure,
 
 ### Directory structure created
 
-```
+```ascii
 /opt/haven/
 ├── etc/                    ← Config files (compose, Caddyfile, .env)
 │   ├── caddy/
@@ -403,7 +429,7 @@ Caddy obtains Let's Encrypt certificates automatically on first start (~30 secon
 
 ```powershell
 # All must return 91.98.78.36
-foreach ($h in @("huybrechts.xyz","auth.huybrechts.xyz","vault.huybrechts.xyz","secrets.huybrechts.xyz")) {
+foreach ($h in @("huybrechts.xyz","auth.huybrechts.xyz","vault.huybrechts.xyz","secrets.huybrechts.xyz","portainer.huybrechts.xyz","wud.huybrechts.xyz")) {
     Resolve-DnsName $h -Type A | Select-Object Name, IPAddress
 }
 
@@ -413,35 +439,62 @@ Resolve-DnsName -Name huybrechts.xyz -Type DS -Server "x.nic.xyz"
 
 ### Verify services
 
-All three must show a login page:
+All must show a login page:
 
 - `https://auth.huybrechts.xyz` — Authentik
 - `https://vault.huybrechts.xyz` — Vaultwarden
 - `https://secrets.huybrechts.xyz` — Infisical
+- `https://portainer.huybrechts.xyz` — Portainer
+- `https://wud.huybrechts.xyz` — WUD (What's Up Docker)
 
 ## Service Initial Setup
 
+> Detailed configuration instructions: [AUTHENTIK.md](AUTHENTIK.md)
+
 ### Authentik
 
-Authentik is a SSO / identity provider. It requires a one-time initial setup to create the first admin account and configure basic settings. Follow these steps:
+Authentik is a SSO / identity provider. It requires a one-time initial setup to create the first admin account and configure basic settings.
 
 1. `https://auth.huybrechts.xyz/if/flow/initial-setup/`
 2. Create admin account (email + password)
 3. Store credentials in Vaultwarden
-4. Complete initial setup flow (organization name, SSO provider, etc.)
+4. Follow the full setup guide in [AUTHENTIK.md](AUTHENTIK.md) for:
+   - SMTP email configuration
+   - Creating family user accounts
+   - OIDC app setup for Vaultwarden and Infisical
 5. Test login at `https://auth.huybrechts.xyz/if/core/login/`
-6. Configure email provider (SMTP) for password resets and notifications
-7. Test email sending with password reset flow
 
 > **Note:**
 > - Authentik must be set up before Vaultwarden and Infisical, since they rely on Authentik for authentication.
 > - Do not use your personal email for the admin account. Create a dedicated email address (e.g. `admin@huybrechts.xyz`) and set up forwarding to your personal email.
 
+### Authentik — Assign users to groups (required for SSO access)
+
+The blueprint creates three groups automatically (`admins`, `parents`, `members`) and all SSO applications are gated by group policy. **No user can log in to any SSO application until they are assigned to at least one group.** This includes `akadmin`.
+
+Assign group membership after every new user is created:
+
+| User                              | Group     | Access          |
+| --------------------------------- | --------- | --------------- |
+| `akadmin` (or your admin account) | `admins`  | All apps        |
+| Adult family members              | `parents` | All family apps |
+| Other family members              | `members` | Shared apps     |
+
+**Steps:**
+
+1. Admin Interface → Directory → Groups → select the group
+2. Users tab → Add existing user → select the user → Add
+3. Repeat for each user
+
+> ⚠️ If this step is skipped, SSO logins will fail with **"Permission denied — Policy binding returned result False"**. The user is authenticated but not authorised.
+
 ### Vaultwarden
 
 Vaultwarden is a password manager. After Authentik is set up, you can create the first admin account in Vaultwarden and log in to the web vault.
 
-1. `https://vault.huybrechts.xyz/admin` → enter `VAULTWARDEN_ADMIN_TOKEN` from Vaultwarden secret
+> ⚠️ **Admin token:** The `VAULTWARDEN_ADMIN_TOKEN` GitHub Secret must be the Argon2 hash, not the plain-text token. You always log in with the **plain-text** token — Vaultwarden verifies it against the hash internally. If the secret is plain text, Vaultwarden logs a warning on every startup.
+
+1. `https://vault.huybrechts.xyz/admin` → enter the **plain-text** `VAULTWARDEN_ADMIN_TOKEN`
 2. General Settings → Allow new signups → **enable** → Save
 3. `https://vault.huybrechts.xyz/#/register` → create user accounts
 4. Admin panel → Allow new signups → **disable** → Save 
@@ -456,16 +509,38 @@ Vaultwarden is a password manager. After Authentik is set up, you can create the
 
 ### Infisical
 
-Infisical is a secrets management platform. After Authentik is set up, you can create the first admin account in Infisical and log in to the dashboard.
+Infisical is a secrets management platform used by admins to manage application secrets.
 
-1. `https://secrets.huybrechts.xyz` → Sign Up → create admin account
-2. Store credentials in Vaultwarden
-3. Test login at `https://secrets.huybrechts.xyz/login`
-4. Configure Authentik as SSO provider
-   - Settings → Authentication → Add provider → OpenID Connect
-   - Provider URL: `https://auth.huybrechts.xyz/if/realms/master/protocol/openid-connect`
-   - Client ID: `infisical`
-   - Save, then test SSO login
+1. `https://secrets.huybrechts.xyz` → Sign Up → create the first admin account (email + password)
+2. Store credentials in Vaultwarden under "Infisical Admin"
+3. Complete the onboarding wizard (create an organisation and a first project)
+
+> **No SSO** — Infisical OIDC SSO requires the Pro plan (paid). Login with email + password only. This is acceptable since Infisical is an admin-only tool.
+
+**Enable MFA (TOTP):**
+
+4. Log in to `https://secrets.huybrechts.xyz`
+5. Top-right avatar → Personal Settings → Security → Two-Factor Authentication → Enable
+6. Scan the QR code with an authenticator app (e.g. Vaultwarden TOTP, Aegis, or Authy)
+7. Enter the verification code to confirm → Save
+8. Store the backup codes in Vaultwarden under "Infisical Admin — MFA backup codes"
+
+> MFA is per-user and opt-in. For an admin-only tool with no SSO, enabling TOTP is strongly recommended.
+
+### Portainer
+
+Portainer CE is the container management UI. Login with username + password only.
+
+1. Log in to `https://portainer.huybrechts.xyz` with the admin credentials set during initial setup
+2. Store credentials in Vaultwarden under "Portainer Admin"
+
+> **No SSO** — Portainer CE does not support OAuth/OIDC. That feature requires Portainer Business Edition (BE). The free BE tier covers up to 3 nodes and 5 users — upgrade later via Settings → Licenses if SSO becomes a priority.
+>
+> When upgrading to BE, the Authentik OAuth config to use is:
+> - Authorization URL: `https://auth.huybrechts.xyz/application/o/authorize/`
+> - Access Token URL: `https://auth.huybrechts.xyz/application/o/token/`
+> - Resource URL: `https://auth.huybrechts.xyz/application/o/userinfo/`
+> - Client ID: `portainer` — add this provider back to the blueprint and run `run_config=true`
 
 ## Configure BorgBackup
 
@@ -550,11 +625,13 @@ UptimeRobot monitors **service availability** — it alerts when a URL returns e
 1. Sign up at <https://uptimerobot.com>
 2. Add HTTPS monitors (keyword check for 200 OK):
 
-| Monitor name | URL                              | Interval | Keyword         |
-| ------------ | -------------------------------- | -------- | --------------- |
-| Authentik    | `https://auth.huybrechts.xyz`    | 5 min    | _(none needed)_ |
-| Vaultwarden  | `https://vault.huybrechts.xyz`   | 5 min    | _(none needed)_ |
-| Infisical    | `https://secrets.huybrechts.xyz` | 5 min    | _(none needed)_ |
+| Monitor name | URL                                | Interval | Keyword         |
+| ------------ | ---------------------------------- | -------- | --------------- |
+| Authentik    | `https://auth.huybrechts.xyz`      | 5 min    | _(none needed)_ |
+| Vaultwarden  | `https://vault.huybrechts.xyz`     | 5 min    | _(none needed)_ |
+| Infisical    | `https://secrets.huybrechts.xyz`   | 5 min    | _(none needed)_ |
+| Portainer    | `https://portainer.huybrechts.xyz` | 5 min    | _(none needed)_ |
+| WUD          | `https://wud.huybrechts.xyz`       | 5 min    | _(none needed)_ |
 
 3. Configure alert contacts (email + optional Telegram/Pushover)
 4. Optional: create a public status page (paid feature):

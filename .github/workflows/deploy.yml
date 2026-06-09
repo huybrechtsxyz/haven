@@ -23,6 +23,10 @@ name: Deploy - haven
 on:
   workflow_dispatch:
     inputs:
+      branch:
+        description: "Confirm branch to deploy (must match the branch this workflow runs on)"
+        type: string
+        required: true
       dry_run:
         description: "Dry run (plan only, no apply)"
         type: boolean
@@ -47,6 +51,10 @@ on:
         description: "Deploy Docker Compose services to Hearth (hearth-deploy Ansible playbook)"
         type: boolean
         default: true
+      full_restart:
+        description: "Stop ALL containers before deploying (clean restart — use when containers have stale state)"
+        type: boolean
+        default: false
       backup_before_deploy:
         description: "Run a BorgBackup snapshot before deploying (requires configure_borg=true on server)"
         type: boolean
@@ -59,6 +67,7 @@ env:
   STRATA_OUTPUT: json
   STRATA_WORK_PATH: ${{ github.workspace }}
   DEPLOYMENT_FILE: "config/deploy-haven-prd.yaml"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   deploy:
@@ -74,6 +83,24 @@ jobs:
         uses: actions/checkout@v6
 
       # ------------------------------------------------------------------
+      # Safety: block main branch deployments
+      # ------------------------------------------------------------------
+      - name: Block deployment from main branch
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "::error::Deployment from 'main' is blocked. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" = "main" ]; then
+            echo "::error::Branch input cannot be 'main'. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" != "${{ github.ref_name }}" ]; then
+            echo "::error::Branch input '${{ inputs.branch }}' does not match the running branch '${{ github.ref_name }}'. Re-run from the correct branch."
+            exit 1
+          fi
+
+      # ------------------------------------------------------------------
       # Install tools
       # ------------------------------------------------------------------
       - name: Setup Python
@@ -82,7 +109,7 @@ jobs:
           python-version: "3.13"
 
       - name: Install strata
-        run: pip install "xyz-strata==0.0.9"
+        run: pip install "xyz-strata==0.1.1"
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v4
@@ -121,13 +148,36 @@ jobs:
 
       - name: Deploy infrastructure
         env:
+          # Terraform Cloud/CLI expects TF_TOKEN_app_terraform_io for API authentication
+          # but we also set the plain TERRAFORM_API_TOKEN for strata value resolution in
+          # Ansible playbooks (e.g. hearth-deploy.yml).
           TERRAFORM_API_TOKEN: ${{ secrets.TERRAFORM_API_TOKEN }}
           TF_TOKEN_app_terraform_io: ${{ secrets.TERRAFORM_API_TOKEN }}
+          # TF_VAR_* still needed for Terraform to pick up directly
           TF_VAR_HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
           TF_VAR_HETZNER_PUBLIC_KEY: ${{ secrets.HETZNER_PUBLIC_KEY }}
           TF_VAR_HETZNER_PRIVATE_KEY: ${{ secrets.HETZNER_PRIVATE_KEY }}
           TF_VAR_HEARTH_SSH_PRIVATE_KEY: ${{ secrets.HETZNER_PRIVATE_KEY }}
           TF_VAR_HETZNER_ROOT_PASSWORD: ${{ secrets.HETZNER_ROOT_PASSWORD }}
+          # Plain names for strata value resolution
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+          HETZNER_PUBLIC_KEY: ${{ secrets.HETZNER_PUBLIC_KEY }}
+          HETZNER_PRIVATE_KEY: ${{ secrets.HETZNER_PRIVATE_KEY }}
+          HETZNER_ROOT_PASSWORD: ${{ secrets.HETZNER_ROOT_PASSWORD }}
+          HETZNER_STORAGEBOX_PASSWORD: ${{ secrets.HETZNER_STORAGEBOX_PASSWORD }}
+          # Application secrets (needed so strata resolves the full environment)
+          HEALTHCHECK_PING_URL_BACKUP: ${{ vars.HEALTHCHECK_PING_URL_BACKUP }}
+          STORAGEBOX_HOST: ${{ vars.STORAGEBOX_HOST }}
+          STORAGEBOX_SUBACCOUNT_HEARTH: ${{ vars.STORAGEBOX_SUBACCOUNT_HEARTH }}
+          BORG_PASSPHRASE: ${{ secrets.BORG_PASSPHRASE }}
+          AUTHENTIK_SECRET_KEY: ${{ secrets.AUTHENTIK_SECRET_KEY }}
+          AUTHENTIK_POSTGRESQL_PASSWORD: ${{ secrets.AUTHENTIK_POSTGRESQL_PASSWORD }}
+          VAULTWARDEN_ADMIN_TOKEN: ${{ secrets.VAULTWARDEN_ADMIN_TOKEN }}
+          VAULTWARDEN_SSO_CLIENT_SECRET: ${{ secrets.VAULTWARDEN_SSO_CLIENT_SECRET }}
+          INFISICAL_AUTH_SECRET: ${{ secrets.INFISICAL_AUTH_SECRET }}
+          INFISICAL_ENCRYPTION_KEY: ${{ secrets.INFISICAL_ENCRYPTION_KEY }}
+          INFISICAL_POSTGRESQL_PASSWORD: ${{ secrets.INFISICAL_POSTGRESQL_PASSWORD }}
+          WUD_SSO_CLIENT_SECRET: ${{ secrets.WUD_SSO_CLIENT_SECRET }}
         run: |
           ARGS="--file $DEPLOYMENT_FILE --force"
           if [ "${{ inputs.dry_run }}" = "true" ]; then
@@ -257,6 +307,16 @@ jobs:
         working-directory: deploy/ansible-config
         run: ansible-galaxy collection install -r requirements.yml -p ./collections
 
+      # ------------------------------------------------------------------
+      # Full restart: stop all haven containers (clean slate before redeploy)
+      # ------------------------------------------------------------------
+      - name: Stop all haven containers
+        if: ${{ inputs.full_restart == true && inputs.dry_run != true }}
+        run: |
+          ssh -i ~/.ssh/haven_ed25519 -o StrictHostKeyChecking=no \
+            root@${{ steps.hearth_ip.outputs.ip }} \
+            "docker compose --project-name haven -f /opt/haven/etc/docker-compose.yml down || true"
+
       - name: Write Ansible vars file for config secrets
         if: ${{ inputs.run_config == true && inputs.dry_run != true }}
         run: |
@@ -265,6 +325,8 @@ jobs:
           storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
           storagebox_subaccount: "${{ vars.STORAGEBOX_SUBACCOUNT_HEARTH }}"
           healthcheck_ping_url: "${{ vars.HEALTHCHECK_PING_URL_BACKUP }}"
+          vaultwarden_sso_client_secret: "${{ secrets.VAULTWARDEN_SSO_CLIENT_SECRET }}"
+          wud_sso_client_secret: "${{ secrets.WUD_SSO_CLIENT_SECRET }}"
           VARSEOF
 
       - name: Run hearth-config playbook
@@ -306,6 +368,8 @@ jobs:
           infisical_auth_secret: "${{ secrets.INFISICAL_AUTH_SECRET }}"
           infisical_encryption_key: "${{ secrets.INFISICAL_ENCRYPTION_KEY }}"
           infisical_postgresql_password: "${{ secrets.INFISICAL_POSTGRESQL_PASSWORD }}"
+          vaultwarden_sso_client_secret: "${{ secrets.VAULTWARDEN_SSO_CLIENT_SECRET }}"
+          wud_sso_client_secret: "${{ secrets.WUD_SSO_CLIENT_SECRET }}"
           VARSEOF
 
       - name: Run hearth-deploy playbook

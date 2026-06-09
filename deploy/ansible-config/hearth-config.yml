@@ -157,7 +157,7 @@
         state: directory
         owner: "{{ haven_user }}"
         group: "{{ haven_group }}"
-        mode: "0750"
+        mode: "0755"
       loop:
         - "{{ haven_install_path }}"
         - "{{ haven_install_path }}/etc"
@@ -230,7 +230,7 @@
         state: directory
         owner: "{{ haven_user }}"
         group: "{{ haven_group }}"
-        mode: "0750"
+        mode: "0755"
       when: configure_borg | bool
 
     - name: Deploy backup script from template
@@ -301,6 +301,142 @@
           ============================================================
       when: configure_borg | bool
 
+    # =========================================================================
+    # Authentik — SSO Blueprint
+    # =========================================================================
+    # Deploys the rendered blueprint to the Authentik blueprints directory.
+    # Authentik worker picks it up on startup and creates/updates providers
+    # and applications idempotently (state: present).
+
+    - name: Ensure Authentik blueprints directory exists
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/etc/authentik/blueprints"
+        state: directory
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0755"
+
+    - name: Deploy Authentik SSO blueprint
+      ansible.builtin.template:
+        src: templates/authentik-blueprint.yaml.j2
+        dest: "{{ haven_install_path }}/etc/authentik/blueprints/haven-apps.yaml"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0644"
+      no_log: true # contains client secrets
+      notify: Restart authentik-worker
+
+    # =========================================================================
+    # Validation — post-config diagnostics
+    # =========================================================================
+    # Verify critical files, directories, mounts, and services are in the
+    # expected state. Read this output to spot issues without SSH access.
+
+    # ----- Directory structure -----
+
+    - name: "Validate: Check expected directories on host"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: dir_checks
+      loop:
+        - "{{ haven_install_path }}/etc"
+        - "{{ haven_install_path }}/etc/caddy"
+        - "{{ haven_install_path }}/etc/caddy/config"
+        - "{{ haven_install_path }}/etc/authentik/blueprints"
+        - "{{ haven_install_path }}/etc/authentik/templates"
+        - "{{ haven_install_path }}/var/data"
+        - "{{ haven_install_path }}/var/data/authentik/media"
+        - "{{ haven_install_path }}/var/data/authentik/postgresql"
+        - "{{ haven_install_path }}/var/data/vaultwarden"
+        - "{{ haven_install_path }}/var/data/portainer"
+        - "{{ haven_install_path }}/var/data/infisical/postgresql"
+        - "{{ haven_install_path }}/var/certs"
+        - "{{ haven_install_path }}/var/logs"
+
+    - name: "Validate: Show directory status"
+      ansible.builtin.debug:
+        msg: "{{ item.item }} — exists={{ item.stat.exists | default(false) }}, mode={{ item.stat.mode | default('?') }}, owner={{ item.stat.pw_name | default('?') }}:{{ item.stat.gr_name | default('?') }}"
+      loop: "{{ dir_checks.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # ----- Critical config files on host -----
+
+    - name: "Validate: Check expected files on host"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: file_checks
+      loop:
+        - "{{ haven_install_path }}/etc/docker-compose.yml"
+        - "{{ haven_install_path }}/etc/.env"
+        - "{{ haven_install_path }}/etc/caddy/Caddyfile"
+        - "{{ haven_install_path }}/etc/authentik/blueprints/haven-apps.yaml"
+
+    - name: "Validate: Show file status"
+      ansible.builtin.debug:
+        msg: "{{ item.item }} — exists={{ item.stat.exists | default(false) }}, size={{ item.stat.size | default(0) }}B, mode={{ item.stat.mode | default('?') }}, owner={{ item.stat.pw_name | default('?') }}:{{ item.stat.gr_name | default('?') }}"
+      loop: "{{ file_checks.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # ----- BorgBackup -----
+
+    - name: "Validate: BorgBackup configuration"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: borg_checks
+      loop:
+        - "{{ haven_install_path }}/scripts/backup.sh"
+        - "{{ haven_install_path }}/.borg_passphrase"
+        - "{{ haven_install_path }}/.ssh/borg_ed25519"
+      when: configure_borg | bool
+
+    - name: "Validate: Show BorgBackup file status"
+      ansible.builtin.debug:
+        msg: "{{ item.item }} — exists={{ item.stat.exists | default(false) }}, mode={{ item.stat.mode | default('?') }}"
+      loop: "{{ borg_checks.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: configure_borg | bool
+
+    - name: "Validate: BorgBackup cron job"
+      ansible.builtin.shell:
+        cmd: crontab -u {{ haven_user }} -l 2>&1 | grep -i borg || echo "NO BORG CRON FOUND"
+      register: borg_cron
+      changed_when: false
+      failed_when: false
+      when: configure_borg | bool
+
+    - name: "Validate: Show BorgBackup cron"
+      ansible.builtin.debug:
+        var: borg_cron.stdout_lines
+      when: configure_borg | bool
+
+    # ----- System services -----
+
+    - name: "Validate: System services running"
+      ansible.builtin.shell:
+        cmd: |
+          echo "=== System services ==="
+          for svc in docker fail2ban ssh; do
+            status=$(systemctl is-active "$svc" 2>/dev/null || echo "not-found")
+            enabled=$(systemctl is-enabled "$svc" 2>/dev/null || echo "not-found")
+            echo "  $svc: active=$status enabled=$enabled"
+          done
+          echo "=== Competing web servers (should be inactive) ==="
+          for svc in apache2 nginx; do
+            status=$(systemctl is-active "$svc" 2>/dev/null || echo "inactive")
+            echo "  $svc: $status"
+          done
+        executable: /bin/bash
+      register: system_services
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show system services"
+      ansible.builtin.debug:
+        var: system_services.stdout_lines
+
   # ===========================================================================
   # Handlers
   # ===========================================================================
@@ -310,3 +446,13 @@
       ansible.builtin.systemd:
         name: ssh
         state: restarted
+
+    - name: Restart authentik-worker
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          restart authentik-worker
+      ignore_errors: true
+      changed_when: true
