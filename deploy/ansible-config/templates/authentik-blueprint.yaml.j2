@@ -17,6 +17,16 @@ entries:
   # MFA — bind validation stage to login flow (stages exist by default)
   # ---------------------------------------------------------------------------
 
+  - model: authentik_stages_authenticator_validate.authenticatorvalidatestage
+    state: present
+    identifiers:
+      name: default-authentication-mfa-validation
+    attrs:
+      name: default-authentication-mfa-validation
+      # Force MFA bootstrap for users without enrolled authenticators.
+      # Without this, Authentik can skip MFA even when the stage is bound.
+      not_configured_action: configure
+
   - model: authentik_flows.flowstagebinding
     state: present
     identifiers:
