@@ -80,9 +80,22 @@ Users without MFA configured will be prompted to set up TOTP on their next login
 
 ---
 
-## OIDC Applications: Vaultwarden, Infisical, WUD & Portainer
+## Authentication strategy
 
-All applications are configured automatically via an **Authentik Blueprint** — no manual UI steps for providers or applications.
+**Not all services use Authentik SSO.** SSO adds complexity and creates a single point of failure — if Authentik is down, SSO-protected services become inaccessible. The strategy is:
+
+| Service         | Auth method                  | Reason                                                 |
+| --------------- | ---------------------------- | ------------------------------------------------------ |
+| **Vaultwarden** | Authentik SSO                | Family-facing — ease of access for all users           |
+| **WUD**         | Authentik SSO                | Admin tool, but already working and low-friction       |
+| **Portainer**   | Local credentials + TOTP MFA | Admin tool — must stay accessible if Authentik is down |
+| **Infisical**   | Local credentials + TOTP MFA | Admin tool — must stay accessible if Authentik is down |
+
+> ⚠️ **Do not configure SSO for Portainer or Infisical.** If Authentik fails, you need these tools to diagnose and fix the problem. Keep them on independent local auth.
+
+## OIDC Applications: Vaultwarden & WUD
+
+All SSO applications are configured automatically via an **Authentik Blueprint** — no manual UI steps for providers or applications.
 
 ### How it works
 
@@ -96,13 +109,11 @@ All applications are configured automatically via an **Authentik Blueprint** —
 | Application | Access group | Who can log in        |
 | ----------- | ------------ | --------------------- |
 | Vaultwarden | `members`    | Everyone (all groups) |
-| Infisical   | `admins`     | Admins only           |
 | WUD         | `admins`     | Admins only           |
-| Portainer   | `admins`     | Admins only           |
 
 ### Prerequisites (one-time)
 
-Generate four client secrets and add them to the `production` GitHub Environment Secrets:
+Generate two client secrets and add them to the `production` GitHub Environment Secrets:
 
 ```powershell
 python -c "import secrets; print(secrets.token_urlsafe(48))"
@@ -111,16 +122,14 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 | Secret                          | Notes                   |
 | ------------------------------- | ----------------------- |
 | `VAULTWARDEN_SSO_CLIENT_SECRET` | One generated value     |
-| `INFISICAL_SSO_CLIENT_SECRET`   | Another generated value |
 | `WUD_SSO_CLIENT_SECRET`         | Another generated value |
-| `PORTAINER_SSO_CLIENT_SECRET`   | Another generated value |
 
 ### Deploy
 
 Run the pipeline with `run_config: true` + `run_deploy: true`. After Authentik restarts, verify in the admin UI:
 
-- Admin Interface → Applications → Providers — should show `Vaultwarden`, `Infisical`, `WUD`, and `Portainer`
-- Admin Interface → Applications → Applications — should show all four apps
+- Admin Interface → Applications → Providers — should show `Vaultwarden` and `WUD`
+- Admin Interface → Applications → Applications — should show both apps
 - Admin Interface → Directory → Groups — should show `admins`, `parents`, `members`
 - Admin Interface → System → Brands — `auth.huybrechts.xyz` should have title `Haven`
 
@@ -148,36 +157,31 @@ Vaultwarden reads SSO config from environment variables set in `config/hearth/mo
 3. User authenticates; token includes `email_verified: true` from the custom mapping (✅)
 4. Vaultwarden accepts the token and prompts for master password
 
-### Infisical SSO env vars
-
-Infisical reads OIDC config from environment variables set in `config/hearth/modules/mod-infisical.yaml`. `SSO_OIDC_ISSUER`, `SSO_OIDC_CLIENT_ID`, and `SSO_OIDC_CLIENT_SECRET` are already wired.
-
 ### WUD SSO env vars
 
 WUD reads OIDC config from environment variables set in `config/hearth/modules/mod-wud.yaml`. `WUD_AUTH_OIDC_AUTHENTIK_CLIENTID`, `WUD_AUTH_OIDC_AUTHENTIK_CLIENTSECRET`, `WUD_AUTH_OIDC_AUTHENTIK_DISCOVERY`, and `WUD_PUBLIC_URL` are already wired. WUD is configured to auto-redirect to Authentik on login (skipping the WUD internal login page).
 
-### Portainer OAuth2 configuration
+### Portainer — local auth + MFA
 
-Unlike other services, Portainer's OAuth2 is configured in its own UI (not via env vars).
-This is a **one-time manual step** after the blueprint has applied the provider in Authentik.
+Portainer uses its own local credentials, **not** Authentik SSO. This is intentional — Portainer must remain accessible even if Authentik is down.
 
-1. Log in to Portainer at `https://portainer.huybrechts.xyz` with the local admin account
-2. Settings → Authentication → OAuth
-3. Configure:
-   - Provider: `Custom`
-   - Client ID: `portainer`
-   - Client Secret: _(value of `PORTAINER_SSO_CLIENT_SECRET`)_
-   - Authorization URL: `https://auth.huybrechts.xyz/application/o/authorize/`
-   - Token URL: `https://auth.huybrechts.xyz/application/o/token/`
-   - Resource URL: `https://auth.huybrechts.xyz/application/o/userinfo/`
-   - Redirect URL: `https://portainer.huybrechts.xyz/`
-   - Scopes: `openid email profile`
-   - User identifier: `preferred_username`
-   - Default team: _(leave empty)_
-4. Save
-5. Test by logging out and clicking **Login with OAuth**
+**Enable TOTP MFA (one-time per user):**
+1. Log in at `https://portainer.huybrechts.xyz`
+2. Click your username (top right) → My account
+3. Scroll to **Two-factor authentication** → enable
+4. Scan the QR code with your authenticator app
+5. Store the recovery codes in Vaultwarden under "Portainer MFA recovery"
 
-> Store the client secret in Vaultwarden under "Haven SSO — Portainer".
+### Infisical — local auth + MFA
+
+Infisical uses its own local credentials, **not** Authentik SSO. This is intentional — Infisical must remain accessible even if Authentik is down (it stores the secrets needed to fix Authentik).
+
+**Enable TOTP MFA (one-time per user):**
+1. Log in at `https://secrets.huybrechts.xyz`
+2. User menu (top right) → Security
+3. Enable **Two-factor authentication** → TOTP
+4. Scan the QR code with your authenticator app
+5. Store the recovery codes in Vaultwarden under "Infisical MFA recovery"
 
 ---
 
@@ -365,10 +369,10 @@ Failed to discover OpenID provider: Validation error: unexpected issuer URI
 
 ### Provider settings summary
 
-| App         | Client ID     | Redirect URI                                                | Policy                 |
-| ----------- | ------------- | ----------------------------------------------------------- | ---------------------- |
-| Vaultwarden | `vaultwarden` | `https://vault.huybrechts.xyz/identity/connect/oidc-signin` | `policy-group-members` |
-| WUD         | `wud`         | `https://wud.huybrechts.xyz/auth/oidc/authentik/cb`         | `policy-group-admins`  |
-| Portainer   | —             | SSO requires Portainer BE — password login only             | —                      |
-| Immich      | `immich`      | `https://photos.huybrechts.xyz/auth/login`                  | —                      |
-| Infisical   | —             | SSO requires Pro plan — password login only                 | —                      |
+| App         | Client ID     | Redirect URI                                                  | Policy                 |
+| ----------- | ------------- | ------------------------------------------------------------- | ---------------------- |
+| Vaultwarden | `vaultwarden` | `https://vault.huybrechts.xyz/identity/connect/oidc-signin`   | `policy-group-members` |
+| WUD         | `wud`         | `https://wud.huybrechts.xyz/auth/oidc/authentik/cb`           | `policy-group-admins`  |
+| Portainer   | —             | Local auth + TOTP MFA (no SSO — must work if Authentik down)  | —                      |
+| Immich      | `immich`      | `https://photos.huybrechts.xyz/auth/login` _(future — forge)_ | —                      |
+| Infisical   | —             | Local auth + TOTP MFA (no SSO — must work if Authentik down)  | —                      |
