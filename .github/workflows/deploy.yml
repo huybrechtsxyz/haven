@@ -24,7 +24,7 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: "Branch to deploy (cannot be 'main' — safety guard)"
+        description: "Confirm branch to deploy (must match the branch this workflow runs on)"
         type: string
         required: true
       dry_run:
@@ -93,6 +93,10 @@ jobs:
           fi
           if [ "${{ inputs.branch }}" = "main" ]; then
             echo "::error::Branch input cannot be 'main'. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" != "${{ github.ref_name }}" ]; then
+            echo "::error::Branch input '${{ inputs.branch }}' does not match the running branch '${{ github.ref_name }}'. Re-run from the correct branch."
             exit 1
           fi
 
