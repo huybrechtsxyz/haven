@@ -130,6 +130,24 @@ Run the pipeline with `run_config: true` + `run_deploy: true`. After Authentik r
 
 Vaultwarden reads SSO config from environment variables set in `config/hearth/modules/mod-vaultwarden.yaml`. No additional configuration needed — `SSO_AUTHORITY`, `SSO_CLIENT_ID`, and `SSO_CLIENT_SECRET` are already wired.
 
+**Critical configuration notes** (hard-won — do not change these):
+
+| Setting                        | Value                                                    | Why                                                                                                        |
+| ------------------------------ | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `SSO_AUTHORITY`                | `https://auth.huybrechts.xyz/application/o/vaultwarden/` | Per-app discovery URL — Authentik has **no** global `/.well-known/openid-configuration` endpoint           |
+| `issuer_mode` (blueprint)      | `per_provider`                                           | Makes Authentik return the per-app URL as issuer, matching `SSO_AUTHORITY`                                 |
+| `haven-email-verified` mapping | `return {'email_verified': True}`                        | Authentik does not auto-verify emails for manually created accounts; Vaultwarden rejects unverified emails |
+
+> ⚠️ Do **not** set `issuer_mode: global` for Vaultwarden — Authentik does not expose a global discovery document, so Vaultwarden will get a 404 and fail to discover the provider.
+
+> ⚠️ Do **not** change `SSO_AUTHORITY` to the root URL (`https://auth.huybrechts.xyz/`) — that results in an issuer mismatch error even if discovery succeeds via a workaround.
+
+**Login flow (for reference):**
+1. Vaultwarden fetches `https://auth.huybrechts.xyz/application/o/vaultwarden/.well-known/openid-configuration`
+2. Authentik returns `"issuer": "https://auth.huybrechts.xyz/application/o/vaultwarden/"` (matches `SSO_AUTHORITY` ✅)
+3. User authenticates; token includes `email_verified: true` from the custom mapping (✅)
+4. Vaultwarden accepts the token and prompts for master password
+
 ### Infisical SSO env vars
 
 Infisical reads OIDC config from environment variables set in `config/hearth/modules/mod-infisical.yaml`. `SSO_OIDC_ISSUER`, `SSO_OIDC_CLIENT_ID`, and `SSO_OIDC_CLIENT_SECRET` are already wired.
@@ -290,6 +308,48 @@ docker inspect haven-caddy-1 --format '{{json .NetworkSettings.Networks}}'
 2. The deploy playbook explicitly restarts WUD after waiting for Authentik to report `healthy`.
 
 If SSO stops working after a deploy, `docker restart haven-wud-1` while Authentik is healthy will fix it.
+
+### Blueprint not applied / `ls: cannot open directory '/blueprints/custom/': Permission denied`
+
+**Symptom:** Blueprint appears in the Authentik admin UI (System → Blueprints) but fails to apply, or is never discovered by the worker. Container-level inspection shows permission denied on `/blueprints/custom/`.
+
+**Cause:** The blueprint directory on the host (`/opt/haven/etc/authentik/blueprints`) has mode `0750` (owner-only access). The Authentik worker container runs as uid 1000, which is not the `haven` user and has no group membership — so it cannot traverse the directory.
+
+**Fix:** The config playbook (`hearth-config.yml`) sets the directory to `0755`. If it regresses, run `run_config=true` to re-apply. Verify on the host:
+```bash
+stat /opt/haven/etc/authentik/blueprints
+# Should show: Access: (0755/drwxr-xr-x)
+```
+
+And from inside the container:
+```bash
+docker exec haven-authentik-worker-1 ls /blueprints/custom/
+# Should list: haven-apps.yaml
+```
+
+### Vaultwarden SSO: `unexpected issuer URI`
+
+**Symptom:**
+```
+Failed to discover OpenID provider: Validation error: unexpected issuer URI
+`https://auth.huybrechts.xyz/` (expected `https://auth.huybrechts.xyz/application/o/vaultwarden/`)
+```
+
+**Cause:** `issuer_mode: global` was set on the Authentik provider. Authentik returns `https://auth.huybrechts.xyz/` as the issuer, but Vaultwarden's `SSO_AUTHORITY` points to the per-app URL.
+
+**Fix:** The blueprint uses `issuer_mode: per_provider` for Vaultwarden. Re-run `run_config=true` to ensure the blueprint is current, then check in the Authentik UI: Admin → Applications → Providers → Vaultwarden → Advanced Protocol Settings → Issuer mode must be `Per Provider`.
+
+> Do **not** change `SSO_AUTHORITY` to the root URL — Authentik has no global `/.well-known/openid-configuration` endpoint, so discovery will return 404.
+
+### Vaultwarden SSO: `Email is not verified by the SSO provider`
+
+**Symptom:** Login reaches Authentik, user authenticates, but Vaultwarden rejects with "Email is not verified by the SSO provider."
+
+**Cause:** Authentik does not auto-mark emails as verified for manually created accounts. The OIDC token is missing `email_verified: true`.
+
+**Fix (automatic):** The blueprint includes a custom `haven-email-verified` scope mapping that injects `email_verified: True` into every token issued to Vaultwarden. Re-run `run_config=true` to ensure the mapping is applied. Verify in Authentik: Admin → Applications → Providers → Vaultwarden → Advanced Protocol Settings → Scope Mappings — should include `haven-email-verified`.
+
+**Fix (manual, per user):** In the Authentik admin UI: Directory → Users → select user → Edit → check "Email verified" → Save. Do this for all users.
 
 ---
 
