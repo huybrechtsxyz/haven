@@ -40,7 +40,7 @@ spec:
         - key: SSO_SCOPES
           value: "openid email profile"
         - key: SSO_AUTHORITY
-          value: https://auth.huybrechts.xyz/application/o/vaultwarden/
+          value: https://auth.huybrechts.xyz/
         - key: SSO_CLIENT_ID
           value: vaultwarden
         - key: SSO_CLIENT_SECRET
