@@ -142,8 +142,9 @@ python -c "import secrets; print(secrets.token_urlsafe(64))"
 # Authentik PostgreSQL password
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 
-# Vaultwarden admin token
+# Vaultwarden admin token — generate a plain-text token first, then hash it
 python -c "import secrets; print(secrets.token_urlsafe(48))"
+# Then hash it with Argon2 (see GitHub Secrets note below)
 
 # Vaultwarden SSO client secret
 python -c "import secrets; print(secrets.token_urlsafe(48))"
@@ -169,6 +170,14 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 > ⚠️ `INFISICAL_ENCRYPTION_KEY` must be **exactly 32 characters**. Using <> 32 chars causes Infisical to crash with "Invalid key length". Use `token_hex(16)` (16 bytes = 32 hex chars).
 
+> ⚠️ `VAULTWARDEN_ADMIN_TOKEN` must be stored as an **Argon2 hash**, not plain text. Generate a plain-text token first, then hash it:
+> ```bash
+> docker exec -it haven-vaultwarden-1 /vaultwarden hash --preset owasp
+> # Enter your plain-text token when prompted — copy the $argon2id$... output
+> ```
+> Store the **plain-text token** in Vaultwarden (you type this to log in to the admin panel).
+> Store the **`$argon2id$...` hash** as the `VAULTWARDEN_ADMIN_TOKEN` GitHub Secret.
+
 ### GitHub Secrets
 
 Repo → Settings → Environments → create `production` → add these secrets:
@@ -182,7 +191,7 @@ Repo → Settings → Environments → create `production` → add these secrets
 | `HETZNER_ROOT_PASSWORD`         | Random password                  | From generate step                                     |
 | `AUTHENTIK_SECRET_KEY`          | Random string (86 chars)         | `token_urlsafe(64)`                                    |
 | `AUTHENTIK_POSTGRESQL_PASSWORD` | Random password                  | `token_urlsafe(32)`                                    |
-| `VAULTWARDEN_ADMIN_TOKEN`       | Random token                     | `token_urlsafe(48)`                                    |
+| `VAULTWARDEN_ADMIN_TOKEN`       | Argon2 hashed token              | See note below                                         |
 | `VAULTWARDEN_SSO_CLIENT_SECRET` | Pre-generated OIDC client secret | `token_urlsafe(48)` — used in Authentik provider setup |
 | `WUD_SSO_CLIENT_SECRET`         | Pre-generated OIDC client secret | `token_urlsafe(48)` — used in Authentik provider setup |
 | `INFISICAL_AUTH_SECRET`         | 64 hex chars                     | `token_hex(32)`                                        |
@@ -483,7 +492,9 @@ Assign group membership after every new user is created:
 
 Vaultwarden is a password manager. After Authentik is set up, you can create the first admin account in Vaultwarden and log in to the web vault.
 
-1. `https://vault.huybrechts.xyz/admin` → enter `VAULTWARDEN_ADMIN_TOKEN` from Vaultwarden secret
+> ⚠️ **Admin token:** The `VAULTWARDEN_ADMIN_TOKEN` GitHub Secret must be the Argon2 hash, not the plain-text token. You always log in with the **plain-text** token — Vaultwarden verifies it against the hash internally. If the secret is plain text, Vaultwarden logs a warning on every startup.
+
+1. `https://vault.huybrechts.xyz/admin` → enter the **plain-text** `VAULTWARDEN_ADMIN_TOKEN`
 2. General Settings → Allow new signups → **enable** → Save
 3. `https://vault.huybrechts.xyz/#/register` → create user accounts
 4. Admin panel → Allow new signups → **disable** → Save 
