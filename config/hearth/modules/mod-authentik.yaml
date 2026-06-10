@@ -16,9 +16,9 @@ spec:
     secrets:
       - AUTHENTIK_SECRET_KEY
       - AUTHENTIK_POSTGRESQL__PASSWORD
-      # SMTP — enable after Infomaniak migration
-      # - AUTHENTIK_EMAIL__USERNAME
-      # - AUTHENTIK_EMAIL__PASSWORD
+      # SMTP
+      - AUTHENTIK_EMAIL__USERNAME
+      - AUTHENTIK_EMAIL__PASSWORD
   services:
     - name: db
       image: docker.io/library/postgres:16-alpine
@@ -83,23 +83,23 @@ spec:
           secret: AUTHENTIK_POSTGRESQL__PASSWORD
         - key: AUTHENTIK_SECRET_KEY
           secret: AUTHENTIK_SECRET_KEY
-        # SMTP — enable after Infomaniak migration
-        # - key: AUTHENTIK_EMAIL__HOST
-        #   value: mail.infomaniak.com
-        # - key: AUTHENTIK_EMAIL__PORT
-        #   value: "587"
-        # - key: AUTHENTIK_EMAIL__USERNAME
-        #   secret: AUTHENTIK_EMAIL__USERNAME
-        # - key: AUTHENTIK_EMAIL__PASSWORD
-        #   secret: AUTHENTIK_EMAIL__PASSWORD
-        # - key: AUTHENTIK_EMAIL__USE_TLS
-        #   value: "true"
-        # - key: AUTHENTIK_EMAIL__USE_SSL
-        #   value: "false"
-        # - key: AUTHENTIK_EMAIL__TIMEOUT
-        #   value: "30"
-        # - key: AUTHENTIK_EMAIL__FROM
-        #   value: authentik@huybrechts.xyz
+        # SMTP
+        - key: AUTHENTIK_EMAIL__HOST
+          value: mail.infomaniak.com
+        - key: AUTHENTIK_EMAIL__PORT
+          value: "587"
+        - key: AUTHENTIK_EMAIL__USERNAME
+          secret: AUTHENTIK_EMAIL__USERNAME
+        - key: AUTHENTIK_EMAIL__PASSWORD
+          secret: AUTHENTIK_EMAIL__PASSWORD
+        - key: AUTHENTIK_EMAIL__USE_TLS
+          value: "true"
+        - key: AUTHENTIK_EMAIL__USE_SSL
+          value: "false"
+        - key: AUTHENTIK_EMAIL__TIMEOUT
+          value: "30"
+        - key: AUTHENTIK_EMAIL__FROM
+          value: authentik@huybrechts.xyz
       mounts:
         - name: media
           type: bind
@@ -136,23 +136,23 @@ spec:
           secret: AUTHENTIK_POSTGRESQL__PASSWORD
         - key: AUTHENTIK_SECRET_KEY
           secret: AUTHENTIK_SECRET_KEY
-        # SMTP — enable after Infomaniak migration
-        # - key: AUTHENTIK_EMAIL__HOST
-        #   value: mail.infomaniak.com
-        # - key: AUTHENTIK_EMAIL__PORT
-        #   value: "587"
-        # - key: AUTHENTIK_EMAIL__USERNAME
-        #   secret: AUTHENTIK_EMAIL__USERNAME
-        # - key: AUTHENTIK_EMAIL__PASSWORD
-        #   secret: AUTHENTIK_EMAIL__PASSWORD
-        # - key: AUTHENTIK_EMAIL__USE_TLS
-        #   value: "true"
-        # - key: AUTHENTIK_EMAIL__USE_SSL
-        #   value: "false"
-        # - key: AUTHENTIK_EMAIL__TIMEOUT
-        #   value: "30"
-        # - key: AUTHENTIK_EMAIL__FROM
-        #   value: authentik@huybrechts.xyz
+        # SMTP
+        - key: AUTHENTIK_EMAIL__HOST
+          value: mail.infomaniak.com
+        - key: AUTHENTIK_EMAIL__PORT
+          value: "587"
+        - key: AUTHENTIK_EMAIL__USERNAME
+          secret: AUTHENTIK_EMAIL__USERNAME
+        - key: AUTHENTIK_EMAIL__PASSWORD
+          secret: AUTHENTIK_EMAIL__PASSWORD
+        - key: AUTHENTIK_EMAIL__USE_TLS
+          value: "true"
+        - key: AUTHENTIK_EMAIL__USE_SSL
+          value: "false"
+        - key: AUTHENTIK_EMAIL__TIMEOUT
+          value: "30"
+        - key: AUTHENTIK_EMAIL__FROM
+          value: authentik@huybrechts.xyz
       mounts:
         - name: media
           type: bind
