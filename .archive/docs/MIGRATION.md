@@ -232,11 +232,11 @@ Deployed via hearth-deploy Ansible playbook (Docker Compose). Server + worker + 
 | 1   | Deploy Authentik via Docker Compose               | ✓ via hearth-deploy playbook                                | [x]  |
 | 2   | Create admin account                              | ✓ via `/if/flow/initial-setup/`, credentials in Vaultwarden | [x]  |
 | 3   | Enforce 2FA for all accounts                      | Not yet — pending family user creation                      | [ ]  |
-| 4   | Create OIDC app for Vaultwarden                   |                                                             | [ ]  |
+| 4   | Create OIDC app for Vaultwarden                   | ✓ via blueprint (auto-applied)                              | [x]  |
 | 5   | Create OIDC app for Immich                        | Deferred to forge (Wave 2)                                  | [ ]  |
-| 6   | Create OIDC app for Infisical                     |                                                             | [ ]  |
-| 7   | Create user accounts for all 5 family members     |                                                             | [ ]  |
-| 8   | Test login flow (redirect + token exchange works) |                                                             | [ ]  |
+| 6   | Create OIDC app for Infisical                     | N/A — Infisical uses local auth + MFA (not SSO)             | —    |
+| 7   | Create user accounts for all 5 family members     | ✓ 2026-06-09                                                | [x]  |
+| 8   | Test login flow (redirect + token exchange works) | ✓ 2026-06-09 — Vaultwarden SSO working end-to-end           | [x]  |
 
 #### Authentik OIDC client secrets
 
@@ -345,7 +345,7 @@ Deployed via hearth-deploy Ansible playbook (Docker Compose). Backend + PostgreS
 | 4   | Test full restore from BorgBackup               | Not yet tested                                                                               | [ ]  |
 | 5   | Deploy Gatus health dashboard                   | Deferred to forge (Wave 2) — using UptimeRobot for now                                       | [ ]  |
 | 6   | Register Healthchecks.io dead-man's switch      | ✓ `HEALTHCHECK_PING_URL_BACKUP` configured as GitHub env var, backup script pings on success | [x]  |
-| 7   | Set up UptimeRobot monitors                     | Monitors: auth, vault, secrets (5-min HTTPS checks)                                          | [ ]  |
+| 7   | Set up UptimeRobot monitors                     | ✓ 2026-06-09 — auth, vault, secrets, portainer, wud (5-min HTTPS checks)                     | [x]  |
 
 ### BorgBackup details
 

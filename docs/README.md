@@ -75,7 +75,7 @@ All infrastructure is defined in YAML, built with `strata`, provisioned with Ter
 Install:
 
 ```powershell
-pip install xyz-strata==0.0.9 ansible-core
+pip install xyz-strata==0.3.0 ansible-core
 winget install GitHub.cli Git.Git
 # OpenTofu: choco install opentofu
 ```

@@ -72,11 +72,12 @@ Groups are created automatically by the blueprint. After creating users, assign 
 
 ### Enforce MFA (recommended)
 
-MFA is configured automatically by the blueprint — the `default-authentication-mfa-validation` stage is bound to the login flow at order `30` (after password at `20`).
+MFA is configured automatically by the blueprint — the `default-authentication-mfa-validation` stage is bound to the login flow at order `30` (after password at `20`) and `not_configured_action` is set to `configure`.
 
 After deploy, verify: Admin Interface → Flows & Stages → Flows → `default-authentication-flow` → Stage Bindings tab should show `10` identification → `20` password → `30` mfa-validation.
+Also verify: Flows & Stages → Stages → `default-authentication-mfa-validation` shows Not configured action = `Configure`.
 
-Users without MFA configured will be prompted to set up TOTP on their next login.
+Users without MFA configured will be prompted to enroll an authenticator on their next login instead of bypassing MFA.
 
 ---
 
