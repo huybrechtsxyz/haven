@@ -12,6 +12,7 @@ with Infomaniak kSuite for email and files, and INWX for DNS.
    :caption: Getting Started
 
    GUIDE
+   design
 
 .. toctree::
    :maxdepth: 2
