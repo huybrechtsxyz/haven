@@ -115,6 +115,10 @@ jobs:
         uses: hashicorp/setup-terraform@v4
         with:
           terraform_wrapper: false
+          
+      - name: Install Ansible
+        if: ${{ (inputs.run_init == true || inputs.run_config == true || inputs.run_deploy == true) && inputs.dry_run != true }}
+        run: pip install ansible-core
 
       # ------------------------------------------------------------------
       # Validate
@@ -256,10 +260,6 @@ jobs:
             -d "$PAYLOAD")
           cat /tmp/fw_set.json
           [ "$HTTP" -lt 400 ]
-
-      - name: Install Ansible
-        if: ${{ (inputs.run_init == true || inputs.run_config == true || inputs.run_deploy == true) && inputs.dry_run != true }}
-        run: pip install ansible-core
 
       - name: Write deploy SSH private key
         if: ${{ (inputs.run_init == true || inputs.run_config == true || inputs.run_deploy == true) && inputs.dry_run != true }}

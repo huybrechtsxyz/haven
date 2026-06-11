@@ -242,6 +242,26 @@ Get-Content ~/.ssh/haven_ed25519.pub
 Get-Content ~/.ssh/haven_ed25519 -Raw
 ```
 
+### Secrets for Hetzner S3 Object Storage
+
+Hetzner Object Storage uses S3-compatible credentials. Each bucket gets its own access key pair, created in the Hetzner Cloud console under **Object Storage → Access Keys**.
+
+1. [console.hetzner.cloud](https://console.hetzner.cloud) → Project → Object Storage → Access Keys → Create access key
+2. Create one key pair per bucket (photos, media, archive)
+3. Copy the **Access Key ID** and **Secret Access Key** immediately — the secret is only shown once
+4. Store all six values in Bitwarden and GitHub Secrets (see table below)
+
+| GitHub Secret                      | Value               | Notes                                |
+| ---------------------------------- | ------------------- | ------------------------------------ |
+| `S3_PHOTOS_ACCESS_KEY`             | Access Key ID       | Hetzner Object Storage — photos      |
+| `S3_PHOTOS_SECRET_KEY`             | Secret Access Key   | Hetzner Object Storage — photos      |
+| `S3_MEDIA_ACCESS_KEY`              | Access Key ID       | Hetzner Object Storage — media       |
+| `S3_MEDIA_SECRET_KEY`              | Secret Access Key   | Hetzner Object Storage — media       |
+| `S3_ARCHIVE_ACCESS_KEY`            | Access Key ID       | Hetzner Object Storage — archive     |
+| `S3_ARCHIVE_SECRET_KEY`            | Secret Access Key   | Hetzner Object Storage — archive     |
+
+> The secret key is only displayed once at creation time. If lost, delete the key and create a new one.
+
 ### Secret Keys Summary
 
 Run each command, copy the output, and save it in Vaultwarden under a "Haven Secrets" entry. Use the "Secure Note" type and create fields for each secret (e.g. `AUTHENTIK_SECRET_KEY`, `VAULTWARDEN_ADMIN_TOKEN`, etc.) to keep them organized. You can also add notes about what each secret is for and where it's used.
@@ -263,6 +283,12 @@ Run each command, copy the output, and save it in Vaultwarden under a "Haven Sec
 | `INFISICAL_POSTGRESQL_PASSWORD` | Random password                  | `token_urlsafe(32)`                                    |
 | `BORG_PASSPHRASE`               | Random passphrase                | `token_urlsafe(48)`                                    |
 | `HETZNER_STORAGEBOX_PASSWORD`   | Storage Box sub-account password | Set when creating sub-account                          |
+| `S3_PHOTOS_ACCESS_KEY`          | Hetzner S3 access key ID         | Object Storage — photos bucket                         |
+| `S3_PHOTOS_SECRET_KEY`          | Hetzner S3 secret access key     | Object Storage — photos bucket                         |
+| `S3_MEDIA_ACCESS_KEY`           | Hetzner S3 access key ID         | Object Storage — media bucket                          |
+| `S3_MEDIA_SECRET_KEY`           | Hetzner S3 secret access key     | Object Storage — media bucket                          |
+| `S3_ARCHIVE_ACCESS_KEY`         | Hetzner S3 access key ID         | Object Storage — archive bucket                        |
+| `S3_ARCHIVE_SECRET_KEY`         | Hetzner S3 secret access key     | Object Storage — archive bucket                        |
 | `AUTHENTIK_EMAIL__USERNAME`     | SMTP username                    | From Infomaniak                                        |
 | `AUTHENTIK_EMAIL__PASSWORD`     | SMTP password / app password     | From Infomaniak                                        |
 

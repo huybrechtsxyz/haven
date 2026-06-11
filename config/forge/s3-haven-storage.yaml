@@ -1,0 +1,24 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: resource
+meta:
+  name: s3_haven_storage
+  annotations:
+    description: Hetzner Object Storage bucket (S3-compatible) — Forge
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, hetzner, s3, family]
+spec:
+  lifecycle: null
+  properties:
+    provider_type: hetzner
+    resource_type: objectstorage
+    unit_cost: null # EUR per GB/month (~0.0119); billed by actual usage
+  configuration:
+    location: eu-central # Hetzner Object Storage EU region (nbg1/fsn1)
+    acl: private
+    versioning: false
+    public_access_block: true
+  integration:
+    ansible_collection: amazon.aws
+    ansible_module: amazon.aws.s3_bucket
+    endpoint_url: https://s3.eu-central-1.hetzner.com
