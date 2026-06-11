@@ -78,3 +78,20 @@ module "hearth" {
   labels          = local.common_labels
   workspace_name  = var.workspace_name
 }
+
+# =============================================================================
+# Module — Forge (Wave 2)
+# =============================================================================
+
+module "forge" {
+  source = "./modules/forge"
+
+  depends_on = [hcloud_network_subnet.haven]
+
+  resource_config = local.vm_resources["haven_vm_hetzner_forge"]
+  firewall_config = var.firewalls[local.vm_resources["haven_vm_hetzner_forge"].firewall]
+  ssh_key_id      = hcloud_ssh_key.haven.id
+  network_id      = hcloud_network.haven.id
+  labels          = local.common_labels
+  workspace_name  = var.workspace_name
+}

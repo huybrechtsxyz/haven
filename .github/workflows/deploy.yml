@@ -182,6 +182,13 @@ jobs:
           INFISICAL_ENCRYPTION_KEY: ${{ secrets.INFISICAL_ENCRYPTION_KEY }}
           INFISICAL_POSTGRESQL_PASSWORD: ${{ secrets.INFISICAL_POSTGRESQL_PASSWORD }}
           WUD_SSO_CLIENT_SECRET: ${{ secrets.WUD_SSO_CLIENT_SECRET }}
+          # S3 object storage credentials — per-bucket key pairs
+          S3_STORAGE_ACCESS_KEY: ${{ secrets.S3_STORAGE_ACCESS_KEY }}
+          S3_STORAGE_SECRET_KEY: ${{ secrets.S3_STORAGE_SECRET_KEY }}
+          S3_PHOTOS_ACCESS_KEY: ${{ secrets.S3_PHOTOS_ACCESS_KEY }}
+          S3_PHOTOS_SECRET_KEY: ${{ secrets.S3_PHOTOS_SECRET_KEY }}
+          S3_MEDIA_ACCESS_KEY: ${{ secrets.S3_MEDIA_ACCESS_KEY }}
+          S3_MEDIA_SECRET_KEY: ${{ secrets.S3_MEDIA_SECRET_KEY }}
         run: |
           ARGS="--file $DEPLOYMENT_FILE --force"
           if [ "${{ inputs.dry_run }}" = "true" ]; then

@@ -1,0 +1,85 @@
+---
+# =============================================================================
+# Playbook: forge-s3.yml
+# Creates Hetzner Object Storage S3 buckets for the Haven Forge system.
+#
+# This playbook is copied by strata build into the build output alongside
+# the generated vars file strata_resx_objectstorage.yml. Run it from there,
+# or from deploy/ansible-s3/ against a build output path.
+#
+# Buckets and their configuration are defined in the strata config files
+# under config/forge/s3-*.yaml and emitted by strata build into
+# strata_resx_objectstorage.yml — this playbook does NOT hardcode anything.
+#
+# Prerequisites:
+#   ansible-galaxy collection install -r requirements.yml -p ./collections
+#
+# Run:
+#   ansible-playbook forge-s3.yml \
+#     -e s3_access_key=<access-key-id> \
+#     -e s3_secret_key=<secret-access-key>
+#
+# Idempotent — safe to re-run. Existing buckets are left unchanged.
+# =============================================================================
+
+- name: Forge — create Hetzner Object Storage S3 buckets
+  hosts: local
+  gather_facts: false
+
+  vars_files:
+    - vars/main.yml
+    - strata_resx_objectstorage.yml
+
+  tasks:
+    # =========================================================================
+    # Derive bucket list from strata build output
+    # =========================================================================
+
+    - name: Build bucket list from strata_objectstorage
+      ansible.builtin.set_fact:
+        s3_buckets: "{{ strata_objectstorage | dict2items | map(attribute='value') | list }}"
+
+    - name: Fail if no buckets defined in build output
+      ansible.builtin.fail:
+        msg: >-
+          strata_objectstorage is empty — run 'strata build run' first to
+          generate strata_resx_objectstorage.yml.
+      when: s3_buckets | length == 0
+
+    # =========================================================================
+    # Create S3 buckets
+    # =========================================================================
+
+    - name: Create S3 bucket — {{ item.configuration.bucket_name }}
+      amazon.aws.s3_bucket:
+        name: "{{ item.configuration.bucket_name }}"
+        state: present
+        acl: "{{ item.configuration.acl | default('private') }}"
+        versioning: "{{ item.configuration.versioning | default(false) }}"
+        public_access:
+          block_public_acls: "{{ item.configuration.public_access_block | default(true) }}"
+          block_public_policy: "{{ item.configuration.public_access_block | default(true) }}"
+          ignore_public_acls: "{{ item.configuration.public_access_block | default(true) }}"
+          restrict_public_buckets: "{{ item.configuration.public_access_block | default(true) }}"
+        endpoint_url: "{{ s3_endpoint_url }}"
+        region: "{{ item.configuration.location | default('eu-central') | regex_replace('^eu-central$', 'eu-central-1') }}"
+        aws_access_key: "{{ s3_access_key }}"
+        aws_secret_key: "{{ s3_secret_key }}"
+      loop: "{{ s3_buckets }}"
+      loop_control:
+        label: "{{ item.configuration.bucket_name }}"
+
+    # =========================================================================
+    # Summary
+    # =========================================================================
+
+    - name: Display created buckets
+      ansible.builtin.debug:
+        msg: >-
+          ✅ Bucket ready: {{ item.configuration.bucket_name }}
+          (acl={{ item.configuration.acl | default('private') }},
+          versioning={{ item.configuration.versioning | default(false) }},
+          public_access_block={{ item.configuration.public_access_block | default(true) }})
+      loop: "{{ s3_buckets }}"
+      loop_control:
+        label: "{{ item.configuration.bucket_name }}"

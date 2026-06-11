@@ -1,0 +1,8 @@
+# =============================================================================
+# Non-sensitive configuration variables for forge-s3.yml
+# Sensitive values (s3_access_key, s3_secret_key) are passed via --extra-vars
+# at run time and never committed to the repository.
+# =============================================================================
+
+# Hetzner Object Storage S3-compatible endpoint
+s3_endpoint_url: https://s3.eu-central-1.hetzner.com

@@ -93,3 +93,29 @@ spec:
       store: github
       value: WUD_SSO_CLIENT_SECRET
       description: OIDC client secret for WUD SSO via Authentik
+
+    # S3 object storage credentials — per-bucket key pairs
+    - key: S3_STORAGE_ACCESS_KEY
+      store: github
+      value: S3_STORAGE_ACCESS_KEY
+      description: Access key ID for haven-storage S3 bucket
+    - key: S3_STORAGE_SECRET_KEY
+      store: github
+      value: S3_STORAGE_SECRET_KEY
+      description: Secret access key for haven-storage S3 bucket
+    - key: S3_PHOTOS_ACCESS_KEY
+      store: github
+      value: S3_PHOTOS_ACCESS_KEY
+      description: Access key ID for haven-photos S3 bucket
+    - key: S3_PHOTOS_SECRET_KEY
+      store: github
+      value: S3_PHOTOS_SECRET_KEY
+      description: Secret access key for haven-photos S3 bucket
+    - key: S3_MEDIA_ACCESS_KEY
+      store: github
+      value: S3_MEDIA_ACCESS_KEY
+      description: Access key ID for haven-media S3 bucket
+    - key: S3_MEDIA_SECRET_KEY
+      store: github
+      value: S3_MEDIA_SECRET_KEY
+      description: Secret access key for haven-media S3 bucket

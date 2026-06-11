@@ -111,9 +111,11 @@ spec:
               required: true
               description: "Bucket ACL (private recommended)"
             versioning:
+              pattern: "^(true|false)$"
               required: false
               description: "Enable object versioning (boolean)"
             public_access_block:
+              pattern: "^(true|false)$"
               required: false
               description: "Block all public access (boolean)"
 

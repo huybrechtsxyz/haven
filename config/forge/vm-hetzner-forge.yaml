@@ -1,0 +1,28 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: resource
+meta:
+  name: haven_vm_hetzner_forge
+  annotations:
+    description: Hetzner CPX41 — Forge VPS (k3s single-node cluster)
+  labels:
+    version: "1.0.0"
+  tags: [haven, hetzner, vm, forge, family]
+spec:
+  lifecycle: null
+  properties:
+    provider_type: hetzner
+    resource_type: virtualmachine
+    unit_cost: 25.99 # EUR per month (CPX41)
+  configuration:
+    image: ubuntu-24.04
+    server_type: cpx41
+    location: nbg1
+  storage:
+    install_path: /opt/haven
+    volumes:
+      - name: k3s
+        path: /var/lib/rancher/k3s
+      - name: data
+        path: /opt/haven/var/data
+      - name: media
+        path: /mnt/storagebox # NFS mount — Jellyfin media library from Storage Box

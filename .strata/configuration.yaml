@@ -77,6 +77,32 @@ spec:
           pattern: ^(nbg1|fsn1|hel1|ash|hil)$
           required: true
           description: Datacenter location (nbg1=Nuremberg, fsn1=Falkenstein, hel1=Helsinki)
+    - name: objectstorage
+      category: storage
+      subcategory: objectstorage
+      description: Hetzner Object Storage (S3-compatible)
+      additional_configurations: false
+      configuration:
+        bucket_name:
+          pattern: ^[a-z0-9][a-z0-9\-]{1,62}[a-z0-9]$
+          required: true
+          description: Globally unique bucket name (lowercase, hyphens allowed)
+        location:
+          pattern: ^(eu-central|us-east-1)$
+          required: true
+          description: Object Storage region (eu-central, us-east-1)
+        acl:
+          pattern: ^(private|public-read|public-read-write)$
+          required: true
+          description: Bucket ACL (private recommended)
+        versioning:
+          pattern: ^(true|false)$
+          required: false
+          description: Enable object versioning (boolean)
+        public_access_block:
+          pattern: ^(true|false)$
+          required: false
+          description: Block all public access (boolean)
   additional_topologies: false
   topologies:
   - type: single_node
@@ -91,3 +117,14 @@ spec:
       required: true
       min_count: 1
       max_count: 1
+  - type: s3_buckets
+    description: Hetzner Object Storage buckets managed via amazon.aws Ansible collection
+    additional_components: false
+    components:
+    - role: storage
+      description: S3-compatible object storage bucket
+      uses_module: false
+      is_control: false
+      required: true
+      min_count: 1
+      max_count: null

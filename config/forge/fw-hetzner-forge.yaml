@@ -1,0 +1,80 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: firewall
+meta:
+  name: haven_fw_hetzner_forge
+  annotations:
+    description: Firewall for Forge VPS — public HTTPS only; SSH + k3s API from private network only
+  labels:
+    version: "1.0.0"
+  tags: [haven, firewall, forge, family]
+spec:
+  reset: true
+  defaults:
+    - direction: in
+      permission: deny
+      comment: Deny all incoming traffic by default
+    - direction: out
+      permission: deny
+      comment: Deny all outgoing traffic by default
+  deny:
+  allow:
+    # Essential system services
+    - direction: out
+      proto: udp
+      port: [53]
+      comment: DNS (UDP)
+    - direction: out
+      proto: tcp
+      port: [53]
+      comment: DNS (TCP)
+    - direction: out
+      proto: udp
+      port: [123]
+      comment: NTP
+    - direction: in
+      interface: lo
+      comment: Loopback IN
+    - direction: out
+      interface: lo
+      comment: Loopback OUT
+    # Package management
+    - direction: out
+      proto: tcp
+      port: [80, 443]
+      comment: HTTP/HTTPS (apt, container images, Helm charts)
+    - direction: out
+      proto: tcp
+      port: [11371]
+      comment: GPG keyserver
+    # BorgBackup — Hetzner Storage Box uses SSH on port 23
+    - direction: out
+      proto: tcp
+      port: [23]
+      comment: SSH to Storage Box (BorgBackup + NFS media)
+    # Public web ingress
+    - direction: in
+      proto: tcp
+      port: [80]
+      comment: HTTP (redirect to HTTPS)
+    - direction: in
+      proto: tcp
+      port: [443]
+      comment: HTTPS (Traefik ingress)
+    # SSH — private network only (pipeline opens temporary rule for runner IP)
+    - direction: in
+      proto: tcp
+      port: [22]
+      from: 10.0.0.0/8
+      comment: SSH from private network only
+    # k3s API server — private network only (Argo CD, kubectl from Hearth)
+    - direction: in
+      proto: tcp
+      port: [6443]
+      from: 10.0.0.0/8
+      comment: k3s API server from private network
+    # Flannel VXLAN — only relevant if multi-node added later
+    - direction: in
+      proto: udp
+      port: [8472]
+      from: 10.0.0.0/8
+      comment: Flannel VXLAN (k3s CNI)

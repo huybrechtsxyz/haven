@@ -33,22 +33,27 @@ output "hearth_server_id" {
   value       = module.hearth.server_id
 }
 
-# --- Forge (Wave 2) ---
+# --- Forge ---
 
-# output "forge_public_ip" {
-#   description = "Forge public IPv4"
-#   value       = module.forge.public_ip
-# }
+output "forge_public_ip" {
+  description = "Forge public IPv4"
+  value       = module.forge.public_ip
+}
 
-# output "forge_private_ip" {
-#   description = "Forge private IP on haven network"
-#   value       = module.forge.private_ip
-# }
+output "forge_public_ipv6" {
+  description = "Forge public IPv6"
+  value       = module.forge.public_ipv6
+}
 
-# output "forge_server_id" {
-#   description = "Forge Hetzner server ID"
-#   value       = module.forge.server_id
-# }
+output "forge_private_ip" {
+  description = "Forge private IP on haven network"
+  value       = module.forge.private_ip
+}
+
+output "forge_server_id" {
+  description = "Forge Hetzner server ID"
+  value       = module.forge.server_id
+}
 
 # --- Network ---
 

@@ -49,8 +49,9 @@ graph TB
         S3Archive[Bucket: archive]
     end
 
-    subgraph Storage["💾 Hetzner Storage Box — Germany 🇩🇪"]
-        BorgBackup[BorgBackup<br/>Encrypted Daily Backups]
+    subgraph Storage["💾 Hetzner Storage Box BX11 — Germany 🇩🇪"]
+        BorgBackup[BorgBackup<br/>Encrypted Daily Backups<br/>(Hearth + Forge)]
+        MediaFiles[Jellyfin Media Library<br/>(NFS mount)]
     end
 
     subgraph DNS["🌐 INWX — Germany 🇩🇪"]
@@ -76,10 +77,12 @@ graph TB
     Authentik -.->|OIDC SSO| Apps
     Infisical -.->|ESO token| WorkloadVPS
 
-    %% Backup
+    %% Backup — tier 1: BorgBackup → Storage Box
     CoreVPS -->|BorgBackup daily| Storage
     WorkloadVPS -->|BorgBackup daily| Storage
-    ObjectStorage -->|scheduled replication| kDrive
+    %% Backup — tier 2: Storage Box + S3 → kDrive (daily offsite sync)
+    Storage -->|daily rclone sync| kDrive
+    ObjectStorage -->|daily rclone sync| kDrive
 
     %% IaC
     GitHub -->|GitHub Secrets bootstrap| CoreVPS
@@ -101,9 +104,10 @@ graph TB
 | Contacts           | kSuite Contacts          | Infomaniak (CH 🇨🇭)                                                | CardDAV, vCard import/export, mobile sync                                                                                                                                                  |
 | Files              | kDrive                   | Infomaniak (CH 🇨🇭)                                                | 3–6 TB shared storage, desktop/mobile apps, versioning                                                                                                                                     |
 | Docs               | OnlyOffice (via kDrive)  | Infomaniak (CH 🇨🇭)                                                | Docs/Sheets/Slides in browser                                                                                                                                                              |
-| Photos             | Immich                   | Hetzner VPS (DE 🇩🇪)                                               | Timeline, face recognition, shared albums, mobile auto-upload; originals stored in S3 `photos` bucket on Forge side and replicated to Infomaniak kDrive for cross-provider backup |
-| Media              | S3 bucket `media`        | Forge side (S3 compatible)                                         | Dedicated object storage for app media assets and large binary payloads, independent from cluster node lifecycle |
-| Archive            | S3 bucket `archive`      | Forge side (S3 compatible)                                         | Dedicated object storage for archives, documents, exports, and long-lived artifacts |
+| Photos             | Immich                   | Hetzner VPS (DE 🇩🇪)                                               | Timeline, face recognition, shared albums, mobile auto-upload; originals stored in S3 `photos` bucket — S3 is first-class in Immich, survives cluster rebuild, scales without resizing |
+| Media streaming    | Jellyfin                 | Hetzner CPX41 VPS (DE 🇩🇪)                                         | Open-source Plex alternative; no account required; OIDC via Authentik; library stored on Storage Box (NFS mount) — fixed cost, low latency, sequential reads |
+| Media overflow     | S3 bucket `media`        | Forge side (S3 compatible)                                         | Secondary overflow for large binary assets if Storage Box fills; not primary media path |
+| Archive            | S3 bucket `archive`      | Forge side (S3 compatible)                                         | Documents, exports, cold storage, long-term retention |
 | Passwords          | Vaultwarden              | Hetzner VPS (DE 🇩🇪)                                               | Bitwarden-compatible; same Firefox extension + iPhone app for family                                                                                                                       |
 | Secrets & config   | Infisical                | Hetzner VPS (DE 🇩🇪)                                               | Per-app/env secrets + key-value config; CLI/SDK; replaces App Config/Consul                                                                                                                |
 | Identity (SSO)     | Authentik                | Hetzner VPS (DE 🇩🇪)                                               | OIDC/OAuth2 for all VPS services; 2FA enforcement; user lifecycle                                                                                                                          |
@@ -112,7 +116,7 @@ graph TB
 | IaC — tool         | strata (Python CLI)      | [`huybrechtsxyz/strata`](https://github.com/huybrechtsxyz/strata) | Own Terragrunt alternative; orchestrates OpenTofu + Ansible against `haven` config                                                                                                         |
 | IaC — config       | haven (config repo)      | [`huybrechtsxyz/haven`](https://github.com/huybrechtsxyz/haven)   | All infra + app declarations: OpenTofu .tf, Ansible vars, Docker Compose, Helm values                                                                                                      |
 | Reverse proxy      | Caddy                    | Hetzner VPS (DE 🇩🇪)                                               | Automatic Let's Encrypt TLS, HSTS, subdomain routing                                                                                                                                       |
-| Backups            | Multi-target backups     | Hetzner + Infomaniak                                               | Core/workload system backups via BorgBackup to Storage Box; S3 buckets (`photos`, `media`, `archive`) replicated to dedicated kDrive 3 TB for cross-provider resilience |
+| Backups            | Two-tier backups         | Hetzner + Infomaniak                                               | **Tier 1:** Hearth + Forge system state via BorgBackup → Storage Box BX11 (daily, encrypted). **Tier 2:** Storage Box + S3 buckets (`photos`, `media`, `archive`) synced to dedicated Infomaniak kDrive 3 TB once a day via rclone — offsite cross-provider copy |
 | Monitoring         | Gatus + Healthchecks.io  | Hetzner VPS (DE 🇩🇪) + external                                    | Gatus on VPS: per-service health dashboard; Healthchecks.io (free): BorgBackup dead-man's switch; UptimeRobot: public endpoint availability                                                |
 | DNS registration   | INWX                     | INWX (DE 🇩🇪)                                                      | Domain registration for 4 active domains                                                                                                                                                   |
 | DNS hosting        | INWX built-in NS         | INWX (DE 🇩🇪)                                                      | MX, SPF, DKIM, DMARC, A/CNAME records per domain                                                                                                                                           |
@@ -183,13 +187,28 @@ Two-node architecture: a stable **Core VPS** (never touched once running) and an
 
 ### Data Durability Model
 
-- The Forge cluster is treated as **ephemeral compute**: worst-case cluster loss must not cause data loss.
-- Three dedicated S3-compatible buckets are mandatory:
-  - `photos` for Immich originals and derivatives
-  - `media` for app media and binary assets
-  - `archive` for documents, exports, and long-term retention
-- Bucket data is replicated on schedule to **Infomaniak dedicated kDrive (3 TB)**.
-- This creates provider separation: primary object storage on Forge side, backup copy on Infomaniak.
+Two-tier backup strategy — all data lands on the Storage Box first, then syncs offsite to Infomaniak kDrive:
+
+```
+Tier 1 — Daily BorgBackup (Hetzner-internal, fast)
+  Hearth (Docker state, DB volumes, config)  ──┐
+  Forge  (k3s state, app volumes, config)    ──┤──► Storage Box BX11 (1 TB)
+  Jellyfin media library                     ──┘    (NFS mount, always present)
+
+Tier 2 — Daily offsite sync (rclone, ~03:00 UTC)
+  Storage Box BX11 (all contents)            ──┐
+  S3 haven-photos                            ──┤──► Infomaniak kDrive (3 TB)
+  S3 haven-media                             ──┤    cross-provider, Swiss datacentre
+  S3 haven-archive                           ──┘
+```
+
+- The Forge cluster is treated as **ephemeral compute**: destroying and rebuilding it must not cause data loss.
+- Three dedicated S3-compatible buckets:
+  - `photos` — Immich external library (originals + derivatives); S3 is natively supported by Immich and survives cluster destruction
+  - `media` — overflow for large binary assets if Storage Box capacity is exhausted
+  - `archive` — documents, exports, cold storage, long-term retention
+- Jellyfin media library is stored on the **Hetzner Storage Box (BX11)** via NFS mount — fixed cost, Hetzner-internal low-latency network, no per-GB egress, and already covered by the tier-2 sync
+- Provider separation: primary on Hetzner (Storage Box + S3), offsite copy on Infomaniak (Swiss jurisdiction)
 
 ### Node 1 — Core VPS (Docker Compose) 🛡️
 
@@ -224,8 +243,8 @@ Runs all family apps. Can be destroyed and rebuilt at any time without affecting
 | RAM           | 16 GB                                                                                        |
 | SSD           | 240 GB                                                                                       |
 | Network       | 20 TB/mo included                                                                            |
-| Orchestration | k3s (single-node) + Helm + External Secrets Operator + cert-manager                          |
-| Services      | Immich, Gatus, home-grown apps, future apps                                                  |
+| Orchestration | k3s (single-node) + Helm + External Secrets Operator + cert-manager + Argo CD                |
+| Services      | Immich (photos), Jellyfin (media streaming), Gatus (health), home-grown apps                 |
 | Cost          | ~€26/mo                                                                                      |
 | IaC secrets   | **Infisical token only** — no GitHub Secrets; ESO pulls all secrets at runtime from Core VPS |
 
@@ -237,7 +256,7 @@ Runs all family apps. Can be destroyed and rebuilt at any time without affecting
 
 | Comparison point | Core VPS (Docker Compose)                | Workload VPS (k3s)               |
 | ---------------- | ---------------------------------------- | -------------------------------- |
-| Services         | Caddy, Authentik, Vaultwarden, Infisical | Immich, Gatus, apps              |
+| Services         | Caddy, Authentik, Vaultwarden, Infisical | Immich, Jellyfin, Gatus, apps    |
 | Stability goal   | Never breaks                             | Expendable — rebuild freely      |
 | Secrets source   | GitHub Secrets (bootstrap only) → Infisical | Infisical token only (ESO)    |
 | Upgrade strategy | `docker compose pull && up -d`           | `helm upgrade`, rolling restarts |
@@ -264,12 +283,13 @@ Runs all family apps. Can be destroyed and rebuilt at any time without affecting
 | Caddy             | Auto HTTPS, HSTS, TLS 1.2/1.3 only, HTTP/2                                                                                                                                                                                                            |
 | Authentik         | 2FA enforced (TOTP/WebAuthn), OIDC provider for all services, daily encrypted DB backup                                                                                                                                                                |
 | Vaultwarden       | HTTPS only, OIDC login via Authentik, admin token protected, daily backup                                                                                                                                                                              |
-| Immich            | OIDC login via Authentik, not exposed without auth; originals stored in dedicated `photos` S3 bucket; replicated to Infomaniak kDrive                                                                                                               |
+| Immich            | OIDC login via Authentik, not exposed without auth; originals stored in S3 `photos` bucket (Immich native S3 library support); replicated to Infomaniak kDrive                                                                                     |
+| Jellyfin          | OIDC login via Authentik; library on Storage Box NFS mount (read-only from VPS); no originals on cluster SSD; software transcode only (no GPU)                                                                                                     |
 | Infisical         | Runs on Core VPS; admin UI behind Caddy + Authentik SSO (admin-only); API internal to Core VPS; secrets never in plain env files or git; Workload VPS accesses via ESO token scoped to its own namespace                                               |
 | Container updates | Core VPS: image tags pinned in `haven`; `docker compose pull && up -d`; monthly review. Workload VPS: Helm versions pinned in `haven`; `helm upgrade`; Dependabot on `haven` for digest updates                                                        |
 | IaC secrets       | Core bootstrap: GitHub Secrets (Hetzner API key, SSH key) — one-time only; runtime uses Infisical. Workload VPS: Infisical ESO token only — no other secrets in workload pipelines                                                                     |
 | Monitoring        | Gatus (VPS) for per-service health; Healthchecks.io for BorgBackup dead-man's switch; UptimeRobot for external endpoint pings                                                                                                                          |
-| Backups           | BorgBackup with encryption key stored in Vaultwarden; daily to Storage Box for system state; S3 buckets (`photos`, `media`, `archive`) replicated to Infomaniak kDrive 3 TB; restore tested monthly                                                    |
+| Backups           | Two-tier strategy: **Tier 1** — BorgBackup (Hearth + Forge) daily to Storage Box BX11 (encrypted, repokey-blake2); Jellyfin media on Storage Box (NFS, always present). **Tier 2** — daily rclone sync of entire Storage Box + S3 buckets (`photos`, `media`, `archive`) to Infomaniak kDrive 3 TB (~03:00 UTC). Borg encryption key in Vaultwarden; restore tested monthly |
 
 ---
 

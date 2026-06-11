@@ -29,9 +29,15 @@ spec:
     - "config/env-haven-prd.yaml"
 
   stages:
-    # Stage 1 — provision both VPS nodes and storage box via Terraform
+    # Stage 1 — provision both VPS nodes
     - name: infrastructure
       topology: hetzner_hearth
       scope: all
       depends_on: null
+      on_failure: stop
+    # Stage 2 - provision S3 object storage
+    - name: object_storage
+      topology: s3_storage
+      scope: all
+      depends_on: infrastructure
       on_failure: stop
