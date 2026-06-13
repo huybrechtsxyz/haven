@@ -76,8 +76,8 @@
           - ncdu
           - fail2ban
           - jq
-          - nfs-common      # NFS client for Storage Box media mount
-          - open-iscsi       # required by k3s for persistent volumes
+          - nfs-common # NFS client for Storage Box media mount
+          - open-iscsi # required by k3s for persistent volumes
         state: present
 
     - name: Set timezone to {{ haven_timezone }}

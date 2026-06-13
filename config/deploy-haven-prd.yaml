@@ -35,4 +35,3 @@ spec:
       scope: all
       depends_on: null
       on_failure: stop
-
