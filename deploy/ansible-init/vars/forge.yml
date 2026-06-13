@@ -1,0 +1,24 @@
+# =============================================================================
+# Non-sensitive configuration variables for forge-init.yml
+# Sensitive values (borg_passphrase, storagebox_host, storagebox_password)
+# are passed via --extra-vars or environment variables at run time.
+# =============================================================================
+
+# BorgBackup — Storage Box sub-account name for Forge backups
+# Full SSH target: {{ forge_storagebox_subaccount }}@{{ storagebox_host }}:./forge
+forge_storagebox_subaccount: forge-backup
+
+# Storage Box NFS mount — path exported by the Storage Box.
+# Enable NFS in Hetzner Robot: Robot → Storage Box → Settings → NFS: enabled
+# Format: /homes/<username>  (e.g. /homes/u123456)
+# Override at run time: -e storagebox_nfs_path=/homes/u123456
+storagebox_nfs_path: /homes/STORAGEBOX_USERNAME
+
+# NFS mount options for the Storage Box media volume (/mnt/storagebox)
+storagebox_nfs_opts: "nfsvers=3,uid=0,gid=0,_netdev,noatime,auto"
+
+# Set true only after you have authorised the borg SSH key on the Storage Box.
+# Step 1: run with configure_borg=false (default) — playbook will print the public key.
+# Step 2: add the key to the Storage Box sub-account in Hetzner Robot.
+# Step 3: re-run with -e configure_borg=true -e storagebox_host=<hostname>
+configure_borg: false

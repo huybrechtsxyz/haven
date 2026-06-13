@@ -35,9 +35,4 @@ spec:
       scope: all
       depends_on: null
       on_failure: stop
-    # Stage 2 - provision S3 object storage
-    - name: object_storage
-      topology: s3_storage
-      scope: all
-      depends_on: infrastructure
-      on_failure: stop
+

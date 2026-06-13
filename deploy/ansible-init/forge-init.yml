@@ -1,0 +1,413 @@
+---
+# =============================================================================
+# Playbook: forge-init.yml
+# One-time initialisation of the Forge VPS after terraform provisions it.
+# Idempotent — safe to re-run.
+#
+# SSH CONNECTIVITY NOTE:
+#   The Hetzner Cloud Firewall restricts SSH to the private network (10.0.0.0/8).
+#
+#   Via pipeline (recommended):
+#     The deploy.yml workflow handles this automatically when run_init=true:
+#     it opens a temporary SSH rule scoped to the runner's IP before running
+#     this playbook, and always removes it afterwards (even on failure).
+#
+#   Manually:
+#     a) Temporarily add your public IP to the Hetzner firewall via the console
+#        (Security → Firewalls → haven-platform-fw-forge → Add rule: TCP 22 from <your-ip>)
+#        and remove it after the playbook completes.
+#     b) Run from within the Hetzner private network (e.g. via another Hetzner server).
+#     c) Use Tailscale (future — see hosting-design.md § Future considerations).
+#
+# Install collections first (once):
+#   ansible-galaxy collection install -r requirements.yml -p ./collections
+#
+# Run (two-step — k3s first, then BorgBackup):
+#
+#   Step 1 — full init, borg key generation only (no borg repo init):
+#     ansible-playbook forge-init.yml \
+#       --private-key ~/.ssh/haven_ed25519 \
+#       -e forge_host=<public_ip>
+#
+#   Step 2 — after authorising the borg key on Storage Box in Hetzner Robot:
+#     ansible-playbook forge-init.yml \
+#       --private-key ~/.ssh/haven_ed25519 \
+#       -e forge_host=<public_ip> \
+#       -e configure_borg=true \
+#       -e storagebox_host=<uXXXXXX.your-storagebox.de> \
+#       -e borg_passphrase=<strong-passphrase>
+# =============================================================================
+
+- name: Forge — one-time initialisation
+  hosts: all
+  remote_user: root
+  gather_facts: true
+
+  vars_files:
+    - vars/main.yml
+    - vars/forge.yml
+
+  tasks:
+    # =========================================================================
+    # System baseline
+    # =========================================================================
+
+    - name: Update apt cache and upgrade all packages
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+        autoremove: true
+        cache_valid_time: 0
+
+    - name: Install system tools
+      ansible.builtin.apt:
+        name:
+          - curl
+          - wget
+          - gnupg
+          - ca-certificates
+          - apt-transport-https
+          - lsb-release
+          - unattended-upgrades
+          - apt-listchanges
+          - borgbackup
+          - sshpass
+          - htop
+          - ncdu
+          - fail2ban
+          - jq
+          - nfs-common      # NFS client for Storage Box media mount
+          - open-iscsi       # required by k3s for persistent volumes
+        state: present
+
+    - name: Set timezone to {{ haven_timezone }}
+      community.general.timezone:
+        name: "{{ haven_timezone }}"
+
+    # =========================================================================
+    # Unattended security upgrades
+    # =========================================================================
+
+    - name: Configure unattended-upgrades (security only, no auto-reboot)
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/50unattended-upgrades
+        mode: "0644"
+        content: |
+          Unattended-Upgrade::Allowed-Origins {
+              "${distro_id}:${distro_codename}-security";
+          };
+          Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+          Unattended-Upgrade::MinimalSteps "true";
+          Unattended-Upgrade::Remove-Unused-Dependencies "true";
+          Unattended-Upgrade::Automatic-Reboot "false";
+
+    - name: Enable unattended-upgrades timer
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        mode: "0644"
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+
+    # =========================================================================
+    # k3s
+    # =========================================================================
+
+    - name: Check if k3s is already installed
+      ansible.builtin.stat:
+        path: /usr/local/bin/k3s
+      register: k3s_binary
+
+    - name: Download k3s install script
+      ansible.builtin.get_url:
+        url: https://get.k3s.io
+        dest: /tmp/k3s-install.sh
+        mode: "0755"
+        force: false
+      when: not k3s_binary.stat.exists
+
+    - name: Install k3s (single-node, no traefik — Traefik managed via Helm)
+      ansible.builtin.command:
+        cmd: /tmp/k3s-install.sh
+      environment:
+        INSTALL_K3S_EXEC: "server --disable traefik --write-kubeconfig-mode=644"
+      when: not k3s_binary.stat.exists
+      register: k3s_install
+      changed_when: true
+
+    - name: Wait for k3s node to become Ready
+      ansible.builtin.command:
+        cmd: k3s kubectl get node --no-headers
+      register: k3s_node_status
+      until: "'Ready' in k3s_node_status.stdout"
+      retries: 20
+      delay: 10
+      changed_when: false
+
+    - name: Enable and start k3s
+      ansible.builtin.systemd:
+        name: k3s
+        enabled: true
+        state: started
+
+    # =========================================================================
+    # haven service user
+    # =========================================================================
+
+    - name: Create haven group
+      ansible.builtin.group:
+        name: "{{ haven_group }}"
+        system: true
+
+    - name: Create haven user
+      ansible.builtin.user:
+        name: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        home: "{{ haven_install_path }}"
+        create_home: false
+        system: true
+        shell: /bin/bash
+
+    # =========================================================================
+    # Directory structure
+    # =========================================================================
+
+    - name: Create haven directory tree
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0750"
+      loop:
+        - "{{ haven_install_path }}"
+        - "{{ haven_install_path }}/var/data"
+        - "{{ haven_install_path }}/.ssh"
+
+    - name: Set .ssh permissions
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/.ssh"
+        state: directory
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0700"
+
+    - name: Create NFS mount point for Storage Box media
+      ansible.builtin.file:
+        path: /mnt/storagebox
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    # =========================================================================
+    # Storage Box NFS mount
+    # =========================================================================
+    # Enable NFS access for the Storage Box in Hetzner Robot first:
+    #   Robot → Storage Box → Settings → NFS: enabled
+    # The NFS export path is typically /homes/<username>
+
+    - name: Mount Storage Box via NFS (persistent via fstab)
+      ansible.posix.mount:
+        path: /mnt/storagebox
+        src: "{{ storagebox_host }}:{{ storagebox_nfs_path }}"
+        fstype: nfs
+        opts: "{{ storagebox_nfs_opts }}"
+        state: mounted
+      when: storagebox_host is defined and storagebox_nfs_path is defined
+
+    # =========================================================================
+    # SSH hardening
+    # =========================================================================
+
+    - name: Harden SSH — disable password authentication
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PasswordAuthentication"
+        line: "PasswordAuthentication no"
+      notify: Restart sshd
+
+    - name: Harden SSH — disable empty passwords
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PermitEmptyPasswords"
+        line: "PermitEmptyPasswords no"
+      notify: Restart sshd
+
+    - name: Harden SSH — root key-only (no password login)
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PermitRootLogin"
+        line: "PermitRootLogin prohibit-password"
+      notify: Restart sshd
+
+    # =========================================================================
+    # BorgBackup SSH key
+    # =========================================================================
+    # Step 1: generate the key (always runs).
+    # Step 2: user adds the printed public key to the Storage Box sub-account
+    #         in Hetzner Robot, then re-runs with configure_borg=true.
+
+    - name: Generate BorgBackup SSH key for haven user
+      community.crypto.openssh_keypair:
+        path: "{{ haven_install_path }}/.ssh/borg_ed25519"
+        type: ed25519
+        comment: "haven-borg@forge"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0600"
+      register: borg_key
+
+    - name: Show BorgBackup public key (authorise this on the Storage Box)
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          BorgBackup public key — add to Storage Box sub-account:
+
+          {{ borg_key.public_key }}
+
+          The key will be uploaded automatically if configure_borg=true
+          and storagebox_password is provided. Otherwise, upload manually:
+
+            cat /opt/haven/.ssh/borg_ed25519.pub | \
+              ssh -p23 {{ forge_storagebox_subaccount }}@{{ storagebox_host }} install-ssh-key
+          ============================================================
+      when: storagebox_host is defined and forge_storagebox_subaccount is defined
+
+    # =========================================================================
+    # BorgBackup repository init (Step 2 — only when configure_borg=true)
+    # =========================================================================
+
+    - name: Upload SSH key to Storage Box via install-ssh-key
+      ansible.builtin.shell:
+        cmd: |
+          cat {{ haven_install_path }}/.ssh/borg_ed25519.pub | \
+            sshpass -p "{{ storagebox_password }}" ssh -p 23 \
+            -o StrictHostKeyChecking=no \
+            {{ forge_storagebox_subaccount }}@{{ storagebox_host }} \
+            install-ssh-key
+        executable: /bin/bash
+      when: configure_borg | bool and storagebox_password | default('') | length > 0
+      register: ssh_key_upload
+      changed_when: true
+      failed_when: false
+      no_log: true
+
+    - name: Fail if SSH key upload failed
+      ansible.builtin.fail:
+        msg: |
+          SSH key upload to Storage Box failed (exit code {{ ssh_key_upload.rc }}).
+          Stderr: {{ ssh_key_upload.stderr | default('no output') }}
+          Stdout: {{ ssh_key_upload.stdout | default('no output') }}
+
+          Verify:
+          1. HETZNER_STORAGEBOX_PASSWORD secret is correct
+          2. Sub-account username is correct: {{ forge_storagebox_subaccount }}
+          3. Storage Box hostname is correct: {{ storagebox_host }}
+          4. External reachability is enabled on the Storage Box
+      when: configure_borg | bool and storagebox_password | default('') | length > 0 and ssh_key_upload.rc != 0
+
+    - name: Scan Storage Box host key
+      ansible.builtin.shell:
+        cmd: |
+          if ! grep -q '{{ storagebox_host }}' {{ haven_install_path }}/.ssh/known_hosts 2>/dev/null; then
+            ssh-keyscan -t ed25519 -p 23 {{ storagebox_host }} >> {{ haven_install_path }}/.ssh/known_hosts
+            echo "CHANGED"
+          fi
+          chown {{ haven_user }}:{{ haven_group }} {{ haven_install_path }}/.ssh/known_hosts
+          chmod 644 {{ haven_install_path }}/.ssh/known_hosts
+      register: keyscan_result
+      changed_when: "'CHANGED' in keyscan_result.stdout"
+      when: configure_borg | bool
+
+    - name: Test SSH connectivity to Storage Box (port 23)
+      ansible.builtin.command:
+        cmd: ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o BatchMode=yes {{ forge_storagebox_subaccount }}@{{ storagebox_host }} ls
+      become: true
+      become_user: "{{ haven_user }}"
+      vars:
+        ansible_ssh_pipelining: false
+      register: ssh_test
+      changed_when: false
+      failed_when: false
+      timeout: 30
+      when: configure_borg | bool
+
+    - name: Fail if Storage Box is not reachable
+      ansible.builtin.fail:
+        msg: |
+          Cannot reach Storage Box via SSH on port 23.
+          Host: {{ storagebox_host }}
+          User: {{ forge_storagebox_subaccount }}
+          Return code: {{ ssh_test.rc }}
+          Stderr: {{ ssh_test.stderr | default('') }}
+
+          Checklist:
+          1. Hetzner Robot → Storage Box → External reachability: ENABLED
+          2. Sub-account → SSH: ENABLED
+          3. Sub-account → SSH Keys: public key authorised
+          4. Hetzner Cloud Firewall → Outbound TCP port 23: ALLOWED
+      when: configure_borg | bool and ssh_test.rc == 255
+
+    - name: Check if BorgBackup repo already exists
+      ansible.builtin.command:
+        cmd: borg info "{{ forge_storagebox_subaccount }}@{{ storagebox_host }}:./forge"
+      environment:
+        BORG_PASSPHRASE: "{{ borg_passphrase | default('') }}"
+        BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes -o ConnectTimeout=30"
+      become: true
+      become_user: "{{ haven_user }}"
+      vars:
+        ansible_ssh_pipelining: false
+      register: borg_info
+      changed_when: false
+      failed_when: false
+      when: configure_borg | bool
+
+    - name: Initialise BorgBackup repository (repokey-blake2 encryption)
+      ansible.builtin.command:
+        cmd: borg init --encryption=repokey-blake2 "{{ forge_storagebox_subaccount }}@{{ storagebox_host }}:./forge"
+      environment:
+        BORG_PASSPHRASE: "{{ borg_passphrase | default('') }}"
+        BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes -o ConnectTimeout=30"
+      become: true
+      become_user: "{{ haven_user }}"
+      vars:
+        ansible_ssh_pipelining: false
+      when: configure_borg | bool and borg_info.rc != 0
+
+    - name: Export and display BorgBackup repokey (store this in Vaultwarden!)
+      ansible.builtin.command:
+        cmd: borg key export "{{ forge_storagebox_subaccount }}@{{ storagebox_host }}:./forge" -
+      environment:
+        BORG_PASSPHRASE: "{{ borg_passphrase | default('') }}"
+        BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes -o ConnectTimeout=30"
+      become: true
+      become_user: "{{ haven_user }}"
+      vars:
+        ansible_ssh_pipelining: false
+      register: borg_key_export
+      changed_when: false
+      when: configure_borg | bool
+
+    - name: Show BorgBackup repokey (save this in Vaultwarden immediately)
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          BORG REPOKEY — store this in Vaultwarden under "BorgBackup Forge":
+
+          {{ borg_key_export.stdout }}
+
+          Without this key + the passphrase, backups cannot be restored.
+          ============================================================
+      when: configure_borg | bool
+
+  # ===========================================================================
+  # Handlers
+  # ===========================================================================
+
+  handlers:
+    - name: Restart sshd
+      ansible.builtin.systemd:
+        name: ssh
+        state: restarted

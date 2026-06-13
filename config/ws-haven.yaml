@@ -19,12 +19,6 @@ spec:
         repository: haven
         source_path: deploy/terraform
         target_path: terraform
-    - name: haven_s3
-      provisioner: ansible
-      source:
-        repository: haven
-        source_path: deploy/ansible-s3
-        target_path: ansible_s3
 
   namespaces:
     - name: hearth
@@ -63,15 +57,6 @@ spec:
       components:
         - resource: haven_vm_hetzner_forge
 
-    - name: s3_storage
-      provider: hetzner_dc_eu_de
-      provisioner: haven_s3
-      type: s3_buckets # Hetzner Object Storage via amazon.aws Ansible collection
-      components:
-        - resource: haven_s3_forge_photos
-        - resource: haven_s3_forge_media
-        - resource: haven_s3_forge_archive
-
   resources:
     - name: haven_vm_hetzner_hearth
       file: "config/hearth/vm-hetzner-hearth.yaml"
@@ -86,21 +71,6 @@ spec:
       count: 1
       firewalls:
         - haven_fw_hetzner_forge
-
-    - name: haven_s3_forge_photos
-      file: "config/forge/s3-haven-photos.yaml"
-      role: storage
-      count: 1
-
-    - name: haven_s3_forge_media
-      file: "config/forge/s3-haven-media.yaml"
-      role: storage
-      count: 1
-
-    - name: haven_s3_forge_archive
-      file: "config/forge/s3-haven-archive.yaml"
-      role: storage
-      count: 1
 
   firewalls:
     - name: haven_fw_hetzner_hearth
