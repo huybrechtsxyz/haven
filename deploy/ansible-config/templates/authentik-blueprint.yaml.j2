@@ -14,7 +14,7 @@ metadata:
 entries:
 
   # ---------------------------------------------------------------------------
-  # MFA — require MFA for all users; redirect to enrollment if not configured
+  # MFA — require MFA for all users; behavior for users without MFA is configurable
   # ---------------------------------------------------------------------------
 
   - model: authentik_stages_authenticator_validate.authenticatorvalidatestage
@@ -22,7 +22,7 @@ entries:
     identifiers:
       name: default-authentication-mfa-validation
     attrs:
-      not_configured_action: configure   # redirect to MFA setup on first login
+      not_configured_action: "{{ authentik_mfa_not_configured_action }}"
 
   - model: authentik_flows.flowstagebinding
     state: present
