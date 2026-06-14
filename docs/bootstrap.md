@@ -109,3 +109,29 @@ Success criteria:
 - Normalize secret naming conventions across config, modules, and deployment playbooks.
 - Keep generated .env files minimal and phase-specific.
 - Rotate bootstrap secrets after first stable deployment where practical.
+
+## Bitwarden Usage Model (Your Case)
+
+If you use one machine identity for GitHub Actions, this model is valid:
+
+- Store CI/CD and runtime automation secrets in Bitwarden Secrets Manager.
+- Use one machine account/token for GitHub with least-privilege project access.
+- Keep long-lived human credentials in Bitwarden Password Manager.
+- Keep MFA seed/recovery material in Password Manager (secure notes or equivalent), not in CI secrets.
+
+Recommended split:
+
+- Secrets Manager:
+ 	- Infrastructure and deploy secrets used by automation.
+ 	- App runtime secrets injected into deployments.
+ 	- Short-lived or rotated tokens used by pipelines.
+- Password Manager:
+ 	- Admin console logins (Hetzner, DNS registrar, cloud consoles).
+ 	- Emergency/break-glass credentials.
+ 	- MFA backup codes and recovery information.
+
+Guardrails:
+
+- Do not duplicate the same secret across both products unless it is an intentional break-glass copy.
+- Scope the GitHub machine account to only required projects/environments.
+- Rotate machine access tokens regularly and after any pipeline or runner incident.
