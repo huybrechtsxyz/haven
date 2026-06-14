@@ -11,6 +11,10 @@ haven_install_path: /opt/haven
 # Server timezone
 haven_timezone: Europe/Brussels
 
+# Authentik MFA behavior when a user has no authenticator configured.
+# Valid values: configure, deny, skip
+authentik_mfa_not_configured_action: configure
+
 # =============================================================================
 # BorgBackup — set configure_borg: true after completing hearth-init Step 2
 # (SSH key authorised on Storage Box and repo initialised)

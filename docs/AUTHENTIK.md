@@ -65,10 +65,18 @@ Groups are created automatically by the blueprint. After creating users, assign 
 
 ### Enforce MFA (recommended)
 
-MFA is configured automatically by the blueprint — the `default-authentication-mfa-validation` stage is bound to the login flow at order `30` (after password at `20`) and `not_configured_action` is set to `configure`.
+MFA is configured automatically by the blueprint — the `default-authentication-mfa-validation` stage is bound to the login flow at order `30` (after password at `20`).
+
+The behavior for users without MFA configured is controlled by `authentik_mfa_not_configured_action` in `deploy/ansible-config/vars/main.yml`:
+
+- `configure` (default): redirect user to enroll MFA at login
+- `deny`: block login until MFA is configured by an admin or another flow
+- `skip`: allow login without MFA (not recommended)
+
+In the Authentik UI, these appear as display labels `Configure`, `Deny`, and `Skip`. Use the lowercase key values above in YAML/blueprints.
 
 After deploy, verify: Admin Interface → Flows & Stages → Flows → `default-authentication-flow` → Stage Bindings tab should show `10` identification → `20` password → `30` mfa-validation.
-Also verify: Flows & Stages → Stages → `default-authentication-mfa-validation` shows Not configured action = `Configure`.
+Also verify: Flows & Stages → Stages → `default-authentication-mfa-validation` shows Not configured action = your configured value (`configure`, `deny`, or `skip`).
 
 Users without MFA configured will be prompted to enroll an authenticator on their next login instead of bypassing MFA.
 
