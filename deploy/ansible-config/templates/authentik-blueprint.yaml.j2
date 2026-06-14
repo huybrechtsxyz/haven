@@ -22,7 +22,7 @@ entries:
     identifiers:
       name: default-authentication-mfa-validation
     attrs:
-      not_configured_action: enroll   # redirect to MFA setup on first login
+      not_configured_action: configure   # redirect to MFA setup on first login
 
   - model: authentik_flows.flowstagebinding
     state: present
