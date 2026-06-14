@@ -22,7 +22,7 @@ entries:
     identifiers:
       name: default-authentication-mfa-validation
     attrs:
-      not_configured_action: "{{ authentik_mfa_not_configured_action }}"
+      not_configured_action: {{ authentik_mfa_not_configured_action }}
 
   - model: authentik_flows.flowstagebinding
     state: present
