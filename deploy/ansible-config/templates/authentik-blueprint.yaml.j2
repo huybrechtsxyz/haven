@@ -14,8 +14,15 @@ metadata:
 entries:
 
   # ---------------------------------------------------------------------------
-  # MFA — bind validation stage to login flow (stages exist by default)
+  # MFA — require MFA for all users; redirect to enrollment if not configured
   # ---------------------------------------------------------------------------
+
+  - model: authentik_stages_authenticator_validate.authenticatorvalidatestage
+    state: present
+    identifiers:
+      name: default-authentication-mfa-validation
+    attrs:
+      not_configured_action: enroll   # redirect to MFA setup on first login
 
   - model: authentik_flows.flowstagebinding
     state: present
