@@ -1,0 +1,131 @@
+name: Backup - haven
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Daily at 02:30 UTC (30 min after midnight — offset from cron job to avoid overlap)
+    - cron: "30 2 * * *"
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  backup:
+    name: Backup Hearth
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install Ansible
+        run: pip install ansible-core
+
+      - name: Write deploy SSH private key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_PRIVATE_KEY }}" > ~/.ssh/haven_ed25519
+          chmod 600 ~/.ssh/haven_ed25519
+
+      # ------------------------------------------------------------------
+      # Resolve server IP + open temporary SSH rule on Hetzner firewall
+      # ------------------------------------------------------------------
+
+      - name: Get runner public IP
+        id: runner_ip
+        run: echo "ip=$(curl -sf https://api.ipify.org)" >> $GITHUB_OUTPUT
+
+      - name: Get Hearth server public IP
+        id: hearth_ip
+        env:
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          ip=$(curl -sf \
+            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+            "https://api.hetzner.cloud/v1/servers?name=haven-platform-hearth" \
+            | jq -r '.servers[0].public_net.ipv4.ip')
+          echo "ip=$ip" >> $GITHUB_OUTPUT
+
+      - name: Get Hetzner firewall ID
+        id: fw
+        env:
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          id=$(curl -sf \
+            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+            "https://api.hetzner.cloud/v1/firewalls?name=haven-platform-fw-hearth" \
+            | jq -r '.firewalls[0].id // empty')
+          if [ -z "$id" ]; then
+            echo "ERROR: firewall 'haven-platform-fw-hearth' not found"
+            exit 1
+          fi
+          echo "id=$id" >> $GITHUB_OUTPUT
+
+      - name: Open temporary SSH rule for runner
+        env:
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          FW_ID="${{ steps.fw.outputs.id }}"
+          RUNNER_IP="${{ steps.runner_ip.outputs.ip }}/32"
+          RUN_ID="${{ github.run_id }}"
+          CURRENT=$(curl -sf \
+            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+            "https://api.hetzner.cloud/v1/firewalls/$FW_ID")
+          PAYLOAD=$(echo "$CURRENT" | jq \
+            --arg ip "$RUNNER_IP" \
+            --arg run "$RUN_ID" \
+            '{rules: (.firewall.rules + [{direction:"in",protocol:"tcp",port:"22",source_ips:[$ip],description:("CI backup SSH run-"+$run)}])}')
+          HTTP=$(curl -s -o /tmp/fw_set.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.hetzner.cloud/v1/firewalls/$FW_ID/actions/set_rules" \
+            -d "$PAYLOAD")
+          cat /tmp/fw_set.json
+          [ "$HTTP" -lt 400 ]
+
+      # ------------------------------------------------------------------
+      # Run backup
+      # ------------------------------------------------------------------
+
+      - name: Run BorgBackup on Hearth
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "false"
+        run: |
+          ansible all \
+            -i "${{ steps.hearth_ip.outputs.ip }}," \
+            -u root \
+            --private-key ~/.ssh/haven_ed25519 \
+            -m command \
+            -a "sudo -u haven /opt/haven/scripts/backup.sh"
+
+      # ------------------------------------------------------------------
+      # Always remove the temporary SSH rule
+      # ------------------------------------------------------------------
+
+      - name: Remove temporary SSH rule for runner
+        if: always()
+        env:
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          FW_ID="${{ steps.fw.outputs.id }}"
+          RUN_ID="${{ github.run_id }}"
+          CURRENT=$(curl -sf \
+            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+            "https://api.hetzner.cloud/v1/firewalls/$FW_ID")
+          PAYLOAD=$(echo "$CURRENT" | jq \
+            --arg run "$RUN_ID" \
+            '{rules: [.firewall.rules[] | select(.description != ("CI backup SSH run-"+$run))]}')
+          curl -s -X POST \
+            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.hetzner.cloud/v1/firewalls/$FW_ID/actions/set_rules" \
+            -d "$PAYLOAD" || true

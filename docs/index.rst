@@ -12,7 +12,6 @@ with Infomaniak kSuite for email and files, and INWX for DNS.
    :caption: Getting Started
 
    GUIDE
-   bootstrap
    design
 
 .. toctree::
@@ -23,6 +22,7 @@ with Infomaniak kSuite for email and files, and INWX for DNS.
    inwx
    terraform
    github
+   backup
 
 .. toctree::
    :maxdepth: 2
