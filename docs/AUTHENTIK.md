@@ -1,53 +1,46 @@
-# Authentik Configuration Guide
+# Authentik Setup for Haven
 
-> How to configure Authentik as the SSO identity provider for all haven services.
+[Back to Guide](./GUIDE.md#setup-authentik)
 
-**URL:** <https://auth.huybrechts.xyz>  
-**Version:** 2026.5.2 (pinned in `config/hearth/modules/mod-authentik.yaml`)  
-**Container:** `haven-authentik-server-1` + `haven-authentik-worker-1`
+## Overview
 
----
+This guide covers the setup and configuration of Authentik, the identity provider for the Haven system. Authentik provides centralized authentication and authorization for all services in the stack.
 
-## Initial Setup
+## Service Setup
 
-### 1. Create admin account
+Authentik is configured and deployed in the configurator and deployer playbooks, respectively. After deployment, you need to create user accounts and assign them to groups in the Authentik admin interface to enable SSO access to Vaultwarden and WUD.
 
-1. Navigate to `https://auth.huybrechts.xyz/if/flow/initial-setup/`
-2. Set the admin email (e.g. `admin@huybrechts.xyz`)
-3. Set a strong password — store in Vaultwarden under "Authentik Admin"
-4. Complete the wizard
+The setup is a three-step process:
 
-> ⚠️ This URL only works once. After the first admin is created, it redirects to login.
+1. Deploy the Authentik containers using the hearth deploy workflow.
+2. Configure Authentik resources (groups, policies, OIDC providers) using the blueprint rendered by the config workflow.
+3. Manually create user accounts and assign them to groups in the Authentik admin interface.
 
-### 2. Configure email (SMTP)
-
-Required for password resets and notification emails.
-
-SMTP is configured via environment variables on the server and worker containers (defined in `config/hearth/modules/mod-authentik.yaml`). **No UI configuration needed** — the settings are injected at deploy time.
-
-| Setting  | Value                      | Source                                     |
-| -------- | -------------------------- | ------------------------------------------ |
-| Host     | `smtp.gmail.com`           | Module definition                          |
-| Port     | `587` (STARTTLS)           | Module definition                          |
-| Username | SMTP account               | GitHub Secret: `AUTHENTIK_EMAIL__USERNAME` |
-| Password | App password               | GitHub Secret: `AUTHENTIK_EMAIL__PASSWORD` |
-| From     | `authentik@huybrechts.xyz` | Module definition                          |
-
-After deploying, test delivery from the worker container:
-
-```bash
-docker compose exec worker ak test_email your@email.com
-```
-
-### 3. Branding
+## Branding Authentik
 
 Branding is configured automatically by the blueprint — the `authentik-default` brand domain is updated to `auth.huybrechts.xyz` with title `Haven`.
 
 > ⚠️ One-time prerequisite: rename the existing default brand's domain from `*` to `auth.huybrechts.xyz` in the UI before the first blueprint apply: Admin Interface → System → Brands → edit `authentik-default` → set Domain to `auth.huybrechts.xyz` → Save.
 
----
+## Assign users to groups
 
-## Create Family Users
+The blueprint creates three groups automatically (`admins`, `parents`, `members`) and all SSO applications are gated by group policy. **No user can log in to any SSO application until they are assigned to at least one group.** This includes `akadmin`.
+
+Assign group membership after every new user is created:
+
+| User                              | Group     | Access          |
+| --------------------------------- | --------- | --------------- |
+| `akadmin` (or your admin account) | `admins`  | All apps        |
+| Adult family members              | `parents` | All family apps |
+| Other family members              | `members` | Shared apps     |
+
+**Steps:**
+
+1. Admin Interface → Directory → Groups → select the group
+2. Users tab → Add existing user → select the user → Add
+3. Repeat for each user
+
+> ⚠️ If this step is skipped, SSO logins will fail with **"Permission denied — Policy binding returned result False"**. The user is authenticated but not authorised.
 
 ### Add users
 
@@ -72,13 +65,12 @@ Groups are created automatically by the blueprint. After creating users, assign 
 
 ### Enforce MFA (recommended)
 
-MFA is configured automatically by the blueprint — the `default-authentication-mfa-validation` stage is bound to the login flow at order `30` (after password at `20`).
+MFA is configured automatically by the blueprint — the `default-authentication-mfa-validation` stage is bound to the login flow at order `30` (after password at `20`) and `not_configured_action` is set to `configure`.
 
 After deploy, verify: Admin Interface → Flows & Stages → Flows → `default-authentication-flow` → Stage Bindings tab should show `10` identification → `20` password → `30` mfa-validation.
+Also verify: Flows & Stages → Stages → `default-authentication-mfa-validation` shows Not configured action = `Configure`.
 
-Users without MFA configured will be prompted to set up TOTP on their next login.
-
----
+Users without MFA configured will be prompted to enroll an authenticator on their next login instead of bypassing MFA.
 
 ## Authentication strategy
 
@@ -92,6 +84,84 @@ Users without MFA configured will be prompted to set up TOTP on their next login
 | **Infisical**   | Local credentials + TOTP MFA | Admin tool — must stay accessible if Authentik is down |
 
 > ⚠️ **Do not configure SSO for Portainer or Infisical.** If Authentik fails, you need these tools to diagnose and fix the problem. Keep them on independent local auth.
+
+## About the blueprint
+
+### Automated Setup
+
+Authentik setup is split into two parts:
+
+- The Authentik containers are deployed by the hearth deploy workflow.
+- The SSO configuration inside Authentik is rendered from a blueprint template and applied automatically by the config workflow.
+
+- **Blueprint:** `deploy/ansible-config/templates/authentik-blueprint.yaml.j2`
+- **Config playbook:** `deploy/ansible-config/hearth-config.yml`
+
+### Blueprint Overview
+
+The blueprint is an idempotent Authentik resource definition. Ansible renders it with the client secrets from GitHub Environment Secrets and places the result on the server, where the Authentik worker imports it from `/blueprints/custom/` on startup.
+
+Re-running the config pipeline updates existing Authentik resources in place instead of recreating them.
+
+### What the blueprint creates
+
+The blueprint manages the following Authentik resources for Haven:
+
+| Area          | Resources created or updated                                                                                    | Purpose                                                             |
+| ------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| MFA           | `default-authentication-mfa-validation` stage and a flow binding on `default-authentication-flow` at order `30` | Forces MFA enrollment for users without an authenticator configured |
+| Groups        | `admins`, `parents`, `members`                                                                                  | Defines the family access model                                     |
+| Policies      | `policy-group-admins`, `policy-group-parents`, `policy-group-members`                                           | Restricts application access by group membership                    |
+| Scope mapping | `haven-email-verified`                                                                                          | Forces `email_verified: true` for trusted internal users            |
+| OIDC provider | `Vaultwarden`                                                                                                   | Configures Authentik as the OIDC provider for Vaultwarden           |
+| OIDC provider | `WUD`                                                                                                           | Configures Authentik as the OIDC provider for What's Up Docker      |
+| Applications  | `vaultwarden`, `wud`                                                                                            | Creates launchable applications in the Authentik portal             |
+| Branding      | Brand for `auth.huybrechts.xyz` with title `Haven`                                                              | Applies Haven branding to the Authentik login experience            |
+
+### Access model
+
+The blueprint encodes the intended access rules for Haven:
+
+| Group     | Access                                                 |
+| --------- | ------------------------------------------------------ |
+| `admins`  | All applications, including WUD                        |
+| `parents` | Family applications through the `members` policy chain |
+| `members` | Shared family applications such as Vaultwarden         |
+
+Application bindings currently resolve to:
+
+| Application | Access policy          |
+| ----------- | ---------------------- |
+| Vaultwarden | `policy-group-members` |
+| WUD         | `policy-group-admins`  |
+
+### OIDC details
+
+The rendered blueprint configures two confidential OAuth2/OIDC providers:
+
+- `vaultwarden` with redirect URI `https://vault.huybrechts.xyz/identity/connect/oidc-signin`
+- `wud` with redirect URI `https://wud.huybrechts.xyz/auth/oidc/authentik/cb`
+
+For Vaultwarden, the blueprint also adds a custom scope mapping that forces `email_verified` to `true`. This is needed because Vaultwarden rejects logins when Authentik users were created manually and their email is not marked as verified.
+
+### Deployment flow
+
+The blueprint is applied as part of the configuration phase:
+
+1. GitHub Actions runs the `deploy.yml` workflow with `run_config: true`.
+2. The workflow passes `vaultwarden_sso_client_secret` and `wud_sso_client_secret` to `deploy/ansible-config/hearth-config.yml`.
+3. Ansible renders `authentik-blueprint.yaml.j2` and places it in the mounted Authentik blueprint directory on the server.
+4. The Authentik worker imports the blueprint and creates or updates the configured resources.
+
+### Manual steps that still remain
+
+The blueprint does not create family user accounts. After deployment, you still need to:
+
+1. Create users in the Authentik admin interface.
+2. Assign users to the `admins`, `parents`, or `members` groups.
+3. Verify that the default authentication flow includes the MFA validation stage.
+
+Once those steps are complete, Vaultwarden and WUD authentication is managed by the blueprint and kept in sync by the config pipeline.
 
 ## OIDC Applications: Vaultwarden & WUD
 
@@ -160,219 +230,3 @@ Vaultwarden reads SSO config from environment variables set in `config/hearth/mo
 ### WUD SSO env vars
 
 WUD reads OIDC config from environment variables set in `config/hearth/modules/mod-wud.yaml`. `WUD_AUTH_OIDC_AUTHENTIK_CLIENTID`, `WUD_AUTH_OIDC_AUTHENTIK_CLIENTSECRET`, `WUD_AUTH_OIDC_AUTHENTIK_DISCOVERY`, and `WUD_PUBLIC_URL` are already wired. WUD is configured to auto-redirect to Authentik on login (skipping the WUD internal login page).
-
-### Portainer — local auth + MFA
-
-Portainer uses its own local credentials, **not** Authentik SSO. This is intentional — Portainer must remain accessible even if Authentik is down.
-
-**Enable TOTP MFA (one-time per user):**
-1. Log in at `https://portainer.huybrechts.xyz`
-2. Click your username (top right) → My account
-3. Scroll to **Two-factor authentication** → enable
-4. Scan the QR code with your authenticator app
-5. Store the recovery codes in Vaultwarden under "Portainer MFA recovery"
-
-### Infisical — local auth + MFA
-
-Infisical uses its own local credentials, **not** Authentik SSO. This is intentional — Infisical must remain accessible even if Authentik is down (it stores the secrets needed to fix Authentik).
-
-**Enable TOTP MFA (one-time per user):**
-1. Log in at `https://secrets.huybrechts.xyz`
-2. User menu (top right) → Security
-3. Enable **Two-factor authentication** → TOTP
-4. Scan the QR code with your authenticator app
-5. Store the recovery codes in Vaultwarden under "Infisical MFA recovery"
-
----
-
-## OIDC Application: Immich (future — forge)
-
-### Create OAuth2 provider
-
-1. Admin Interface → Applications → Providers → Create
-2. Type: **OAuth2/OpenID Connect**
-3. Settings:
-   - Name: `Immich`
-   - Authorization flow: `default-provider-authorization-implicit-consent`
-   - Client type: `Confidential`
-   - Client ID: `immich`
-   - Client Secret: generate and copy
-   - Redirect URIs: `https://photos.huybrechts.xyz/auth/login`
-   - Signing Key: select `authentik Self-signed Certificate`
-4. Save
-
-### Create application
-
-1. Admin Interface → Applications → Applications → Create
-2. Settings:
-   - Name: `Immich`
-   - Slug: `immich`
-   - Provider: select the provider created above
-   - Launch URL: `https://photos.huybrechts.xyz`
-3. Save
-
-### Configure Immich
-
-In Immich admin settings:
-
-1. Administration → OAuth Settings → Enable
-2. Settings:
-   - Issuer URL: `https://auth.huybrechts.xyz/application/o/immich/`
-   - Client ID: _(from provider above)_
-   - Client Secret: _(from provider above)_
-   - Scope: `openid email profile`
-   - Auto Register: Enable
-   - Button Text: `Sign in with Haven`
-3. Save
-
-> Store the Client ID and Secret in Vaultwarden under "Haven SSO — Immich".
-
----
-
-## Troubleshooting
-
-### Can't access initial setup URL
-
-The initial setup flow is only available when no admin account exists. If you've already created one, log in normally at `https://auth.huybrechts.xyz/if/flow/default-authentication-flow/`.
-
-### OIDC redirect fails
-
-- Check the Redirect URI matches exactly (trailing slashes matter)
-- Verify the application slug in the Issuer URL matches the slug in Authentik
-- Check Authentik logs: Admin Interface → Events → Logs
-
-### Password reset email not sending
-
-- SMTP is configured via env vars — check `AUTHENTIK_EMAIL__*` secrets are set in GitHub
-- Re-deploy to pick up secret changes: `run_deploy: true`
-- Test from container: `docker compose exec worker ak test_email your@email.com`
-- Check the Tasks page for failed email tasks (Admin → Events → Tasks)
-- Verify the from-address domain has valid SPF/DKIM records
-
-### Token exchange errors
-
-- Ensure Signing Key is configured on the provider
-- Ensure the client secret matches between Authentik and the service
-- Check that the Authorization flow includes consent (use `implicit-consent` for internal apps)
-
-### `insufficient_scope` after successful redirect
-
-**Symptom:** Browser redirects to Authentik, user authenticates, but the service returns `insufficient_scope` or similar token error.
-
-**Cause:** The OAuth2 provider has no `property_mappings` configured, so Authentik issues a token with no scope claims (no `openid`, `email`, or `profile` data).
-
-**Fix:** In the blueprint, add `property_mappings` to every provider:
-
-```yaml
-property_mappings:
-  - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
-  - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
-  - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
-```
-
-Or manually in the UI: Admin → Applications → Providers → \<provider\> → Edit → Advanced Protocol Settings → Scopes → add `openid`, `email`, `profile`.
-
-### `ECONNREFUSED <public-ip>:443` from inside Docker
-
-**Symptom:** A container (e.g. WUD) tries to reach a public hostname like `https://auth.huybrechts.xyz` and gets `ECONNREFUSED` against the server's public IP, even though the service is running.
-
-**Cause:** Docker containers on a bridge network cannot route back to the host via its public IP (hairpin NAT is not enabled). DNS resolves `auth.huybrechts.xyz` → `91.98.78.36`, which is unreachable from inside the `haven_default` network.
-
-**Fix:** Add network aliases to the Caddy service so Docker DNS resolves the public hostnames to Caddy's internal IP instead:
-
-```yaml
-# config/hearth/modules/mod-caddy.yaml — inside the caddy service entry
-configuration:
-  networks:
-    default:
-      aliases:
-        - auth.huybrechts.xyz
-        - wud.huybrechts.xyz
-        - vault.huybrechts.xyz
-        - secrets.huybrechts.xyz
-        - portainer.huybrechts.xyz
-```
-
-This is already configured in `mod-caddy.yaml`. If you add a new public hostname, add it to this list and redeploy.
-
-**Verify aliases are active:**
-```bash
-docker inspect haven-caddy-1 --format '{{json .NetworkSettings.Networks}}'
-# Look for "Aliases" containing your hostnames
-```
-
-### WUD OIDC fails at startup (registers before Authentik is ready)
-
-**Symptom:** WUD logs show OIDC registration error at startup even though Authentik is running.
-
-**Cause:** WUD registers OIDC once at startup. If it starts before Authentik is healthy, registration fails silently and SSO never works for that session.
-
-**Fix:** Two safeguards are in place in the deploy pipeline:
-1. `depends_on: authentik-server: condition: service_healthy` in the generated compose — WUD waits for Authentik's healthcheck before starting.
-2. The deploy playbook explicitly restarts WUD after waiting for Authentik to report `healthy`.
-
-If SSO stops working after a deploy, `docker restart haven-wud-1` while Authentik is healthy will fix it.
-
-### Blueprint not applied / `ls: cannot open directory '/blueprints/custom/': Permission denied`
-
-**Symptom:** Blueprint appears in the Authentik admin UI (System → Blueprints) but fails to apply, or is never discovered by the worker. Container-level inspection shows permission denied on `/blueprints/custom/`.
-
-**Cause:** The blueprint directory on the host (`/opt/haven/etc/authentik/blueprints`) has mode `0750` (owner-only access). The Authentik worker container runs as uid 1000, which is not the `haven` user and has no group membership — so it cannot traverse the directory.
-
-**Fix:** The config playbook (`hearth-config.yml`) sets the directory to `0755`. If it regresses, run `run_config=true` to re-apply. Verify on the host:
-```bash
-stat /opt/haven/etc/authentik/blueprints
-# Should show: Access: (0755/drwxr-xr-x)
-```
-
-And from inside the container:
-```bash
-docker exec haven-authentik-worker-1 ls /blueprints/custom/
-# Should list: haven-apps.yaml
-```
-
-### Vaultwarden SSO: `unexpected issuer URI`
-
-**Symptom:**
-```
-Failed to discover OpenID provider: Validation error: unexpected issuer URI
-`https://auth.huybrechts.xyz/` (expected `https://auth.huybrechts.xyz/application/o/vaultwarden/`)
-```
-
-**Cause:** `issuer_mode: global` was set on the Authentik provider. Authentik returns `https://auth.huybrechts.xyz/` as the issuer, but Vaultwarden's `SSO_AUTHORITY` points to the per-app URL.
-
-**Fix:** The blueprint uses `issuer_mode: per_provider` for Vaultwarden. Re-run `run_config=true` to ensure the blueprint is current, then check in the Authentik UI: Admin → Applications → Providers → Vaultwarden → Advanced Protocol Settings → Issuer mode must be `Per Provider`.
-
-> Do **not** change `SSO_AUTHORITY` to the root URL — Authentik has no global `/.well-known/openid-configuration` endpoint, so discovery will return 404.
-
-### Vaultwarden SSO: `Email is not verified by the SSO provider`
-
-**Symptom:** Login reaches Authentik, user authenticates, but Vaultwarden rejects with "Email is not verified by the SSO provider."
-
-**Cause:** Authentik does not auto-mark emails as verified for manually created accounts. The OIDC token is missing `email_verified: true`.
-
-**Fix (automatic):** The blueprint includes a custom `haven-email-verified` scope mapping that injects `email_verified: True` into every token issued to Vaultwarden. Re-run `run_config=true` to ensure the mapping is applied. Verify in Authentik: Admin → Applications → Providers → Vaultwarden → Advanced Protocol Settings → Scope Mappings — should include `haven-email-verified`.
-
-**Fix (manual, per user):** In the Authentik admin UI: Directory → Users → select user → Edit → check "Email verified" → Save. Do this for all users.
-
----
-
-## Reference
-
-### Authentik URLs
-
-| Endpoint             | URL                                                                                 |
-| -------------------- | ----------------------------------------------------------------------------------- |
-| User dashboard       | `https://auth.huybrechts.xyz/if/user/`                                              |
-| Admin interface      | `https://auth.huybrechts.xyz/if/admin/`                                             |
-| OpenID Configuration | `https://auth.huybrechts.xyz/application/o/<slug>/.well-known/openid-configuration` |
-
-### Provider settings summary
-
-| App         | Client ID     | Redirect URI                                                  | Policy                 |
-| ----------- | ------------- | ------------------------------------------------------------- | ---------------------- |
-| Vaultwarden | `vaultwarden` | `https://vault.huybrechts.xyz/identity/connect/oidc-signin`   | `policy-group-members` |
-| WUD         | `wud`         | `https://wud.huybrechts.xyz/auth/oidc/authentik/cb`           | `policy-group-admins`  |
-| Portainer   | —             | Local auth + TOTP MFA (no SSO — must work if Authentik down)  | —                      |
-| Immich      | `immich`      | `https://photos.huybrechts.xyz/auth/login` _(future — forge)_ | —                      |
-| Infisical   | —             | Local auth + TOTP MFA (no SSO — must work if Authentik down)  | —                      |

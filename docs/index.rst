@@ -9,9 +9,43 @@ with Infomaniak kSuite for email and files, and INWX for DNS.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Design & Migration
+   :caption: Getting Started
 
-   design/index
+   GUIDE
+   design
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Deployment
+
+   hetzner
+   inwx
+   terraform
+   github
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Core Services
+
+   authentik
+   infisical
+   bitwarden
+   portainer
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Collaboration & Email
+
+   infomaniak
+   borgbackup
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Monitoring
+
+   healthchecks-io
+   uptimerobot
+   wud
 
 .. toctree::
    :maxdepth: 1
