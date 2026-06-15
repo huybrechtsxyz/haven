@@ -35,6 +35,14 @@ on:
         description: "Limit to a specific stage (empty = all)"
         type: string
         required: false
+      backup_before_deploy:
+        description: "Run a BorgBackup snapshot before deploying (requires configure_borg=true on server)"
+        type: boolean
+        default: false
+      run_s3:
+        description: "Create/update S3 buckets (photos, media, archive, docs) — idempotent, safe to re-run"
+        type: boolean
+        default: false
       run_init:
         description: "Run one-time server initialisation (hearth-init Ansible playbook)"
         type: boolean
@@ -53,10 +61,6 @@ on:
         default: true
       full_restart:
         description: "Stop ALL containers before deploying (clean restart — use when containers have stale state)"
-        type: boolean
-        default: false
-      backup_before_deploy:
-        description: "Run a BorgBackup snapshot before deploying (requires configure_borg=true on server)"
         type: boolean
         default: false
 
@@ -187,6 +191,29 @@ jobs:
             ARGS="$ARGS --stage ${{ inputs.stage }}"
           fi
           strata deploy run $ARGS
+
+      # ------------------------------------------------------------------
+      # S3 bucket provisioning (run_s3=true)
+      # Creates Hetzner Object Storage buckets — idempotent, no SSH needed.
+      # Requires HETZNER_S3_ACCESS_KEY + HETZNER_S3_SECRET_KEY secrets.
+      # ------------------------------------------------------------------
+
+      - name: Install Ansible + boto3 (S3)
+        if: ${{ inputs.run_s3 == true && inputs.dry_run != true }}
+        run: pip install ansible-core boto3 botocore
+
+      - name: Install Ansible collections (S3)
+        if: ${{ inputs.run_s3 == true && inputs.dry_run != true }}
+        working-directory: deploy/ansible-s3
+        run: ansible-galaxy collection install -r requirements.yml -p ./collections
+
+      - name: Run forge-s3 playbook
+        if: ${{ inputs.run_s3 == true && inputs.dry_run != true }}
+        working-directory: deploy/ansible-s3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.HETZNER_S3_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.HETZNER_S3_SECRET_KEY }}
+        run: ansible-playbook forge-s3.yml
 
       # ------------------------------------------------------------------
       # Init (one-time server initialisation — run_init=true only)

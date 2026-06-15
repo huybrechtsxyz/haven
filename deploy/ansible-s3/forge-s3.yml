@@ -1,0 +1,51 @@
+---
+# =============================================================================
+# Playbook: forge-s3.yml
+# Creates Hetzner Object Storage buckets for Forge workloads.
+# Idempotent — safe to re-run; existing buckets are not modified or deleted.
+#
+# Hetzner Object Storage is S3-compatible but only supports a subset of
+# the S3 API (CreateBucket, ACLs, object operations). Versioning, lifecycle
+# rules, and public access blocks are NOT supported and must not be set.
+#
+# Credentials — set as environment variables before running:
+#   export AWS_ACCESS_KEY_ID=<hetzner-s3-access-key>
+#   export AWS_SECRET_ACCESS_KEY=<hetzner-s3-secret-key>
+#
+# Install collections first (once):
+#   pip install boto3 botocore
+#   ansible-galaxy collection install -r requirements.yml -p ./collections
+#
+# Run:
+#   ansible-playbook forge-s3.yml
+# =============================================================================
+
+- name: Forge — provision S3 buckets
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - vars/main.yml
+
+  tasks:
+    - name: Create S3 bucket — {{ item.name }}
+      amazon.aws.s3_bucket:
+        name: "{{ item.name }}"
+        state: present
+        region: "{{ s3_region }}"
+        endpoint_url: "{{ s3_endpoint_url }}"
+        validate_certs: true
+      loop: "{{ s3_buckets }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Report created buckets
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          S3 buckets provisioned at {{ s3_endpoint_url }}:
+          {% for bucket in s3_buckets %}
+            - {{ bucket.name }}  ({{ bucket.description }})
+          {% endfor %}
+          ============================================================
