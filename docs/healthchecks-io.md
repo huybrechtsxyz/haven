@@ -11,8 +11,17 @@ Healthchecks.io is a service for monitoring the uptime of your services. It allo
 Healthchecks.io monitors **cron job execution** — it alerts when a scheduled task (like BorgBackup) fails to check in on time.
 
 1. Sign up at <https://healthchecks.io>
-2. Create a project named `haven`
-3. Create checks:
+2. Store the Healthchecks.io account credentials securely in Bitwarden, linked to your Healthchecks.io account entry.
+
+--- 
+
+## Create a Project and Checks
+
+1. Create a project named `haven` to group all related checks for the haven platform.
+2. Create a check named `hearth-backup` with the following settings:
+   - Period: 24 hours
+   - Grace: 1 hour
+   - Purpose: Monitor the daily BorgBackup cron job (scheduled at 02:00 UTC)
 
 | Check name      | Period   | Grace  | Purpose                           |
 | --------------- | -------- | ------ | --------------------------------- |
@@ -20,8 +29,9 @@ Healthchecks.io monitors **cron job execution** — it alerts when a scheduled t
 
 4. Copy the ping URL (e.g. `https://hc-ping.com/<uuid>`)
 5. Add it as GitHub Environment Variable `HEALTHCHECK_PING_URL_BACKUP`
-6. Run pipeline with `run_config: true` to deploy the updated backup script
-7. Configure alert integrations (email, Telegram, or Pushover)
-8. Store credentials in Vaultwarden
+6. Add it to Bitwarden, linked to the Healthchecks.io account entry
+7. Run pipeline with `run_config: true` to deploy the updated backup script
+8. Configure alert integrations (email, Telegram, or Pushover)
+9. Store credentials in Vaultwarden
 
 > Healthchecks.io is for **dead man's switch** monitoring — it alerts on *absence* of activity. If the backup cron doesn't ping within 25 hours, you get an alert.

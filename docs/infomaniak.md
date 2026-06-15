@@ -12,15 +12,51 @@ kSuite is the family collaboration platform for haven. It replaces Google Worksp
 
 **Automation:** kSuite has no Terraform/Ansible provider. Configuration is done manually via the Infomaniak Manager.
 
+## Initial Setup
+
+1. Sign up for an Infomaniak account at <https://manager.infomaniak.com>.
+2. Store the Infomaniak account credentials in Bitwarden.
+3. Purchase a kSuite plan with Mail, Files, and Drive services.
+
+
+
+
+
+
+----
+
+
+
+
+
+
 **SMTP:** kSuite provides an SMTP server for sending emails. We will configure Authentik to use this SMTP server for password resets and notifications.
 
-| Setting  | Value                      | Source                                     |
-| -------- | -------------------------- | ------------------------------------------ |
-| Host     | `mail.infomaniak.com`      | Module definition                          |
-| Port     | `587` (STARTTLS)           | Module definition                          |
-| Username | SMTP account               | GitHub Secret: `AUTHENTIK_EMAIL__USERNAME` |
-| Password | App password               | GitHub Secret: `AUTHENTIK_EMAIL__PASSWORD` |
-| From     | `authentik@huybrechts.xyz` | Module definition                          |
+### SMTP Server Configuration for Authentik
+
+To enable Authentik to send password reset and notification emails via kSuite SMTP:
+
+1. **Generate an App Password:**
+   - Log in to [manager.infomaniak.com](https://manager.infomaniak.com)
+   - Navigate to your account → **Security** → **App Passwords**
+   - Create a new app password for "Authentik SMTP"
+   - Copy the generated password immediately (only shown once)
+   - Store it in Bitwarden and as GitHub Secret `AUTHENTIK_EMAIL__PASSWORD`
+
+2. **Determine SMTP username:**
+   - This is your **primary kSuite email address** (e.g., `parent1@huybrechts.xyz`)
+   - Store it as GitHub Secret `AUTHENTIK_EMAIL__USERNAME`
+
+3. **SMTP Server Details:**
+
+| Setting  | Value                      | Notes                          |
+| -------- | -------------------------- | ------------------------------ |
+| Host     | `mail.infomaniak.com`      | SMTP server endpoint           |
+| Port     | `587`                      | STARTTLS (not TLS/SSL)         |
+| Username | Primary kSuite email       | e.g., `parent1@huybrechts.xyz` |
+| Password | App password (from step 1) | Stored as GitHub Secret        |
+| From     | Primary kSuite email       | e.g., `parent1@huybrechts.xyz` |
+| Use TLS  | Yes (STARTTLS)             | Required by Infomaniak         |
 
 ## Organization Account
 

@@ -1,10 +1,22 @@
 # Bitwarden and Vaultwarden for Haven
 
-[Back to Guide](./GUIDE.md#setup-vaultwarden)
+[Back to Guide](./guide.md#required-bitwarden-account)
 
 ## Overview
 
 Bitwarden is a popular open-source password manager. Vaultwarden is a lightweight, self-hosted implementation of the Bitwarden API, written in Rust. It offers similar features and compatibility with Bitwarden clients while being more resource-efficient and easier to deploy on personal servers.
+
+## Bitwarden Setup
+
+1. Sign up for a Bitwarden account at <https://bitwarden.com>.
+2. Setup MFA for your Bitwarden account to secure access.
+  - Use an authenticator app (e.g. Authy, Google Authenticator) for TOTP-based MFA.
+  - Consider using a hardware security key (e.g. YubiKey) for additional security
+4. Create a new vault or folder named "Haven" to store all related credentials and secrets for the haven platform.
+5. Store the critical credentials in Bitwarden (see the Secrets Inventory section in the guide for details on what to store).
+
+
+---
 
 ## Initial Setup
 

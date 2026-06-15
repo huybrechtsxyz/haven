@@ -11,6 +11,13 @@ UptimeRobot is a monitoring service that checks the availability of websites and
 UptimeRobot monitors **service availability** — it alerts when a URL returns errors or becomes unreachable.
 
 1. Sign up at <https://uptimerobot.com>
+2. Store the UptimeRobot account credentials in Bitwarden.
+
+---
+
+## Configuration
+
+
 2. Add HTTPS monitors (keyword check for 200 OK):
 
 | Monitor name | URL                                | Interval | Keyword         |
