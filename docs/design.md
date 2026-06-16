@@ -11,115 +11,9 @@ Simplest day-to-day experience for all 5 family members. A single Swiss vendor (
 
 ---
 
-## Architecture
+## Architecture Reference
 
-```mermaid
-graph TB
-    subgraph Users["👨‍👩‍👧‍👦 Family Members (5)"]
-        direction LR
-        Browser[Web Browser]
-        Mobile[iOS / Android]
-        Desktop[Desktop Apps]
-    end
-
-    subgraph Infomaniak["☁️ Infomaniak kSuite — Switzerland 🇨🇭"]
-        kMail[kMail<br/>Email + Webmail]
-        kDrive[kDrive<br/>File Sync 3-6 TB]
-        OnlyOffice_k[OnlyOffice<br/>Docs / Sheets / Slides]
-        Calendar[Calendar<br/>CalDAV]
-        Contacts[Contacts<br/>CardDAV]
-    end
-
-    subgraph CoreVPS["🛡️ Core VPS — Hetzner CX23 🇩🇪 (Docker Compose)"]
-        Caddy[Caddy<br/>Reverse Proxy + TLS]
-        Authentik[Authentik<br/>Identity / SSO / 2FA]
-        Vaultwarden[Vaultwarden<br/>Password Manager]
-        Infisical[Infisical<br/>Secrets & App Config]
-    end
-
-    subgraph WorkloadVPS["⚙️ Workload VPS — Hetzner CPX41 🇩🇪 (k3s)"]
-        Immich[Immich<br/>Photo Management]
-        Gatus[Gatus<br/>Health Dashboard]
-        Apps[Home-grown Apps<br/>Helm / Docker]
-    end
-
-    subgraph ObjectStorage["🪣 Forge S3 Object Storage — S3 compatible"]
-        S3Photos[Bucket: photos]
-        S3Media[Bucket: media]
-        S3Archive[Bucket: archive]
-    end
-
-    subgraph Storage["💾 Hetzner Storage Box BX11 — Germany 🇩🇪"]
-        BorgBackup[BorgBackup<br/>Encrypted Daily Backups<br/>(Hearth + Forge)]
-        MediaFiles[Jellyfin Media Library<br/>(NFS mount)]
-    end
-
-    subgraph DNS["🌐 INWX — Germany 🇩🇪"]
-        DNSZones[DNS Zones<br/>MX / SPF / DKIM / DMARC<br/>A / CNAME]
-    end
-
-    subgraph GitHub["🐙 GitHub Actions (strata + haven)"]
-        IaC[OpenTofu + Ansible + Helm]
-    end
-
-    %% User connections
-    Users -->|HTTPS| Infomaniak
-    Users -->|HTTPS| Caddy
-    Mobile -->|Auto-upload| Immich
-
-    %% Core VPS
-    Caddy --> Authentik
-    Caddy --> Vaultwarden
-    Caddy --> Infisical
-    Caddy -->|proxy| WorkloadVPS
-    WorkloadVPS -->|read/write| ObjectStorage
-    Authentik -.->|OIDC SSO| Immich
-    Authentik -.->|OIDC SSO| Apps
-    Infisical -.->|ESO token| WorkloadVPS
-
-    %% Backup — tier 1: BorgBackup → Storage Box
-    CoreVPS -->|BorgBackup daily| Storage
-    WorkloadVPS -->|BorgBackup daily| Storage
-    %% Backup — tier 2: Storage Box + S3 → kDrive (daily offsite sync)
-    Storage -->|daily rclone sync| kDrive
-    ObjectStorage -->|daily rclone sync| kDrive
-
-    %% IaC
-    GitHub -->|GitHub Secrets bootstrap| CoreVPS
-    GitHub -->|Infisical token only| WorkloadVPS
-
-    %% DNS
-    DNSZones -->|MX records| Infomaniak
-    DNSZones -->|A/CNAME| Caddy
-```
-
----
-
-## Components
-
-| Layer              | Service                  | Provider                                                          | Purpose                                                                                                                                                                                    |
-| ------------------ | ------------------------ | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Email              | kSuite Mail              | Infomaniak (CH 🇨🇭)                                                | 5 mailboxes, custom domains, alias forwarding, CalDAV/CardDAV, ActiveSync                                                                                                                  |
-| Calendar           | kSuite Calendar          | Infomaniak (CH 🇨🇭)                                                | Shared family calendars, delegation, CalDAV, iOS/Android sync                                                                                                                              |
-| Contacts           | kSuite Contacts          | Infomaniak (CH 🇨🇭)                                                | CardDAV, vCard import/export, mobile sync                                                                                                                                                  |
-| Files              | kDrive                   | Infomaniak (CH 🇨🇭)                                                | 3–6 TB shared storage, desktop/mobile apps, versioning                                                                                                                                     |
-| Docs               | OnlyOffice (via kDrive)  | Infomaniak (CH 🇨🇭)                                                | Docs/Sheets/Slides in browser                                                                                                                                                              |
-| Photos             | Immich                   | Hetzner VPS (DE 🇩🇪)                                               | Timeline, face recognition, shared albums, mobile auto-upload; originals stored in S3 `photos` bucket — S3 is first-class in Immich, survives cluster rebuild, scales without resizing |
-| Media streaming    | Jellyfin                 | Hetzner CPX41 VPS (DE 🇩🇪)                                         | Open-source Plex alternative; no account required; OIDC via Authentik; library stored on Storage Box (NFS mount) — fixed cost, low latency, sequential reads |
-| Media overflow     | S3 bucket `media`        | Forge side (S3 compatible)                                         | Secondary overflow for large binary assets if Storage Box fills; not primary media path |
-| Archive            | S3 bucket `archive`      | Forge side (S3 compatible)                                         | Documents, exports, cold storage, long-term retention |
-| Passwords          | Vaultwarden              | Hetzner VPS (DE 🇩🇪)                                               | Bitwarden-compatible; same Firefox extension + iPhone app for family                                                                                                                       |
-| Secrets & config   | Infisical                | Hetzner VPS (DE 🇩🇪)                                               | Per-app/env secrets + key-value config; CLI/SDK; replaces App Config/Consul                                                                                                                |
-| Identity (SSO)     | Authentik                | Hetzner VPS (DE 🇩🇪)                                               | OIDC/OAuth2 for all VPS services; 2FA enforcement; user lifecycle                                                                                                                          |
-| Compute — Core     | Docker Compose           | Hetzner CX23 VPS (DE 🇩🇪)                                          | Authentik, Vaultwarden, Infisical, Caddy — stable core; bootstrapped via GitHub Secrets; never experiments run here                                                                        |
-| Compute — Workload | k3s (single-node)        | Hetzner CPX41 VPS (DE 🇩🇪)                                         | Immich, Gatus, home-grown apps via Helm; expendable — destroy/rebuild freely; secrets via Infisical token only (External Secrets Operator)                                                 |
-| IaC — tool         | strata (Python CLI)      | [`huybrechtsxyz/strata`](https://github.com/huybrechtsxyz/strata) | Own Terragrunt alternative; orchestrates OpenTofu + Ansible against `haven` config                                                                                                         |
-| IaC — config       | haven (config repo)      | [`huybrechtsxyz/haven`](https://github.com/huybrechtsxyz/haven)   | All infra + app declarations: OpenTofu .tf, Ansible vars, Docker Compose, Helm values                                                                                                      |
-| Reverse proxy      | Caddy                    | Hetzner VPS (DE 🇩🇪)                                               | Automatic Let's Encrypt TLS, HSTS, subdomain routing                                                                                                                                       |
-| Backups            | Two-tier backups         | Hetzner + Infomaniak                                               | **Tier 1:** Hearth + Forge system state via BorgBackup → Storage Box BX11 (daily, encrypted). **Tier 2:** Storage Box + S3 buckets (`photos`, `media`, `archive`) synced to dedicated Infomaniak kDrive 3 TB once a day via rclone — offsite cross-provider copy |
-| Monitoring         | Gatus + Healthchecks.io  | Hetzner VPS (DE 🇩🇪) + external                                    | Gatus on VPS: per-service health dashboard; Healthchecks.io (free): BorgBackup dead-man's switch; UptimeRobot: public endpoint availability                                                |
-| DNS registration   | INWX                     | INWX (DE 🇩🇪)                                                      | Domain registration for 4 active domains                                                                                                                                                   |
-| DNS hosting        | INWX built-in NS         | INWX (DE 🇩🇪)                                                      | MX, SPF, DKIM, DMARC, A/CNAME records per domain                                                                                                                                           |
+For system topology, component inventory, node specifications, and data durability model, see **[architecture.md](architecture.md)**.
 
 ---
 
@@ -129,8 +23,8 @@ graph TB
 primary:   huybrechts.xyz   → kSuite MX → 5 mailboxes (one per family member)
 alias 1:   huybrechts.dev   → kSuite MX → alias → primary mailboxes
 alias 2:   alderwyn.xyz     → kSuite MX → alias → primary mailboxes
+alias 3:   meeus.family     → kSuite MX → alias → primary mailboxes
 static:    madebyjana.be    → Caddy static site (daughter's website)
-decom:     meeus.family     → NOT transferred; let expire at Versio (~€52/yr renewal not worth it)
 decom:     theorderoftheblacklizard.be → NOT transferred; let expire at current registrar
 ```
 
@@ -138,14 +32,15 @@ All remaining domains are registered at **INWX**. `madebyjana.be` is hosted as a
 
 ### INWX domain pricing
 
-| Domain                             | TLD       | Renew       | Notes                          |
-| ---------------------------------- | --------- | ----------- | ------------------------------ |
-| `huybrechts.xyz`                   | `.xyz`    | ~€24/yr     | flat                           |
-| `alderwyn.xyz`                     | `.xyz`    | ~€24/yr     | flat                           |
-| `huybrechts.dev`                   | `.dev`    | ~€18/yr     | HSTS-preloaded — HTTPS mandatory |
-| `madebyjana.be`                    | `.be`     | ~€10/yr     | no WHOIS privacy on .be        |
-| ~~`meeus.family`~~                 | ~~`.family`~~ | —       | decommissioned                 |
-| **Total (steady-state, 4 domains)**|           | **~€76/yr (~€6.30/mo)** |               |
+| Domain                              | TLD       | Renew                     | Notes                            |
+| ----------------------------------- | --------- | ------------------------- | -------------------------------- |
+| `huybrechts.xyz`                    | `.xyz`    | ~€24/yr                   | flat                             |
+| `alderwyn.xyz`                      | `.xyz`    | ~€24/yr                   | flat                             |
+| `huybrechts.dev`                    | `.dev`    | ~€18/yr                   | HSTS-preloaded — HTTPS mandatory |
+| `madebyjana.be`                     | `.be`     | ~€10/yr                   | no WHOIS privacy on .be          |
+| `meeus.family`                      | `.family` | ~€50/yr*                  | *confirm pricing at INWX         |
+| ~~`theorderoftheblacklizard.be`~~   | ~~`.be`~~ | —                         | decommissioned                   |
+| **Total (steady-state, 5 domains)** |           | **~€126/yr (~€10.50/mo)** |                                  |
 
 > **Note on `.dev`:** all `.dev` domains are HSTS-preloaded — HTTPS is mandatory. Caddy handles this automatically via auto-TLS.
 
@@ -153,21 +48,21 @@ All remaining domains are registered at **INWX**. `madebyjana.be` is hosted as a
 
 Five kSuite mailboxes on `huybrechts.xyz`, one per family member. Replace placeholders once provisioned.
 
-| Mailbox                  | Member | Notes                                  |
-| ------------------------ | ------ | -------------------------------------- |
-| `parent1@huybrechts.xyz` | Parent |                                        |
-| `parent2@huybrechts.xyz` | Parent |                                        |
-| `kid1@huybrechts.xyz`    | Child  | server-side copy forwarded to parents  |
-| `kid2@huybrechts.xyz`    | Child  | server-side copy forwarded to parents  |
-| `kid3@huybrechts.xyz`    | Child  | server-side copy forwarded to parents  |
+| Mailbox                  | Member | Notes                                 |
+| ------------------------ | ------ | ------------------------------------- |
+| `parent1@huybrechts.xyz` | Parent |                                       |
+| `parent2@huybrechts.xyz` | Parent |                                       |
+| `kid1@huybrechts.xyz`    | Child  | server-side copy forwarded to parents |
+| `kid2@huybrechts.xyz`    | Child  | server-side copy forwarded to parents |
+| `kid3@huybrechts.xyz`    | Child  | server-side copy forwarded to parents |
 
 ### Distribution groups
 
 Configured in kSuite Mail Service → Distribution lists (no extra mailbox licence needed).
 
-| Group address           | Members         | Purpose                      |
-| ----------------------- | --------------- | ---------------------------- |
-| `family@huybrechts.xyz` | all 5 mailboxes | Family-wide announcements    |
+| Group address           | Members         | Purpose                   |
+| ----------------------- | --------------- | ------------------------- |
+| `family@huybrechts.xyz` | all 5 mailboxes | Family-wide announcements |
 
 ### Parental oversight — child mail forwarding
 
@@ -181,131 +76,44 @@ Each child's mailbox has a server-side **keep copy + forward** rule. Configured 
 
 ---
 
-## VPS Specification
+## Design Decisions & Security Posture
 
-Two-node architecture: a stable **Core VPS** (never touched once running) and an expendable **Workload VPS** (tinker freely).
-
-### Data Durability Model
-
-Two-tier backup strategy — all data lands on the Storage Box first, then syncs offsite to Infomaniak kDrive:
-
-```
-Tier 1 — Daily BorgBackup (Hetzner-internal, fast)
-  Hearth (Docker state, DB volumes, config)  ──┐
-  Forge  (k3s state, app volumes, config)    ──┤──► Storage Box BX11 (1 TB)
-  Jellyfin media library                     ──┘    (NFS mount, always present)
-
-Tier 2 — Daily offsite sync (rclone, ~03:00 UTC)
-  Storage Box BX11 (all contents)            ──┐
-  S3 haven-photos                            ──┤──► Infomaniak kDrive (3 TB)
-  S3 haven-media                             ──┤    cross-provider, Swiss datacentre
-  S3 haven-archive                           ──┘
-```
-
-- The Forge cluster is treated as **ephemeral compute**: destroying and rebuilding it must not cause data loss.
-- Three dedicated S3-compatible buckets:
-  - `photos` — Immich external library (originals + derivatives); S3 is natively supported by Immich and survives cluster destruction
-  - `media` — overflow for large binary assets if Storage Box capacity is exhausted
-  - `archive` — documents, exports, cold storage, long-term retention
-- Jellyfin media library is stored on the **Hetzner Storage Box (BX11)** via NFS mount — fixed cost, Hetzner-internal low-latency network, no per-GB egress, and already covered by the tier-2 sync
-- Provider separation: primary on Hetzner (Storage Box + S3), offsite copy on Infomaniak (Swiss jurisdiction)
-
-### Node 1 — Core VPS (Docker Compose) 🛡️
-
-Runs identity and secrets infrastructure. Boring by design — deployed once, never used as a playground. If this node is healthy, you can always recover everything else.
-
-| Spec          | Value                                                                       |
-| ------------- | --------------------------------------------------------------------------- |
-| Model         | Hetzner CX23                                                                |
-| vCPU          | 2                                                                           |
-| RAM           | 4 GB                                                                        |
-| SSD           | 40 GB                                                                       |
-| Network       | 20 TB/mo included                                                           |
-| Orchestration | Docker Compose + systemd                                                    |
-| Services      | Caddy, Authentik, Vaultwarden, Infisical                                    |
-| Cost          | ~€4/mo                                                                      |
-| IaC secrets   | **GitHub Secrets** (bootstrap only — acceptable; Infisical not running yet) |
-
-**Bootstrap sequence:**
-
-1. GitHub Actions uses GitHub Secrets (Hetzner API key, SSH key) to provision the CX23 via OpenTofu and run Ansible
-2. Ansible deploys Docker Compose stack: Caddy → Infisical → Authentik → Vaultwarden
-3. After Infisical is running, all subsequent deployments pull secrets from Infisical — GitHub Secrets no longer needed at runtime
-
-### Node 2 — Workload VPS (k3s) ⚙️
-
-Runs all family apps. Can be destroyed and rebuilt at any time without affecting core auth or passwords.
-
-| Spec          | Value                                                                                        |
-| ------------- | -------------------------------------------------------------------------------------------- |
-| Model         | Hetzner CPX41                                                                                |
-| vCPU          | 8                                                                                            |
-| RAM           | 16 GB                                                                                        |
-| SSD           | 240 GB                                                                                       |
-| Network       | 20 TB/mo included                                                                            |
-| Orchestration | k3s (single-node) + Helm + External Secrets Operator + cert-manager + Argo CD                |
-| Services      | Immich (photos), Jellyfin (media streaming), Gatus (health), home-grown apps                 |
-| Cost          | ~€26/mo                                                                                      |
-| IaC secrets   | **Infisical token only** — no GitHub Secrets; ESO pulls all secrets at runtime from Core VPS |
-
-**Secrets flow on Workload VPS:**
-
-- GitHub Actions passes a single short-lived Infisical machine token to the k3s deployment
-- External Secrets Operator (ESO) uses that token to fetch all app secrets from Infisical at runtime
-- No secrets stored in git, no GitHub Secrets in workload pipelines, no plain env files
-
-| Comparison point | Core VPS (Docker Compose)                | Workload VPS (k3s)               |
-| ---------------- | ---------------------------------------- | -------------------------------- |
-| Services         | Caddy, Authentik, Vaultwarden, Infisical | Immich, Jellyfin, Gatus, apps    |
-| Stability goal   | Never breaks                             | Expendable — rebuild freely      |
-| Secrets source   | GitHub Secrets (bootstrap only) → Infisical | Infisical token only (ESO)    |
-| Upgrade strategy | `docker compose pull && up -d`           | `helm upgrade`, rolling restarts |
-| Rollback         | Manual (image tags in Compose)           | `helm rollback`                  |
-| Multi-node later | n/a                                      | Easy — add CPX31 worker node     |
-| Cert management  | Caddy auto-TLS                           | cert-manager + Let's Encrypt     |
-| Cost             | ~€4/mo                                   | ~€26/mo                          |
-
-### Infrastructure as Code
-
-| Tool       | Role                                                                                                                                | Repo                                                              |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| **strata** | Python CLI — orchestrates OpenTofu + Ansible + Helm runs against `haven` config                                                     | [`huybrechtsxyz/strata`](https://github.com/huybrechtsxyz/strata) |
-| **haven**  | Config repo — YAML-based declarations of all infra and apps (OpenTofu `.tf`, Ansible vars, Docker Compose files, Helm values)       | [`huybrechtsxyz/haven`](https://github.com/huybrechtsxyz/haven)   |
+See [architecture.md](architecture.md) for infrastructure specifications, data durability model, and component inventory.
 
 ---
 
 ## Security Posture
 
-| Layer             | Controls                                                                                                                                                                                                                                               |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| kSuite            | Swiss nFADP + GDPR, DPA, TLS in transit, encrypted at rest, DKIM/DMARC managed; ⚠ no independent backup of kSuite data — relies on Infomaniak redundancy + 30-day kDrive versioning; consider periodic IMAP/CardDAV/CalDAV export to VPS for cold copy |
-| VPS OS            | UFW (80/443/SSH only), SSH key-only, Fail2Ban, unattended-upgrades                                                                                                                                                                                     |
-| Caddy             | Auto HTTPS, HSTS, TLS 1.2/1.3 only, HTTP/2                                                                                                                                                                                                            |
-| Authentik         | 2FA enforced (TOTP/WebAuthn), OIDC provider for all services, daily encrypted DB backup                                                                                                                                                                |
-| Vaultwarden       | HTTPS only, OIDC login via Authentik, admin token protected, daily backup                                                                                                                                                                              |
-| Immich            | OIDC login via Authentik, not exposed without auth; originals stored in S3 `photos` bucket (Immich native S3 library support); replicated to Infomaniak kDrive                                                                                     |
-| Jellyfin          | OIDC login via Authentik; library on Storage Box NFS mount (read-only from VPS); no originals on cluster SSD; software transcode only (no GPU)                                                                                                     |
-| Infisical         | Runs on Core VPS; admin UI behind Caddy + Authentik SSO (admin-only); API internal to Core VPS; secrets never in plain env files or git; Workload VPS accesses via ESO token scoped to its own namespace                                               |
-| Container updates | Core VPS: image tags pinned in `haven`; `docker compose pull && up -d`; monthly review. Workload VPS: Helm versions pinned in `haven`; `helm upgrade`; Dependabot on `haven` for digest updates                                                        |
-| IaC secrets       | Core bootstrap: GitHub Secrets (Hetzner API key, SSH key) — one-time only; runtime uses Infisical. Workload VPS: Infisical ESO token only — no other secrets in workload pipelines                                                                     |
-| Monitoring        | Gatus (VPS) for per-service health; Healthchecks.io for BorgBackup dead-man's switch; UptimeRobot for external endpoint pings                                                                                                                          |
-| Backups           | Two-tier strategy: **Tier 1** — BorgBackup (Hearth + Forge) daily to Storage Box BX11 (encrypted, repokey-blake2); Jellyfin media on Storage Box (NFS, always present). **Tier 2** — daily rclone sync of entire Storage Box + S3 buckets (`photos`, `media`, `archive`) to Infomaniak kDrive 3 TB (~03:00 UTC). Borg encryption key in Vaultwarden; restore tested monthly |
+| Layer             | Controls                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| kSuite            | Swiss nFADP + GDPR, DPA, TLS in transit, encrypted at rest, DKIM/DMARC managed; ⚠ no independent backup of kSuite data — relies on Infomaniak redundancy + 30-day kDrive versioning; consider periodic IMAP/CardDAV/CalDAV export to VPS for cold copy                                                                                                                                                      |
+| VPS OS            | UFW (80/443/SSH only), SSH key-only, Fail2Ban, unattended-upgrades                                                                                                                                                                                                                                                                                                                                          |
+| Caddy             | Auto HTTPS, HSTS, TLS 1.2/1.3 only, HTTP/2                                                                                                                                                                                                                                                                                                                                                                  |
+| Authentik         | 2FA enforced (TOTP/WebAuthn), OIDC provider for all services, daily encrypted DB backup                                                                                                                                                                                                                                                                                                                     |
+| Vaultwarden       | HTTPS only, OIDC login via Authentik, admin token protected, daily backup                                                                                                                                                                                                                                                                                                                                   |
+| Immich            | OIDC login via Authentik, not exposed without auth; originals stored in S3 `photos` bucket (Immich native S3 library support); replicated to Infomaniak kDrive                                                                                                                                                                                                                                              |
+| Jellyfin          | OIDC login via Authentik; library on Storage Box NFS mount (read-only from VPS); no originals on cluster SSD; software transcode only (no GPU)                                                                                                                                                                                                                                                              |
+| Infisical         | Runs on Core VPS; admin UI behind Caddy + Authentik SSO (admin-only); API internal to Core VPS; secrets never in plain env files or git; Workload VPS accesses via ESO token scoped to its own namespace                                                                                                                                                                                                    |
+| Container updates | Core VPS: image tags pinned in `haven`; `docker compose pull && up -d`; monthly review. Workload VPS: Helm versions pinned in `haven`; `helm upgrade`; Dependabot on `haven` for digest updates                                                                                                                                                                                                             |
+| IaC secrets       | Core bootstrap: GitHub Secrets (Hetzner API key, SSH key) — one-time only; runtime uses Infisical. Workload VPS: Infisical ESO token only — no other secrets in workload pipelines                                                                                                                                                                                                                          |
+| Monitoring        | Gatus (VPS) for per-service health; Healthchecks.io for BorgBackup dead-man's switch; UptimeRobot for external endpoint pings                                                                                                                                                                                                                                                                               |
+| Backups           | Two-tier strategy: **Tier 1** — BorgBackup (Hearth + Forge) daily to Storage Box BX11 (encrypted, repokey-blake2); Jellyfin media on Storage Box (NFS, always present). **Tier 2** — daily rclone sync of entire Storage Box + S3 buckets (`haven-photos`, `haven-media`, `haven-archive`, `haven-docs`) to Infomaniak kDrive 3 TB (~03:00 UTC). Borg encryption key in Vaultwarden; restore tested monthly |
 
 ---
 
 ## Monthly Cost
 
-| Item                                       | Cost           |
-| ------------------------------------------ | -------------- |
-| Infomaniak kSuite (5 users, kDrive 3 TB)   | ~€25-35/mo     |
-| Infomaniak kDrive extra storage (to ~5 TB) | ~€5-10/mo      |
-| Hetzner CX23 VPS (Core — Docker Compose)   | ~€4/mo         |
-| Hetzner CPX41 VPS (Workload — k3s)         | ~€26/mo        |
+| Item                                                 | Cost              |
+| ---------------------------------------------------- | ----------------- |
+| Infomaniak kSuite (5 users, kDrive 3 TB)             | ~€25-35/mo        |
+| Infomaniak kDrive extra storage (to ~5 TB)           | ~€5-10/mo         |
+| Hetzner CX23 VPS (Core — Docker Compose)             | ~€4/mo            |
+| Hetzner CPX41 VPS (Workload — k3s)                   | ~€26/mo           |
 | Forge S3 object storage (`photos`/`media`/`archive`) | TBD (usage-based) |
-| Hetzner BX11 Storage Box (1 TB)            | ~€4/mo         |
-| Domains (4 × INWX, steady-state)           | ~€6.30/mo      |
-| **Total**                                  | **~€64-80/mo** |
-| **Previous spend**                         | ~€58-81/mo     |
+| Hetzner BX11 Storage Box (1 TB)                      | ~€4/mo            |
+| Domains (4 × INWX, steady-state)                     | ~€6.30/mo         |
+| **Total**                                            | **~€64-80/mo**    |
+| **Previous spend**                                   | ~€58-81/mo        |
 
 Savings: Bitwarden Team (~€15/mo) eliminated. 2 extra users added vs current Google Workspace (3 → 5). Swiss privacy. No MTA ops.
 
@@ -350,14 +158,14 @@ ssh-keygen -t ed25519 -C "haven-deploy" -f ~/.ssh/haven_ed25519 -N ""
 
 Go to repo → Settings → Secrets and variables → Actions. Add:
 
-| Secret name             | Value                                               |
-| ----------------------- | --------------------------------------------------- |
-| `TERRAFORM_API_TOKEN`   | Terraform Cloud API token                           |
-| `HETZNER_API_TOKEN`     | Hetzner Cloud project API token                     |
-| `HETZNER_PUBLIC_KEY`    | SSH public key                                      |
-| `HETZNER_PRIVATE_KEY`   | SSH private key                                     |
-| `HETZNER_ROOT_PASSWORD` | Strong random password (initial provisioning only)  |
-| `INFISICAL_ESO_TOKEN`   | Leave empty for Wave 1 (needed for Workload VPS)    |
+| Secret name             | Value                                              |
+| ----------------------- | -------------------------------------------------- |
+| `TERRAFORM_API_TOKEN`   | Terraform Cloud API token                          |
+| `HETZNER_API_TOKEN`     | Hetzner Cloud project API token                    |
+| `HETZNER_PUBLIC_KEY`    | SSH public key                                     |
+| `HETZNER_PRIVATE_KEY`   | SSH private key                                    |
+| `HETZNER_ROOT_PASSWORD` | Strong random password (initial provisioning only) |
+| `INFISICAL_ESO_TOKEN`   | Leave empty for Wave 1 (needed for Workload VPS)   |
 
 ### Step 3 — Configure Terraform Cloud
 
@@ -382,71 +190,110 @@ Go to repo → Settings → Secrets and variables → Actions. Add:
 4. Enable **SSH access** on both sub-accounts
 5. Note hostname (e.g. `uXXXXXX.your-storagebox.de`) — needed for Ansible bootstrap
 
-### Step 5b — Create S3 Buckets (Forge side)
+### Step 5b — Provision S3 Buckets (Ansible)
 
-Create three S3-compatible buckets used by workloads:
+Four S3-compatible buckets are provisioned by the `deploy-infra.yml` workflow via `ansible-s3/forge-s3.yml`:
 
-- `photos`
-- `media`
-- `archive`
+- `haven-photos` — Immich external library
+- `haven-media` — media overflow
+- `haven-archive` — cold storage
+- `haven-docs` — documentation & exports
 
-Then configure scheduled replication/sync from all three buckets to dedicated Infomaniak kDrive 3 TB.
+Credentials: Create one Hetzner Object Storage access key pair in the Cloud Console; both `HETZNER_S3_ACCESS_KEY` and `HETZNER_S3_SECRET_KEY` grant project-wide access to all buckets. Store in GitHub Secrets.
 
-### Step 6 — Initial Deployment (Local)
+After provisioning, configure scheduled replication/sync from all four buckets to dedicated Infomaniak kDrive 3 TB via rclone (future: scripted in Forge config).
 
-```powershell
-cd e:\SourcesXYZ\haven
+### Step 6 — Workflows: Infrastructure, Config, Deploy
 
-# Authenticate Terraform Cloud
-terraform login
+Haven uses **three independent workflows**, each for a specific phase:
 
-# Build strata artifacts
-strata build run -f config/deploy-haven-prd.yaml
+#### Workflow 1: `deploy-infra.yml`
 
-# Copy tfvars
-Copy-Item build\haven_deploy_prd-1.0.0\terraform\*.auto.tfvars.json terraform\
+Provisioning (rare, run once). No SSH needed.
 
-# Export secrets
-$env:TF_VAR_HETZNER_API_TOKEN = "your-token"
-$env:TF_VAR_HETZNER_PUBLIC_KEY = Get-Content ~/.ssh/haven_ed25519.pub
-$env:TF_VAR_HETZNER_PRIVATE_KEY = Get-Content ~/.ssh/haven_ed25519 -Raw
-$env:TF_VAR_HETZNER_ROOT_PASSWORD = "your-password"
-$env:TF_VAR_INFISICAL_ESO_TOKEN = ""
+**Inputs:** `branch`, `dry_run`, `stage`, `run_s3`
 
-# Init + Plan + Apply
-cd terraform
-terraform init
-terraform plan
-terraform apply
+**Steps:** validate → build → terraform (strata) → S3 buckets (Ansible)
+
+**Run in GitHub Actions:**
+
+```
+Actions → "Infra - haven" → Run workflow
+  branch: <your-branch>
+  dry_run: false
+  stage: (leave empty for all)
+  run_s3: true
 ```
 
-After apply, note:
+After apply, note from Terraform output:
 
 - `hearth_public_ip` — point DNS here
-- `hearth_private_ip` — internal network address
+- `forge_public_ip` — internal address for now
+
+#### Workflow 2: `deploy-hearth.yml`
+
+Core VPS (Docker Compose) — init, config, deploy. Runs on-demand.
+
+**Inputs:** `branch`, `dry_run`, `run_init`, `configure_borg`, `run_config`, `run_deploy`, `full_restart`, `backup_before_deploy`
+
+**Run in GitHub Actions (after infra):**
+
+```
+Actions → "Hearth - haven" → Run workflow
+  branch: <your-branch>
+  dry_run: false
+  run_init: true
+  configure_borg: false  (run this once init completes and you authorize the SSH key in Hetzner Robot)
+  run_config: true
+  run_deploy: true
+```
+
+#### Workflow 3: `deploy-forge.yml`
+
+Workload VPS (k3s) — init, config, deploy. Independent of Hearth.
+
+**Inputs:** `branch`, `dry_run`, `run_init`, `configure_borg`, `configure_nfs`, `run_config`, `run_deploy`
+
+**Run in GitHub Actions (after infra + Hearth init):**
+
+```
+Actions → "Forge - haven" → Run workflow
+  branch: <your-branch>
+  dry_run: false
+  run_init: true
+  configure_borg: false  (same SSH key authorization flow as Hearth)
+  configure_nfs: true    (mounts Storage Box NFS at /mnt/storagebox)
+  run_config: true
+  run_deploy: true
+```
+
+**Recommended full deployment order:**
+
+1. `deploy-infra.yml` (terraform + S3) — run once
+2. Configure DNS: A records → `hearth_public_ip`
+3. `deploy-hearth.yml` (init, config, deploy) — run full
+4. Authorize Hearth Borg SSH key in Hetzner Robot
+5. `deploy-hearth.yml` (run_init + configure_borg) — re-run to init BorgBackup
+6. `deploy-forge.yml` (init, config, deploy) — run full
+7. Authorize Forge Borg SSH key in Hetzner Robot (if using Borg on Forge)
+8. `deploy-forge.yml` (run_init + configure_borg) — re-run to init Forge BorgBackup
 
 ### Step 7 — Configure DNS
 
-In INWX, create A records pointing to VPS IP:
+In INWX, create A records pointing to `hearth_public_ip` from Terraform output:
 
-| Record                   | Value                  |
-| ------------------------ | ---------------------- |
-| `huybrechts.xyz`         | `<hearth_public_ip>`   |
-| `auth.huybrechts.xyz`    | `<hearth_public_ip>`   |
-| `vault.huybrechts.xyz`   | `<hearth_public_ip>`   |
-| `secrets.huybrechts.xyz` | `<hearth_public_ip>`   |
-| `status.huybrechts.xyz`  | `<hearth_public_ip>`   |
-| `photos.huybrechts.xyz`  | `<hearth_public_ip>`   |
+| Record                   | Value                |
+| ------------------------ | -------------------- |
+| `huybrechts.xyz`         | `<hearth_public_ip>` |
+| `auth.huybrechts.xyz`    | `<hearth_public_ip>` |
+| `vault.huybrechts.xyz`   | `<hearth_public_ip>` |
+| `secrets.huybrechts.xyz` | `<hearth_public_ip>` |
+| `status.huybrechts.xyz`  | `<hearth_public_ip>` |
+| `photos.huybrechts.xyz`  | `<hearth_public_ip>` |
 
 TTL: 300 initially, increase to 3600 after verification.
 
-### Step 8 — Bootstrap Core VPS (Ansible)
-
-```bash
-ansible-playbook -i <hearth_public_ip>, deploy/ansible/hearth-bootstrap.yml \
-  --private-key ~/.ssh/haven_ed25519 \
-  -u root
-```
+The workflows handle all Ansible provisioning automatically — **no manual playbook runs needed**.
 
 The playbook: installs Docker + Docker Compose, deploys Caddy + Authentik + Vaultwarden + Infisical, configures auto-TLS, sets up BorgBackup to Storage Box.
 
@@ -512,13 +359,13 @@ Once manual deployment works:
 
 ### Accounts & Access
 
-| Service         | URL                              | Username                   | Credentials stored                          |
-| --------------- | -------------------------------- | -------------------------- | ------------------------------------------- |
-| INWX            | <https://www.inwx.de>            | `vincent@huybrechts.xyz`   | Bitwarden (migrate to Vaultwarden → Family) |
-| Hetzner         | <https://console.hetzner.cloud>  | `vincent@huybrechts.xyz`   | Bitwarden (migrate to Vaultwarden → Family) |
-| Infomaniak      | <https://manager.infomaniak.com> | `vincent@huybrechts.xyz`   | Vaultwarden → Family                        |
-| Healthchecks.io | <https://healthchecks.io>        | `vincent@huybrechts.xyz`   | Vaultwarden → Family                        |
-| UptimeRobot     | <https://uptimerobot.com>        | `vincent@huybrechts.xyz`   | Vaultwarden → Family                        |
+| Service         | URL                              | Username                 | Credentials stored                          |
+| --------------- | -------------------------------- | ------------------------ | ------------------------------------------- |
+| INWX            | <https://www.inwx.de>            | `vincent@huybrechts.xyz` | Bitwarden (migrate to Vaultwarden → Family) |
+| Hetzner         | <https://console.hetzner.cloud>  | `vincent@huybrechts.xyz` | Bitwarden (migrate to Vaultwarden → Family) |
+| Infomaniak      | <https://manager.infomaniak.com> | `vincent@huybrechts.xyz` | Vaultwarden → Family                        |
+| Healthchecks.io | <https://healthchecks.io>        | `vincent@huybrechts.xyz` | Vaultwarden → Family                        |
+| UptimeRobot     | <https://uptimerobot.com>        | `vincent@huybrechts.xyz` | Vaultwarden → Family                        |
 
 ---
 
@@ -544,60 +391,60 @@ Once manual deployment works:
 
 **huybrechts.xyz** (was at Versio):
 
-| Type | Name                             | Priority | Value                                                           | TTL   |
-| ---- | -------------------------------- | -------- | --------------------------------------------------------------- | ----- |
-| A    | huybrechts.xyz                   |          | 185.237.97.232                                                  | 3600  |
-| A    | <www.huybrechts.xyz>               |          | 185.237.97.232                                                  | 3600  |
-| MX   | huybrechts.xyz                   | 1        | ASPMX.L.GOOGLE.COM                                              | 14400 |
-| MX   | huybrechts.xyz                   | 5        | ALT1.ASPMX.L.GOOGLE.COM                                        | 14400 |
-| MX   | huybrechts.xyz                   | 5        | ALT2.ASPMX.L.GOOGLE.COM                                        | 14400 |
-| MX   | huybrechts.xyz                   | 10       | ALT3.ASPMX.L.GOOGLE.COM                                        | 14400 |
-| MX   | huybrechts.xyz                   | 10       | ALT4.ASPMX.L.GOOGLE.COM                                        | 14400 |
-| TXT  | huybrechts.xyz                   |          | v=spf1 include:_spf.google.com ~all                            | 14400 |
-| TXT  | google._domainkey.huybrechts.xyz |          | v=DKIM1; k=rsa; p=MIIBIjAN… *(full key in INWX)*              | 14400 |
-| CAA  | huybrechts.xyz                   |          | 128 issue "letsencrypt.org"                                     | 14400 |
+| Type | Name                             | Priority | Value                                            | TTL   |
+| ---- | -------------------------------- | -------- | ------------------------------------------------ | ----- |
+| A    | huybrechts.xyz                   |          | 185.237.97.232                                   | 3600  |
+| A    | <www.huybrechts.xyz>             |          | 185.237.97.232                                   | 3600  |
+| MX   | huybrechts.xyz                   | 1        | ASPMX.L.GOOGLE.COM                               | 14400 |
+| MX   | huybrechts.xyz                   | 5        | ALT1.ASPMX.L.GOOGLE.COM                          | 14400 |
+| MX   | huybrechts.xyz                   | 5        | ALT2.ASPMX.L.GOOGLE.COM                          | 14400 |
+| MX   | huybrechts.xyz                   | 10       | ALT3.ASPMX.L.GOOGLE.COM                          | 14400 |
+| MX   | huybrechts.xyz                   | 10       | ALT4.ASPMX.L.GOOGLE.COM                          | 14400 |
+| TXT  | huybrechts.xyz                   |          | v=spf1 include:_spf.google.com ~all              | 14400 |
+| TXT  | google._domainkey.huybrechts.xyz |          | v=DKIM1; k=rsa; p=MIIBIjAN… *(full key in INWX)* | 14400 |
+| CAA  | huybrechts.xyz                   |          | 128 issue "letsencrypt.org"                      | 14400 |
 
 **huybrechts.dev** (was at Versio):
 
-| Type | Name              | Priority | Value                                  | TTL   |
-| ---- | ----------------- | -------- | -------------------------------------- | ----- |
-| A    | huybrechts.dev    |          | 185.47.174.65                          | 3600  |
-| MX   | huybrechts.dev    | 1        | ASPMX.L.GOOGLE.COM                    | 14400 |
-| MX   | huybrechts.dev    | 5        | ALT1.ASPMX.L.GOOGLE.COM               | 14400 |
-| MX   | huybrechts.dev    | 5        | ALT2.ASPMX.L.GOOGLE.COM               | 14400 |
-| MX   | huybrechts.dev    | 10       | ALT3.ASPMX.L.GOOGLE.COM               | 14400 |
-| MX   | huybrechts.dev    | 10       | ALT4.ASPMX.L.GOOGLE.COM               | 14400 |
-| TXT  | huybrechts.dev    |          | v=spf1 a mx ip4:185.182.56.120 …      | 14400 |
-| TXT  | huybrechts.dev    |          | google-site-verification=bTxhh5aX4…   | 14400 |
-| CAA  | huybrechts.dev    |          | 0 issue "letsencrypt.org"              | 3600  |
+| Type | Name           | Priority | Value                               | TTL   |
+| ---- | -------------- | -------- | ----------------------------------- | ----- |
+| A    | huybrechts.dev |          | 185.47.174.65                       | 3600  |
+| MX   | huybrechts.dev | 1        | ASPMX.L.GOOGLE.COM                  | 14400 |
+| MX   | huybrechts.dev | 5        | ALT1.ASPMX.L.GOOGLE.COM             | 14400 |
+| MX   | huybrechts.dev | 5        | ALT2.ASPMX.L.GOOGLE.COM             | 14400 |
+| MX   | huybrechts.dev | 10       | ALT3.ASPMX.L.GOOGLE.COM             | 14400 |
+| MX   | huybrechts.dev | 10       | ALT4.ASPMX.L.GOOGLE.COM             | 14400 |
+| TXT  | huybrechts.dev |          | v=spf1 a mx ip4:185.182.56.120 …    | 14400 |
+| TXT  | huybrechts.dev |          | google-site-verification=bTxhh5aX4… | 14400 |
+| CAA  | huybrechts.dev |          | 0 issue "letsencrypt.org"           | 3600  |
 
 #### Transfer steps
 
-| #     | Task                                                                     | Result / Notes                                                                                                                          | Done |
-| ----- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1     | Unlock `huybrechts.xyz` at Versio                                        | ✓ 2026-05-27                                                                                                                            | [x]  |
-| 2     | Unlock `huybrechts.dev` at Versio                                        | ✓ 2026-05-27                                                                                                                            | [x]  |
-| ~~3~~ | ~~Unlock `meeus.family` at Versio~~                                      | ✗ decommissioned                                                                                                                        | —    |
-| 4     | Contact ClouDNS — unlock `alderwyn.xyz` + `madebyjana.be`, get EPP codes | ✓ 2026-05-27 — tickets submitted                                                                                                        | [x]  |
-| 5     | Request EPP code for `huybrechts.xyz` at Versio                          | ✓ 2026-05-27                                                                                                                            | [x]  |
-| 6     | Request EPP code for `huybrechts.dev` at Versio                          | ✓ 2026-05-27                                                                                                                            | [x]  |
-| 7     | Receive EPP codes from ClouDNS                                           | `alderwyn.xyz` ✓ · `madebyjana.be` ✓ (.be uses DNS.be email confirmation, no EPP)                                                      | [x]  |
-| 8     | Initiate transfers at INWX                                               | All 4 started 2026-05-27                                                                                                                | [x]  |
-| 9     | Approve confirmation emails                                              | ✓ 2026-06-01                                                                                                                            | [x]  |
-| 10    | Confirm all 4 domains in INWX panel                                      | ✓ 2026-06-02 — NS switched to `ns1/ns2/ns3.inwx.de`                                                                                    | [x]  |
+| #     | Task                                                                     | Result / Notes                                                                                                                | Done |
+| ----- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1     | Unlock `huybrechts.xyz` at Versio                                        | ✓ 2026-05-27                                                                                                                  | [x]  |
+| 2     | Unlock `huybrechts.dev` at Versio                                        | ✓ 2026-05-27                                                                                                                  | [x]  |
+| ~~3~~ | ~~Unlock `meeus.family` at Versio~~                                      | ✗ decommissioned                                                                                                              | —    |
+| 4     | Contact ClouDNS — unlock `alderwyn.xyz` + `madebyjana.be`, get EPP codes | ✓ 2026-05-27 — tickets submitted                                                                                              | [x]  |
+| 5     | Request EPP code for `huybrechts.xyz` at Versio                          | ✓ 2026-05-27                                                                                                                  | [x]  |
+| 6     | Request EPP code for `huybrechts.dev` at Versio                          | ✓ 2026-05-27                                                                                                                  | [x]  |
+| 7     | Receive EPP codes from ClouDNS                                           | `alderwyn.xyz` ✓ · `madebyjana.be` ✓ (.be uses DNS.be email confirmation, no EPP)                                             | [x]  |
+| 8     | Initiate transfers at INWX                                               | All 4 started 2026-05-27                                                                                                      | [x]  |
+| 9     | Approve confirmation emails                                              | ✓ 2026-06-01                                                                                                                  | [x]  |
+| 10    | Confirm all 4 domains in INWX panel                                      | ✓ 2026-06-02 — NS switched to `ns1/ns2/ns3.inwx.de`                                                                           | [x]  |
 | 11    | Recreate DNS records at INWX identically                                 | ✓ 2026-06-02 — MX/A/TXT/DKIM/CAA all added; DNSSEC not configured; transient validation error during NS propagation, resolved | [x]  |
-| 12    | Enable WHOIS privacy                                                     | `alderwyn.xyz` ✓ · `huybrechts.xyz` ✓ · `huybrechts.dev` ✓ · `.be` does not support WHOIS privacy                                     | [x]  |
-| 13    | Send test email — verify mail still works                                | ✓ 2026-06-02 — test email received from work address                                                                                    | [x]  |
+| 12    | Enable WHOIS privacy                                                     | `alderwyn.xyz` ✓ · `huybrechts.xyz` ✓ · `huybrechts.dev` ✓ · `.be` does not support WHOIS privacy                             | [x]  |
+| 13    | Send test email — verify mail still works                                | ✓ 2026-06-02 — test email received from work address                                                                          | [x]  |
 
 #### Domain expiry dates after transfer
 
-| Domain             | Expiry at INWX                               |
-| ------------------ | -------------------------------------------- |
-| `huybrechts.xyz`   | 2027-10-04                                   |
-| `huybrechts.dev`   | *(fill in)*                                  |
-| `alderwyn.xyz`     | *(fill in from INWX panel)*                  |
-| `madebyjana.be`    | *(fill in)*                                  |
-| ~~`meeus.family`~~ | ✗ decommissioned — not transferred           |
+| Domain             | Expiry at INWX                     |
+| ------------------ | ---------------------------------- |
+| `huybrechts.xyz`   | 2027-10-04                         |
+| `huybrechts.dev`   | *(fill in)*                        |
+| `alderwyn.xyz`     | *(fill in from INWX panel)*        |
+| `madebyjana.be`    | *(fill in)*                        |
+| ~~`meeus.family`~~ | ✗ decommissioned — not transferred |
 
 ---
 
@@ -607,17 +454,17 @@ Once manual deployment works:
 
 #### Steps
 
-| #   | Task                                        | Result / Notes               | Done |
-| --- | ------------------------------------------- | ---------------------------- | ---- |
-| 1   | Create Hetzner project `huybrechts-family`  |                              | [ ]  |
-| 2   | Provision CX23 VPS (Core)                   | Region: ___________          | [ ]  |
-| 3   | Provision BX11 Storage Box                  | Region: ___________          | [ ]  |
-| 4   | Add SSH public key to VPS                   | Key fingerprint: ___________ | [ ]  |
-| 5   | Create S3 buckets `photos`, `media`, `archive` | Provider/project: ________ | [ ]  |
-| 6   | Configure replication S3 → Infomaniak kDrive | Job/tool: ___________      | [ ]  |
-| 7   | Run `strata` bootstrap                      | Completed: ___________       | [ ]  |
-| 8   | Deploy Caddy                                |                              | [ ]  |
-| 9   | Verify Caddy HTTPS on VPS IP                |                              | [ ]  |
+| #   | Task                                           | Result / Notes               | Done |
+| --- | ---------------------------------------------- | ---------------------------- | ---- |
+| 1   | Create Hetzner project `huybrechts-family`     |                              | [ ]  |
+| 2   | Provision CX23 VPS (Core)                      | Region: ___________          | [ ]  |
+| 3   | Provision BX11 Storage Box                     | Region: ___________          | [ ]  |
+| 4   | Add SSH public key to VPS                      | Key fingerprint: ___________ | [ ]  |
+| 5   | Create S3 buckets `photos`, `media`, `archive` | Provider/project: ________   | [ ]  |
+| 6   | Configure replication S3 → Infomaniak kDrive   | Job/tool: ___________        | [ ]  |
+| 7   | Run `strata` bootstrap                         | Completed: ___________       | [ ]  |
+| 8   | Deploy Caddy                                   |                              | [ ]  |
+| 9   | Verify Caddy HTTPS on VPS IP                   |                              | [ ]  |
 
 #### Server details (fill in)
 
@@ -702,15 +549,15 @@ SSH key:          ~/.ssh/___________
 **Status:** 🔴 Not started  
 **URL:** <https://photos.huybrechts.xyz>
 
-| #   | Task                                                           | Result / Notes               | Done |
-| --- | -------------------------------------------------------------- | ---------------------------- | ---- |
-| 1   | Deploy Immich via Docker Compose                               |                              | [ ]  |
-| 2   | Configure OIDC login via Authentik                             |                              | [ ]  |
-| 3   | Export Google Photos via Takeout (original quality, all users) |                              | [ ]  |
-| 4   | Upload photo library to Immich                                 | Photos imported: ___________ | [ ]  |
-| 5   | Verify albums, dates, metadata preserved                       |                              | [ ]  |
-| 6   | Install Immich mobile app on family phones (enable auto-upload)|                              | [ ]  |
-| 7   | Confirm face recognition indexing completes                    |                              | [ ]  |
+| #   | Task                                                            | Result / Notes               | Done |
+| --- | --------------------------------------------------------------- | ---------------------------- | ---- |
+| 1   | Deploy Immich via Docker Compose                                |                              | [ ]  |
+| 2   | Configure OIDC login via Authentik                              |                              | [ ]  |
+| 3   | Export Google Photos via Takeout (original quality, all users)  |                              | [ ]  |
+| 4   | Upload photo library to Immich                                  | Photos imported: ___________ | [ ]  |
+| 5   | Verify albums, dates, metadata preserved                        |                              | [ ]  |
+| 6   | Install Immich mobile app on family phones (enable auto-upload) |                              | [ ]  |
+| 7   | Confirm face recognition indexing completes                     |                              | [ ]  |
 
 ---
 
@@ -718,15 +565,15 @@ SSH key:          ~/.ssh/___________
 
 **Status:** 🔴 Not started
 
-| #   | Task                                                             | Result / Notes              | Done |
-| --- | ---------------------------------------------------------------- | --------------------------- | ---- |
-| 1   | Configure BorgBackup cron (daily → Storage Box)                  | Encryption key in Vaultwarden | [ ] |
-| 2   | Configure scheduled S3 replication (`photos`/`media`/`archive` → kDrive) | Tool/job: ___________   | [ ]  |
-| 3   | Test full restore from BorgBackup                                |                              | [ ]  |
-| 4   | Test restore from kDrive copy back into S3                       |                              | [ ]  |
-| 5   | Deploy Gatus health checks (per-service endpoints)               |                              | [ ]  |
-| 6   | Register Healthchecks.io dead-man's switch (backup alert)        |                              | [ ]  |
-| 7   | Set up UptimeRobot for public endpoint monitoring                 |                              | [ ]  |
+| #   | Task                                                                     | Result / Notes                | Done |
+| --- | ------------------------------------------------------------------------ | ----------------------------- | ---- |
+| 1   | Configure BorgBackup cron (daily → Storage Box)                          | Encryption key in Vaultwarden | [ ]  |
+| 2   | Configure scheduled S3 replication (`photos`/`media`/`archive` → kDrive) | Tool/job: ___________         | [ ]  |
+| 3   | Test full restore from BorgBackup                                        |                               | [ ]  |
+| 4   | Test restore from kDrive copy back into S3                               |                               | [ ]  |
+| 5   | Deploy Gatus health checks (per-service endpoints)                       |                               | [ ]  |
+| 6   | Register Healthchecks.io dead-man's switch (backup alert)                |                               | [ ]  |
+| 7   | Set up UptimeRobot for public endpoint monitoring                        |                               | [ ]  |
 
 ---
 
@@ -734,28 +581,28 @@ SSH key:          ~/.ssh/___________
 
 > Only after all VPS services stable for 2+ weeks.
 
-| #   | Task                                          | Result / Notes    | Done |
-| --- | --------------------------------------------- | ----------------- | ---- |
-| 1   | Verify no traffic/services still on Kamatera  |                   | [ ]  |
-| 2   | Final backup of Kamatera data                 |                   | [ ]  |
-| 3   | Decommission Kamatera VPS                     | Cancelled: _______ | [ ]  |
-| 4   | Cancel Bitwarden Team subscription            | Cancelled: _______ | [ ]  |
+| #   | Task                                         | Result / Notes     | Done |
+| --- | -------------------------------------------- | ------------------ | ---- |
+| 1   | Verify no traffic/services still on Kamatera |                    | [ ]  |
+| 2   | Final backup of Kamatera data                |                    | [ ]  |
+| 3   | Decommission Kamatera VPS                    | Cancelled: _______ | [ ]  |
+| 4   | Cancel Bitwarden Team subscription           | Cancelled: _______ | [ ]  |
 
 #### Wave 1 cost impact
 
-| Item removed        | Monthly saving |
-| ------------------- | -------------- |
-| Bitwarden Team      | ~€15/mo        |
-| Kamatera VPS        | ~€20-40/mo     |
-| **Total saving**    | **~€35-55/mo** |
+| Item removed     | Monthly saving |
+| ---------------- | -------------- |
+| Bitwarden Team   | ~€15/mo        |
+| Kamatera VPS     | ~€20-40/mo     |
+| **Total saving** | **~€35-55/mo** |
 
-| Item added              | Monthly cost |
-| ----------------------- | ------------ |
-| Hetzner CX23 VPS        | ~€4/mo       |
-| Forge S3 object storage | TBD          |
-| Hetzner BX11 Storage Box| ~€4/mo       |
-| Domains (4 × INWX)      | ~€6.30/mo    |
-| **Total new cost**      | **~€14/mo + S3 usage**  |
+| Item added               | Monthly cost           |
+| ------------------------ | ---------------------- |
+| Hetzner CX23 VPS         | ~€4/mo                 |
+| Forge S3 object storage  | TBD                    |
+| Hetzner BX11 Storage Box | ~€4/mo                 |
+| Domains (4 × INWX)       | ~€6.30/mo              |
+| **Total new cost**       | **~€14/mo + S3 usage** |
 
 > Google Workspace continues at ~€18/mo during Wave 1. Family experiences no disruption.
 
@@ -776,33 +623,33 @@ SSH key:          ~/.ssh/___________
 
 ### Phase 2.1 — Preparation & exports
 
-| #   | Task                                              | Notes                                       | Done |
-| --- | ------------------------------------------------- | ------------------------------------------- | ---- |
-| 1   | Create Infomaniak account (admin)                 |                                             | [ ]  |
-| 2   | Export Gmail (all 3 users) — MBOX via Takeout     |                                             | [ ]  |
-| 3   | Export Google Contacts (all 3 users) — vCard .vcf |                                             | [ ]  |
-| 4   | Export Google Calendar (all 3 users) — ICS .ics   |                                             | [ ]  |
-| 5   | Export Google Drive (all 3 users) — Takeout/rclone|                                             | [ ]  |
-| 6   | Validate MBOX files (spot-check in Thunderbird)   | ✓                                           | [ ]  |
-| 7   | Confirm vCard/ICS open correctly                  | ✓                                           | [ ]  |
-| 8   | Confirm Drive export complete                     | ✓                                           | [ ]  |
+| #   | Task                                               | Notes | Done |
+| --- | -------------------------------------------------- | ----- | ---- |
+| 1   | Create Infomaniak account (admin)                  |       | [ ]  |
+| 2   | Export Gmail (all 3 users) — MBOX via Takeout      |       | [ ]  |
+| 3   | Export Google Contacts (all 3 users) — vCard .vcf  |       | [ ]  |
+| 4   | Export Google Calendar (all 3 users) — ICS .ics    |       | [ ]  |
+| 5   | Export Google Drive (all 3 users) — Takeout/rclone |       | [ ]  |
+| 6   | Validate MBOX files (spot-check in Thunderbird)    | ✓     | [ ]  |
+| 7   | Confirm vCard/ICS open correctly                   | ✓     | [ ]  |
+| 8   | Confirm Drive export complete                      | ✓     | [ ]  |
 
 ### Phase 2.2 — Provision kSuite
 
 **Status:** 🔴 Not started
 
-| #     | Task                                                   | Result / Notes                           | Done |
-| ----- | ------------------------------------------------------ | ---------------------------------------- | ---- |
-| 1     | Purchase kSuite plan (5 users, kDrive 3 TB+)           | Plan: ___________ Cost: ___/mo           | [ ]  |
-| 2     | Add + verify `huybrechts.xyz`                          | Verified: ___________                    | [ ]  |
-| 3     | Add + verify `huybrechts.dev`                          | Verified: ___________                    | [ ]  |
-| 4     | Add + verify `alderwyn.xyz`                            | Verified: ___________                    | [ ]  |
-| ~~5~~ | ~~Add + verify `meeus.family`~~                        | ✗ decommissioned                         | —    |
-| 6     | Create 5 mailboxes on `huybrechts.xyz`                 |                                          | [ ]  |
-| 7     | Configure aliases across alias domains                 |                                          | [ ]  |
-| 8     | Create `family@huybrechts.xyz` group (all 5)           |                                          | [ ]  |
-| 9     | Configure child mail forwarding (child → both parents) |                                          | [ ]  |
-| 10    | Generate DKIM keys per domain in kSuite                | Note DNS records for Phase 2.4           | [ ]  |
+| #     | Task                                                   | Result / Notes                 | Done |
+| ----- | ------------------------------------------------------ | ------------------------------ | ---- |
+| 1     | Purchase kSuite plan (5 users, kDrive 3 TB+)           | Plan: ___________ Cost: ___/mo | [ ]  |
+| 2     | Add + verify `huybrechts.xyz`                          | Verified: ___________          | [ ]  |
+| 3     | Add + verify `huybrechts.dev`                          | Verified: ___________          | [ ]  |
+| 4     | Add + verify `alderwyn.xyz`                            | Verified: ___________          | [ ]  |
+| ~~5~~ | ~~Add + verify `meeus.family`~~                        | ✗ decommissioned               | —    |
+| 6     | Create 5 mailboxes on `huybrechts.xyz`                 |                                | [ ]  |
+| 7     | Configure aliases across alias domains                 |                                | [ ]  |
+| 8     | Create `family@huybrechts.xyz` group (all 5)           |                                | [ ]  |
+| 9     | Configure child mail forwarding (child → both parents) |                                | [ ]  |
+| 10    | Generate DKIM keys per domain in kSuite                | Note DNS records for Phase 2.4 | [ ]  |
 
 #### kSuite mailboxes (fill in real names)
 
@@ -897,21 +744,21 @@ v=DMARC1; p=none; rua=mailto:dmarc@huybrechts.xyz
 
 #### Execute cutover
 
-| #     | Task                                            | Time / Notes              | Done |
-| ----- | ----------------------------------------------- | ------------------------- | ---- |
-| 1     | Switch MX for `huybrechts.xyz`                  | Time: ___________         | [ ]  |
-| 2     | Switch MX for `huybrechts.dev`                  | Time: ___________         | [ ]  |
-| 3     | Switch MX for `alderwyn.xyz`                    | Time: ___________         | [ ]  |
-| ~~4~~ | ~~Switch MX for `meeus.family`~~                | ✗ decommissioned          | —    |
-| 5     | Update SPF for all 3 domains                    |                           | [ ]  |
-| 6     | Add DKIM records for all 3 domains              |                           | [ ]  |
-| 7     | Add DMARC records for all 3 domains             |                           | [ ]  |
-| 8     | Send test email (external → each mailbox)       |                           | [ ]  |
-| 9     | Send test email FROM each kSuite mailbox        |                           | [ ]  |
-| 10    | Check headers: DKIM=pass, SPF=pass, DMARC=pass  |                           | [ ]  |
-| 11    | Test child → parent forwarding                  |                           | [ ]  |
-| 12    | Test `family@huybrechts.xyz` group              |                           | [ ]  |
-| 13    | Monitor kSuite logs for 24h                     | No errors: ___________ | [ ]  |
+| #     | Task                                           | Time / Notes           | Done |
+| ----- | ---------------------------------------------- | ---------------------- | ---- |
+| 1     | Switch MX for `huybrechts.xyz`                 | Time: ___________      | [ ]  |
+| 2     | Switch MX for `huybrechts.dev`                 | Time: ___________      | [ ]  |
+| 3     | Switch MX for `alderwyn.xyz`                   | Time: ___________      | [ ]  |
+| ~~4~~ | ~~Switch MX for `meeus.family`~~               | ✗ decommissioned       | —    |
+| 5     | Update SPF for all 3 domains                   |                        | [ ]  |
+| 6     | Add DKIM records for all 3 domains             |                        | [ ]  |
+| 7     | Add DMARC records for all 3 domains            |                        | [ ]  |
+| 8     | Send test email (external → each mailbox)      |                        | [ ]  |
+| 9     | Send test email FROM each kSuite mailbox       |                        | [ ]  |
+| 10    | Check headers: DKIM=pass, SPF=pass, DMARC=pass |                        | [ ]  |
+| 11    | Test child → parent forwarding                 |                        | [ ]  |
+| 12    | Test `family@huybrechts.xyz` group             |                        | [ ]  |
+| 13    | Monitor kSuite logs for 24h                    | No errors: ___________ | [ ]  |
 
 #### Rollback (if critical issue within 24h)
 
@@ -974,42 +821,42 @@ ActiveSync URL: ___________
 
 ### Phase 2.7 — Post-migration Hardening
 
-| #   | Task                                                                  | Target date | Done |
-| --- | --------------------------------------------------------------------- | ----------- | ---- |
-| 1   | Raise DNS TTL back to 3600s (1 week after cutover)                    |             | [ ]  |
-| 2   | DMARC `p=none` → `p=quarantine` (after 2 weeks, review `rua` reports) |             | [ ]  |
-| 3   | DMARC `p=quarantine` → `p=reject` (after 4 weeks)                     |             | [ ]  |
-| 4   | Set up monthly kSuite cold export to VPS (IMAP + CalDAV/CardDAV pull) |             | [ ]  |
-| 5   | Write family runbook (password reset, add device, add alias)          |             | [ ]  |
-| 6   | Share emergency access credentials with trusted person                |             | [ ]  |
-| 7   | Schedule monthly maintenance window                                   | Day/time: ___________  | [ ]  |
+| #   | Task                                                                  | Target date           | Done |
+| --- | --------------------------------------------------------------------- | --------------------- | ---- |
+| 1   | Raise DNS TTL back to 3600s (1 week after cutover)                    |                       | [ ]  |
+| 2   | DMARC `p=none` → `p=quarantine` (after 2 weeks, review `rua` reports) |                       | [ ]  |
+| 3   | DMARC `p=quarantine` → `p=reject` (after 4 weeks)                     |                       | [ ]  |
+| 4   | Set up monthly kSuite cold export to VPS (IMAP + CalDAV/CardDAV pull) |                       | [ ]  |
+| 5   | Write family runbook (password reset, add device, add alias)          |                       | [ ]  |
+| 6   | Share emergency access credentials with trusted person                |                       | [ ]  |
+| 7   | Schedule monthly maintenance window                                   | Day/time: ___________ | [ ]  |
 
 ---
 
 ### Migration Timeline
 
-| Phase                          | Duration          | Notes                             |
-| ------------------------------ | ----------------- | --------------------------------- |
-| **Wave 1**                     |                   |                                   |
-| 1.1 — Domain transfer          | ✅ done           |                                   |
-| 1.2 — VPS provisioning         | 1–2 days          | In progress                       |
-| 1.3 — Authentik                | 0.5 day           | After 1.2                         |
-| 1.4 — Vaultwarden              | 0.5 day           | After 1.3                         |
-| 1.5 — Infisical                | 0.5 day           | After 1.3                         |
-| 1.6 — Immich                   | 1 day             | After 1.3                         |
-| 1.7 — Backups & monitoring     | 0.5 day           | After 1.2                         |
-| 1.8 — Decommission old         | After 2-week soak |                                   |
-| **Wave 1 total**               | ~3 weeks (incl. soak) |                               |
-| **Wave 2**                     |                   |                                   |
-| 2.1 — Preparation              | 1–2 days          |                                   |
-| 2.2 — kSuite provisioning      | 1 day             | After 2.1                         |
-| 2.3 — Data migration           | 2–3 days          | After 2.2                         |
-| 2.4 — DNS cutover              | 1 evening         | After 2.3                         |
-| 2.5 — Client config            | 1–2 days          | After 2.4                         |
-| 2.6 — Decommission Google      | After 2-week soak |                                   |
-| 2.7 — Hardening                | Ongoing           | After 2.4                         |
-| **Wave 2 total**               | ~3 weeks (incl. soak) |                               |
-| **Total elapsed**              | **~6 weeks**      | Family disruption: Wave 2 cutover evening only |
+| Phase                      | Duration              | Notes                                          |
+| -------------------------- | --------------------- | ---------------------------------------------- |
+| **Wave 1**                 |                       |                                                |
+| 1.1 — Domain transfer      | ✅ done                |                                                |
+| 1.2 — VPS provisioning     | 1–2 days              | In progress                                    |
+| 1.3 — Authentik            | 0.5 day               | After 1.2                                      |
+| 1.4 — Vaultwarden          | 0.5 day               | After 1.3                                      |
+| 1.5 — Infisical            | 0.5 day               | After 1.3                                      |
+| 1.6 — Immich               | 1 day                 | After 1.3                                      |
+| 1.7 — Backups & monitoring | 0.5 day               | After 1.2                                      |
+| 1.8 — Decommission old     | After 2-week soak     |                                                |
+| **Wave 1 total**           | ~3 weeks (incl. soak) |                                                |
+| **Wave 2**                 |                       |                                                |
+| 2.1 — Preparation          | 1–2 days              |                                                |
+| 2.2 — kSuite provisioning  | 1 day                 | After 2.1                                      |
+| 2.3 — Data migration       | 2–3 days              | After 2.2                                      |
+| 2.4 — DNS cutover          | 1 evening             | After 2.3                                      |
+| 2.5 — Client config        | 1–2 days              | After 2.4                                      |
+| 2.6 — Decommission Google  | After 2-week soak     |                                                |
+| 2.7 — Hardening            | Ongoing               | After 2.4                                      |
+| **Wave 2 total**           | ~3 weeks (incl. soak) |                                                |
+| **Total elapsed**          | **~6 weeks**          | Family disruption: Wave 2 cutover evening only |
 
 ---
 

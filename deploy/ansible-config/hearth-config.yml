@@ -255,7 +255,7 @@
     - name: Install BorgBackup cron job (daily at 02:00 UTC)
       ansible.builtin.cron:
         name: "haven-borg-backup"
-        user: "{{ haven_user }}"
+        user: "root"
         minute: "0"
         hour: "2"
         job: >-

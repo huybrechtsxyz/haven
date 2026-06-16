@@ -1,0 +1,19 @@
+# =============================================================================
+# Non-sensitive configuration variables for forge-init.yml
+# Sensitive values (borg_passphrase, storagebox_host, storagebox_password)
+# are passed via --extra-vars or environment variables at run time.
+# =============================================================================
+
+# BorgBackup — Storage Box sub-account name (set in Hetzner Robot)
+# Full SSH target: {{ storagebox_subaccount }}@{{ storagebox_host }}:./forge
+storagebox_subaccount: forge-backup
+
+# Storage Box NFS mount options (media library at /mnt/storagebox)
+# Pass -e storagebox_nfs_share=<host>:/homes/<username> at run time.
+storagebox_nfs_opts: "nfsvers=3,uid=0,gid=0,_netdev,noatime,auto"
+
+# Set true only after you have authorised the borg SSH key on the Storage Box.
+# Step 1: run with configure_borg=false (default) — playbook will print the public key.
+# Step 2: add the key to the Storage Box sub-account in Hetzner Robot.
+# Step 3: re-run with -e configure_borg=true -e storagebox_host=<hostname>
+configure_borg: false

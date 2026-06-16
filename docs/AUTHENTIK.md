@@ -10,19 +10,22 @@ This guide covers the setup and configuration of Authentik, the identity provide
 
 Authentik is configured and deployed in the configurator and deployer playbooks, respectively. After deployment, you need to create user accounts and assign them to groups in the Authentik admin interface to enable SSO access to Vaultwarden and WUD.
 
-The setup is a three-step process:
+### Branding Authentik
 
-1. Deploy the Authentik containers using the hearth deploy workflow.
-2. Configure Authentik resources (groups, policies, OIDC providers) using the blueprint rendered by the config workflow.
-3. Manually create user accounts and assign them to groups in the Authentik admin interface.
-
-## Branding Authentik
+> **ACTION:** Before the first blueprint apply, rename the default brand's domain from `*` to `auth.huybrechts.xyz` in the Authentik admin UI. This is a one-time prerequisite for the blueprint to apply the correct branding.
 
 Branding is configured automatically by the blueprint — the `authentik-default` brand domain is updated to `auth.huybrechts.xyz` with title `Haven`.
 
 > ⚠️ One-time prerequisite: rename the existing default brand's domain from `*` to `auth.huybrechts.xyz` in the UI before the first blueprint apply: Admin Interface → System → Brands → edit `authentik-default` → set Domain to `auth.huybrechts.xyz` → Save.
 
-## Assign users to groups
+### Apply the Blueprint
+
+The setup is a three-step process:
+
+1. Deploy the Authentik containers using the hearth deploy workflow.
+2. Configure Authentik resources (groups, policies, OIDC providers) using the blueprint rendered by the config workflow.
+
+### Assign users to groups
 
 The blueprint creates three groups automatically (`admins`, `parents`, `members`) and all SSO applications are gated by group policy. **No user can log in to any SSO application until they are assigned to at least one group.** This includes `akadmin`.
 
@@ -201,6 +204,8 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 | ------------------------------- | ----------------------- |
 | `VAULTWARDEN_SSO_CLIENT_SECRET` | One generated value     |
 | `WUD_SSO_CLIENT_SECRET`         | Another generated value |
+
+These secrets should have been created and added to GitHub Secrets during the initial setup phase. If not, create them now and add them to the `production` environment secrets.
 
 ### Deploy
 

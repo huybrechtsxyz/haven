@@ -43,6 +43,20 @@ spec:
       components:
         - resource: haven_vm_hetzner_hearth
 
+    - name: hetzner_forge
+      provider: hetzner_dc_eu_de
+      provisioner: haven_iac
+      type: single_node # k3s — Immich, Jellyfin, Gatus, home apps
+      volumes:
+        - name: k3s
+          type: local
+        - name: data
+          type: local
+        - name: media
+          type: local # NFS mount managed by Ansible (Hetzner Storage Box)
+      components:
+        - resource: haven_vm_hetzner_forge
+
   resources:
     - name: haven_vm_hetzner_hearth
       file: "config/hearth/vm-hetzner-hearth.yaml"
@@ -51,6 +65,16 @@ spec:
       firewalls:
         - haven_fw_hetzner_hearth
 
+    - name: haven_vm_hetzner_forge
+      file: "config/forge/vm-hetzner-forge.yaml"
+      role: forge
+      count: 1
+      firewalls:
+        - haven_fw_hetzner_forge
+
   firewalls:
     - name: haven_fw_hetzner_hearth
       file: "config/hearth/fw-hetzner-hearth.yaml"
+
+    - name: haven_fw_hetzner_forge
+      file: "config/forge/fw-hetzner-forge.yaml"

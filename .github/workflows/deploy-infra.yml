@@ -1,0 +1,176 @@
+# ==============================================================================
+# Workflow: Infrastructure — Terraform + S3 buckets
+# ==============================================================================
+# Provisions shared infrastructure (VPS, network, firewall, S3 buckets).
+# No SSH access needed — this is API-only.
+#
+# Run order (full stack from scratch):
+#   1. deploy-infra.yml   (this file — terraform + S3)
+#   2. deploy-hearth.yml  (server init + config + Docker Compose deploy)
+#   3. deploy-forge.yml   (server init + config + k3s deploy)
+# ==============================================================================
+
+name: Infra - haven
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Confirm branch to deploy (must match the branch this workflow runs on)"
+        type: string
+        required: true
+      dry_run:
+        description: "Dry run (plan only, no apply)"
+        type: boolean
+        default: false
+      stage:
+        description: "Limit to a specific stage (empty = all)"
+        type: string
+        required: false
+      run_s3:
+        description: "Create/update S3 buckets (photos, media, archive, docs) — idempotent, safe to re-run"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  STRATA_OUTPUT: json
+  STRATA_WORK_PATH: ${{ github.workspace }}
+  DEPLOYMENT_FILE: "config/deploy-haven-prd.yaml"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  infra:
+    name: Provision infrastructure
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      # ------------------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # ------------------------------------------------------------------
+      # Safety: block main branch deployments
+      # ------------------------------------------------------------------
+      - name: Block deployment from main branch
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "::error::Deployment from 'main' is blocked. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" = "main" ]; then
+            echo "::error::Branch input cannot be 'main'. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" != "${{ github.ref_name }}" ]; then
+            echo "::error::Branch input '${{ inputs.branch }}' does not match the running branch '${{ github.ref_name }}'. Re-run from the correct branch."
+            exit 1
+          fi
+
+      # ------------------------------------------------------------------
+      # Install tools
+      # ------------------------------------------------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install strata
+        run: pip install "xyz-strata==0.1.1"
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+
+      # ------------------------------------------------------------------
+      # Validate
+      # ------------------------------------------------------------------
+      - name: Validate deployment file
+        run: |
+          strata validate -f $DEPLOYMENT_FILE --deep
+
+      # ------------------------------------------------------------------
+      # Build
+      # ------------------------------------------------------------------
+      - name: Build platform artifacts
+        run: |
+          strata build run --file $DEPLOYMENT_FILE
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v7
+        with:
+          name: platform-build
+          path: build/
+          retention-days: 14
+
+      # ------------------------------------------------------------------
+      # Deploy infrastructure (Terraform)
+      # ------------------------------------------------------------------
+      - name: Download build output
+        uses: actions/download-artifact@v8
+        with:
+          name: platform-build
+          path: build/
+
+      - name: Deploy infrastructure
+        env:
+          TERRAFORM_API_TOKEN: ${{ secrets.TERRAFORM_API_TOKEN }}
+          TF_TOKEN_app_terraform_io: ${{ secrets.TERRAFORM_API_TOKEN }}
+          TF_VAR_HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+          TF_VAR_HETZNER_PUBLIC_KEY: ${{ secrets.HETZNER_PUBLIC_KEY }}
+          TF_VAR_HETZNER_PRIVATE_KEY: ${{ secrets.HETZNER_PRIVATE_KEY }}
+          TF_VAR_HEARTH_SSH_PRIVATE_KEY: ${{ secrets.HETZNER_PRIVATE_KEY }}
+          TF_VAR_HETZNER_ROOT_PASSWORD: ${{ secrets.HETZNER_ROOT_PASSWORD }}
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+          HETZNER_PUBLIC_KEY: ${{ secrets.HETZNER_PUBLIC_KEY }}
+          HETZNER_PRIVATE_KEY: ${{ secrets.HETZNER_PRIVATE_KEY }}
+          HETZNER_ROOT_PASSWORD: ${{ secrets.HETZNER_ROOT_PASSWORD }}
+          HETZNER_STORAGEBOX_PASSWORD: ${{ secrets.HETZNER_STORAGEBOX_PASSWORD }}
+          HEALTHCHECK_PING_URL_BACKUP: ${{ vars.HEALTHCHECK_PING_URL_BACKUP }}
+          STORAGEBOX_HOST: ${{ vars.STORAGEBOX_HOST }}
+          STORAGEBOX_SUBACCOUNT_HEARTH: ${{ vars.STORAGEBOX_SUBACCOUNT_HEARTH }}
+          BORG_PASSPHRASE: ${{ secrets.BORG_PASSPHRASE }}
+          AUTHENTIK_SECRET_KEY: ${{ secrets.AUTHENTIK_SECRET_KEY }}
+          AUTHENTIK_POSTGRESQL_PASSWORD: ${{ secrets.AUTHENTIK_POSTGRESQL_PASSWORD }}
+          VAULTWARDEN_ADMIN_TOKEN: ${{ secrets.VAULTWARDEN_ADMIN_TOKEN }}
+          VAULTWARDEN_SSO_CLIENT_SECRET: ${{ secrets.VAULTWARDEN_SSO_CLIENT_SECRET }}
+          INFISICAL_AUTH_SECRET: ${{ secrets.INFISICAL_AUTH_SECRET }}
+          INFISICAL_ENCRYPTION_KEY: ${{ secrets.INFISICAL_ENCRYPTION_KEY }}
+          INFISICAL_POSTGRESQL_PASSWORD: ${{ secrets.INFISICAL_POSTGRESQL_PASSWORD }}
+          WUD_SSO_CLIENT_SECRET: ${{ secrets.WUD_SSO_CLIENT_SECRET }}
+        run: |
+          ARGS="--file $DEPLOYMENT_FILE --force"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          if [ -n "${{ inputs.stage }}" ]; then
+            ARGS="$ARGS --stage ${{ inputs.stage }}"
+          fi
+          strata deploy run $ARGS
+
+      # ------------------------------------------------------------------
+      # S3 bucket provisioning (run_s3=true)
+      # Creates Hetzner Object Storage buckets — idempotent, no SSH needed.
+      # ------------------------------------------------------------------
+      - name: Install Ansible + boto3 (S3)
+        if: ${{ inputs.run_s3 == true && inputs.dry_run != true }}
+        run: pip install ansible-core boto3 botocore
+
+      - name: Install Ansible collections (S3)
+        if: ${{ inputs.run_s3 == true && inputs.dry_run != true }}
+        working-directory: deploy/ansible-s3
+        run: ansible-galaxy collection install -r requirements.yml -p ./collections
+
+      - name: Run forge-s3 playbook
+        if: ${{ inputs.run_s3 == true && inputs.dry_run != true }}
+        working-directory: deploy/ansible-s3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.HETZNER_S3_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.HETZNER_S3_SECRET_KEY }}
+        run: ansible-playbook forge-s3.yml
