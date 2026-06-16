@@ -331,14 +331,16 @@ Follow these steps to set up the storage box:
 1. Sign in at [robot.hetzner.com](https://robot.hetzner.com) (same Hetzner account)
 2. Order a **BX11** Storage Box (1 TB, Nuremberg region)
 3. Once activated, go to Storage Box settings → Sub-accounts
-4. Create sub-account (e.g. `u604953-sub1`), set a password, enable SSH access
-5. Enable **External reachability** on the sub-account (required for port 23 access from VPS public IP)
-6. Note the hostname (e.g. `u604953.your-storagebox.de`) and sub-account username
-7. Store credentials in Bitwarden and GitHub Secrets (see table above)
-8. Add to GitHub Environment Variables (see [Environment Variables](#environment-variables)):
+4. Create the **Hearth sub-account** (e.g. `{storagebox-id}-hearth`), set a password, enable SSH access
+5. Create the **Forge sub-account** (e.g. `{storagebox-id}-forge`), set a password, enable SSH access
+   > Forge is not deployed yet, but creating the sub-account now means you won't need to come back here when Forge is ready.
+6. Enable **External reachability** on **both** sub-accounts (required for port 23 access from VPS public IP)
+7. Note the hostname (e.g. `{storagebox-id}.your-storagebox.de`) and both sub-account usernames
+8. Store credentials in Bitwarden and GitHub Secrets — both passwords go in as `HETZNER_STORAGEBOX_PASSWORD` (same secret; use the Hearth one for now, update when Forge is added)
+9. Add to GitHub Environment Variables (see [Environment Variables](#environment-variables)):
    - `STORAGEBOX_HOST` = hostname
-   - `STORAGEBOX_SUBACCOUNT_HEARTH` = hearth sub-account username
-   - `STORAGEBOX_SUBACCOUNT_FORGE` = forge sub-account username
+   - `STORAGEBOX_SUBACCOUNT_HEARTH` = hearth sub-account username (e.g. `{storagebox-id}-hearth`)
+   - `STORAGEBOX_SUBACCOUNT_FORGE` = forge sub-account username (e.g. `{storagebox-id}-forge`)
 
 > **⚠️ Hetzner Storage Boxes have no API or Terraform provider. This step is entirely manual and cannot be automated.**
 > **⚠️ External reachability must be enabled** — without it, only Hetzner-internal traffic can reach port 23. The VPS connects via its public IP, so BorgBackup will time out if this is off.
@@ -527,13 +529,15 @@ Caddy starts automatically and obtains Let's Encrypt certificates on first run (
 
 > **ACTION: ⚠️ Configure Authentik first** others require Authentik OIDC providers to be set up before their SSO can work.
 
-See [authentik.md](./authentik.md#service-setup) for detailed setup: creating the admin account, configuring email (SMTP via Infomaniak), and creating OIDC providers for Vaultwarden, Infisical, WUD, and Portainer.
+See [authentik.md](./authentik.md#service-setup) for detailed setup: creating the admin account, configuring email (SMTP via Infomaniak), and creating OIDC providers for **Vaultwarden and WUD only**.
+
+> ⚠️ Do **not** configure SSO for Portainer or Infisical. Both services must stay accessible with local credentials if Authentik is unavailable. See [authentik.md](./authentik.md) for the rationale.
 
 ### Setup Portainer
 
 > **ACTION:** Configure Portainer admin account.
 
-See [portainer.md](./portainer.md#service-setup) for detailed setup: creating the admin account and configuring authentication with Authentik.
+See [portainer.md](./portainer.md#service-setup) for detailed setup: creating the admin account and configuring MFA. Use local credentials — do not wire Portainer through Authentik SSO.
 
 ### Setup WUD (What's Up Docker)
 
@@ -558,13 +562,13 @@ See [bitwarden.md](./bitwarden.md#vaultwarden-setup) for detailed setup: creatin
 
 > **ACTION:** Configure Infisical admin account.
 
-See [infisical.md](./infisical.md) for detailed setup: creating the admin account, configuring email, and setting up OIDC authentication with Authentik.
+See [infisical.md](./infisical.md) for detailed setup: creating the admin account and configuring email. Use local credentials — do not wire Infisical through Authentik SSO.
 
 ### Setup BorgBackup
 
 > **ACTION:** Verify BorgBackup is running correctly and backing up to the Hetzner Storage Box.
 
-BorgBackup runs as a daily cron job at 02:00 UTC, backing up Authentik, Vaultwarden, and Infisical volumes plus `/opt/haven/etc` to the Storage Box with `repokey-blake2` encryption.
+BorgBackup runs as a daily cron job at 02:00 UTC, backing up Authentik, Vaultwarden, and Infisical volumes plus `/opt/haven/etc` to the Storage Box with `repokey-blake2` encryption. The backup target is `{STORAGEBOX_SUBACCOUNT_HEARTH}@{STORAGEBOX_HOST}:./hearth` over SSH port 23.
 
 - **Retention:** 7 daily, 4 weekly, 6 monthly
 - **Log:** `/var/log/haven-backup.log`
@@ -597,8 +601,91 @@ See [infomaniak.md](./infomaniak.md) for detailed setup: configuring mailboxes, 
 
 ## Forge Deployment
 
-> **⚠️ Forge deployment is not yet implemented.** The `deploy-forge.yml` workflow exists but the Ansible playbooks (`forge-config.yml`, `forge-deploy.yml`) are still TODO. This chapter will be completed when Forge deployment is ready.
+> **Prerequisites:** `deploy-infra.yml` must have run successfully (VPS exists), and all GitHub Secrets and Environment Variables must be set (see [Secrets and Credential Management](#secrets-and-credential-management)). Additionally, add a `BORG_PASSPHRASE_FORGE` secret to the `production` environment — a separate strong passphrase for the Forge borg repository (`token_urlsafe(48)`).
 
-Forge will run a k3s cluster on a CPX41 VPS and host Immich, Jellyfin, Gatus, and home-grown apps via Helm charts. It depends on Hearth being fully operational (Authentik for SSO, Infisical for secrets).
+> **⚠️ Branch restriction:** The workflow blocks deployments from `main`. Always run from a feature branch (e.g. `deploy/forge`).
+
+> **Note:** `run_config` and `run_deploy` are not yet implemented — see [Forge Config and Deploy](#forge-config-and-deploy). Forge initialisation (k3s, BorgBackup, NFS) is fully operational via `run_init`.
+
+### Forge Initialisation
+
+> **ACTION:** Run the initialisation phase of the deployment workflow to bootstrap the Forge VPS and generate the BorgBackup SSH key.
+
+The first run bootstraps the bare VPS: installs k3s, creates the service user, configures system settings, and generates the BorgBackup SSH key pair on the server.
+
+GitHub Actions → Select `deploy-forge` → Run workflow from your feature branch:
+
+| Input            | Value          | Notes                                |
+| ---------------- | -------------- | ------------------------------------ |
+| `branch`         | `deploy/forge` | Must match the branch you run from   |
+| `dry_run`        | `false`        |                                      |
+| `run_init`       | `true`         | One-time server initialisation       |
+| `configure_borg` | `false`        | Not yet — SSH key not authorised yet |
+| `configure_nfs`  | `false`        | Set `true` to mount Storage Box NFS  |
+| `run_config`     | `false`        | Not yet implemented                  |
+| `run_deploy`     | `false`        | Not yet implemented                  |
+
+After this run, **find the BorgBackup public key** in the workflow output. Store it in Bitwarden — it is uploaded automatically to the Storage Box sub-account in the next run.
+
+#### Forge Initial Setup
+
+Bootstrap the server with k3s, the `haven` service user, directory structure, and SSH hardening.
+
+**Playbook:** `deploy/ansible-init/forge-init.yml`  
+**Runs once** on a fresh server. Safe to re-run — all tasks are idempotent.
+
+| Task                    | Details                                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| Set timezone            | Configured via `haven_timezone` variable (set in `vars/main.yml`)                                      |
+| Install packages        | `curl`, `ca-certificates`, `gnupg`, `borgbackup`, `fail2ban`, `jq`, `nfs-common`, `open-iscsi`, others |
+| Install k3s             | Single-node server, Traefik disabled (Caddy on Hearth handles ingress)                                 |
+| Create `haven` user     | System user, home `/opt/haven`                                                                         |
+| Create directory tree   | `/opt/haven/var/data`, `/opt/haven/var/logs`, `/opt/haven/.ssh`                                        |
+| Generate BorgBackup key | `borg_ed25519` SSH key pair in `/opt/haven/.ssh/`                                                      |
+| SSH hardening           | `PermitRootLogin prohibit-password`, `PasswordAuthentication no`                                       |
+
+### Forge BorgBackup Authorization
+
+> **ACTION:** Authorise the BorgBackup SSH key on the Hetzner Storage Box sub-account. This is required for automated backups to work.
+
+The borg SSH key upload is **automated** — when `configure_borg=true`, the init playbook uploads the generated `borg_ed25519.pub` key to the Forge Storage Box sub-account via `install-ssh-key` on port 23, using `HETZNER_STORAGEBOX_PASSWORD` for authentication. No manual Robot UI step is required.
+
+> **⚠️ External reachability** must be enabled on the `STORAGEBOX_SUBACCOUNT_FORGE` sub-account (covered in [Infrastructure Storage Box](#infrastructure-storage-box)). Without it the automated upload on port 23 will fail.
+
+### Forge Configure BorgBackup
+
+> **ACTION:** Initialise the BorgBackup repository on the Storage Box.  
+> **ACTION:** After the run, save the BorgBackup repokey for future restores.
+
+GitHub Actions → Select `deploy-forge` → Run workflow from your feature branch:
+
+| Input            | Value          | Notes                                                 |
+| ---------------- | -------------- | ----------------------------------------------------- |
+| `branch`         | `deploy/forge` | Must match the branch you run from                    |
+| `dry_run`        | `false`        |                                                       |
+| `run_init`       | `true`         | Re-run init to trigger BorgBackup configuration       |
+| `configure_borg` | `true`         | Uploads SSH key, initialises borg repo on Storage Box |
+| `configure_nfs`  | `false`        | Set `true` to mount the Storage Box NFS share         |
+| `run_config`     | `false`        | Not yet implemented                                   |
+| `run_deploy`     | `false`        | Not yet implemented                                   |
+
+The BorgBackup target is `{STORAGEBOX_SUBACCOUNT_FORGE}@{STORAGEBOX_HOST}:./forge` over SSH port 23 with `repokey-blake2` encryption.
+
+**Save the BorgBackup repokey** — in the workflow log, find the task **"Show BorgBackup repokey"** → copy the key block and save to Bitwarden as **"Haven BorgBackup Forge repo key"**.
+
+> ⚠️ Without this key + `BORG_PASSPHRASE_FORGE`, backups **cannot be restored**.
+
+#### NFS Mount (optional)
+
+If you want Forge to access the Storage Box media library over NFS (for Jellyfin and Immich):
+
+1. Add to GitHub Environment Variables: `STORAGEBOX_NFS_SHARE` = `{storagebox-id}.your-storagebox.de:/homes/{storagebox-id}`
+2. Re-run the workflow with `configure_nfs=true` — the Storage Box is mounted at `/mnt/storagebox` on the Forge VPS.
+
+### Forge Config and Deploy
+
+> **⚠️ Not yet implemented.** The `forge-config.yml` and `forge-deploy.yml` Ansible playbooks are TODO. The `run_config` and `run_deploy` workflow inputs have no effect until these playbooks are created.
+
+Forge will host Immich, Jellyfin, Gatus, and other workloads via k3s Helm charts. It depends on Hearth being fully operational (Authentik for SSO, Infisical for secrets).
 
 ---
