@@ -6,7 +6,7 @@
 
 BorgBackup is a powerful deduplicating backup tool that efficiently stores and manages backups. It supports compression, encryption, and remote repositories, making it ideal for secure and space-efficient backups.
 
-## Initial Setup
+## Service Setup
 
 BorgBackup backs up critical data to the Hetzner Storage Box with `repokey-blake2` encryption, daily at 02:00 UTC.
 

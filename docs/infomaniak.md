@@ -12,53 +12,15 @@ kSuite is the family collaboration platform for haven. It replaces Google Worksp
 
 **Automation:** kSuite has no Terraform/Ansible provider. Configuration is done manually via the Infomaniak Manager.
 
+**SMTP:** kSuite provides an SMTP server for sending emails. We will configure Authentik to use this SMTP server for password resets and notifications.
+
 ## Initial Setup
 
 1. Sign up for an Infomaniak account at <https://manager.infomaniak.com>.
 2. Store the Infomaniak account credentials in Bitwarden.
 3. Purchase a kSuite plan with Mail, Files, and Drive services.
 
-
-
-
-
-
-----
-
-
-
-
-
-
-**SMTP:** kSuite provides an SMTP server for sending emails. We will configure Authentik to use this SMTP server for password resets and notifications.
-
-### SMTP Server Configuration for Authentik
-
-To enable Authentik to send password reset and notification emails via kSuite SMTP:
-
-1. **Generate an App Password:**
-   - Log in to [manager.infomaniak.com](https://manager.infomaniak.com)
-   - Navigate to your account → **Security** → **App Passwords**
-   - Create a new app password for "Authentik SMTP"
-   - Copy the generated password immediately (only shown once)
-   - Store it in Bitwarden and as GitHub Secret `AUTHENTIK_EMAIL__PASSWORD`
-
-2. **Determine SMTP username:**
-   - This is your **primary kSuite email address** (e.g., `parent1@huybrechts.xyz`)
-   - Store it as GitHub Secret `AUTHENTIK_EMAIL__USERNAME`
-
-3. **SMTP Server Details:**
-
-| Setting  | Value                      | Notes                          |
-| -------- | -------------------------- | ------------------------------ |
-| Host     | `mail.infomaniak.com`      | SMTP server endpoint           |
-| Port     | `587`                      | STARTTLS (not TLS/SSL)         |
-| Username | Primary kSuite email       | e.g., `parent1@huybrechts.xyz` |
-| Password | App password (from step 1) | Stored as GitHub Secret        |
-| From     | Primary kSuite email       | e.g., `parent1@huybrechts.xyz` |
-| Use TLS  | Yes (STARTTLS)             | Required by Infomaniak         |
-
-## Organization Account
+## Service Setup
 
 ### Purchase kSuite
 
@@ -75,8 +37,6 @@ To enable Authentik to send password reset and notification emails via kSuite SM
 2. Enable **Two-factor authentication** (TOTP)
 3. Scan QR code with authenticator app
 4. Store backup codes in Vaultwarden under "Infomaniak Admin MFA recovery"
-
-## Email Domains
 
 ### Add and verify domains
 
@@ -121,8 +81,6 @@ the TXT record at INWX.
 
 > ⚠️ Do not proceed to DNS cutover until DKIM TXT records are live and verified.  
 > Test with: `Resolve-DnsName -Name "<selector>._domainkey.<domain>" -Type TXT`
-
-## Mailboxes
 
 ### Create mailboxes
 
@@ -208,12 +166,10 @@ kSuite does not support enforced MFA from the admin panel at the individual acco
 | `child2@huybrechts.xyz`  | [ ]         | [ ]                 |
 | `child3@huybrechts.xyz`  | [ ]         | [ ]                 |
 
-## DNS cutover (MX switch)
+### DNS cutover (MX switch)
 
 > **Prerequisite:** All items in sections 3–6 must be complete. Warn the family 24h in advance.
 > Lower DNS TTL to 300s at INWX at least 48h before the cutover window.
-
-### MX records
 
 Replace the existing Google MX records with Infomaniak's values for all 3 domains.
 
@@ -223,8 +179,6 @@ Replace the existing Google MX records with Infomaniak's values for all 3 domain
 MX priority / host:  ___________  (from kSuite panel — fill before cutover)
 ```
 
-### SPF record
-
 Replace the existing SPF TXT record on all 3 domains:
 
 ```dns
@@ -233,15 +187,13 @@ v=spf1 include:spf.infomaniak.ch ~all
 
 > Remove the old Google SPF include (`include:_spf.google.com`) at the same time.
 
-### DMARC record
-
 Add a DMARC record (start with `p=none` — tighten after soak, see section 9):
 
 ```dns
 v=DMARC1; p=none; rua=mailto:dmarc@huybrechts.xyz
 ```
 
-### Cutover checklist
+**Cutover checklist:**
 
 Execute in order during a low-traffic window (evening or weekend):
 
@@ -272,3 +224,27 @@ Create an app password in Infomaniak:
 
 - Add the configuration values to the Strata module definition (`mod-authentik.yaml`)
 - Add the secrets to GitHub Environment Secrets (production)
+
+To enable Authentik to send password reset and notification emails via kSuite SMTP:
+
+1. **Generate an App Password:**
+   - Log in to [manager.infomaniak.com](https://manager.infomaniak.com)
+   - Navigate to your account → **Security** → **App Passwords**
+   - Create a new app password for "Authentik SMTP"
+   - Copy the generated password immediately (only shown once)
+   - Store it in Bitwarden and as GitHub Secret `AUTHENTIK_EMAIL__PASSWORD`
+
+2. **Determine SMTP username:**
+   - This is your **primary kSuite email address** (e.g., `parent1@huybrechts.xyz`)
+   - Store it as GitHub Secret `AUTHENTIK_EMAIL__USERNAME`
+
+3. **SMTP Server Details:**
+
+| Setting  | Value                      | Notes                          |
+| -------- | -------------------------- | ------------------------------ |
+| Host     | `mail.infomaniak.com`      | SMTP server endpoint           |
+| Port     | `587`                      | STARTTLS (not TLS/SSL)         |
+| Username | Primary kSuite email       | e.g., `parent1@huybrechts.xyz` |
+| Password | App password (from step 1) | Stored as GitHub Secret        |
+| From     | Primary kSuite email       | e.g., `parent1@huybrechts.xyz` |
+| Use TLS  | Yes (STARTTLS)             | Required by Infomaniak         |

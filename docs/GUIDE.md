@@ -519,56 +519,81 @@ Once Hearth is deployed and all containers are running, configure each service. 
 
 ### Setup Caddy
 
-See [caddy.md](./caddy.md) for detailed setup: configuring TLS, reverse proxy routes, and middleware.
+See [caddy.md](./caddy.md#service-setup) for detailed setup: configuring TLS, reverse proxy routes, and middleware.
 
 Caddy starts automatically and obtains Let's Encrypt certificates on first run (~30 seconds per domain). No manual setup required. To add routes or middleware, edit the `Caddyfile` in `services/hearth/caddy/Caddyfile` and redeploy.
 
 ### Setup Authentik
 
-> **⚠️ Configure Authentik first** others require Authentik OIDC providers to be set up before their SSO can work.
+> **ACTION: ⚠️ Configure Authentik first** others require Authentik OIDC providers to be set up before their SSO can work.
 
-See [authentik.md](./authentik.md) for detailed setup: creating the admin account, configuring email (SMTP via Infomaniak), and creating OIDC providers for Vaultwarden, Infisical, WUD, and Portainer.
-
-### Setup Vaultwarden
-
-See [bitwarden.md](./bitwarden.md) for detailed setup: creating the admin account, inviting family members, and configuring OIDC authentication with Authentik.
-
-> ⚠️ You log in to the Vaultwarden admin panel with the **plain-text token** — Vaultwarden verifies it against the stored Argon2 hash internally. The `VAULTWARDEN_ADMIN_TOKEN` GitHub Secret must be the `$argon2id$...` hash, not the plain-text value.
-
-### Setup Infisical
-
-See [infisical.md](./infisical.md) for detailed setup: creating the admin account, configuring email, and setting up OIDC authentication with Authentik.
+See [authentik.md](./authentik.md#service-setup) for detailed setup: creating the admin account, configuring email (SMTP via Infomaniak), and creating OIDC providers for Vaultwarden, Infisical, WUD, and Portainer.
 
 ### Setup Portainer
 
-See [portainer.md](./portainer.md) for detailed setup: creating the admin account and configuring authentication with Authentik.
+> **ACTION:** Configure Portainer admin account.
+
+See [portainer.md](./portainer.md#service-setup) for detailed setup: creating the admin account and configuring authentication with Authentik.
 
 ### Setup WUD (What's Up Docker)
 
-See [wud.md](./wud.md) for detailed setup: configuring authentication with Authentik and setting up update notifications.
+> **ACTION:** Configure WUD admin account and set up OIDC authentication with Authentik.
+
+See [wud.md](./wud.md#service-setup) for detailed setup: configuring authentication with Authentik and setting up update notifications.
+
+### Setup Vaultwarden
+
+> **ACTION:** Configure Vaultwarden admin account, invite family members, and set up OIDC authentication with Authentik.
+
+See [bitwarden.md](./bitwarden.md#vaultwarden-setup) for detailed setup: creating the admin account, inviting family members, and configuring OIDC authentication with Authentik.
+
+> ⚠️ You log in to the Vaultwarden admin panel with the **plain-text token** — Vaultwarden verifies it against the stored Argon2 hash internally. The `VAULTWARDEN_ADMIN_TOKEN` GitHub Secret must be the `$argon2id$...` hash, not the plain-text value.
+
+
+---
+
+
+
+### Setup Infisical
+
+> **ACTION:** Configure Infisical admin account.
+
+See [infisical.md](./infisical.md) for detailed setup: creating the admin account, configuring email, and setting up OIDC authentication with Authentik.
 
 ### Setup BorgBackup
+
+> **ACTION:** Verify BorgBackup is running correctly and backing up to the Hetzner Storage Box.
 
 BorgBackup runs as a daily cron job at 02:00 UTC, backing up Authentik, Vaultwarden, and Infisical volumes plus `/opt/haven/etc` to the Storage Box with `repokey-blake2` encryption.
 
 - **Retention:** 7 daily, 4 weekly, 6 monthly
 - **Log:** `/var/log/haven-backup.log`
 
-See [borgbackup.md](./borgbackup.md) for restore instructions and manual backup procedures.
+See [borgbackup.md](./borgbackup.md#service-setup) for restore instructions and manual backup procedures.
 
 ### Setup Healthchecks.io
 
+> **ACTION:** Configure Healthchecks.io to monitor the backup cron job.
+
 Healthchecks.io monitors backup cron execution via a dead man's switch — if the backup cron doesn't ping within 25 hours, you get an alert.
 
-See [healthchecks-io.md](./healthchecks-io.md) for detailed setup. The ping URL is already configured via the `HEALTHCHECK_PING_URL_BACKUP` environment variable set in [Environment Variables](#environment-variables).
+See [healthchecks-io.md](./healthchecks-io.md#service-setup) for detailed setup. The ping URL is already configured via the `HEALTHCHECK_PING_URL_BACKUP` environment variable set in [Environment Variables](#environment-variables).
 
 ### Setup UptimeRobot
 
+> **ACTION:** Configure UptimeRobot to monitor the public service endpoints (Authentik, Vaultwarden, Infisical).
+
 UptimeRobot provides external uptime monitoring for the public service endpoints (Authentik, Vaultwarden, Infisical).
 
-See [uptimerobot.md](./uptimerobot.md) for detailed setup: creating monitors for each service subdomain.
+See [uptimerobot.md](./uptimerobot.md#service-setup) for detailed setup: creating monitors for each service subdomain.
 
----
+## Infomaniak
+
+> **ACTION:** Set up Infomaniak kSuite for email and off-site backup storage.
+
+Infomaniak kSuite provides email, calendar, contacts, and file storage for Haven. It is Swiss-hosted and serves as the Tier 2 backup target (daily rclone sync from the Storage Box to kDrive).
+
+See [infomaniak.md](./infomaniak.md) for detailed setup: configuring mailboxes, generating app passwords for Authentik SMTP, and setting up rclone for kDrive backup sync.
 
 ## Forge Deployment
 
@@ -577,11 +602,3 @@ See [uptimerobot.md](./uptimerobot.md) for detailed setup: creating monitors for
 Forge will run a k3s cluster on a CPX41 VPS and host Immich, Jellyfin, Gatus, and home-grown apps via Helm charts. It depends on Hearth being fully operational (Authentik for SSO, Infisical for secrets).
 
 ---
-
-## Infomaniak
-
-Infomaniak kSuite provides email, calendar, contacts, and file storage for Haven. It is Swiss-hosted and serves as the Tier 2 backup target (daily rclone sync from the Storage Box to kDrive).
-
-See [infomaniak.md](./infomaniak.md) for detailed setup: configuring mailboxes, generating app passwords for Authentik SMTP, and setting up rclone for kDrive backup sync.
-
-

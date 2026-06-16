@@ -1,12 +1,12 @@
 # WUD (What's Up Docker) for Haven
 
-[Back to Guide](./GUIDE.md#setup-wud)
+[Back to Guide](./guide.md)
 
 ## Overview
 
 WUD (What's Up Docker) is a self-hosted status dashboard for monitoring the health and status of your Docker containers. It provides a simple and intuitive interface to view the status of all your containers, including their uptime, resource usage, and logs. WUD helps you keep track of your Docker environment and quickly identify any issues or failures.
 
-## Initial Setup
+## Service Setup
 
 The initial setup of WUD involves deploying the WUD container, configuring access to your Docker environment, and setting up authentication for secure access.
 
@@ -17,6 +17,8 @@ The initial setup of WUD involves deploying the WUD container, configuring acces
 5. Set up authentication (e.g. via Authentik SSO) for secure access
 6. Explore the WUD dashboard and familiarize yourself with the available metrics and logs
 7. Set up alerts or notifications for critical container events (optional)
+
+[Back to Guide](./guide.md#setup-wud-whats-up-docker)
 
 ## Monitoring and Maintenance
 

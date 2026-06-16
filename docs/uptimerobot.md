@@ -15,7 +15,7 @@ UptimeRobot monitors **service availability** — it alerts when a URL returns e
 
 ---
 
-## Configuration
+## Service Setup
 
 
 2. Add HTTPS monitors (keyword check for 200 OK):
@@ -40,3 +40,5 @@ UptimeRobot monitors **service availability** — it alerts when a URL returns e
 5. Store credentials in Vaultwarden
 
 > UptimeRobot free tier gives 50 monitors at 5-minute intervals — more than enough for haven.
+
+[Back to Guide](./GUIDE.md#setup-uptimerobot)

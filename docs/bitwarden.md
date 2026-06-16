@@ -15,10 +15,9 @@ Bitwarden is a popular open-source password manager. Vaultwarden is a lightweigh
 4. Create a new vault or folder named "Haven" to store all related credentials and secrets for the haven platform.
 5. Store the critical credentials in Bitwarden (see the Secrets Inventory section in the guide for details on what to store).
 
+## Vaultwarden Setup
 
----
-
-## Initial Setup
+Set up Vaultwarden on the haven platform to provide password management for the family. It will be accessible at `vault.huybrechts.xyz` and supports all standard Bitwarden clients (mobile apps, browser extensions, desktop apps) using the same API.
 
 1. `https://vault.huybrechts.xyz/admin` → enter the **plain-text** `VAULTWARDEN_ADMIN_TOKEN`
 2. General Settings → Allow new signups → **enable** → Save

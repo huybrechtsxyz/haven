@@ -15,7 +15,7 @@ Healthchecks.io monitors **cron job execution** — it alerts when a scheduled t
 
 --- 
 
-## Create a Project and Checks
+## Service Setup
 
 1. Create a project named `haven` to group all related checks for the haven platform.
 2. Create a check named `hearth-backup` with the following settings:

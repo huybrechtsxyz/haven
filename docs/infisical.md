@@ -6,7 +6,7 @@
 
 Infisical is a secrets management platform designed for developers and teams. It provides a secure way to store, manage, and access sensitive information such as API keys, database credentials, and other secrets. Infisical offers features like role-based access control, audit logs, and integration with various development tools.
 
-## Initial Setup
+## Service Setup
 
 The initial setup of Infisical involves creating an admin account, configuring the first organization and project, and enabling multi-factor authentication (MFA) for enhanced security.
 
@@ -25,3 +25,5 @@ The initial setup of Infisical involves creating an admin account, configuring t
 5. Store the backup codes in Vaultwarden under "Infisical Admin — MFA backup codes"
 
 > MFA is per-user and opt-in. For an admin-only tool with no SSO, enabling TOTP is strongly recommended.
+
+[Back to Guide](./GUIDE.md#setup-infisical)

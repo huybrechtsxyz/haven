@@ -1,12 +1,12 @@
 # Portainer for Haven
 
-[Back to Guide](./GUIDE.md#setup-portainer)
+[Back to Guide](./GUIDE.md)
 
 ## Overview
 
 Portainer is a lightweight, open-source container management platform that provides a user-friendly interface for managing Docker environments. It allows you to easily deploy, manage, and monitor your Docker containers, images, networks, and volumes. Portainer simplifies container orchestration and provides features like role-based access control, application templates, and real-time container logs.
 
-## Initial Setup
+## Service Setup
 
 The initial setup of Portainer involves deploying the Portainer container, creating an admin account, and configuring access to your Docker environment.
 
@@ -21,3 +21,5 @@ When upgrading to BE, the Authentik OAuth config to use is:
 > - Access Token URL: `https://auth.huybrechts.xyz/application/o/token/`
 > - Resource URL: `https://auth.huybrechts.xyz/application/o/userinfo/`
 > - Client ID: `portainer` — add this provider back to the blueprint and run `run_config=true`
+
+[Back](./GUIDE.md#setup-portainer) to Guide
