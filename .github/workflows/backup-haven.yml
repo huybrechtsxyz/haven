@@ -105,7 +105,7 @@ jobs:
             -u root \
             --private-key ~/.ssh/haven_ed25519 \
             -m command \
-            -a "sudo -u haven /opt/haven/scripts/backup.sh"
+            -a "/opt/haven/scripts/backup.sh"
 
       # ------------------------------------------------------------------
       # Always remove the temporary SSH rule

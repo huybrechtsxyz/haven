@@ -39,7 +39,7 @@ Configured in `deploy/ansible-config/vars/main.yml`:
 
 ### 1. Scheduled — daily cron
 
-The cron job is installed by `hearth-config.yml` and runs daily at **02:00 UTC** as the `haven` user:
+The cron job is installed by `hearth-config.yml` and runs daily at **02:00 UTC** as `root` (required because some data paths are root/postgres-owned):
 
 ```
 /opt/haven/scripts/backup.sh >> /var/log/haven-backup.log 2>&1
@@ -174,7 +174,7 @@ This will:
 | Vaultwarden vault contents | Log in to `https://vault.huybrechts.xyz` — confirm vault items visible                        |
 | Authentik users and groups | Admin Interface → Directory → Users                                                           |
 | Infisical secrets          | Log in to Infisical and verify secrets are present                                            |
-| Backup cron                | `crontab -u haven -l` on the server                                                           |
+| Backup cron                | `crontab -u root -l` on the server                                                            |
 | Next backup succeeds       | Check `/var/log/haven-backup.log` the following day, or trigger the on-demand backup workflow |
 
 ---
