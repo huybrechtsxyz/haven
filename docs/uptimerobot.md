@@ -1,6 +1,6 @@
 # Uptimerobot
 
-[Back to Guide](./GUIDE.md#setup-uptimerobot)
+[Back to Guide](./guide.md#setup-uptimerobot)
 
 ## Overview
 
@@ -41,4 +41,4 @@ UptimeRobot monitors **service availability** — it alerts when a URL returns e
 
 > UptimeRobot free tier gives 50 monitors at 5-minute intervals — more than enough for haven.
 
-[Back to Guide](./GUIDE.md#setup-uptimerobot)
+[Back to Guide](./guide.md#setup-uptimerobot)
