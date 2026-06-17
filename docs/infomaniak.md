@@ -1,6 +1,6 @@
 # Infomaniak and KSuite
 
-[Back to Guide](./GUIDE.md#infomaniak)
+[Back to Guide](./guide.md#infomaniak)
 
 ## Overview
 

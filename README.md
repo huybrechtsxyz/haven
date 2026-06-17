@@ -4,11 +4,11 @@ Configuration repository managed by [strata](https://github.com/huybrechtsxyz/st
 
 📖 **Documentation:** [`docs/`](docs/) — build with Sphinx (`make html` from `docs/`)
 
-| Section                                                | Description                                             |
-| ------------------------------------------------------ | ------------------------------------------------------- |
-| [Design & Architecture](docs/design/hosting-design.md) | Two-node Hetzner platform — Core VPS + k3s Workload VPS |
-| [Migration Guide](docs/design/hosting-guide.md)        | Living workbook — track progress as you go              |
-| [Research](docs/design/hosting.md)                     | Goals, constraints, solution comparison                 |
+| Section                                 | Description                                             |
+| --------------------------------------- | ------------------------------------------------------- |
+| [Design & Architecture](docs/design.md) | Two-node Hetzner platform — Core VPS + k3s Workload VPS |
+| [Migration Guide](docs/migration.md)    | Living workbook — track progress as you go              |
+| [Architecture](docs/architecture.md)    | System topology, node specs, data durability model      |
 
 ## Getting Started
 

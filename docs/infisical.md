@@ -1,6 +1,6 @@
 # Infisical for Haven
 
-[Back to Guide](./GUIDE.md#setup-infisical)
+[Back to Guide](./guide.md#setup-infisical)
 
 ## Overview
 
@@ -26,4 +26,4 @@ The initial setup of Infisical involves creating an admin account, configuring t
 
 > MFA is per-user and opt-in. For an admin-only tool with no SSO, enabling TOTP is strongly recommended.
 
-[Back to Guide](./GUIDE.md#setup-infisical)
+[Back to Guide](./guide.md#setup-infisical)

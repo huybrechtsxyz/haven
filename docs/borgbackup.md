@@ -1,6 +1,6 @@
 # BorgBackup for Haven
 
-[Back to Guide](./GUIDE.md#setup-borgbackup)
+[Back to Guide](./guide.md#setup-borgbackup)
 
 ## Overview
 
