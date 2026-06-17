@@ -1,6 +1,6 @@
 # Authentik Setup for Haven
 
-[Back to Guide](./guide.md#setup-authentik)
+[Back to Guide](./GUIDE.md#setup-authentik)
 
 ## Overview
 

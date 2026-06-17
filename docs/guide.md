@@ -12,7 +12,6 @@ For system architecture, component inventory, and design rationale, see:
 
 - **[architecture.md](architecture.md)** — System topology, infrastructure specifications, data durability model
 - **[design.md](design.md)** — Design decisions, domain/email layout, security posture, monthly costs
-- **[migration.md](migration.md)** — Two-wave migration plan, checklists, and progress tracking
 
 ### Quick System Overview
 
