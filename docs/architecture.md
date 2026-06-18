@@ -1,6 +1,6 @@
 # Haven Architecture Reference
 
-> Shared architecture documentation used by design.md and GUIDE.md
+> Shared architecture documentation used by design.md and guide.md
 
 This document describes the Haven platform infrastructure, components, and data flow. It serves as the single source of truth for:
 - System topology (Hearth + Forge + storage)
@@ -9,7 +9,7 @@ This document describes the Haven platform infrastructure, components, and data 
 - Provider landscape
 
 For design rationale and decisions, see [design.md](design.md).
-For deployment instructions, see [GUIDE.md](GUIDE.md).
+For deployment instructions, see [guide.md](guide.md).
 
 ---
 

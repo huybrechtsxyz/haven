@@ -1,6 +1,6 @@
 # Healthchecks.io for Haven
 
-[Back to Guide](./GUIDE.md#setup-healthchecksio)
+[Back to Guide](./guide.md#setup-healthchecksio)
 
 ## Overview
 

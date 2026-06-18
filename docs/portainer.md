@@ -1,6 +1,6 @@
 # Portainer for Haven
 
-[Back to Guide](./GUIDE.md)
+[Back to Guide](./guide.md)
 
 ## Overview
 
@@ -22,4 +22,4 @@ When upgrading to BE, the Authentik OAuth config to use is:
 > - Resource URL: `https://auth.huybrechts.xyz/application/o/userinfo/`
 > - Client ID: `portainer` — add this provider back to the blueprint and run `run_config=true`
 
-[Back](./GUIDE.md#setup-portainer) to Guide
+[Back](./guide.md#setup-portainer) to Guide
