@@ -1,0 +1,976 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Huybrechts.xyz Platform &mdash; haven</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Hosting Design Specifications" href="hosting-solutions.html" />
+    <link rel="prev" title="Family Platform — Design &amp; Migration" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            haven
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Design &amp; Migration</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Family Platform — Design &amp; Migration</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Huybrechts.xyz Platform</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#context-constraints">Context &amp; Constraints</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#current-monthly-spend-baseline">Current monthly spend (baseline)</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#goal">Goal</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#capabilities-needed">Capabilities Needed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#google-ecosystem-required-coverage">Google ecosystem — required coverage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#long-list-candidate-systems">Long list — candidate systems</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#a-all-in-one-managed-platforms-single-vendor-covers-most-needs">A. All-in-one managed platforms (single vendor covers most needs)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#b-managed-nextcloud-mail-combos-two-vendors-high-integration">B. Managed Nextcloud + Mail combos (two vendors, high integration)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#c-self-hosted-app-platforms-on-eu-vps-for-files-photos-home-grown-apps">C. Self-hosted app platforms (on EU VPS — for files, photos, home-grown apps)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#d-eu-vps-providers-to-replace-kamatera-if-self-hosting">D. EU VPS providers (to replace Kamatera if self-hosting)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#e-photo-management-dedicated-if-platform-doesn-t-cover-it-well">E. Photo management (dedicated — if platform doesn’t cover it well)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#f2-proton-family-related-services">F2. Proton family &amp; related services</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#f-summary-fewest-systems-to-cover-all-needs-5-users-5-tb-app-hosting">F. Summary — fewest systems to cover all needs (5 users, ~5 TB, + app hosting)</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#three-proposed-solutions-5-users-1-tb-user">Three proposed solutions (5 users, ~1 TB/user)</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#solution-1-recommended-for-simplicity-infomaniak-ksuite-immich-on-hetzner-vps">Solution 1 — Recommended for simplicity: Infomaniak kSuite + Immich on Hetzner VPS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#solution-2-hybrid-mailbox-org-self-hosted-nextcloud-immich-on-hetzner">Solution 2 — Hybrid (Mailbox.org + self-hosted Nextcloud + Immich on Hetzner)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#solution-3-hybrid-minimal-proton-family-self-hosted-nextcloud-immich-on-hetzner">Solution 3 — Hybrid minimal (Proton Family + self-hosted Nextcloud + Immich on Hetzner)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#comparison-matrix">Comparison matrix</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-solutions.html">Hosting Design Specifications</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-design.html">Hosting Design — Solution A: Infomaniak kSuite + Hetzner VPS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-deploy.html">Haven Deployment Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-guide.html">Hosting Migration — Working Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps.html">Migration Plan — Step by Step</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps-v2.html">Migration Plan v2 — Gradual Migration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps-v2.html#wave-1-infrastructure-developer-services">Wave 1 — Infrastructure &amp; Developer Services</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps-v2.html#wave-2-email-files-collaboration-google-ksuite">Wave 2 — Email, Files &amp; Collaboration (Google → kSuite)</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">haven</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Family Platform — Design &amp; Migration</a></li>
+      <li class="breadcrumb-item active">Huybrechts.xyz Platform</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/design/hosting.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="huybrechts-xyz-platform">
+<h1>Huybrechts.xyz Platform<a class="headerlink" href="#huybrechts-xyz-platform" title="Link to this heading"></a></h1>
+<section id="context-constraints">
+<h2>Context &amp; Constraints<a class="headerlink" href="#context-constraints" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Users:</strong> family of 5 (5 mailboxes, shared storage, shared calendars/contacts).</p></li>
+<li><p><strong>Admin:</strong> owner is comfortable with admin overhead for self-hosted apps (Nextcloud, photos, etc.).</p></li>
+<li><p><strong>Email:</strong> email servers (MTA, spam filtering, deliverability, PTR, IP reputation) require significant ongoing ops — <strong>email must be managed</strong> (no self-hosted MTA).</p></li>
+<li><p><strong>Hosting preference:</strong> EU/Swiss jurisdiction, strong privacy, DPA in place.</p></li>
+<li><p><strong>Simplicity:</strong> fewer integrated systems preferred; self-hosted is fine for everything except email.</p></li>
+<li><p><strong>Domains:</strong> one primary email domain; multiple secondary domains that forward to the primary.</p></li>
+<li><p><strong>Apps:</strong> home-grown applications will need compute — a VPS or small Kubernetes cluster (k3s/k8s). Prefer EU VPS or managed K8s (Hetzner, Scaleway, OVH) and plan for container runtime, ingress, TLS and persistent storage.</p></li>
+<li><p><strong>Password manager:</strong> Bitwarden paid Team account is currently in use. Decision: <strong>migrate to Vaultwarden</strong> (self-hosted Bitwarden-compatible server) on the VPS — same Firefox/iPhone client UX, saves ~€15/mo, vault data stays on EU infrastructure. Use Collections (Family / Dev / CI-Infra) to segment access. Requires solid VPS backup strategy (vault is critical infrastructure).</p></li>
+<li><p><strong>Secret management (app secrets):</strong> home-grown apps, CI/CD pipelines and Terraform need a place to store API keys, DB passwords and service credentials. Options — pick one based on complexity:</p>
+<ul>
+<li><p><strong>Bitwarden CLI → Vaultwarden</strong> — zero extra cost; store secrets as vault items, retrieve with <code class="docutils literal notranslate"><span class="pre">bw</span> <span class="pre">get</span></code> in scripts. Good enough for simple setups (&lt; ~20 secrets, no dynamic credentials).</p></li>
+<li><p><strong>Infisical</strong> (self-hosted) — modern open-source secrets platform; per-app/per-environment secret namespacing, CLI, SDK, Docker/k8s operator, audit log. Runs as a Docker container on the same VPS. Best choice once app count grows.</p></li>
+<li><p><strong>HashiCorp Vault</strong> — enterprise-grade, dynamic secrets, fine-grained policies. Overkill for a home setup unless running many apps or need dynamic DB credentials.</p></li>
+</ul>
+</li>
+</ul>
+<section id="current-monthly-spend-baseline">
+<h3>Current monthly spend (baseline)<a class="headerlink" href="#current-monthly-spend-baseline" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Est. cost</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Google Workspace (3 users, Business Starter)</p></td>
+<td><p>~€18/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Kamatera VPS</p></td>
+<td><p>~€20-40/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>5 domains</p></td>
+<td><p>~€5-8/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Bitwarden Team (current, to be replaced)</p></td>
+<td><p>~€15/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Vaultwarden on VPS (target)</p></td>
+<td><p>€0 (free, runs on existing VPS)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Total current</strong></p></td>
+<td><p><strong>~€58-81/mo</strong></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="goal">
+<h2>Goal<a class="headerlink" href="#goal" title="Link to this heading"></a></h2>
+<p>Replace Google Workspace and Kamatera self-hosting with a privacy-focused, EU‑backed hosting solution that:</p>
+<ul class="simple">
+<li><p>Centralizes email on a single primary domain; secondary domains forwarded/aliased to it.</p></li>
+<li><p>Provides managed email (no self-hosted MTA) plus calendar, contacts, file sync, document editing, and photo management.</p></li>
+<li><p>Ensures EU/Swiss data residency, strong deliverability and privacy controls (SPF, DKIM, DMARC, MTA‑STS, TLS), 2FA, and encrypted backups.</p></li>
+<li><p>Provides EU compute (VPS or k3s) for home-grown applications alongside the collaboration stack.</p></li>
+<li><p>Keeps total cost comparable to current spend while covering 5 users instead of 3.</p></li>
+</ul>
+</section>
+<section id="capabilities-needed">
+<h2>Capabilities Needed<a class="headerlink" href="#capabilities-needed" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Email hosting (MTA + IMAP/SMTP):</strong> reliable SMTP submission, IMAP/IMAPS access, per-mailbox quotas, authenticated submission and TLS.</p></li>
+<li><p><strong>Domain aliases &amp; forwarding:</strong> support for a single primary domain with multiple alias/forwarder domains; per-domain MX configuration and forwarding rules; optional catch‑all with spam controls.</p></li>
+<li><p><strong>Mailbox management &amp; groups:</strong> user provisioning, aliases, distribution lists, shared mailboxes, delegated access and role-based admin.</p></li>
+<li><p><strong>Webmail &amp; client sync:</strong> modern webmail UI plus CalDAV/CardDAV and ActiveSync support for mobile and desktop clients.</p></li>
+<li><p><strong>Calendar &amp; contacts:</strong> shared calendars, free/busy, delegation, ICS/vCard import/export and syncing.</p></li>
+<li><p><strong>File sync &amp; collaboration:</strong> Nextcloud or equivalent with sync clients, collaborative editors (OnlyOffice/Collabora) and file versioning.</p></li>
+<li><p><strong>Deliverability &amp; DNS controls:</strong> per-domain SPF, DKIM signing, DMARC (aggregate/forensic reports), MTA‑STS, TLS, PTR records and optional DNSSEC.</p></li>
+<li><p><strong>IP reputation &amp; outbound strategy:</strong> <em>(provider-managed when using a managed email service — verify PTR and shared IP reputation at signup)</em></p></li>
+<li><p><strong>Security &amp; anti-abuse:</strong> spam/virus filtering, DKIM/DMARC enforcement, brute-force protection, RBL monitoring and per-mailbox rate limiting. <em>(core spam/AV managed by provider; ensure admin controls are exposed)</em></p></li>
+<li><p><strong>Authentication &amp; access control:</strong> SSO/OAuth2/OIDC/LDAP/AD integration, <code class="docutils literal notranslate"><span class="pre">2FA</span></code> (TOTP/WebAuthn), strong password policies and audit logs.</p></li>
+<li><p><strong>Encryption &amp; privacy:</strong> TLS in transit, at-rest encryption, optional end-to-end (PGP/S/MIME) support, minimal logging and Data Processing Agreement (DPA).</p></li>
+<li><p><strong>Data residency &amp; compliance:</strong> EU hosting, DPA, retention policies, legal hold / eDiscovery support as required.</p></li>
+<li><p><strong>Migration tooling:</strong> <code class="docutils literal notranslate"><span class="pre">imapsync</span></code>, <code class="docutils literal notranslate"><span class="pre">rclone</span></code>, Google Takeout workflows, incremental sync tooling, mailbox mapping and rollback/validation steps.</p></li>
+<li><p><strong>Backups &amp; recovery:</strong> automated encrypted backups for mail, databases and files; tested restore procedures and defined retention.</p></li>
+<li><p><strong>Monitoring &amp; observability:</strong> mail queue and bounce monitoring, DMARC report ingestion, uptime/health metrics and alerting.</p></li>
+<li><p><strong>Administration &amp; automation:</strong> web admin UI plus API/SCIM for provisioning, scripted onboarding/offboarding and RBAC.</p></li>
+<li><p><strong>Infrastructure &amp; scaling:</strong> HA design for mail and Nextcloud components, storage sizing, snapshots and failover/autoscale plans.</p></li>
+<li><p><strong>Cost, support &amp; SLA:</strong> predictable pricing or ops cost estimate, support channels, on-call runbook and escalation path.</p></li>
+<li><p><strong>Pilot &amp; testing capability:</strong> staging environment, deliverability testing tools, small-user pilot and rollback checklist.</p></li>
+<li><p><strong>User docs &amp; training:</strong> clear migration guides for Outlook/Apple Mail/Android, 2FA enrollment, and troubleshooting knowledge-base.</p></li>
+</ul>
+</section>
+<section id="google-ecosystem-required-coverage">
+<h2>Google ecosystem — required coverage<a class="headerlink" href="#google-ecosystem-required-coverage" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Google service</p></th>
+<th class="head"><p>Priority</p></th>
+<th class="head"><p>Replacement target</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Gmail</p></td>
+<td><p><strong>Required</strong></p></td>
+<td><p>Managed email (kSuite / Mailbox.org / Proton)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Google Drive</p></td>
+<td><p><strong>Required</strong></p></td>
+<td><p>kDrive (Sol. 1) or Nextcloud (Sol. 2/3)</p></td>
+</tr>
+<tr class="row-even"><td><p>Google Docs / Sheets / Slides</p></td>
+<td><p><strong>Required</strong> (no simultaneous editing needed)</p></td>
+<td><p>OnlyOffice via kDrive or self-hosted</p></td>
+</tr>
+<tr class="row-odd"><td><p>Google Photos</p></td>
+<td><p><strong>Required</strong></p></td>
+<td><p>Immich on VPS</p></td>
+</tr>
+<tr class="row-even"><td><p>Google Calendar</p></td>
+<td><p><strong>Required</strong></p></td>
+<td><p>CalDAV (kSuite / Mailbox.org / Nextcloud)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Google Contacts</p></td>
+<td><p><strong>Required</strong></p></td>
+<td><p>CardDAV (kSuite / Mailbox.org / Nextcloud)</p></td>
+</tr>
+<tr class="row-even"><td><p>Google Tasks</p></td>
+<td><p><strong>Required</strong></p></td>
+<td><p>CalDAV tasks (integrated with calendar)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Shared drives / Team drives</p></td>
+<td><p><strong>Required</strong></p></td>
+<td><p>kDrive shared folders or Nextcloud Group folders</p></td>
+</tr>
+<tr class="row-even"><td><p>Web-based file access (iPhone/iPad)</p></td>
+<td><p><strong>Required</strong></p></td>
+<td><p>kDrive app or Nextcloud mobile app</p></td>
+</tr>
+<tr class="row-odd"><td><p>Security &amp; endpoint management</p></td>
+<td><p><strong>Required</strong></p></td>
+<td><p>Provider spam/AV + MTA‑STS/DMARC; Bitwarden 2FA</p></td>
+</tr>
+<tr class="row-even"><td><p>Backups &amp; retention</p></td>
+<td><p><strong>Required</strong></p></td>
+<td><p>Provider versioning + BorgBackup/restic on VPS</p></td>
+</tr>
+<tr class="row-odd"><td><p>Admin console / Provisioning</p></td>
+<td><p><strong>Required</strong></p></td>
+<td><p>kSuite Manager or Hetzner + Nextcloud admin</p></td>
+</tr>
+<tr class="row-even"><td><p>Workspace APIs / automation</p></td>
+<td><p><strong>Required</strong></p></td>
+<td><p>Terraform / scripting + Bitwarden CLI for secrets</p></td>
+</tr>
+<tr class="row-odd"><td><p>Drive File Stream / Desktop sync</p></td>
+<td><p>Optional (web access required)</p></td>
+<td><p>kDrive desktop or Nextcloud desktop client</p></td>
+</tr>
+<tr class="row-even"><td><p>Google Meet</p></td>
+<td><p>Optional (not currently used)</p></td>
+<td><p>Nextcloud Talk or Jitsi</p></td>
+</tr>
+<tr class="row-odd"><td><p>Google Chat / Spaces</p></td>
+<td><p>Optional (not currently used)</p></td>
+<td><p>Nextcloud Talk or Matrix</p></td>
+</tr>
+<tr class="row-even"><td><p>Google Forms</p></td>
+<td><p>Optional</p></td>
+<td><p>Nextcloud Forms</p></td>
+</tr>
+<tr class="row-odd"><td><p>Google Groups</p></td>
+<td><p>Optional</p></td>
+<td><p>Mailbox.org groups or Mailman3</p></td>
+</tr>
+<tr class="row-even"><td><p>Google Keep</p></td>
+<td><p>Optional (not currently used)</p></td>
+<td><p>Nextcloud Notes or Standard Notes</p></td>
+</tr>
+<tr class="row-odd"><td><p>Google Sites</p></td>
+<td><p>Optional (not currently used)</p></td>
+<td><p>Static site or lightweight CMS</p></td>
+</tr>
+<tr class="row-even"><td><p>Google Vault</p></td>
+<td><p>Optional</p></td>
+<td><p>Provider archiving or Dovecot archive</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="long-list-candidate-systems">
+<h2>Long list — candidate systems<a class="headerlink" href="#long-list-candidate-systems" title="Link to this heading"></a></h2>
+<p>Evaluation criteria: <strong>Privacy</strong> (EU hosting, DPA, encryption) · <strong>Cost</strong> (per-user or flat) · <strong>Simplicity</strong> (fewer moving parts, integration) · <strong>Coverage</strong> (how many Google apps it replaces in one system).</p>
+<section id="a-all-in-one-managed-platforms-single-vendor-covers-most-needs">
+<h3>A. All-in-one managed platforms (single vendor covers most needs)<a class="headerlink" href="#a-all-in-one-managed-platforms-single-vendor-covers-most-needs" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Provider</p></th>
+<th class="head"><p>HQ</p></th>
+<th class="head"><p>Covers</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p><strong>Infomaniak kSuite</strong></p></td>
+<td><p>CH 🇨🇭</p></td>
+<td><p>Mail, Drive (kDrive), Docs (OnlyOffice), Calendar, Contacts, Meet, Tasks</p></td>
+<td><p>Swiss privacy (nFADP/GDPR), custom domains, 2 TB storage, OnlyOffice collab, webmail + mobile apps. Very close Google Workspace replacement. ~€5-7/user/mo.</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p><strong>Mailbox.org Business</strong></p></td>
+<td><p>DE 🇩🇪</p></td>
+<td><p>Mail, Drive (OX Drive), Docs (OX Docs), Calendar, Contacts, Tasks, Video (Jitsi)</p></td>
+<td><p>German privacy, Open-Xchange based, PGP built-in, CalDAV/CardDAV, custom domains, 50 GB mail+cloud. ~€3-9/user/mo.</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p><strong>Mailfence</strong></p></td>
+<td><p>BE 🇧🇪</p></td>
+<td><p>Mail, Docs, Calendar, Contacts, Groups, Drive</p></td>
+<td><p>Belgian privacy, E2E encryption (PGP/S/MIME), custom domains, CalDAV/CardDAV. Smaller storage. ~€3-8/user/mo.</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p><strong>Kolab Now</strong></p></td>
+<td><p>CH 🇨🇭</p></td>
+<td><p>Mail, Calendar, Contacts, Files, Notes, Tasks, Video (Jitsi)</p></td>
+<td><p>Swiss hosted Kolab Groupware, CalDAV/CardDAV, IMAP, custom domains. ~€5-9/user/mo.</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p><strong>Proton for Business</strong></p></td>
+<td><p>CH 🇨🇭</p></td>
+<td><p>Mail, Calendar, Drive, VPN</p></td>
+<td><p>E2E encrypted, Swiss privacy, custom domains, bridge for IMAP clients. Limited collab editing; no integrated docs/sheets yet. ~€8-13/user/mo.</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p><strong>Tutanota (Tuta) Business</strong></p></td>
+<td><p>DE 🇩🇪</p></td>
+<td><p>Mail, Calendar, Contacts</p></td>
+<td><p>E2E encrypted, German hosting. No Drive/Docs/Photos equivalent—needs pairing. ~€6-8/user/mo.</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p><strong>Disroot</strong></p></td>
+<td><p>NL 🇳🇱</p></td>
+<td><p>Mail, Cloud (Nextcloud), Chat (XMPP), Forum, Pads, Upload</p></td>
+<td><p>Community/donation-based, Nextcloud backend, NL hosted. Good for simple setups. Free / donation.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="b-managed-nextcloud-mail-combos-two-vendors-high-integration">
+<h3>B. Managed Nextcloud + Mail combos (two vendors, high integration)<a class="headerlink" href="#b-managed-nextcloud-mail-combos-two-vendors-high-integration" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Combo</p></th>
+<th class="head"><p>Covers</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>8</p></td>
+<td><p><strong>Hetzner Managed Nextcloud</strong> + <strong>Mailbox.org</strong></p></td>
+<td><p>Files, Docs, Photos, Calendar, Contacts, Tasks + Mail</p></td>
+<td><p>Hetzner Storage Share (managed Nextcloud) €3-5/user + Mailbox.org for mail. Both DE. Simple, cheap, integrated via CalDAV.</p></td>
+</tr>
+<tr class="row-odd"><td><p>9</p></td>
+<td><p><strong>Infomaniak kDrive</strong> + <strong>Infomaniak Mail</strong></p></td>
+<td><p>Files, Docs, Photos + Mail</p></td>
+<td><p>All from one Swiss vendor; effectively kSuite components used separately if desired.</p></td>
+</tr>
+<tr class="row-even"><td><p>10</p></td>
+<td><p><strong>IONOS HiDrive</strong> + <strong>IONOS Mail</strong></p></td>
+<td><p>Files + Mail</p></td>
+<td><p>German, cheap (€1-5/user), but limited collab editing and no photos app.</p></td>
+</tr>
+<tr class="row-odd"><td><p>11</p></td>
+<td><p><strong>Murena (e.Foundation)</strong></p></td>
+<td><p>Mail, Cloud, Docs, Office</p></td>
+<td><p>EU-hosted, privacy-focused (deGoogled), Nextcloud-based cloud + email. Aimed at consumers but has family/small-team plans. ~€5/user/mo.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="c-self-hosted-app-platforms-on-eu-vps-for-files-photos-home-grown-apps">
+<h3>C. Self-hosted app platforms (on EU VPS — for files, photos, home-grown apps)<a class="headerlink" href="#c-self-hosted-app-platforms-on-eu-vps-for-files-photos-home-grown-apps" title="Link to this heading"></a></h3>
+<blockquote>
+<div><p><strong>Note:</strong> self-hosted MTA options (Mailcow, Mail-in-a-Box, Mailu, iRedMail, Modoboa) are <strong>excluded</strong> — email must be managed (see Context &amp; Constraints). Listed here only as app hosting platforms.</p>
+</div></blockquote>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Platform</p></th>
+<th class="head"><p>Covers</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>12</p></td>
+<td><p><strong>Nextcloud Hub</strong> (self-hosted)</p></td>
+<td><p>Files, Docs (OnlyOffice/Collabora), Photos, Calendar, Contacts, Tasks, Talk, Mail (client)</p></td>
+<td><p>Covers everything except MTA; use alongside a managed mail provider.</p></td>
+</tr>
+<tr class="row-odd"><td><p>13</p></td>
+<td><p><strong>Immich</strong> (self-hosted)</p></td>
+<td><p>Photos (Google Photos clone: timeline, AI, face recognition, mobile upload)</p></td>
+<td><p>Best Google Photos replacement; active development; runs alongside Nextcloud.</p></td>
+</tr>
+<tr class="row-even"><td><p>14</p></td>
+<td><p><strong>OnlyOffice Docs</strong> (Docker)</p></td>
+<td><p>Document collaboration server</p></td>
+<td><p>Integrates with Nextcloud; best MS/Google format compatibility.</p></td>
+</tr>
+<tr class="row-odd"><td><p>15</p></td>
+<td><p><strong>Cloudron</strong></p></td>
+<td><p>App hosting platform (Nextcloud, OnlyOffice, PhotoPrism, home-grown apps, LDAP/SSO, backups)</p></td>
+<td><p>One-click installs, automatic updates, LDAP/SSO baked in. Paid license (~€15/mo). Good platform for home-grown apps.</p></td>
+</tr>
+<tr class="row-even"><td><p>16</p></td>
+<td><p><strong>Cosmos Cloud</strong></p></td>
+<td><p>Docker app hosting with SSO, reverse proxy, automated certs</p></td>
+<td><p>Lighter free/open-source alternative to Cloudron.</p></td>
+</tr>
+<tr class="row-odd"><td><p>17</p></td>
+<td><p><strong>k3s / k8s</strong> (lightweight Kubernetes)</p></td>
+<td><p>Container orchestration for home-grown apps + self-hosted services</p></td>
+<td><p>k3s is easy single-node or small-cluster Kubernetes; good for home-grown apps; add Helm charts for Nextcloud, Immich, etc.</p></td>
+</tr>
+<tr class="row-even"><td><p>18</p></td>
+<td><p><strong>YunoHost</strong></p></td>
+<td><p>Meta-installer (Nextcloud, OnlyOffice, PhotoPrism, apps), LDAP, SSO, Let’s Encrypt</p></td>
+<td><p>Simplest full self-hosting path; less suited for home-grown custom app workloads.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="d-eu-vps-providers-to-replace-kamatera-if-self-hosting">
+<h3>D. EU VPS providers (to replace Kamatera if self-hosting)<a class="headerlink" href="#d-eu-vps-providers-to-replace-kamatera-if-self-hosting" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Provider</p></th>
+<th class="head"><p>HQ</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>22</p></td>
+<td><p><strong>Hetzner Cloud</strong></p></td>
+<td><p>DE 🇩🇪</p></td>
+<td><p>Best price/performance in EU. €4-20/mo for capable VPS. Excellent network.</p></td>
+</tr>
+<tr class="row-odd"><td><p>23</p></td>
+<td><p><strong>Scaleway</strong></p></td>
+<td><p>FR 🇫🇷</p></td>
+<td><p>French cloud, good APIs, object storage, managed Kubernetes if needed.</p></td>
+</tr>
+<tr class="row-even"><td><p>24</p></td>
+<td><p><strong>OVHcloud</strong></p></td>
+<td><p>FR 🇫🇷</p></td>
+<td><p>Large EU provider, VPS from €3.50/mo, dedicated servers, good IP reputation.</p></td>
+</tr>
+<tr class="row-odd"><td><p>25</p></td>
+<td><p><strong>Contabo</strong></p></td>
+<td><p>DE 🇩🇪</p></td>
+<td><p>Very cheap (€5-7/mo for 4 vCPU), EU DCs, but support is basic.</p></td>
+</tr>
+<tr class="row-even"><td><p>26</p></td>
+<td><p><strong>Netcup</strong></p></td>
+<td><p>DE 🇩🇪</p></td>
+<td><p>German quality VPS, €3-8/mo, good community reputation.</p></td>
+</tr>
+<tr class="row-odd"><td><p>27</p></td>
+<td><p><strong>Infomaniak Public Cloud</strong></p></td>
+<td><p>CH 🇨🇭</p></td>
+<td><p>Swiss, OpenStack-based, integrates with their managed services.</p></td>
+</tr>
+<tr class="row-even"><td><p>28</p></td>
+<td><p><strong>Exoscale</strong></p></td>
+<td><p>CH 🇨🇭</p></td>
+<td><p>Swiss, simple API, object storage, managed DBaaS.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="e-photo-management-dedicated-if-platform-doesn-t-cover-it-well">
+<h3>E. Photo management (dedicated — if platform doesn’t cover it well)<a class="headerlink" href="#e-photo-management-dedicated-if-platform-doesn-t-cover-it-well" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>System</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>29</p></td>
+<td><p><strong>PhotoPrism</strong></p></td>
+<td><p>AI tagging, face recognition, deduplication, mobile upload. Self-hosted.</p></td>
+</tr>
+<tr class="row-odd"><td><p>30</p></td>
+<td><p><strong>Immich</strong></p></td>
+<td><p>Google Photos clone (timeline, mobile auto-upload, face recognition). Self-hosted, very active development.</p></td>
+</tr>
+<tr class="row-even"><td><p>31</p></td>
+<td><p><strong>Nextcloud Photos + Memories</strong></p></td>
+<td><p>Built into Nextcloud, AI tagging via Recognize app. Simpler but less polished than Immich.</p></td>
+</tr>
+<tr class="row-odd"><td><p>32</p></td>
+<td><p><strong>Ente</strong></p></td>
+<td><p>E2E encrypted photo storage, EU servers, mobile apps. Managed. ~€10/100GB/yr.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="f2-proton-family-related-services">
+<h3>F2. Proton family &amp; related services<a class="headerlink" href="#f2-proton-family-related-services" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>Proton Mail</strong> — secure, zero‑access email with custom domains; paid Family/Business plans support multiple users and domain hosting; good deliverability and low ops overhead.</p></li>
+<li><p><strong>Proton Drive</strong> — client‑side encrypted file storage and sharing; strong privacy but limited real‑time collaborative editing compared with OnlyOffice/Collabora.</p></li>
+<li><p><strong>Proton Calendar</strong> — encrypted calendar with ICS import/export and mobile sync.</p></li>
+<li><p><strong>Proton Contacts</strong> — encrypted contacts storage with vCard import/export.</p></li>
+<li><p><strong>Proton Pass</strong> — password manager integrated with Proton accounts (optional add‑on). Note: an existing Bitwarden Team account is already in use and can be retained instead of Proton Pass.</p></li>
+<li><p><strong>Proton VPN</strong> — optional VPN service for network privacy and location masking.</p></li>
+<li><p><strong>Proton Bridge</strong> — desktop IMAP/SMTP bridge for using Proton Mail with standard email clients (paid plan feature).</p></li>
+</ul>
+<p>Notes: Proton is Swiss‑hosted with a strong privacy posture and zero‑access encryption for Drive/mail. It can serve as a single‑vendor, low‑ops replacement for many Workspace needs; pair with Nextcloud/OnlyOffice or Immich where Proton lacks collaboration or advanced photo features.</p>
+</section>
+<section id="f-summary-fewest-systems-to-cover-all-needs-5-users-5-tb-app-hosting">
+<h3>F. Summary — fewest systems to cover all needs (5 users, ~5 TB, + app hosting)<a class="headerlink" href="#f-summary-fewest-systems-to-cover-all-needs-5-users-5-tb-app-hosting" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Approach</p></th>
+<th class="head"><p>Systems needed</p></th>
+<th class="head"><p>Ops effort</p></th>
+<th class="head"><p>Cost estimate (5 users)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Infomaniak kSuite + Immich on Hetzner VPS</strong></p></td>
+<td><p>kSuite + 1 VPS (Immich free)</p></td>
+<td><p>Low–Medium</p></td>
+<td><p>~€65-83/mo ✅ recommended</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Mailbox.org + Hetzner Nextcloud/Immich/Apps</strong></p></td>
+<td><p>Mailbox.org + 1 VPS + Storage Box</p></td>
+<td><p>Medium</p></td>
+<td><p>~€50-60/mo</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Proton Family + Hetzner Nextcloud/Immich/Apps</strong></p></td>
+<td><p>Proton + 1 VPS + Storage Box</p></td>
+<td><p>Medium</p></td>
+<td><p>~€65-75/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Infomaniak kSuite + Hetzner VPS (k3s)</strong></p></td>
+<td><p>kSuite + 1 VPS (k3s)</p></td>
+<td><p>Medium–High</p></td>
+<td><p>~€65-85/mo</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<hr class="docutils" />
+<section id="three-proposed-solutions-5-users-1-tb-user">
+<h2>Three proposed solutions (5 users, ~1 TB/user)<a class="headerlink" href="#three-proposed-solutions-5-users-1-tb-user" title="Link to this heading"></a></h2>
+<section id="solution-1-recommended-for-simplicity-infomaniak-ksuite-immich-on-hetzner-vps">
+<h3>Solution 1 — Recommended for simplicity: Infomaniak kSuite + Immich on Hetzner VPS<a class="headerlink" href="#solution-1-recommended-for-simplicity-infomaniak-ksuite-immich-on-hetzner-vps" title="Link to this heading"></a></h3>
+<p>Best choice for a non-tech-savvy family. kSuite is a single Swiss platform covering everything the family touches (mail, drive, docs, calendar, contacts) — one login, one app, one admin panel. The VPS is needed anyway for home-grown apps, so Immich runs there for free (no Ente subscription needed).</p>
+<p><strong>Why kSuite is the simplest for family members:</strong></p>
+<ul class="simple">
+<li><p>Single login for mail + drive + calendar + contacts</p></li>
+<li><p>Native mobile apps (iOS/Android) that work like Google’s</p></li>
+<li><p>No VPN, bridge, or CalDAV configuration needed — everything just works</p></li>
+<li><p>One admin panel to manage 5 users, domains and aliases</p></li>
+<li><p>Non-tech users never touch the VPS</p></li>
+</ul>
+<p><strong>Why Immich instead of Ente:</strong></p>
+<ul class="simple">
+<li><p>VPS is already required for home-grown apps — Immich runs on that same server at no extra cost</p></li>
+<li><p>Immich has better UX than Ente (Google Photos timeline, face recognition, shared albums, mobile auto-upload)</p></li>
+<li><p>Ente only makes sense if you want zero self-hosting; that’s no longer true here</p></li>
+</ul>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Capability</p></th>
+<th class="head"><p>Provider</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Email (managed)</p></td>
+<td><p>Infomaniak kSuite Mail</p></td>
+<td><p>Custom domains, aliases, forwarding, webmail, CalDAV/CardDAV, ActiveSync. SPF/DKIM/DMARC managed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Calendar &amp; Contacts</p></td>
+<td><p>Infomaniak kSuite</p></td>
+<td><p>Shared calendars, CalDAV/CardDAV, mobile sync.</p></td>
+</tr>
+<tr class="row-even"><td><p>File sync &amp; sharing</p></td>
+<td><p>Infomaniak kDrive</p></td>
+<td><p>3 TB shared plan, web + desktop + mobile apps, OnlyOffice editing built-in.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Document collaboration</p></td>
+<td><p>OnlyOffice (via kDrive)</p></td>
+<td><p>Docs/Sheets/Slides editing in browser — no simultaneous editing required.</p></td>
+</tr>
+<tr class="row-even"><td><p>Photo management</p></td>
+<td><p><strong>Immich</strong> (on Hetzner VPS)</p></td>
+<td><p>Google Photos clone: timeline, face recognition, mobile auto-upload, shared albums. Free on existing VPS.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Tasks</p></td>
+<td><p>Infomaniak kSuite (CalDAV tasks)</p></td>
+<td><p>Integrated with calendar apps.</p></td>
+</tr>
+<tr class="row-even"><td><p>Password manager</p></td>
+<td><p>Bitwarden Team (existing)</p></td>
+<td><p>Keep existing Team account; no change.</p></td>
+</tr>
+<tr class="row-odd"><td><p>App hosting / Compute</p></td>
+<td><p><strong>Hetzner VPS</strong> (CPX31 or similar)</p></td>
+<td><p>Home-grown apps + Immich on Docker/k3s; EU/DE hosted.</p></td>
+</tr>
+<tr class="row-even"><td><p>Secret management</p></td>
+<td><p><strong>Bitwarden CLI → Vaultwarden</strong> (start) · <strong>Infisical</strong> (self-hosted, when needed)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">bw</span> <span class="pre">get</span></code> for simple CI/script secrets; add Infisical on the same VPS for per-app/per-env namespacing when complexity grows.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Backups</p></td>
+<td><p>Infomaniak kDrive versioning + BorgBackup on VPS</p></td>
+<td><p>30-day file versioning for kDrive; encrypted VPS backup for Immich.</p></td>
+</tr>
+<tr class="row-even"><td><p>Admin / DNS</p></td>
+<td><p>Infomaniak Manager + DNS registrar</p></td>
+<td><p>Web UI, custom domains, alias domains, forwarding for all 5 domains.</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Estimated monthly cost (5 users, ~5 TB total):</strong></p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Cost</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Infomaniak kSuite (5 users, kDrive 3 TB)</p></td>
+<td><p>~€25-35/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Infomaniak extra kDrive storage to reach ~5 TB</p></td>
+<td><p>~€5-10/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Hetzner VPS for apps + Immich (CPX31)</p></td>
+<td><p>~€15/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Domains (keep existing 5)</p></td>
+<td><p>~€5-8/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Vaultwarden (self-hosted, replaces Bitwarden Team)</p></td>
+<td><p>€0 (free on existing VPS, saves ~€15/mo)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Total</strong></p></td>
+<td><p><strong>~€50-68/mo</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>vs current spend</strong></p></td>
+<td><p>~€58-81/mo — same or cheaper, 2 extra users + better privacy</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Pros:</strong> simplest for non-tech family members; one Swiss vendor for everything family-facing; no VPN/bridge/CalDAV setup; best deliverability; Immich + Vaultwarden on VPS are free; saves ~€15/mo vs current Bitwarden Team.
+<strong>Note on Vaultwarden:</strong> family uses the same Bitwarden app on Firefox and iPhone — zero UX change. Ensure daily encrypted backup of <code class="docutils literal notranslate"><span class="pre">/vaultwarden/data/</span></code> on the VPS.
+<strong>Cons:</strong> Infomaniak vendor lock-in risk (less severe than Google); VPS still needed for apps/Immich but family never touches it.</p>
+</section>
+<hr class="docutils" />
+<section id="solution-2-hybrid-mailbox-org-self-hosted-nextcloud-immich-on-hetzner">
+<h3>Solution 2 — Hybrid (Mailbox.org + self-hosted Nextcloud + Immich on Hetzner)<a class="headerlink" href="#solution-2-hybrid-mailbox-org-self-hosted-nextcloud-immich-on-hetzner" title="Link to this heading"></a></h3>
+<p>Managed email for deliverability + self-hosted storage/photos for maximum space and control.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Capability</p></th>
+<th class="head"><p>Provider</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Email (managed)</p></td>
+<td><p><strong>Mailbox.org</strong> (5× Business plan)</p></td>
+<td><p>German hosting, custom domains, alias domains, PGP, CalDAV/CardDAV, OX Drive (limited). SPF/DKIM/DMARC managed by provider.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Calendar &amp; Contacts</p></td>
+<td><p>Mailbox.org (CalDAV/CardDAV)</p></td>
+<td><p>Shared calendars, delegation, ICS import, vCard sync.</p></td>
+</tr>
+<tr class="row-even"><td><p>File sync &amp; sharing</p></td>
+<td><p><strong>Nextcloud</strong> (self-hosted on Hetzner)</p></td>
+<td><p>5 TB+ Hetzner Storage Box or local disk. Desktop/mobile/web sync.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Document collaboration</p></td>
+<td><p><strong>OnlyOffice</strong> (Docker on same VPS)</p></td>
+<td><p>Integrated with Nextcloud for in-browser editing.</p></td>
+</tr>
+<tr class="row-even"><td><p>Photo management</p></td>
+<td><p><strong>Immich</strong> (self-hosted on Hetzner)</p></td>
+<td><p>Google Photos clone: timeline, face recognition, mobile auto-upload, sharing.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Tasks</p></td>
+<td><p>Nextcloud Tasks (CalDAV) or Mailbox.org tasks</p></td>
+<td><p>Synced via CalDAV to any client.</p></td>
+</tr>
+<tr class="row-even"><td><p>Password manager</p></td>
+<td><p><strong>Vaultwarden</strong> (on Hetzner VPS)</p></td>
+<td><p>Self-hosted Bitwarden-compatible server; same Firefox/iPhone app UX; free on existing VPS. Cancel Bitwarden Team. Backup vault DB daily.</p></td>
+</tr>
+<tr class="row-odd"><td><p>App hosting / Compute</p></td>
+<td><p><strong>Hetzner VPS</strong> (same VPS or dedicated node)</p></td>
+<td><p>Home-grown apps + Nextcloud + Immich + OnlyOffice on Docker/k3s. IaC with Terraform/Ansible.</p></td>
+</tr>
+<tr class="row-even"><td><p>Secret management</p></td>
+<td><p><strong>Bitwarden CLI → Vaultwarden</strong> (start) · <strong>Infisical</strong> (self-hosted, when needed)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">bw</span> <span class="pre">get</span></code> for simple CI/script secrets; add Infisical on the same VPS for per-app/per-env namespacing when complexity grows.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Backups</p></td>
+<td><p>Hetzner Storage Box + BorgBackup/restic</p></td>
+<td><p>Encrypted off-server backups, automated daily.</p></td>
+</tr>
+<tr class="row-even"><td><p>Admin / DNS</p></td>
+<td><p>Hetzner Cloud Console + DNS registrar</p></td>
+<td><p>Terraform/Ansible for IaC; Bitwarden CLI (works with Vaultwarden) for CI secret retrieval.</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Estimated monthly cost (5 users, ~5 TB):</strong></p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Cost</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Mailbox.org Business (5× €3/mo)</p></td>
+<td><p>€15/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Hetzner VPS (CPX31: 4 vCPU, 8 GB RAM, 160 GB SSD)</p></td>
+<td><p>€15/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Hetzner Storage Box (5 TB, BX40)</p></td>
+<td><p>€16/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Domains (keep existing 5)</p></td>
+<td><p>~€5-8/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Bitwarden (keep existing)</p></td>
+<td><p>~€15/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Total</strong></p></td>
+<td><p><strong>~€66-69/mo</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>vs current spend</strong></p></td>
+<td><p>~€58-81/mo (more users, EU privacy, no MTA ops)</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Pros:</strong> managed email (zero MTA ops), German privacy, cheap storage, full control over files/photos/apps, standard protocols (IMAP/CalDAV/CardDAV), IaC-friendly.
+<strong>Cons:</strong> you maintain Nextcloud + Immich + OnlyOffice + home-grown apps; less polished UX for non-tech family members than kSuite.</p>
+</section>
+<hr class="docutils" />
+<section id="solution-3-hybrid-minimal-proton-family-self-hosted-nextcloud-immich-on-hetzner">
+<h3>Solution 3 — Hybrid minimal (Proton Family + self-hosted Nextcloud + Immich on Hetzner)<a class="headerlink" href="#solution-3-hybrid-minimal-proton-family-self-hosted-nextcloud-immich-on-hetzner" title="Link to this heading"></a></h3>
+<p>Proton handles email/calendar/contacts/VPN with zero-access encryption. Self-hosted covers storage and photos.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Capability</p></th>
+<th class="head"><p>Provider</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Email (managed)</p></td>
+<td><p><strong>Proton Mail</strong> (Family plan, 6 users)</p></td>
+<td><p>Swiss E2E encrypted, custom domains, alias domains, Proton Bridge for IMAP clients. SPF/DKIM/DMARC managed.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Calendar &amp; Contacts</p></td>
+<td><p>Proton Calendar + Proton Contacts</p></td>
+<td><p>Encrypted, mobile sync. Note: no CalDAV — uses Proton apps only.</p></td>
+</tr>
+<tr class="row-even"><td><p>VPN</p></td>
+<td><p>Proton VPN (included in Family)</p></td>
+<td><p>Network privacy for all family members.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Password manager</p></td>
+<td><p><strong>Vaultwarden</strong> (on Hetzner VPS)</p></td>
+<td><p>Self-hosted Bitwarden-compatible server; same Firefox/iPhone app UX; free on existing VPS. Cancel Bitwarden Team. Backup vault DB daily.</p></td>
+</tr>
+<tr class="row-even"><td><p>File sync &amp; sharing</p></td>
+<td><p><strong>Nextcloud</strong> (self-hosted on Hetzner)</p></td>
+<td><p>5 TB+, web/desktop/mobile access.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Document collaboration</p></td>
+<td><p><strong>OnlyOffice</strong> (Docker on same VPS)</p></td>
+<td><p>Integrated with Nextcloud.</p></td>
+</tr>
+<tr class="row-even"><td><p>Photo management</p></td>
+<td><p><strong>Immich</strong> (self-hosted on Hetzner)</p></td>
+<td><p>Timeline, face recognition, mobile auto-upload.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Tasks</p></td>
+<td><p>Nextcloud Tasks (CalDAV)</p></td>
+<td><p>Or any CalDAV client syncing to Nextcloud.</p></td>
+</tr>
+<tr class="row-even"><td><p>App hosting / Compute</p></td>
+<td><p><strong>Hetzner VPS</strong> (same VPS or dedicated node)</p></td>
+<td><p>Home-grown apps + Nextcloud + Immich + OnlyOffice on Docker/k3s.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Secret management</p></td>
+<td><p><strong>Bitwarden CLI → Vaultwarden</strong> (start) · <strong>Infisical</strong> (self-hosted, when needed)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">bw</span> <span class="pre">get</span></code> for simple CI/script secrets; add Infisical on the same VPS for per-app/per-env namespacing when complexity grows.</p></td>
+</tr>
+<tr class="row-even"><td><p>Backups</p></td>
+<td><p>Hetzner Storage Box + BorgBackup/restic</p></td>
+<td><p>Encrypted off-server backups.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Admin / DNS</p></td>
+<td><p>Hetzner Cloud + Proton Admin + DNS registrar</p></td>
+<td><p>Proton admin for mail; Hetzner for infra; Bitwarden CLI (works with Vaultwarden) for CI secrets.</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Estimated monthly cost (5 users, ~5 TB):</strong></p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Cost</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Proton Family plan (up to 6 users, 3 TB Proton Drive)</p></td>
+<td><p>~€30/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Hetzner VPS (CPX31: 4 vCPU, 8 GB RAM, 160 GB SSD)</p></td>
+<td><p>€15/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Hetzner Storage Box (5 TB, BX40)</p></td>
+<td><p>€16/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Domains (keep existing 5)</p></td>
+<td><p>~€5-8/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Vaultwarden (self-hosted, replaces Bitwarden Team)</p></td>
+<td><p>€0 (free on existing VPS, saves ~€15/mo)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Total</strong></p></td>
+<td><p><strong>~€66-69/mo</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>vs current spend</strong></p></td>
+<td><p>~€58-81/mo — slight premium for E2E encryption + VPN</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Pros:</strong> strongest encryption (zero-access mail + E2E), VPN included, Swiss privacy, Proton ecosystem very polished on mobile. Vaultwarden on VPS saves ~€15/mo vs Bitwarden Team.
+<strong>Cons:</strong> no standard CalDAV/CardDAV (locked to Proton apps for calendar/contacts sync), most expensive of the three options, Proton Drive overlaps with Nextcloud (paying for both), less flexible for third-party email clients.</p>
+</section>
+<hr class="docutils" />
+<section id="comparison-matrix">
+<h3>Comparison matrix<a class="headerlink" href="#comparison-matrix" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Criterion</p></th>
+<th class="head text-center"><p>Solution 1 (Infomaniak)</p></th>
+<th class="head text-center"><p>Solution 2 (Mailbox.org + Hetzner)</p></th>
+<th class="head text-center"><p>Solution 3 (Proton + Hetzner)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Privacy</strong></p></td>
+<td class="text-center"><p>★★★★☆ (Swiss, encrypted at rest)</p></td>
+<td class="text-center"><p>★★★★☆ (German, TLS + PGP optional)</p></td>
+<td class="text-center"><p>★★★★★ (Swiss, zero-access E2E)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Cost /mo (Vaultwarden on VPS, domains incl.)</strong></p></td>
+<td class="text-center"><p>~€50-68</p></td>
+<td class="text-center"><p>~€51-54</p></td>
+<td class="text-center"><p>~€66-69</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Simplicity</strong></p></td>
+<td class="text-center"><p>★★★★★ (fully managed)</p></td>
+<td class="text-center"><p>★★★☆☆ (managed mail + self-host apps)</p></td>
+<td class="text-center"><p>★★★☆☆ (managed mail + self-host apps)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Storage (1 TB/user)</strong></p></td>
+<td class="text-center"><p>~5 TB achievable</p></td>
+<td class="text-center"><p>5 TB+ easy (Storage Box)</p></td>
+<td class="text-center"><p>5 TB+ easy (Storage Box)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Email flexibility</strong></p></td>
+<td class="text-center"><p>★★★★★ (IMAP, any client)</p></td>
+<td class="text-center"><p>★★★★★ (IMAP, any client)</p></td>
+<td class="text-center"><p>★★★☆☆ (Bridge needed for IMAP)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>CalDAV/CardDAV</strong></p></td>
+<td class="text-center"><p>★★★★★ (native)</p></td>
+<td class="text-center"><p>★★★★★ (native)</p></td>
+<td class="text-center"><p>★★☆☆☆ (Proton apps only)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Photo management</strong></p></td>
+<td class="text-center"><p>★★★★★ (Immich on VPS, free)</p></td>
+<td class="text-center"><p>★★★★★ (Immich, full-featured)</p></td>
+<td class="text-center"><p>★★★★★ (Immich, full-featured)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Doc collaboration</strong></p></td>
+<td class="text-center"><p>★★★★☆ (OnlyOffice via kDrive)</p></td>
+<td class="text-center"><p>★★★★★ (OnlyOffice self-hosted)</p></td>
+<td class="text-center"><p>★★★★★ (OnlyOffice self-hosted)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>App hosting</strong></p></td>
+<td class="text-center"><p>★★★☆☆ (separate Hetzner VPS needed)</p></td>
+<td class="text-center"><p>★★★★★ (VPS already hosts apps)</p></td>
+<td class="text-center"><p>★★★★★ (VPS already hosts apps)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Admin overhead</strong></p></td>
+<td class="text-center"><p>Low (managed + 1 VPS)</p></td>
+<td class="text-center"><p>Medium (VPS with several apps)</p></td>
+<td class="text-center"><p>Medium (VPS with several apps)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Vendor lock-in risk</strong></p></td>
+<td class="text-center"><p>Medium (Infomaniak)</p></td>
+<td class="text-center"><p>Low (standard protocols)</p></td>
+<td class="text-center"><p>Medium (Proton encryption format)</p></td>
+</tr>
+</tbody>
+</table>
+<hr class="docutils" />
+<p><strong>Next step:</strong> pick one solution (or blend elements) → build detailed migration plan.</p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Family Platform — Design &amp; Migration" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="hosting-solutions.html" class="btn btn-neutral float-right" title="Hosting Design Specifications" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Vincent Huybrechts.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

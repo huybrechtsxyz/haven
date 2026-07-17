@@ -1,0 +1,1968 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hosting Migration — Working Guide &mdash; haven</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Migration Plan — Step by Step" href="hosting-steps.html" />
+    <link rel="prev" title="Haven Deployment Guide" href="hosting-deploy.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            haven
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Design &amp; Migration</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Family Platform — Design &amp; Migration</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="hosting.html">Huybrechts.xyz Platform</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-solutions.html">Hosting Design Specifications</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-design.html">Hosting Design — Solution A: Infomaniak kSuite + Hetzner VPS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-deploy.html">Haven Deployment Guide</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Hosting Migration — Working Guide</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#accounts-access-fill-in-as-you-create-them">Accounts &amp; access (fill in as you create them)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#wave-1-infrastructure-developer-services">Wave 1 — Infrastructure &amp; Developer Services</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#phase-1-1-domain-transfer-to-inwx">Phase 1.1 — Domain transfer to INWX</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#phase-1-2-provision-hetzner-vps-storage-box">Phase 1.2 — Provision Hetzner VPS + Storage Box</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#phase-1-3-deploy-authentik-sso">Phase 1.3 — Deploy Authentik (SSO)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#phase-1-4-deploy-vaultwarden-passwords">Phase 1.4 — Deploy Vaultwarden (passwords)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#devices-migrated-to-vaultwarden">Devices migrated to Vaultwarden</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#phase-1-5-deploy-infisical-secrets">Phase 1.5 — Deploy Infisical (secrets)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#phase-1-6-deploy-immich-photos">Phase 1.6 — Deploy Immich (photos)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#phones-with-immich-auto-upload-enabled">Phones with Immich auto-upload enabled</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#phase-1-7-backups-monitoring">Phase 1.7 — Backups &amp; monitoring</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#borgbackup-details">BorgBackup details</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#phase-1-8-decommission-kamatera-bitwarden">Phase 1.8 — Decommission Kamatera + Bitwarden</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#wave-1-soak-gate-2-weeks-from-last-service-deployed">Wave 1 soak gate (2 weeks from last service deployed)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#decommission-steps">Decommission Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#wave-2-email-files-collaboration-google-ksuite">Wave 2 — Email, Files &amp; Collaboration (Google → kSuite)</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#phase-2-1-preparation-exports">Phase 2.1 — Preparation &amp; exports</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#phase-2-2-provision-ksuite">Phase 2.2 — Provision kSuite</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#phase-2-3-data-migration-parallel-period">Phase 2.3 — Data migration (parallel period)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#phase-2-4-dns-cutover-mx-switch">Phase 2.4 — DNS cutover (MX switch)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#rollback-if-critical-issue-within-24h">Rollback (if critical issue within 24h)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#phase-2-5-client-configuration">Phase 2.5 — Client configuration</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#phase-2-6-decommission-google-workspace">Phase 2.6 — Decommission Google Workspace</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#phase-2-7-post-migration-hardening">Phase 2.7 — Post-migration hardening</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#final-cost-summary-fill-in-after-wave-2">Final cost summary (fill in after Wave 2)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps.html">Migration Plan — Step by Step</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps-v2.html">Migration Plan v2 — Gradual Migration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps-v2.html#wave-1-infrastructure-developer-services">Wave 1 — Infrastructure &amp; Developer Services</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps-v2.html#wave-2-email-files-collaboration-google-ksuite">Wave 2 — Email, Files &amp; Collaboration (Google → kSuite)</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">haven</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Family Platform — Design &amp; Migration</a></li>
+      <li class="breadcrumb-item active">Hosting Migration — Working Guide</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/design/hosting-guide.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="hosting-migration-working-guide">
+<h1>Hosting Migration — Working Guide<a class="headerlink" href="#hosting-migration-working-guide" title="Link to this heading"></a></h1>
+<blockquote>
+<div><p>Plan: <a class="reference internal" href="hosting-steps-v2.html"><span class="std std-doc">hosting-steps-v2.md</span></a> | Design: <a class="reference internal" href="hosting-design.html"><span class="std std-doc">hosting-design.md</span></a>
+This file is a living workbook. Fill in results as you go. Use it to track progress and collect the data needed for each next step.</p>
+</div></blockquote>
+<p><strong>Status:</strong> � In Progress</p>
+<hr class="docutils" />
+<section id="accounts-access-fill-in-as-you-create-them">
+<h2>Accounts &amp; access (fill in as you create them)<a class="headerlink" href="#accounts-access-fill-in-as-you-create-them" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Service</p></th>
+<th class="head"><p>URL</p></th>
+<th class="head"><p>Username</p></th>
+<th class="head"><p>Credentials stored</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>INWX</p></td>
+<td><p><a class="reference external" href="https://www.inwx.de">https://www.inwx.de</a></p></td>
+<td><p><a class="reference external" href="mailto:vincent&#37;&#52;&#48;huybrechts&#46;xyz">vincent<span>&#64;</span>huybrechts<span>&#46;</span>xyz</a></p></td>
+<td><p>Bitwarden (migrate to Vaultwarden → Family)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Hetzner</p></td>
+<td><p><a class="reference external" href="https://console.hetzner.cloud">https://console.hetzner.cloud</a></p></td>
+<td><p><a class="reference external" href="mailto:vincent&#37;&#52;&#48;huybrechts&#46;xyz">vincent<span>&#64;</span>huybrechts<span>&#46;</span>xyz</a></p></td>
+<td><p>Bitwarden (migrate to Vaultwarden → Family)</p></td>
+</tr>
+<tr class="row-even"><td><p>Infomaniak</p></td>
+<td><p><a class="reference external" href="https://manager.infomaniak.com">https://manager.infomaniak.com</a></p></td>
+<td><p><a class="reference external" href="mailto:vincent&#37;&#52;&#48;huybrechts&#46;xyz">vincent<span>&#64;</span>huybrechts<span>&#46;</span>xyz</a></p></td>
+<td><p>Vaultwarden → Family</p></td>
+</tr>
+<tr class="row-odd"><td><p>Healthchecks.io</p></td>
+<td><p><a class="reference external" href="https://healthchecks.io">https://healthchecks.io</a></p></td>
+<td><p><a class="reference external" href="mailto:vincent&#37;&#52;&#48;huybrechts&#46;xyz">vincent<span>&#64;</span>huybrechts<span>&#46;</span>xyz</a></p></td>
+<td><p>Vaultwarden → Family</p></td>
+</tr>
+<tr class="row-even"><td><p>UptimeRobot</p></td>
+<td><p><a class="reference external" href="https://uptimerobot.com">https://uptimerobot.com</a></p></td>
+<td><p><a class="reference external" href="mailto:vincent&#37;&#52;&#48;huybrechts&#46;xyz">vincent<span>&#64;</span>huybrechts<span>&#46;</span>xyz</a></p></td>
+<td><p>Vaultwarden → Family</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<hr class="docutils" />
+<section id="wave-1-infrastructure-developer-services">
+<h2>Wave 1 — Infrastructure &amp; Developer Services<a class="headerlink" href="#wave-1-infrastructure-developer-services" title="Link to this heading"></a></h2>
+<p><strong>Wave 1 status:</strong> � In Progress<br />
+<strong>Wave 1 started:</strong> 2026-05-27<br />
+<strong>Wave 1 completed:</strong> ___________</p>
+<hr class="docutils" />
+<section id="phase-1-1-domain-transfer-to-inwx">
+<h3>Phase 1.1 — Domain transfer to INWX<a class="headerlink" href="#phase-1-1-domain-transfer-to-inwx" title="Link to this heading"></a></h3>
+<p><strong>Status:</strong> � In Progress</p>
+<blockquote>
+<div><p><strong>Decision: <code class="docutils literal notranslate"><span class="pre">meeus.family</span></code> will NOT be transferred.</strong> Renewal cost jumps to ~€52/yr from year 2. Let it expire at Versio. Steps 3 and 7 are skipped.</p>
+<p><strong><code class="docutils literal notranslate"><span class="pre">alderwyn.xyz</span></code> and <code class="docutils literal notranslate"><span class="pre">madebyjana.be</span></code></strong> are registered via ClouDNS (backend: PDR Ltd.) — NOT at Versio. Both expire <strong>30 June 2026</strong>. Contact ClouDNS support to unlock both and obtain EPP codes before initiating transfer at INWX. <code class="docutils literal notranslate"><span class="pre">madebyjana.be</span></code> is reserved for a daughter’s website (static site on VPS via Caddy).</p>
+<p>Total domains to transfer: <strong>4</strong> — <code class="docutils literal notranslate"><span class="pre">huybrechts.xyz</span></code>, <code class="docutils literal notranslate"><span class="pre">huybrechts.dev</span></code>, <code class="docutils literal notranslate"><span class="pre">alderwyn.xyz</span></code>, <code class="docutils literal notranslate"><span class="pre">madebyjana.be</span></code>.</p>
+</div></blockquote>
+<section id="before-you-begin-record-current-dns">
+<h4>Before you begin — record current DNS<a class="headerlink" href="#before-you-begin-record-current-dns" title="Link to this heading"></a></h4>
+<p>Run these commands and paste results below:</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="nb">Resolve-DnsName</span> <span class="n">-Name</span> <span class="n">huybrechts</span><span class="p">.</span><span class="n">xyz</span> <span class="n">-Type</span> <span class="n">MX</span>
+<span class="nb">Resolve-DnsName</span> <span class="n">-Name</span> <span class="n">huybrechts</span><span class="p">.</span><span class="n">xyz</span> <span class="n">-Type</span> <span class="n">TXT</span>
+<span class="nb">Resolve-DnsName</span> <span class="n">-Name</span> <span class="n">huybrechts</span><span class="p">.</span><span class="n">dev</span> <span class="n">-Type</span> <span class="n">MX</span>
+<span class="nb">Resolve-DnsName</span> <span class="n">-Name</span> <span class="n">alderwyn</span><span class="p">.</span><span class="n">xyz</span> <span class="n">-Type</span> <span class="n">MX</span>
+<span class="nb">Resolve-DnsName</span> <span class="n">-Name</span> <span class="n">madebyjana</span><span class="p">.</span><span class="n">be</span> <span class="n">-Type</span> <span class="n">MX</span>
+<span class="nb">Resolve-DnsName</span> <span class="n">-Name</span> <span class="n">madebyjana</span><span class="p">.</span><span class="n">be</span> <span class="n">-Type</span> <span class="n">TXT</span>
+</pre></div>
+</div>
+<p><strong>details: Current DNS snapshot (fill in):</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="c1"># Captured 2026-05-27 (full scan)</span>
+
+<span class="c1">### huybrechts.xyz  (NS: Versio)</span>
+MX<span class="w">    </span>TTL<span class="w"> </span><span class="m">300</span><span class="w">  </span>→<span class="w"> </span>aspmx.l.google.com<span class="w"> </span><span class="o">(</span>pri<span class="w"> </span><span class="m">1</span><span class="o">)</span>,<span class="w"> </span>alt1.aspmx<span class="w"> </span><span class="o">(</span><span class="m">5</span><span class="o">)</span>,<span class="w"> </span>alt2.aspmx<span class="w"> </span><span class="o">(</span><span class="m">5</span><span class="o">)</span>,<span class="w"> </span>alt3.aspmx<span class="w"> </span><span class="o">(</span><span class="m">10</span><span class="o">)</span>,<span class="w"> </span>alt4.aspmx<span class="w"> </span><span class="o">(</span><span class="m">10</span><span class="o">)</span>
+TXT<span class="w">   </span>TTL<span class="w"> </span><span class="m">14400</span><span class="w"> </span>→<span class="w"> </span><span class="nv">v</span><span class="o">=</span>spf1<span class="w"> </span>include:_spf.google.com<span class="w"> </span>~all
+DMARC<span class="w"> </span>→<span class="w"> </span>⚠<span class="w"> </span>NONE<span class="w"> </span>—<span class="w"> </span>no<span class="w"> </span>_dmarc.huybrechts.xyz<span class="w"> </span>record<span class="w"> </span>exists
+A<span class="w">     </span>TTL<span class="w"> </span><span class="m">300</span><span class="w">  </span>→<span class="w"> </span><span class="m">185</span>.237.97.232<span class="w">  </span><span class="o">(</span>current<span class="w"> </span>VPS<span class="w"> </span>—<span class="w"> </span>must<span class="w"> </span>recreate<span class="w"> </span>at<span class="w"> </span>INWX<span class="w"> </span>after<span class="w"> </span>transfer<span class="o">)</span>
+DKIM<span class="w">  </span>→<span class="w"> </span><span class="o">(</span>check<span class="w"> </span>Google<span class="w"> </span>Admin<span class="w"> </span>console<span class="w"> </span><span class="k">for</span><span class="w"> </span>selector<span class="o">)</span>
+
+<span class="c1">### huybrechts.dev  (NS: Versio)</span>
+MX<span class="w">    </span>TTL<span class="w"> </span><span class="m">300</span><span class="w">  </span>→<span class="w"> </span>aspmx.l.google.com<span class="w"> </span><span class="o">(</span>pri<span class="w"> </span><span class="m">1</span><span class="o">)</span>,<span class="w"> </span>alt1.aspmx<span class="w"> </span><span class="o">(</span><span class="m">5</span><span class="o">)</span>,<span class="w"> </span>alt2.aspmx<span class="w"> </span><span class="o">(</span><span class="m">5</span><span class="o">)</span>,<span class="w"> </span>alt3.aspmx<span class="w"> </span><span class="o">(</span><span class="m">10</span><span class="o">)</span>,<span class="w"> </span>alt4.aspmx<span class="w"> </span><span class="o">(</span><span class="m">10</span><span class="o">)</span>
+TXT<span class="w">   </span>TTL<span class="w"> </span><span class="m">14400</span><span class="w"> </span>→<span class="w"> </span><span class="nv">v</span><span class="o">=</span>spf1<span class="w"> </span>a<span class="w"> </span>mx<span class="w"> </span>ip4:185.182.56.120<span class="w"> </span>a:spf.spamexperts.axc.nl<span class="w"> </span>...<span class="w">  </span>⚠<span class="w"> </span>legacy<span class="w"> </span>SPF<span class="w"> </span>—<span class="w"> </span>needs<span class="w"> </span>cleanup<span class="w"> </span>at<span class="w"> </span>kSuite<span class="w"> </span>cutover
+TXT<span class="w">   </span>TTL<span class="w"> </span><span class="m">14400</span><span class="w"> </span>→<span class="w"> </span>google-site-verification<span class="o">=</span>bTxhh5aX4S_y3NxxNiM8q7H-s-s3TAi...<span class="w">  </span>←<span class="w"> </span>must<span class="w"> </span>keep
+DMARC<span class="w"> </span>TTL<span class="w"> </span><span class="m">1800</span><span class="w"> </span>→<span class="w"> </span><span class="o">(</span>record<span class="w"> </span>exists<span class="w"> </span>but<span class="w"> </span>value<span class="w"> </span>is<span class="w"> </span>empty<span class="w"> </span>—<span class="w"> </span>needs<span class="w"> </span>investigation<span class="o">)</span>
+A<span class="w">     </span>TTL<span class="w"> </span><span class="m">300</span><span class="w">  </span>→<span class="w"> </span><span class="m">185</span>.47.174.65<span class="w">  </span><span class="o">(</span>old<span class="w"> </span>server<span class="w"> </span>—<span class="w"> </span>must<span class="w"> </span>recreate<span class="w"> </span>at<span class="w"> </span>INWX<span class="w"> </span>after<span class="w"> </span>transfer<span class="o">)</span>
+
+<span class="c1">### alderwyn.xyz  → transferred to INWX 2026-05-27, no prior DNS records</span>
+<span class="c1">### madebyjana.be → transfer in progress, no prior DNS records</span>
+</pre></div>
+</div>
+</section>
+<section id="huybrechts-xyz-dns-records">
+<h4>Huybrechts.xyz dns records<a class="headerlink" href="#huybrechts-xyz-dns-records" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Type</p></th>
+<th class="head"><p>Name</p></th>
+<th class="head"><p>Priority</p></th>
+<th class="head"><p>Value</p></th>
+<th class="head"><p>TTL</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>A</p></td>
+<td><p>huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>185.237.97.232</p></td>
+<td><p>3600</p></td>
+</tr>
+<tr class="row-odd"><td><p>A</p></td>
+<td><p>www.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>185.237.97.232</p></td>
+<td><p>3600</p></td>
+</tr>
+<tr class="row-even"><td><p>A</p></td>
+<td><p>data.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>185.237.97.232</p></td>
+<td><p>3600</p></td>
+</tr>
+<tr class="row-odd"><td><p>A</p></td>
+<td><p>docs.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>185.237.97.232</p></td>
+<td><p>3600</p></td>
+</tr>
+<tr class="row-even"><td><p>A</p></td>
+<td><p>test.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>45.147.248.102</p></td>
+<td><p>3600</p></td>
+</tr>
+<tr class="row-odd"><td><p>A</p></td>
+<td><p>admin.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>185.237.97.232</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-even"><td><p>A</p></td>
+<td><p>proxy.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>185.237.97.232</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-odd"><td><p>A</p></td>
+<td><p>develop.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>45.147.248.102</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-even"><td><p>A</p></td>
+<td><p>staging.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>185.139.230.197</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-odd"><td><p>A</p></td>
+<td><p>data.test.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>45.147.248.102</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-even"><td><p>A</p></td>
+<td><p>docs.test.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>45.147.248.102</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-odd"><td><p>A</p></td>
+<td><p>admin.test.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>45.147.248.102</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-even"><td><p>A</p></td>
+<td><p>proxy.test.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>45.147.248.102</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-odd"><td><p>A</p></td>
+<td><p>data.staging.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>185.139.230.197</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-even"><td><p>A</p></td>
+<td><p>docs.staging.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>185.139.230.197</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-odd"><td><p>A</p></td>
+<td><p>admin.staging.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>185.139.230.197</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-even"><td><p>A</p></td>
+<td><p>proxy.staging.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>185.139.230.197</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-odd"><td><p>CAA</p></td>
+<td><p>huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>128 issue “letsencrypt.org”</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-even"><td><p>CAA</p></td>
+<td><p>test.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>128 issue “letsencrypt.org”</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-odd"><td><p>CAA</p></td>
+<td><p>develop.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>128 issue “letsencrypt.org”</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-even"><td><p>CAA</p></td>
+<td><p>staging.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>128 issue “letsencrypt.org”</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-odd"><td><p>MX</p></td>
+<td><p>huybrechts.xyz</p></td>
+<td><p>1</p></td>
+<td><p>ASPMX.L.GOOGLE.COM</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-even"><td><p>MX</p></td>
+<td><p>huybrechts.xyz</p></td>
+<td><p>5</p></td>
+<td><p>ALT1.ASPMX.L.GOOGLE.COM</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-odd"><td><p>MX</p></td>
+<td><p>huybrechts.xyz</p></td>
+<td><p>5</p></td>
+<td><p>ALT2.ASPMX.L.GOOGLE.COM</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-even"><td><p>MX</p></td>
+<td><p>huybrechts.xyz</p></td>
+<td><p>10</p></td>
+<td><p>ALT3.ASPMX.L.GOOGLE.COM</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-odd"><td><p>MX</p></td>
+<td><p>huybrechts.xyz</p></td>
+<td><p>10</p></td>
+<td><p>ALT4.ASPMX.L.GOOGLE.COM</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-even"><td><p>TXT</p></td>
+<td><p>huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>v=spf1 include:_spf.google.com ~all</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-odd"><td><p>TXT</p></td>
+<td><p>mail.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>ghs.googlehosted.com</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-even"><td><p>TXT</p></td>
+<td><p>drive.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>ghs.googlehosted.com</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-odd"><td><p>TXT</p></td>
+<td><p>sites.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>ghs.googlehosted.com</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-even"><td><p>TXT</p></td>
+<td><p>groups.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>ghs.googlehosted.com</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-odd"><td><p>TXT</p></td>
+<td><p>calendar.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>ghs.googlehosted.com</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-even"><td><p>TXT</p></td>
+<td><p>google._domainkey.huybrechts.xyz</p></td>
+<td><p></p></td>
+<td><p>v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiCjizCB50u956pZGH4mvL7G6X7EEUkluhr6OGB2/b5TmEXSLWEC8wCjoAeERfHwQ/uPvZ0icaE43R5nNXPfIvLgjiS+Jed18MUydLrbChZTfl4kbX2JL2I/VAc+XsxqnBuU+XiTMis1KS2Zkg4jtAs07vPMTUuSpWt3I16S9dG7fk/mzTND8alq3zFd/MxBVWz3P48JZN6T5sW6yokWO2MWQdaMoyvNgU3FcWF+VvYWL4B8sqKWl8cqiD1d3MLT45gsF4xRJ/Jd7sWzcX+IAWbUTdEVBcrQB1vAZVJ1WTgaoOKPmjVV2gLGehvHsXBjlf9vsBDy9x8G4xCo9yTxWoQIDAQAB</p></td>
+<td><p>14400</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="huybrechts-dev-dns-records">
+<h4>Huybrechts.dev dns records<a class="headerlink" href="#huybrechts-dev-dns-records" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Type</p></th>
+<th class="head"><p>Name</p></th>
+<th class="head"><p>Priority</p></th>
+<th class="head"><p>Value</p></th>
+<th class="head"><p>TTL</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>A</p></td>
+<td><p>huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>185.47.174.65</p></td>
+<td><p>3600</p></td>
+</tr>
+<tr class="row-odd"><td><p>A</p></td>
+<td><p>*.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>185.47.174.65</p></td>
+<td><p>3600</p></td>
+</tr>
+<tr class="row-even"><td><p>A</p></td>
+<td><p>s3.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>185.47.174.65</p></td>
+<td><p>3600</p></td>
+</tr>
+<tr class="row-odd"><td><p>A</p></td>
+<td><p>*.s3.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>185.47.174.65</p></td>
+<td><p>3600</p></td>
+</tr>
+<tr class="row-even"><td><p>A</p></td>
+<td><p>auth.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>185.47.174.65</p></td>
+<td><p>600</p></td>
+</tr>
+<tr class="row-odd"><td><p>A</p></td>
+<td><p>redis.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>185.47.174.65</p></td>
+<td><p>600</p></td>
+</tr>
+<tr class="row-even"><td><p>A</p></td>
+<td><p>consul.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>185.47.174.65</p></td>
+<td><p>600</p></td>
+</tr>
+<tr class="row-odd"><td><p>A</p></td>
+<td><p>pgadmin.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>185.47.174.65</p></td>
+<td><p>600</p></td>
+</tr>
+<tr class="row-even"><td><p>A</p></td>
+<td><p>traefik.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>185.47.174.65</p></td>
+<td><p>3600</p></td>
+</tr>
+<tr class="row-odd"><td><p>A</p></td>
+<td><p>identity.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>185.47.174.65</p></td>
+<td><p>600</p></td>
+</tr>
+<tr class="row-even"><td><p>A</p></td>
+<td><p>localhost.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>127.0.0.1</p></td>
+<td><p>3600</p></td>
+</tr>
+<tr class="row-odd"><td><p>CAA</p></td>
+<td><p>huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>0 issue “letsencrypt.org”</p></td>
+<td><p>3600</p></td>
+</tr>
+<tr class="row-even"><td><p>CAA</p></td>
+<td><p>*.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>0 issue “letsencrypt.org”</p></td>
+<td><p>3600</p></td>
+</tr>
+<tr class="row-odd"><td><p>CAA</p></td>
+<td><p>s3.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>0 issue “letsencrypt.org”</p></td>
+<td><p>3600</p></td>
+</tr>
+<tr class="row-even"><td><p>CAA</p></td>
+<td><p>*.s3.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>0 issue “letsencrypt.org”</p></td>
+<td><p>3600</p></td>
+</tr>
+<tr class="row-odd"><td><p>CAA</p></td>
+<td><p>auth.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>0 issue “letsencrypt.org”</p></td>
+<td><p>600</p></td>
+</tr>
+<tr class="row-even"><td><p>CAA</p></td>
+<td><p>redis.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>0 issue “letsencrypt.org”</p></td>
+<td><p>600</p></td>
+</tr>
+<tr class="row-odd"><td><p>CAA</p></td>
+<td><p>consul.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>0 issue “letsencrypt.org”</p></td>
+<td><p>600</p></td>
+</tr>
+<tr class="row-even"><td><p>CAA</p></td>
+<td><p>pgadmin.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>0 issue “letsencrypt.org”</p></td>
+<td><p>600</p></td>
+</tr>
+<tr class="row-odd"><td><p>CAA</p></td>
+<td><p>traefik.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>0 issue “letsencrypt.org”</p></td>
+<td><p>3600</p></td>
+</tr>
+<tr class="row-even"><td><p>CAA</p></td>
+<td><p>identity.huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>0 issue “letsencrypt.org”</p></td>
+<td><p>600</p></td>
+</tr>
+<tr class="row-odd"><td><p>MX</p></td>
+<td><p>huybrechts.dev</p></td>
+<td><p>1</p></td>
+<td><p>ASPMX.L.GOOGLE.COM</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-even"><td><p>MX</p></td>
+<td><p>huybrechts.dev</p></td>
+<td><p>5</p></td>
+<td><p>ALT2.ASPMX.L.GOOGLE.COM</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-odd"><td><p>MX</p></td>
+<td><p>huybrechts.dev</p></td>
+<td><p>5</p></td>
+<td><p>ALT1.ASPMX.L.GOOGLE.COM</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-even"><td><p>MX</p></td>
+<td><p>huybrechts.dev</p></td>
+<td><p>10</p></td>
+<td><p>ALT4.ASPMX.L.GOOGLE.COM</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-odd"><td><p>MX</p></td>
+<td><p>huybrechts.dev</p></td>
+<td><p>10</p></td>
+<td><p>ALT3.ASPMX.L.GOOGLE.COM</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-even"><td><p>TXT</p></td>
+<td><p>huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>google-site-verification=bTxhh5aX4S_y3NxxNiM8q7H-s-s3TAikLKtqZ6yBWYI</p></td>
+<td><p>14400</p></td>
+</tr>
+<tr class="row-odd"><td><p>TXT</p></td>
+<td><p>huybrechts.dev</p></td>
+<td><p></p></td>
+<td><p>v=spf1 a mx ip4:185.182.56.120 a:spf.spamexperts.axc.nl ~all</p></td>
+<td><p>14400</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="steps">
+<h4>Steps<a class="headerlink" href="#steps" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Task</p></th>
+<th class="head"><p>Result / Notes</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Unlock <code class="docutils literal notranslate"><span class="pre">huybrechts.xyz</span></code> at Versio</p></td>
+<td><p>✓ 2026-05-27</p></td>
+<td><p>[x]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Unlock <code class="docutils literal notranslate"><span class="pre">huybrechts.dev</span></code> at Versio</p></td>
+<td><p>✓ 2026-05-27</p></td>
+<td><p>[x]</p></td>
+</tr>
+<tr class="row-even"><td><p>~~3~~</p></td>
+<td><p>~~Unlock <code class="docutils literal notranslate"><span class="pre">meeus.family</span></code> at Versio~~</p></td>
+<td><p>✗ decommissioned — let expire at Versio</p></td>
+<td><p>—</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Contact ClouDNS support — unlock <code class="docutils literal notranslate"><span class="pre">alderwyn.xyz</span></code> + <code class="docutils literal notranslate"><span class="pre">madebyjana.be</span></code> and request EPP codes</p></td>
+<td><p>✓ 2026-05-27 — tickets submitted, awaiting response</p></td>
+<td><p>[x]</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Request EPP code for <code class="docutils literal notranslate"><span class="pre">huybrechts.xyz</span></code> at Versio</p></td>
+<td><p>✓ 2026-05-27</p></td>
+<td><p>[x]</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>Request EPP code for <code class="docutils literal notranslate"><span class="pre">huybrechts.dev</span></code> at Versio</p></td>
+<td><p>✓ 2026-05-27</p></td>
+<td><p>[x]</p></td>
+</tr>
+<tr class="row-even"><td><p>~~7~~</p></td>
+<td><p>~~Request EPP code for <code class="docutils literal notranslate"><span class="pre">meeus.family</span></code>~~</p></td>
+<td><p>✗ decommissioned — no transfer needed</p></td>
+<td><p>—</p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>Receive EPP codes for <code class="docutils literal notranslate"><span class="pre">alderwyn.xyz</span></code> + <code class="docutils literal notranslate"><span class="pre">madebyjana.be</span></code> from ClouDNS support</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">alderwyn.xyz</span></code> ✓ 2026-05-27 · <code class="docutils literal notranslate"><span class="pre">madebyjana.be</span></code> ✓ n/a (.be uses DNS.be email confirmation, no EPP code)</p></td>
+<td><p>[x]</p></td>
+</tr>
+<tr class="row-even"><td><p>9</p></td>
+<td><p>Initiate transfer for all 4 domains at INWX</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">alderwyn.xyz</span></code> ✓ STARTED · <code class="docutils literal notranslate"><span class="pre">huybrechts.dev</span></code> ✓ STARTED · <code class="docutils literal notranslate"><span class="pre">huybrechts.xyz</span></code> ✓ REQUESTED · <code class="docutils literal notranslate"><span class="pre">madebyjana.be</span></code> ✓ in progress — all 2026-05-27</p></td>
+<td><p>[x]</p></td>
+</tr>
+<tr class="row-odd"><td><p>10</p></td>
+<td><p>Approve transfer confirmation emails</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>11</p></td>
+<td><p>Confirm all 4 domains appear in INWX panel</p></td>
+<td><p>Completed: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>12</p></td>
+<td><p>Recreate DNS records at INWX for <code class="docutils literal notranslate"><span class="pre">huybrechts.xyz</span></code> and <code class="docutils literal notranslate"><span class="pre">huybrechts.dev</span></code> identically</p></td>
+<td><p>⚠ MX must stay pointing to Google; <code class="docutils literal notranslate"><span class="pre">alderwyn.xyz</span></code> and <code class="docutils literal notranslate"><span class="pre">madebyjana.be</span></code> had no records — nothing to recreate</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>13</p></td>
+<td><p>Enable WHOIS privacy on <code class="docutils literal notranslate"><span class="pre">huybrechts.xyz</span></code>, <code class="docutils literal notranslate"><span class="pre">huybrechts.dev</span></code>, <code class="docutils literal notranslate"><span class="pre">alderwyn.xyz</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">alderwyn.xyz</span></code> ✓ 2026-05-27 · others pending · <code class="docutils literal notranslate"><span class="pre">.be</span></code> does not support WHOIS privacy</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>14</p></td>
+<td><p>Send test email — verify mail still works</p></td>
+<td><p>Sent to / from: ___________ ✓</p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="expiry-dates-after-transfer-fill-in">
+<h4>Expiry dates after transfer (fill in)<a class="headerlink" href="#expiry-dates-after-transfer-fill-in" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Domain</p></th>
+<th class="head"><p>Expiry at INWX</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">huybrechts.xyz</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">huybrechts.dev</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>~~<code class="docutils literal notranslate"><span class="pre">meeus.family</span></code>~~</p></td>
+<td><p>✗ decommissioned — not transferred</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">alderwyn.xyz</span></code></p></td>
+<td><p>✓ transferred 2026-05-27 — fill in new expiry from INWX panel</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">madebyjana.be</span></code></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<hr class="docutils" />
+<section id="phase-1-2-provision-hetzner-vps-storage-box">
+<h3>Phase 1.2 — Provision Hetzner VPS + Storage Box<a class="headerlink" href="#phase-1-2-provision-hetzner-vps-storage-box" title="Link to this heading"></a></h3>
+<p><strong>Status:</strong> 🔴 Not started</p>
+<section id="hetzner-steps">
+<h4>Hetzner Steps<a class="headerlink" href="#hetzner-steps" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Task</p></th>
+<th class="head"><p>Result / Notes</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Create Hetzner project <code class="docutils literal notranslate"><span class="pre">huybrechts-family</span></code></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Provision CPX31 VPS</p></td>
+<td><p>Region: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Provision BX11 Storage Box</p></td>
+<td><p>Region: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Add SSH public key to VPS</p></td>
+<td><p>Key fingerprint: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Run <code class="docutils literal notranslate"><span class="pre">strata</span></code> bootstrap</p></td>
+<td><p>Completed: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>Deploy Caddy</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>Verify Caddy HTTPS on VPS IP</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="server-details-fill-in">
+<h4>Server details (fill in)<a class="headerlink" href="#server-details-fill-in" title="Link to this heading"></a></h4>
+<div class="highlight-data notranslate"><div class="highlight"><pre><span></span>VPS IP:           ___.___.___.___ 
+Storage Box host: ___________
+Storage Box user: ___________
+SSH key:          ~/.ssh/___________
+</pre></div>
+</div>
+</section>
+<section id="dns-add-a-records-at-inwx-for-vps-subdomains">
+<h4>DNS — add A records at INWX for VPS subdomains<a class="headerlink" href="#dns-add-a-records-at-inwx-for-vps-subdomains" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Subdomain</p></th>
+<th class="head"><p>Record type</p></th>
+<th class="head"><p>Value</p></th>
+<th class="head"><p>Added</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">photos.huybrechts.xyz</span></code></p></td>
+<td><p>A</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&lt;VPS_IP&gt;</span></code></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">vault.huybrechts.xyz</span></code></p></td>
+<td><p>A</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&lt;VPS_IP&gt;</span></code></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">secrets.huybrechts.xyz</span></code></p></td>
+<td><p>A</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&lt;VPS_IP&gt;</span></code></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">auth.huybrechts.xyz</span></code></p></td>
+<td><p>A</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&lt;VPS_IP&gt;</span></code></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">status.huybrechts.xyz</span></code></p></td>
+<td><p>A</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&lt;VPS_IP&gt;</span></code></p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<hr class="docutils" />
+<section id="phase-1-3-deploy-authentik-sso">
+<h3>Phase 1.3 — Deploy Authentik (SSO)<a class="headerlink" href="#phase-1-3-deploy-authentik-sso" title="Link to this heading"></a></h3>
+<p><strong>Status:</strong> 🔴 Not started<br />
+<strong>URL:</strong> <a class="reference external" href="https://auth.huybrechts.xyz">https://auth.huybrechts.xyz</a></p>
+<section id="authentik-steps">
+<h4>Authentik Steps<a class="headerlink" href="#authentik-steps" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Task</p></th>
+<th class="head"><p>Result / Notes</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Deploy Authentik via Docker Compose</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Create admin account</p></td>
+<td><p>⚠ Credentials in Vaultwarden → Dev</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Enforce 2FA for all accounts</p></td>
+<td><p>Method: TOTP / WebAuthn</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Create OIDC app for Vaultwarden</p></td>
+<td><p>Client ID: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Create OIDC app for Immich</p></td>
+<td><p>Client ID: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>Create OIDC app for Infisical</p></td>
+<td><p>Client ID: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>Create user accounts for all 5 family members</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>Test login flow (redirect + token exchange works)</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="authentik-oidc-client-secrets">
+<h4>Authentik OIDC client secrets<a class="headerlink" href="#authentik-oidc-client-secrets" title="Link to this heading"></a></h4>
+<blockquote>
+<div><p>⚠ Store all client secrets in Infisical (once deployed) or Vaultwarden in the meantime. Do not fill in here.</p>
+</div></blockquote>
+</section>
+</section>
+<hr class="docutils" />
+<section id="phase-1-4-deploy-vaultwarden-passwords">
+<h3>Phase 1.4 — Deploy Vaultwarden (passwords)<a class="headerlink" href="#phase-1-4-deploy-vaultwarden-passwords" title="Link to this heading"></a></h3>
+<p><strong>Status:</strong> 🔴 Not started<br />
+<strong>URL:</strong> <a class="reference external" href="https://vault.huybrechts.xyz">https://vault.huybrechts.xyz</a></p>
+<section id="vaultwarden-steps">
+<h4>Vaultwarden Steps<a class="headerlink" href="#vaultwarden-steps" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Task</p></th>
+<th class="head"><p>Result / Notes</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Deploy Vaultwarden via Docker Compose</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Configure OIDC via Authentik</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Import Bitwarden JSON export</p></td>
+<td><p>Items imported: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Create user accounts for all 5 family members</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Set up Collections: Family / Dev / CI-Infra</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>Reconfigure Bitwarden client on admin devices</p></td>
+<td><p>Server: vault.huybrechts.xyz ✓</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>Verify autofill and all entries accessible</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>Roll out to family devices</p></td>
+<td><p>Last device done: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>9</p></td>
+<td><p>Start 2-week soak period</p></td>
+<td><p>Soak started: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>10</p></td>
+<td><p>Cancel Bitwarden Team after soak</p></td>
+<td><p>Cancelled: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="devices-migrated-to-vaultwarden">
+<h3>Devices migrated to Vaultwarden<a class="headerlink" href="#devices-migrated-to-vaultwarden" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Device</p></th>
+<th class="head"><p>Owner</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<hr class="docutils" />
+<section id="phase-1-5-deploy-infisical-secrets">
+<h3>Phase 1.5 — Deploy Infisical (secrets)<a class="headerlink" href="#phase-1-5-deploy-infisical-secrets" title="Link to this heading"></a></h3>
+<p><strong>Status:</strong> 🔴 Not started<br />
+<strong>URL:</strong> <a class="reference external" href="https://secrets.huybrechts.xyz">https://secrets.huybrechts.xyz</a></p>
+<section id="infisical-steps">
+<h4>Infisical Steps<a class="headerlink" href="#infisical-steps" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Task</p></th>
+<th class="head"><p>Result / Notes</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Deploy Infisical via Docker Compose</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Configure Authentik SSO (admin-only)</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Create projects per app</p></td>
+<td><p>Projects: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Create production + staging environments</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Seed with all service credentials</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>Update Docker Compose services to pull from Infisical</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>Audit <code class="docutils literal notranslate"><span class="pre">haven</span></code> repo — no hardcoded secrets in git</p></td>
+<td><p>Verified: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<hr class="docutils" />
+<section id="phase-1-6-deploy-immich-photos">
+<h3>Phase 1.6 — Deploy Immich (photos)<a class="headerlink" href="#phase-1-6-deploy-immich-photos" title="Link to this heading"></a></h3>
+<p><strong>Status:</strong> 🔴 Not started<br />
+<strong>URL:</strong> <a class="reference external" href="https://photos.huybrechts.xyz">https://photos.huybrechts.xyz</a></p>
+<section id="immich-steps">
+<h4>Immich Steps<a class="headerlink" href="#immich-steps" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Task</p></th>
+<th class="head"><p>Result / Notes</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Deploy Immich via Docker Compose</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Configure OIDC via Authentik</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Export Google Photos via Takeout (all users, original quality)</p></td>
+<td><p>Export size: ___________ GB</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Upload photo library to Immich</p></td>
+<td><p>Photos uploaded: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Verify albums, dates, metadata</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>Install Immich app on family phones</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>Enable auto-upload on each phone</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>Face recognition indexing complete</p></td>
+<td><p>Completed: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="phones-with-immich-auto-upload-enabled">
+<h3>Phones with Immich auto-upload enabled<a class="headerlink" href="#phones-with-immich-auto-upload-enabled" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Phone</p></th>
+<th class="head"><p>Owner</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<hr class="docutils" />
+<section id="phase-1-7-backups-monitoring">
+<h3>Phase 1.7 — Backups &amp; monitoring<a class="headerlink" href="#phase-1-7-backups-monitoring" title="Link to this heading"></a></h3>
+<p><strong>Status:</strong> 🔴 Not started</p>
+<section id="backup-steps">
+<h4>Backup Steps<a class="headerlink" href="#backup-steps" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Task</p></th>
+<th class="head"><p>Result / Notes</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Configure BorgBackup cron (daily → Storage Box)</p></td>
+<td><p>Cron: <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">2</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">*</span></code></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Store BorgBackup encryption key in Vaultwarden</p></td>
+<td><p>⚠ Key stored: Vaultwarden → Dev → BorgBackup</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Run first backup manually</p></td>
+<td><p>Duration: ___________ Size: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Test full restore from BorgBackup</p></td>
+<td><p>Restore tested: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Deploy Gatus health dashboard</p></td>
+<td><p>URL: <a class="reference external" href="https://status.huybrechts.xyz">https://status.huybrechts.xyz</a></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>Register Healthchecks.io dead-man’s switch</p></td>
+<td><p>Check UUID: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>Set up UptimeRobot monitors</p></td>
+<td><p>Monitors: vault, photos, auth, secrets, status</p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="borgbackup-details">
+<h3>BorgBackup details<a class="headerlink" href="#borgbackup-details" title="Link to this heading"></a></h3>
+<div class="highlight-data notranslate"><div class="highlight"><pre><span></span>Repo:       ssh://___@___________/./backups
+Key:        stored in Vaultwarden (do not write here)
+Schedule:   daily at 02:00
+Retention:  daily 7, weekly 4, monthly 6
+Last run:   ___________
+Last size:  ___________
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="phase-1-8-decommission-kamatera-bitwarden">
+<h2>Phase 1.8 — Decommission Kamatera + Bitwarden<a class="headerlink" href="#phase-1-8-decommission-kamatera-bitwarden" title="Link to this heading"></a></h2>
+<p><strong>Status:</strong> 🔴 Not started</p>
+<section id="wave-1-soak-gate-2-weeks-from-last-service-deployed">
+<h3>Wave 1 soak gate (2 weeks from last service deployed)<a class="headerlink" href="#wave-1-soak-gate-2-weeks-from-last-service-deployed" title="Link to this heading"></a></h3>
+<ul class="contains-task-list simple">
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">Soak started: ___________</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">All VPS services running stable</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">BorgBackup running daily without failures</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">Vaultwarden adopted by all family members</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">Immich photo upload working on all phones</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">No unplanned downtime events</p></li>
+</ul>
+</section>
+<section id="decommission-steps">
+<h3>Decommission Steps<a class="headerlink" href="#decommission-steps" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Task</p></th>
+<th class="head"><p>Result / Notes</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Verify no traffic/services still on Kamatera</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Final backup of Kamatera data</p></td>
+<td><p>Saved to: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Decommission Kamatera VPS</p></td>
+<td><p>Cancelled: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Cancel Bitwarden Team (if not done in 1.4)</p></td>
+<td><p>Cancelled: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Wave 1 complete:</strong> ___________</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="wave-2-email-files-collaboration-google-ksuite">
+<h2>Wave 2 — Email, Files &amp; Collaboration (Google → kSuite)<a class="headerlink" href="#wave-2-email-files-collaboration-google-ksuite" title="Link to this heading"></a></h2>
+<blockquote>
+<div><p><strong>Do not start Wave 2 until the Wave 1 soak gate above is fully checked.</strong></p>
+</div></blockquote>
+<p><strong>Wave 2 status:</strong> 🔴 Not started<br />
+<strong>Wave 2 started:</strong> ___________<br />
+<strong>Wave 2 completed:</strong> ___________</p>
+<hr class="docutils" />
+<section id="phase-2-1-preparation-exports">
+<h3>Phase 2.1 — Preparation &amp; exports<a class="headerlink" href="#phase-2-1-preparation-exports" title="Link to this heading"></a></h3>
+<p><strong>Status:</strong> 🔴 Not started</p>
+<section id="preparation-export-steps">
+<h4>Preparation &amp; Export Steps<a class="headerlink" href="#preparation-export-steps" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Task</p></th>
+<th class="head"><p>Result / Notes</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Create Infomaniak account</p></td>
+<td><p>✓ 2026-05-27</p></td>
+<td><p>[x]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Export Gmail — MBOX (all 3 users)</p></td>
+<td><p>Export sizes: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Export Google Contacts — vCard (all 3 users)</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Export Google Calendar — ICS (all 3 users)</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Export Google Drive (all 3 users)</p></td>
+<td><p>Export size: ___________ GB</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>Validate MBOX files (spot-check in Thunderbird)</p></td>
+<td><p>✓</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>Confirm vCard/ICS open correctly</p></td>
+<td><p>✓</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>Confirm Drive export complete</p></td>
+<td><p>✓</p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<hr class="docutils" />
+<section id="phase-2-2-provision-ksuite">
+<h3>Phase 2.2 — Provision kSuite<a class="headerlink" href="#phase-2-2-provision-ksuite" title="Link to this heading"></a></h3>
+<p><strong>Status:</strong> 🔴 Not started</p>
+<section id="provisioning-steps">
+<h4>Provisioning Steps<a class="headerlink" href="#provisioning-steps" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Task</p></th>
+<th class="head"><p>Result / Notes</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Purchase kSuite plan (5 users, kDrive 3 TB+)</p></td>
+<td><p>Plan: ___________ Cost: ___________ /mo</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Add + verify <code class="docutils literal notranslate"><span class="pre">huybrechts.xyz</span></code></p></td>
+<td><p>Verified: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Add + verify <code class="docutils literal notranslate"><span class="pre">huybrechts.dev</span></code></p></td>
+<td><p>Verified: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>~~4~~</p></td>
+<td><p>~~Add + verify <code class="docutils literal notranslate"><span class="pre">meeus.family</span></code>~~</p></td>
+<td><p>✗ decommissioned</p></td>
+<td><p>—</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Add + verify <code class="docutils literal notranslate"><span class="pre">alderwyn.xyz</span></code></p></td>
+<td><p>Verified: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>Create 5 mailboxes on <code class="docutils literal notranslate"><span class="pre">huybrechts.xyz</span></code></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>Configure aliases across alias domains</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>Create <code class="docutils literal notranslate"><span class="pre">family&#64;huybrechts.xyz</span></code> group (all 5)</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>9</p></td>
+<td><p>Create any additional groups</p></td>
+<td><p>Groups: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>10</p></td>
+<td><p>Configure child mail forwarding (child → both parents)</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>11</p></td>
+<td><p>Generate DKIM keys per domain in kSuite</p></td>
+<td><p>Note DNS records to add — see below</p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="ksuite-mailboxes-fill-in-real-names">
+<h4>kSuite mailboxes (fill in real names)<a class="headerlink" href="#ksuite-mailboxes-fill-in-real-names" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Mailbox</p></th>
+<th class="head"><p>Family member</p></th>
+<th class="head"><p>Aliases configured</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&#64;huybrechts.xyz</span></code></p></td>
+<td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&#64;huybrechts.xyz</span></code></p></td>
+<td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&#64;huybrechts.xyz</span></code></p></td>
+<td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&#64;huybrechts.xyz</span></code></p></td>
+<td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&#64;huybrechts.xyz</span></code></p></td>
+<td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="dkim-keys-from-ksuite-fill-in-per-domain">
+<h4>DKIM keys from kSuite (fill in per domain)<a class="headerlink" href="#dkim-keys-from-ksuite-fill-in-per-domain" title="Link to this heading"></a></h4>
+<blockquote>
+<div><p>Copy these from kSuite Manager → Mail → DKIM. Add to INWX DNS in Phase 2.4.</p>
+</div></blockquote>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Domain</p></th>
+<th class="head"><p>DKIM selector</p></th>
+<th class="head"><p>DNS TXT value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">huybrechts.xyz</span></code></p></td>
+<td><p></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">huybrechts.dev</span></code></p></td>
+<td><p></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p>~~<code class="docutils literal notranslate"><span class="pre">meeus.family</span></code>~~</p></td>
+<td><p>✗ decommissioned</p></td>
+<td><p>—</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">alderwyn.xyz</span></code></p></td>
+<td><p></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<hr class="docutils" />
+<section id="phase-2-3-data-migration-parallel-period">
+<h3>Phase 2.3 — Data migration (parallel period)<a class="headerlink" href="#phase-2-3-data-migration-parallel-period" title="Link to this heading"></a></h3>
+<p><strong>Status:</strong> 🔴 Not started</p>
+<blockquote>
+<div><p>Google still active. kSuite ready but MX not switched yet.</p>
+</div></blockquote>
+<section id="email-history">
+<h4>Email history<a class="headerlink" href="#email-history" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Task</p></th>
+<th class="head"><p>Result / Notes</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Run Infomaniak IMAP migration tool (user 1)</p></td>
+<td><p>Messages migrated: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Run Infomaniak IMAP migration tool (user 2)</p></td>
+<td><p>Messages migrated: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Run Infomaniak IMAP migration tool (user 3)</p></td>
+<td><p>Messages migrated: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Verify folder structure and message counts</p></td>
+<td><p>✓</p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="contacts-calendar">
+<h4>Contacts &amp; Calendar<a class="headerlink" href="#contacts-calendar" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Task</p></th>
+<th class="head"><p>Result / Notes</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Import vCard into kSuite Contacts (user 1)</p></td>
+<td><p>Contacts: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Import vCard into kSuite Contacts (user 2)</p></td>
+<td><p>Contacts: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Import vCard into kSuite Contacts (user 3)</p></td>
+<td><p>Contacts: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Import ICS into kSuite Calendar (user 1)</p></td>
+<td><p>Events: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Import ICS into kSuite Calendar (user 2)</p></td>
+<td><p>Events: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>Import ICS into kSuite Calendar (user 3)</p></td>
+<td><p>Events: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>Verify shared calendars and contact groups</p></td>
+<td><p>✓</p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="files">
+<h4>Files<a class="headerlink" href="#files" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Task</p></th>
+<th class="head"><p>Result / Notes</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Install kDrive desktop client</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Upload Google Drive export to kDrive</p></td>
+<td><p>Size uploaded: ___________ GB</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Set up shared folder structure</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Verify file counts and document formats</p></td>
+<td><p>✓</p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<hr class="docutils" />
+<section id="phase-2-4-dns-cutover-mx-switch">
+<h3>Phase 2.4 — DNS cutover (MX switch)<a class="headerlink" href="#phase-2-4-dns-cutover-mx-switch" title="Link to this heading"></a></h3>
+<p><strong>Status:</strong> 🔴 Not started<br />
+<strong>Cutover window planned:</strong> ___________ (evening/weekend)</p>
+<section id="pre-cutover-checklist-all-must-be-before-proceeding">
+<h4>Pre-cutover checklist — all must be ✓ before proceeding<a class="headerlink" href="#pre-cutover-checklist-all-must-be-before-proceeding" title="Link to this heading"></a></h4>
+<ul class="contains-task-list simple">
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">All email history imported and verified in kSuite</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">Contacts and calendars imported</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">DKIM keys from kSuite recorded in section 2.2</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">All 5 mailboxes tested via kSuite webmail</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">Forwarding rules verified (test email to child → parents received copy)</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"><code class="docutils literal notranslate"><span class="pre">family&#64;huybrechts.xyz</span></code> group tested</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">Family notified of cutover window</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">TTL lowered to 300s at INWX (48h before cutover)</p></li>
+</ul>
+</section>
+<section id="dns-records-to-change-at-inwx-for-all-4-domains">
+<h4>DNS records to change at INWX (for all 4 domains)<a class="headerlink" href="#dns-records-to-change-at-inwx-for-all-4-domains" title="Link to this heading"></a></h4>
+<blockquote>
+<div><p>Fill in exact values from kSuite Manager before executing.</p>
+</div></blockquote>
+<p><strong>Infomaniak MX records:</strong></p>
+<div class="highlight-data notranslate"><div class="highlight"><pre><span></span>MX priority / host:  ___________  (from kSuite panel)
+</pre></div>
+</div>
+<p><strong>SPF:</strong></p>
+<div class="highlight-data notranslate"><div class="highlight"><pre><span></span>v=spf1 include:spf.infomaniak.ch ~all
+</pre></div>
+</div>
+<p><strong>DMARC (start with p=none):</strong></p>
+<div class="highlight-data notranslate"><div class="highlight"><pre><span></span>v=DMARC1; p=none; rua=mailto:dmarc@huybrechts.xyz
+</pre></div>
+</div>
+</section>
+<section id="execute-cutover">
+<h4>Execute cutover<a class="headerlink" href="#execute-cutover" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Task</p></th>
+<th class="head"><p>Result / Notes</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Switch MX for <code class="docutils literal notranslate"><span class="pre">huybrechts.xyz</span></code></p></td>
+<td><p>Time: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Switch MX for <code class="docutils literal notranslate"><span class="pre">huybrechts.dev</span></code></p></td>
+<td><p>Time: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>~~3~~</p></td>
+<td><p>~~Switch MX for <code class="docutils literal notranslate"><span class="pre">meeus.family</span></code>~~</p></td>
+<td><p>✗ decommissioned</p></td>
+<td><p>—</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Switch MX for <code class="docutils literal notranslate"><span class="pre">alderwyn.xyz</span></code></p></td>
+<td><p>Time: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Update SPF for all 3 domains</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>Add DKIM records for all 3 domains</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>Add DMARC records for all 3 domains</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>Send test email (external → each mailbox)</p></td>
+<td><p>✓ all 5 delivered</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>9</p></td>
+<td><p>Send test email FROM each kSuite mailbox</p></td>
+<td><p>✓ delivered outbound</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>10</p></td>
+<td><p>Check headers: DKIM=pass, SPF=pass, DMARC=pass</p></td>
+<td><p>✓</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>11</p></td>
+<td><p>Test child → parent forwarding</p></td>
+<td><p>✓</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>12</p></td>
+<td><p>Test <code class="docutils literal notranslate"><span class="pre">family&#64;huybrechts.xyz</span></code> group</p></td>
+<td><p>✓ all 5 received</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>13</p></td>
+<td><p>Monitor kSuite logs for 24h</p></td>
+<td><p>No errors: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="rollback-if-critical-issue-within-24h">
+<h3>Rollback (if critical issue within 24h)<a class="headerlink" href="#rollback-if-critical-issue-within-24h" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p>Revert MX to Google (<code class="docutils literal notranslate"><span class="pre">aspmx.l.google.com</span></code> etc.) at INWX</p></li>
+<li><p>Revert SPF to Google include</p></li>
+<li><p>Wait ~5 min for TTL propagation</p></li>
+<li><p>Investigate and note issue here: ___________</p></li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="phase-2-5-client-configuration">
+<h3>Phase 2.5 — Client configuration<a class="headerlink" href="#phase-2-5-client-configuration" title="Link to this heading"></a></h3>
+<p><strong>Status:</strong> 🔴 Not started</p>
+<section id="ksuite-connection-settings-fill-in-from-ksuite-panel">
+<h4>kSuite connection settings (fill in from kSuite panel)<a class="headerlink" href="#ksuite-connection-settings-fill-in-from-ksuite-panel" title="Link to this heading"></a></h4>
+<div class="highlight-data notranslate"><div class="highlight"><pre><span></span>IMAP server:    ___________   Port: ___
+SMTP server:    ___________   Port: ___
+CalDAV URL:     ___________
+CardDAV URL:    ___________
+ActiveSync URL: ___________
+</pre></div>
+</div>
+</section>
+<section id="devices">
+<h4>Devices<a class="headerlink" href="#devices" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Device</p></th>
+<th class="head"><p>Owner</p></th>
+<th class="head"><p>Email</p></th>
+<th class="head"><p>CalDAV</p></th>
+<th class="head"><p>CardDAV</p></th>
+<th class="head"><p>kDrive app</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<hr class="docutils" />
+<section id="phase-2-6-decommission-google-workspace">
+<h3>Phase 2.6 — Decommission Google Workspace<a class="headerlink" href="#phase-2-6-decommission-google-workspace" title="Link to this heading"></a></h3>
+<p><strong>Status:</strong> 🔴 Not started</p>
+<section id="wave-2-soak-gate-2-weeks-from-mx-cutover">
+<h4>Wave 2 soak gate (2 weeks from MX cutover)<a class="headerlink" href="#wave-2-soak-gate-2-weeks-from-mx-cutover" title="Link to this heading"></a></h4>
+<ul class="contains-task-list simple">
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">Soak started: ___________</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">No missed/bounced emails reported</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">All family members receiving and sending normally</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">Calendars and contacts syncing on all devices</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox">kDrive working for file access</p></li>
+</ul>
+</section>
+<section id="wave-2-steps">
+<h4>Wave 2 Steps<a class="headerlink" href="#wave-2-steps" title="Link to this heading"></a></h4>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Task</p></th>
+<th class="head"><p>Result / Notes</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Verify no mail still going to Gmail</p></td>
+<td><p>Last straggler: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Final Google Takeout archive (safety copy)</p></td>
+<td><p>Stored on: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Cancel Google Workspace</p></td>
+<td><p>Cancelled: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Remove Google OAuth grants / app passwords</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Wave 2 complete:</strong> ___________</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="phase-2-7-post-migration-hardening">
+<h3>Phase 2.7 — Post-migration hardening<a class="headerlink" href="#phase-2-7-post-migration-hardening" title="Link to this heading"></a></h3>
+<p><strong>Status:</strong> 🔴 Not started</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Task</p></th>
+<th class="head"><p>Target date</p></th>
+<th class="head"><p>Done</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Raise DNS TTL back to 3600s (1 week after cutover)</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>DMARC <code class="docutils literal notranslate"><span class="pre">p=none</span></code> → <code class="docutils literal notranslate"><span class="pre">p=quarantine</span></code> (after 2 weeks, review <code class="docutils literal notranslate"><span class="pre">rua</span></code> reports)</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>DMARC <code class="docutils literal notranslate"><span class="pre">p=quarantine</span></code> → <code class="docutils literal notranslate"><span class="pre">p=reject</span></code> (after 4 weeks)</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Set up monthly kSuite cold export to VPS (IMAP pull + CalDAV/CardDAV)</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Write family runbook (password reset, add device, add alias)</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>Share emergency access credentials with trusted person</p></td>
+<td><p></p></td>
+<td><p>[ ]</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>Schedule monthly maintenance window</p></td>
+<td><p>Day/time: ___________</p></td>
+<td><p>[ ]</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<hr class="docutils" />
+<section id="final-cost-summary-fill-in-after-wave-2">
+<h3>Final cost summary (fill in after Wave 2)<a class="headerlink" href="#final-cost-summary-fill-in-after-wave-2" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Cost</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Infomaniak kSuite (actual plan)</p></td>
+<td><p>€___/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Hetzner CPX31 VPS</p></td>
+<td><p>€15/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Hetzner BX11 Storage Box</p></td>
+<td><p>~€4/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>INWX domains (~€76/yr)</p></td>
+<td><p>~€6.30/mo</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Total</strong></p></td>
+<td><p><strong>€___/mo</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Previous spend</strong></p></td>
+<td><p>~€58-81/mo</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Saving</strong></p></td>
+<td><p><strong>€___/mo</strong></p></td>
+</tr>
+</tbody>
+</table>
+<hr class="docutils" />
+<p><em>Plan: <a class="reference internal" href="hosting-steps-v2.html"><span class="std std-doc">hosting-steps-v2.md</span></a> | Design: <a class="reference internal" href="hosting-design.html"><span class="std std-doc">hosting-design.md</span></a></em></p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="hosting-deploy.html" class="btn btn-neutral float-left" title="Haven Deployment Guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="hosting-steps.html" class="btn btn-neutral float-right" title="Migration Plan — Step by Step" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Vincent Huybrechts.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

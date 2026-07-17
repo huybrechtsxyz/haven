@@ -1,0 +1,1367 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hosting Design — Solution A: Infomaniak kSuite + Hetzner VPS &mdash; haven</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Haven Deployment Guide" href="hosting-deploy.html" />
+    <link rel="prev" title="Hosting Design Specifications" href="hosting-solutions.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            haven
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Design &amp; Migration</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Family Platform — Design &amp; Migration</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="hosting.html">Huybrechts.xyz Platform</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-solutions.html">Hosting Design Specifications</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Hosting Design — Solution A: Infomaniak kSuite + Hetzner VPS</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#design-goal">Design goal</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#architecture">Architecture</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#components">Components</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#domain-email-layout">Domain &amp; email layout</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#inwx-domain-pricing">INWX domain pricing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#mailboxes-groups">Mailboxes &amp; groups</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#vps-specification">VPS specification</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#infrastructure-as-code">Infrastructure as code</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#node-1-core-vps-docker-compose">Node 1 — Core VPS (Docker Compose) 🛡️</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#node-2-workload-vps-k3s">Node 2 — Workload VPS (k3s) ⚙️</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#security-posture">Security posture</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#monthly-cost">Monthly cost</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#key-decisions">Key decisions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#risks-mitigations">Risks &amp; mitigations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#future-considerations">Future considerations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#haven-configuration-reference">haven configuration reference</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#stack-dc-eu-central-yaml-provider"><code class="docutils literal notranslate"><span class="pre">stack/dc-eu-central.yaml</span></code> — provider</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#stack-vm-core-yaml-core-vps-resource"><code class="docutils literal notranslate"><span class="pre">stack/vm-core.yaml</span></code> — Core VPS resource</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#stack-vm-workload-yaml-workload-vps-resource"><code class="docutils literal notranslate"><span class="pre">stack/vm-workload.yaml</span></code> — Workload VPS resource</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#stack-fw-core-yaml-core-vps-firewall"><code class="docutils literal notranslate"><span class="pre">stack/fw-core.yaml</span></code> — Core VPS firewall</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#stack-fw-workload-yaml-workload-vps-firewall"><code class="docutils literal notranslate"><span class="pre">stack/fw-workload.yaml</span></code> — Workload VPS firewall</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#apps-mod-caddy-yaml-caddy-module-core-vps"><code class="docutils literal notranslate"><span class="pre">apps/mod-caddy.yaml</span></code> — Caddy module (Core VPS)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#apps-mod-authentik-yaml-authentik-module-core-vps"><code class="docutils literal notranslate"><span class="pre">apps/mod-authentik.yaml</span></code> — Authentik module (Core VPS)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#apps-mod-vaultwarden-yaml-vaultwarden-module-core-vps"><code class="docutils literal notranslate"><span class="pre">apps/mod-vaultwarden.yaml</span></code> — Vaultwarden module (Core VPS)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#apps-mod-infisical-yaml-infisical-module-core-vps"><code class="docutils literal notranslate"><span class="pre">apps/mod-infisical.yaml</span></code> — Infisical module (Core VPS)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#apps-mod-immich-yaml-immich-module-workload-vps-k3s"><code class="docutils literal notranslate"><span class="pre">apps/mod-immich.yaml</span></code> — Immich module (Workload VPS / k3s)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#apps-mod-gatus-yaml-gatus-module-workload-vps-k3s"><code class="docutils literal notranslate"><span class="pre">apps/mod-gatus.yaml</span></code> — Gatus module (Workload VPS / k3s)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#stack-ns-core-yaml-core-namespace"><code class="docutils literal notranslate"><span class="pre">stack/ns-core.yaml</span></code> — Core namespace</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#stack-ns-workload-yaml-workload-namespace"><code class="docutils literal notranslate"><span class="pre">stack/ns-workload.yaml</span></code> — Workload namespace</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#stack-ws-family-yaml-workspace"><code class="docutils literal notranslate"><span class="pre">stack/ws-family.yaml</span></code> — Workspace</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deploy-deploy-prd-yaml-production-deployment"><code class="docutils literal notranslate"><span class="pre">deploy/deploy-prd.yaml</span></code> — Production deployment</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#envs-env-prd-yaml-environment-values"><code class="docutils literal notranslate"><span class="pre">envs/env-prd.yaml</span></code> — Environment values</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#migration-scope">Migration scope</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-deploy.html">Haven Deployment Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-guide.html">Hosting Migration — Working Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps.html">Migration Plan — Step by Step</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps-v2.html">Migration Plan v2 — Gradual Migration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps-v2.html#wave-1-infrastructure-developer-services">Wave 1 — Infrastructure &amp; Developer Services</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hosting-steps-v2.html#wave-2-email-files-collaboration-google-ksuite">Wave 2 — Email, Files &amp; Collaboration (Google → kSuite)</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">haven</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Family Platform — Design &amp; Migration</a></li>
+      <li class="breadcrumb-item active">Hosting Design — Solution A: Infomaniak kSuite + Hetzner VPS</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/design/hosting-design.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="hosting-design-solution-a-infomaniak-ksuite-hetzner-vps">
+<h1>Hosting Design — Solution A: Infomaniak kSuite + Hetzner VPS<a class="headerlink" href="#hosting-design-solution-a-infomaniak-ksuite-hetzner-vps" title="Link to this heading"></a></h1>
+<blockquote>
+<div><p>Decision: Solution A selected (2026-05-26)
+Source: <a class="reference internal" href="hosting-solutions.html"><span class="std std-doc">hosting-solutions.md</span></a> | <a class="reference internal" href="hosting.html"><span class="std std-doc">hosting.md</span></a>
+Scope: 5 users, family platform, EU/Swiss privacy, managed email, self-hosted apps.</p>
+</div></blockquote>
+<hr class="docutils" />
+<section id="design-goal">
+<h2>Design goal<a class="headerlink" href="#design-goal" title="Link to this heading"></a></h2>
+<p>Simplest day-to-day experience for all 5 family members. A single Swiss vendor (Infomaniak) covers everything the family touches — email, files, docs, calendar, contacts. The VPS is invisible to the family; it runs Immich (photos), Vaultwarden (passwords), Infisical (secrets &amp; config), Authentik (SSO) and home-grown apps.</p>
+</section>
+<hr class="docutils" />
+<section id="architecture">
+<h2>Architecture<a class="headerlink" href="#architecture" title="Link to this heading"></a></h2>
+<div class="highlight-mermaid notranslate"><div class="highlight"><pre><span></span>graph TB
+    subgraph Users[&quot;👨‍👩‍👧‍👦 Family Members (5)&quot;]
+        direction LR
+        Browser[Web Browser]
+        Mobile[iOS / Android]
+        Desktop[Desktop Apps]
+    end
+
+    subgraph Infomaniak[&quot;☁️ Infomaniak kSuite — Switzerland 🇨🇭&quot;]
+        kMail[kMail&lt;br/&gt;Email + Webmail]
+        kDrive[kDrive&lt;br/&gt;File Sync 3-6 TB]
+        OnlyOffice_k[OnlyOffice&lt;br/&gt;Docs / Sheets / Slides]
+        Calendar[Calendar&lt;br/&gt;CalDAV]
+        Contacts[Contacts&lt;br/&gt;CardDAV]
+    end
+
+    subgraph CoreVPS[&quot;🛡️ Core VPS — Hetzner CX22 🇩🇪 (Docker Compose)&quot;]
+        Caddy[Caddy&lt;br/&gt;Reverse Proxy + TLS]
+        Authentik[Authentik&lt;br/&gt;Identity / SSO / 2FA]
+        Vaultwarden[Vaultwarden&lt;br/&gt;Password Manager]
+        Infisical[Infisical&lt;br/&gt;Secrets &amp; App Config]
+    end
+
+    subgraph WorkloadVPS[&quot;⚙️ Workload VPS — Hetzner CPX41 🇩🇪 (k3s)&quot;]
+        Immich[Immich&lt;br/&gt;Photo Management]
+        Gatus[Gatus&lt;br/&gt;Health Dashboard]
+        Apps[Home-grown Apps&lt;br/&gt;Helm / Docker]
+    end
+
+    subgraph Storage[&quot;💾 Hetzner Storage Box — Germany 🇩🇪&quot;]
+        BorgBackup[BorgBackup&lt;br/&gt;Encrypted Daily Backups]
+    end
+
+    subgraph DNS[&quot;🌐 INWX — Germany 🇩🇪&quot;]
+        DNSZones[DNS Zones&lt;br/&gt;MX / SPF / DKIM / DMARC&lt;br/&gt;A / CNAME]
+    end
+
+    subgraph GitHub[&quot;🐙 GitHub Actions (strata + haven)&quot;]
+        IaC[OpenTofu + Ansible + Helm]
+    end
+
+    %% User connections
+    Users --&gt;|HTTPS| Infomaniak
+    Users --&gt;|HTTPS| Caddy
+    Mobile --&gt;|Auto-upload| Immich
+
+    %% Core VPS
+    Caddy --&gt; Authentik
+    Caddy --&gt; Vaultwarden
+    Caddy --&gt; Infisical
+    Caddy --&gt;|proxy| WorkloadVPS
+    Authentik -.-&gt;|OIDC SSO| Immich
+    Authentik -.-&gt;|OIDC SSO| Apps
+    Infisical -.-&gt;|ESO token| WorkloadVPS
+
+    %% Backup
+    CoreVPS --&gt;|BorgBackup daily| Storage
+    WorkloadVPS --&gt;|BorgBackup daily| Storage
+
+    %% IaC
+    GitHub --&gt;|GitHub Secrets bootstrap| CoreVPS
+    GitHub --&gt;|Infisical token only| WorkloadVPS
+
+    %% DNS
+    DNSZones --&gt;|MX records| Infomaniak
+    DNSZones --&gt;|A/CNAME| Caddy
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="components">
+<h2>Components<a class="headerlink" href="#components" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Layer</p></th>
+<th class="head"><p>Service</p></th>
+<th class="head"><p>Provider</p></th>
+<th class="head"><p>Purpose</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Email</p></td>
+<td><p>kSuite Mail</p></td>
+<td><p>Infomaniak (CH 🇨🇭)</p></td>
+<td><p>5 mailboxes, custom domains, alias forwarding, CalDAV/CardDAV, ActiveSync</p></td>
+</tr>
+<tr class="row-odd"><td><p>Calendar</p></td>
+<td><p>kSuite Calendar</p></td>
+<td><p>Infomaniak (CH 🇨🇭)</p></td>
+<td><p>Shared family calendars, delegation, CalDAV, iOS/Android sync</p></td>
+</tr>
+<tr class="row-even"><td><p>Contacts</p></td>
+<td><p>kSuite Contacts</p></td>
+<td><p>Infomaniak (CH 🇨🇭)</p></td>
+<td><p>CardDAV, vCard import/export, mobile sync</p></td>
+</tr>
+<tr class="row-odd"><td><p>Files</p></td>
+<td><p>kDrive</p></td>
+<td><p>Infomaniak (CH 🇨🇭)</p></td>
+<td><p>3–6 TB shared storage, desktop/mobile apps, versioning</p></td>
+</tr>
+<tr class="row-even"><td><p>Docs</p></td>
+<td><p>OnlyOffice (via kDrive)</p></td>
+<td><p>Infomaniak (CH 🇨🇭)</p></td>
+<td><p>Docs/Sheets/Slides in browser</p></td>
+</tr>
+<tr class="row-odd"><td><p>Photos</p></td>
+<td><p>Immich</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Timeline, face recognition, shared albums, mobile auto-upload; originals stored on VPS SSD, archived nightly to Storage Box via BorgBackup (Storage Box is backup-only, not a live mount)</p></td>
+</tr>
+<tr class="row-even"><td><p>Passwords</p></td>
+<td><p>Vaultwarden</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Bitwarden-compatible; same Firefox extension + iPhone app for family</p></td>
+</tr>
+<tr class="row-odd"><td><p>Secrets &amp; config</p></td>
+<td><p>Infisical</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Per-app/env secrets + key-value config; CLI/SDK; replaces App Config/Consul</p></td>
+</tr>
+<tr class="row-even"><td><p>Identity (SSO)</p></td>
+<td><p>Authentik</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>OIDC/OAuth2 for all VPS services; 2FA enforcement; user lifecycle</p></td>
+</tr>
+<tr class="row-odd"><td><p>Compute — Core</p></td>
+<td><p>Docker Compose</p></td>
+<td><p>Hetzner CX22 VPS (DE 🇩🇪)</p></td>
+<td><p>Authentik, Vaultwarden, Infisical, Caddy — stable core; bootstrapped via GitHub Secrets; never experiments run here</p></td>
+</tr>
+<tr class="row-even"><td><p>Compute — Workload</p></td>
+<td><p>k3s (single-node)</p></td>
+<td><p>Hetzner CPX41 VPS (DE 🇩🇪)</p></td>
+<td><p>Immich, Gatus, home-grown apps via Helm; expendable — destroy/rebuild freely; secrets via Infisical token only (External Secrets Operator)</p></td>
+</tr>
+<tr class="row-odd"><td><p>IaC — tool</p></td>
+<td><p>strata (Python CLI)</p></td>
+<td><p><a class="reference external" href="https://github.com/huybrechtsxyz/strata"><code class="docutils literal notranslate"><span class="pre">huybrechtsxyz/strata</span></code></a></p></td>
+<td><p>Own Terragrunt alternative; orchestrates OpenTofu + Ansible against <code class="docutils literal notranslate"><span class="pre">haven</span></code> config</p></td>
+</tr>
+<tr class="row-even"><td><p>IaC — config</p></td>
+<td><p>haven (config repo)</p></td>
+<td><p><a class="reference external" href="https://github.com/huybrechtsxyz/haven"><code class="docutils literal notranslate"><span class="pre">huybrechtsxyz/haven</span></code></a></p></td>
+<td><p>All infra + app declarations: OpenTofu .tf, Ansible vars, Docker Compose, Helm values</p></td>
+</tr>
+<tr class="row-odd"><td><p>Reverse proxy</p></td>
+<td><p>Caddy</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪)</p></td>
+<td><p>Automatic Let’s Encrypt TLS, HSTS, subdomain routing</p></td>
+</tr>
+<tr class="row-even"><td><p>Backups</p></td>
+<td><p>BorgBackup → Storage Box</p></td>
+<td><p>Hetzner (DE 🇩🇪)</p></td>
+<td><p>Encrypted daily off-server backups of VPS data; kDrive has 30-day versioning</p></td>
+</tr>
+<tr class="row-odd"><td><p>Monitoring</p></td>
+<td><p>Gatus + Healthchecks.io</p></td>
+<td><p>Hetzner VPS (DE 🇩🇪) + external</p></td>
+<td><p>Gatus on VPS: per-service health dashboard; Healthchecks.io (free): BorgBackup dead-man’s switch; UptimeRobot: public endpoint availability</p></td>
+</tr>
+<tr class="row-even"><td><p>DNS registration</p></td>
+<td><p>INWX</p></td>
+<td><p>INWX (DE 🇩🇪)</p></td>
+<td><p>Domain registration for 4 active domains (theorderoftheblacklizard.be decommissioned)</p></td>
+</tr>
+<tr class="row-odd"><td><p>DNS hosting</p></td>
+<td><p>INWX built-in NS</p></td>
+<td><p>INWX (DE 🇩🇪)</p></td>
+<td><p>MX, SPF, DKIM, DMARC, A/CNAME records per domain</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<hr class="docutils" />
+<section id="domain-email-layout">
+<h2>Domain &amp; email layout<a class="headerlink" href="#domain-email-layout" title="Link to this heading"></a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>primary:   huybrechts.xyz              → kSuite MX → 5 mailboxes (one per family member)
+alias 1:   huybrechts.dev              → kSuite MX → alias → primary mailboxes
+alias 2:   meeus.family                → kSuite MX → alias → primary mailboxes
+alias 3:   alderwyn.xyz                → kSuite MX → alias → primary mailboxes
+decom:     theorderoftheblacklizard.be → NOT transferred; let expire at current registrar
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>Decision: <code class="docutils literal notranslate"><span class="pre">theorderoftheblacklizard.be</span></code> will be decommissioned.</strong> The domain will not be transferred to INWX and will not be renewed. Let it expire at the current registrar. Before expiry, ensure no active email or web traffic depends on it.</p>
+</div></blockquote>
+<p>All remaining 4 domains are added as <strong>alias domains</strong> in kSuite Mail Service (no limit on linked domains per service). Each domain has its own MX pointing to kSuite, plus its own SPF, DKIM (key generated by kSuite per domain), and DMARC record.</p>
+<section id="inwx-domain-pricing">
+<h3>INWX domain pricing<a class="headerlink" href="#inwx-domain-pricing" title="Link to this heading"></a></h3>
+<p>Prices in EUR/year excl. VAT (as of May 2026):</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Domain</p></th>
+<th class="head"><p>TLD</p></th>
+<th class="head"><p>Register</p></th>
+<th class="head"><p>Renew</p></th>
+<th class="head"><p>Transfer</p></th>
+<th class="head"><p>Whois Privacy</p></th>
+<th class="head"><p>Stable price?</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">huybrechts.xyz</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.xyz</span></code></p></td>
+<td><p>~€24/yr</p></td>
+<td><p>~€24/yr</p></td>
+<td><p>~€24/yr</p></td>
+<td><p>+€5/yr</p></td>
+<td><p>✓ flat</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">alderwyn.xyz</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.xyz</span></code></p></td>
+<td><p>~€24/yr</p></td>
+<td><p>~€24/yr</p></td>
+<td><p>~€24/yr</p></td>
+<td><p>+€5/yr</p></td>
+<td><p>✓ flat</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">huybrechts.dev</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.dev</span></code></p></td>
+<td><p>~€11 Y1¹</p></td>
+<td><p>~€18/yr</p></td>
+<td><p>~€18/yr</p></td>
+<td><p>+€5/yr</p></td>
+<td><p>⚠ Y1 promo</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">meeus.family</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.family</span></code></p></td>
+<td><p>~€7 Y1¹</p></td>
+<td><p>~€52/yr</p></td>
+<td><p>~€52/yr</p></td>
+<td><p>+€5/yr</p></td>
+<td><p>⚠ big jump</p></td>
+</tr>
+<tr class="row-even"><td><p>~~<code class="docutils literal notranslate"><span class="pre">theorderoftheblacklizard.be</span></code>~~</p></td>
+<td><p>~~<code class="docutils literal notranslate"><span class="pre">.be</span></code>~~</p></td>
+<td><p>—</p></td>
+<td><p>—</p></td>
+<td><p>—</p></td>
+<td><p>—</p></td>
+<td><p>✗ decommissioned</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Total (steady-state, 4 domains)</strong></p></td>
+<td><p></p></td>
+<td><p></p></td>
+<td><p><strong>~€76/yr (~€6.30/mo)</strong></p></td>
+<td><p></p></td>
+<td><p></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<p>¹ Promo prices are first-year only (promo valid until 01.07.2026). Renewal is at full price from year 2.</p>
+<blockquote>
+<div><p><strong>⚠️ TODO — <code class="docutils literal notranslate"><span class="pre">meeus.family</span></code>:</strong> renewal jumps to ~€52/yr from year 2. <strong>Decide before first renewal whether to keep this domain.</strong> Check if any family members actively use <code class="docutils literal notranslate"><span class="pre">&#64;meeus.family</span></code> addresses. If not widely used, drop it and redirect to <code class="docutils literal notranslate"><span class="pre">&#64;huybrechts.xyz</span></code> equivalents — saves ~€52/yr.</p>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Note on <code class="docutils literal notranslate"><span class="pre">.dev</span></code>:</strong> all <code class="docutils literal notranslate"><span class="pre">.dev</span></code> domains are HSTS-preloaded by Google’s registry — HTTPS is mandatory (HTTP requests are refused by browsers before reaching the server). Caddy handles this automatically via auto-TLS; no manual HSTS configuration is needed.</p>
+</div></blockquote>
+</section>
+<hr class="docutils" />
+<section id="mailboxes-groups">
+<h3>Mailboxes &amp; groups<a class="headerlink" href="#mailboxes-groups" title="Link to this heading"></a></h3>
+<section id="personal-mailboxes-5">
+<h4>Personal mailboxes (5)<a class="headerlink" href="#personal-mailboxes-5" title="Link to this heading"></a></h4>
+<p>One kSuite mailbox per family member on <code class="docutils literal notranslate"><span class="pre">huybrechts.xyz</span></code>:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Mailbox</p></th>
+<th class="head"><p>Member</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">parent1&#64;huybrechts.xyz</span></code></p></td>
+<td><p>Parent</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">parent2&#64;huybrechts.xyz</span></code></p></td>
+<td><p>Parent</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kid1&#64;huybrechts.xyz</span></code></p></td>
+<td><p>Child</p></td>
+<td><p>forwarded (see below)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kid2&#64;huybrechts.xyz</span></code></p></td>
+<td><p>Child</p></td>
+<td><p>forwarded (see below)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kid3&#64;huybrechts.xyz</span></code></p></td>
+<td><p>Child</p></td>
+<td><p>forwarded (see below)</p></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<div><p>Replace placeholder names above with real addresses once mailboxes are provisioned.</p>
+</div></blockquote>
+</section>
+<section id="distribution-groups">
+<h4>Distribution groups<a class="headerlink" href="#distribution-groups" title="Link to this heading"></a></h4>
+<p>Group addresses are configured in <strong>kSuite Mail Service → Distribution lists</strong> (no extra mailbox licence needed). Each group address fans out to its members.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Group address</p></th>
+<th class="head"><p>Members</p></th>
+<th class="head"><p>Purpose</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">family&#64;huybrechts.xyz</span></code></p></td>
+<td><p>all 5 mailboxes</p></td>
+<td><p>Family-wide announcements / shared</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>(add more groups as needed)</em></p></td>
+<td><p><em>(e.g. parents only, kids only, …)</em></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="parental-oversight-child-mail-forwarding">
+<h4>Parental oversight — child mail forwarding<a class="headerlink" href="#parental-oversight-child-mail-forwarding" title="Link to this heading"></a></h4>
+<p>Each child’s mailbox has a server-side <strong>keep copy + forward</strong> rule so the parents receive a copy of every incoming message without removing it from the child’s inbox.</p>
+<p>Configured in: <strong>kSuite Manager → Mail Service → [child mailbox] → Redirections / Forwarding</strong></p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Child mailbox</p></th>
+<th class="head"><p>Forward copy to</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kid1&#64;huybrechts.xyz</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parent1&#64;huybrechts.xyz</span></code>, <code class="docutils literal notranslate"><span class="pre">parent2&#64;huybrechts.xyz</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kid2&#64;huybrechts.xyz</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parent1&#64;huybrechts.xyz</span></code>, <code class="docutils literal notranslate"><span class="pre">parent2&#64;huybrechts.xyz</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kid3&#64;huybrechts.xyz</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">parent1&#64;huybrechts.xyz</span></code>, <code class="docutils literal notranslate"><span class="pre">parent2&#64;huybrechts.xyz</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<p>The same <strong>keep copy + forward</strong> rule can be applied to any distribution group address (e.g. a <code class="docutils literal notranslate"><span class="pre">kids&#64;huybrechts.xyz</span></code> group) so that mail sent to the group also lands in the parents’ inboxes.</p>
+</section>
+</section>
+</section>
+<hr class="docutils" />
+<section id="vps-specification">
+<h2>VPS specification<a class="headerlink" href="#vps-specification" title="Link to this heading"></a></h2>
+<p>Two-node architecture: a stable <strong>Core VPS</strong> (never touched once running) and an expendable <strong>Workload VPS</strong> (tinker freely).</p>
+<section id="infrastructure-as-code">
+<h3>Infrastructure as code<a class="headerlink" href="#infrastructure-as-code" title="Link to this heading"></a></h3>
+<p>All compute is managed as code — no manual ClickOps.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tool</p></th>
+<th class="head"><p>Role</p></th>
+<th class="head"><p>Repo</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>strata</strong></p></td>
+<td><p>Python CLI tool — own alternative to Terragrunt. Orchestrates OpenTofu + Ansible + Helm runs against <code class="docutils literal notranslate"><span class="pre">haven</span></code> config</p></td>
+<td><p><a class="reference external" href="https://github.com/huybrechtsxyz/strata"><code class="docutils literal notranslate"><span class="pre">huybrechtsxyz/strata</span></code></a></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>haven</strong></p></td>
+<td><p>Config repository — YAML-based declarations of all infra and apps (OpenTofu <code class="docutils literal notranslate"><span class="pre">.tf</span></code>, Ansible vars, Docker Compose files, Helm values)</p></td>
+<td><p><a class="reference external" href="https://github.com/huybrechtsxyz/haven"><code class="docutils literal notranslate"><span class="pre">huybrechtsxyz/haven</span></code></a></p></td>
+</tr>
+</tbody>
+</table>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">strata</span></code></strong> — the tool (Python executable). Reads <code class="docutils literal notranslate"><span class="pre">haven</span></code>, drives OpenTofu for provisioning (VPS, Storage Box, firewall, DNS zones) and Ansible for OS hardening + service bootstrap, and Helm for k3s workload deployments.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">haven</span></code></strong> — the config (data). Contains all YAML/HCL/Compose/Helm files that describe what to provision and how to configure it. No logic — only declarations. <code class="docutils literal notranslate"><span class="pre">strata</span></code> consumes it.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="node-1-core-vps-docker-compose">
+<h3>Node 1 — Core VPS (Docker Compose) 🛡️<a class="headerlink" href="#node-1-core-vps-docker-compose" title="Link to this heading"></a></h3>
+<p>Runs the identity and secrets infrastructure. Boring by design — deployed once, never used as a playground. If this node is healthy, you can always recover everything else.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Spec</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Model</p></td>
+<td><p>Hetzner CX22</p></td>
+</tr>
+<tr class="row-odd"><td><p>vCPU</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-even"><td><p>RAM</p></td>
+<td><p>4 GB</p></td>
+</tr>
+<tr class="row-odd"><td><p>SSD</p></td>
+<td><p>40 GB</p></td>
+</tr>
+<tr class="row-even"><td><p>Network</p></td>
+<td><p>20 TB/mo included</p></td>
+</tr>
+<tr class="row-odd"><td><p>Orchestration</p></td>
+<td><p>Docker Compose + systemd</p></td>
+</tr>
+<tr class="row-even"><td><p>Services</p></td>
+<td><p>Caddy, Authentik, Vaultwarden, Infisical</p></td>
+</tr>
+<tr class="row-odd"><td><p>Cost</p></td>
+<td><p>~€4/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>IaC secrets</p></td>
+<td><p><strong>GitHub Secrets</strong> (bootstrap only — acceptable; Infisical not running yet)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Skill req.</p></td>
+<td><p>Docker Compose, basic Linux</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Bootstrap sequence:</strong></p>
+<ol class="arabic simple">
+<li><p>GitHub Actions uses GitHub Secrets (Hetzner API key, SSH key) to provision the CX22 via OpenTofu and run Ansible</p></li>
+<li><p>Ansible deploys Docker Compose stack: Caddy → Infisical → Authentik → Vaultwarden</p></li>
+<li><p>After Infisical is running, all subsequent deployments pull secrets from Infisical — GitHub Secrets no longer needed at runtime</p></li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="node-2-workload-vps-k3s">
+<h3>Node 2 — Workload VPS (k3s) ⚙️<a class="headerlink" href="#node-2-workload-vps-k3s" title="Link to this heading"></a></h3>
+<p>Runs all family apps. Can be destroyed and rebuilt at any time without affecting core auth or passwords. Extends easily — add a Helm chart, deploy a new app, break things, rebuild.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Spec</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Model</p></td>
+<td><p>Hetzner CPX41</p></td>
+</tr>
+<tr class="row-odd"><td><p>vCPU</p></td>
+<td><p>8</p></td>
+</tr>
+<tr class="row-even"><td><p>RAM</p></td>
+<td><p>16 GB</p></td>
+</tr>
+<tr class="row-odd"><td><p>SSD</p></td>
+<td><p>240 GB</p></td>
+</tr>
+<tr class="row-even"><td><p>Network</p></td>
+<td><p>20 TB/mo included</p></td>
+</tr>
+<tr class="row-odd"><td><p>Orchestration</p></td>
+<td><p>k3s (single-node) + Helm + External Secrets Operator + cert-manager</p></td>
+</tr>
+<tr class="row-even"><td><p>Services</p></td>
+<td><p>Immich, Gatus, home-grown apps, future apps</p></td>
+</tr>
+<tr class="row-odd"><td><p>Cost</p></td>
+<td><p>~€26/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>IaC secrets</p></td>
+<td><p><strong>Infisical token only</strong> — no GitHub Secrets; ESO pulls all secrets at runtime from Core VPS</p></td>
+</tr>
+<tr class="row-odd"><td><p>Skill req.</p></td>
+<td><p>kubectl, Helm, k3s administration</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Secrets flow on Workload VPS:</strong></p>
+<ul class="simple">
+<li><p>GitHub Actions passes a single short-lived Infisical machine token to the k3s deployment</p></li>
+<li><p>External Secrets Operator (ESO) uses that token to fetch all app secrets from Infisical at runtime</p></li>
+<li><p>No secrets stored in git, no GitHub Secrets in workload pipelines, no plain env files</p></li>
+</ul>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Comparison point</p></th>
+<th class="head"><p>Core VPS (Docker Compose)</p></th>
+<th class="head"><p>Workload VPS (k3s)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Services</p></td>
+<td><p>Caddy, Authentik, Vaultwarden, Infisical</p></td>
+<td><p>Immich, Gatus, apps</p></td>
+</tr>
+<tr class="row-odd"><td><p>Stability goal</p></td>
+<td><p>Never breaks</p></td>
+<td><p>Expendable — rebuild freely</p></td>
+</tr>
+<tr class="row-even"><td><p>Secrets source</p></td>
+<td><p>GitHub Secrets (bootstrap only) → Infisical</p></td>
+<td><p>Infisical token only (ESO)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Upgrade strategy</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">pull</span> <span class="pre">&amp;&amp;</span> <span class="pre">up</span> <span class="pre">-d</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">upgrade</span></code>, rolling restarts</p></td>
+</tr>
+<tr class="row-even"><td><p>Rollback</p></td>
+<td><p>Manual (image tags in Compose)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">rollback</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Multi-node later</p></td>
+<td><p>n/a</p></td>
+<td><p>Easy — add CPX31 worker node</p></td>
+</tr>
+<tr class="row-even"><td><p>Cert management</p></td>
+<td><p>Caddy auto-TLS</p></td>
+<td><p>cert-manager + Let’s Encrypt</p></td>
+</tr>
+<tr class="row-odd"><td><p>Cost</p></td>
+<td><p>~€4/mo</p></td>
+<td><p>~€26/mo</p></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<div><p><strong>Decision:</strong> two-node split. Core VPS (CX22, Docker Compose) is the trust anchor — stable, minimal, never an experiment. Workload VPS (CPX41, k3s) is the platform — extend it, break it, rebuild it freely. The k3s node only needs an Infisical token; it has no knowledge of Hetzner API keys, SSH keys, or admin credentials.</p>
+</div></blockquote>
+</section>
+</section>
+<hr class="docutils" />
+<section id="security-posture">
+<h2>Security posture<a class="headerlink" href="#security-posture" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Layer</p></th>
+<th class="head"><p>Controls</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>kSuite</p></td>
+<td><p>Swiss nFADP + GDPR, DPA, TLS in transit, encrypted at rest, DKIM/DMARC managed; ⚠ no independent backup of kSuite data — relies on Infomaniak redundancy + 30-day kDrive versioning; consider periodic IMAP/CardDAV/CalDAV export to VPS for cold copy</p></td>
+</tr>
+<tr class="row-odd"><td><p>VPS OS</p></td>
+<td><p>UFW (80/443/SSH only), SSH key-only, Fail2Ban, unattended-upgrades</p></td>
+</tr>
+<tr class="row-even"><td><p>Caddy</p></td>
+<td><p>Auto HTTPS, HSTS, TLS 1.2/1.3 only, HTTP/2</p></td>
+</tr>
+<tr class="row-odd"><td><p>Authentik</p></td>
+<td><p>2FA enforced (TOTP/WebAuthn), OIDC provider for all services, daily encrypted DB backup</p></td>
+</tr>
+<tr class="row-even"><td><p>Vaultwarden</p></td>
+<td><p>HTTPS only, OIDC login via Authentik, admin token protected, daily backup</p></td>
+</tr>
+<tr class="row-odd"><td><p>Immich</p></td>
+<td><p>OIDC login via Authentik, not exposed without auth; originals on VPS SSD, nightly BorgBackup to Storage Box</p></td>
+</tr>
+<tr class="row-even"><td><p>Infisical</p></td>
+<td><p>Runs on Core VPS; admin UI behind Caddy + Authentik SSO (admin-only); API internal to Core VPS; secrets never in plain env files or git; Workload VPS accesses via ESO token scoped to its own namespace</p></td>
+</tr>
+<tr class="row-odd"><td><p>Container updates</p></td>
+<td><p>Core VPS: image tags pinned in <code class="docutils literal notranslate"><span class="pre">haven</span></code>; <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">pull</span> <span class="pre">&amp;&amp;</span> <span class="pre">up</span> <span class="pre">-d</span></code>; monthly review. Workload VPS: Helm versions pinned in <code class="docutils literal notranslate"><span class="pre">haven</span></code>; <code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">upgrade</span></code>; Dependabot on <code class="docutils literal notranslate"><span class="pre">haven</span></code> for digest updates</p></td>
+</tr>
+<tr class="row-even"><td><p>IaC secrets</p></td>
+<td><p>Core bootstrap: GitHub Secrets (Hetzner API key, SSH key) — one-time only; runtime uses Infisical. Workload VPS: Infisical ESO token only — no other secrets in workload pipelines</p></td>
+</tr>
+<tr class="row-odd"><td><p>Monitoring</p></td>
+<td><p>Gatus (VPS) for per-service health; Healthchecks.io for BorgBackup dead-man’s switch; UptimeRobot for external endpoint pings</p></td>
+</tr>
+<tr class="row-even"><td><p>Backups</p></td>
+<td><p>BorgBackup with encryption key stored in Vaultwarden; daily to Storage Box; restore tested monthly; ⚠ VPS + Storage Box are same Hetzner region — consider cold copy to Backblaze B2/Wasabi for DR</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<hr class="docutils" />
+<section id="monthly-cost">
+<h2>Monthly cost<a class="headerlink" href="#monthly-cost" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Cost</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Infomaniak kSuite (5 users, kDrive 3 TB)</p></td>
+<td><p>~€25-35/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Infomaniak kDrive extra storage (to ~5 TB)</p></td>
+<td><p>~€5-10/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Hetzner CX22 VPS (Core — Docker Compose)</p></td>
+<td><p>~€4/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Hetzner CPX41 VPS (Workload — k3s)</p></td>
+<td><p>~€26/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Hetzner BX11 Storage Box (1 TB)</p></td>
+<td><p>~€4/mo</p></td>
+</tr>
+<tr class="row-odd"><td><p>Domains (4 × INWX, steady-state)</p></td>
+<td><p>~€6.30/mo</p></td>
+</tr>
+<tr class="row-even"><td><p>Vaultwarden / Infisical / Immich / Authentik</p></td>
+<td><p>€0 (on VPS)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Total</strong></p></td>
+<td><p><strong>~€64-80/mo</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Current spend</strong></p></td>
+<td><p>~€58-81/mo</p></td>
+</tr>
+</tbody>
+</table>
+<p>Savings: Bitwarden Team (~€15/mo) eliminated. 2 extra users added vs current Google Workspace (3 → 5). Swiss privacy. No MTA ops.</p>
+</section>
+<hr class="docutils" />
+<section id="key-decisions">
+<h2>Key decisions<a class="headerlink" href="#key-decisions" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Decision</p></th>
+<th class="head"><p>Rationale</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>kSuite over Proton</p></td>
+<td><p>CalDAV/CardDAV native; no Proton Bridge needed; simplest family UX</p></td>
+</tr>
+<tr class="row-odd"><td><p>kSuite over Mailbox.org</p></td>
+<td><p>Single-vendor for mail+files+docs; less VPS admin (no Nextcloud)</p></td>
+</tr>
+<tr class="row-even"><td><p>INWX over Versio/ClouDNS</p></td>
+<td><p>German GDPR registrar; clean API; no extra ClouDNS subscription</p></td>
+</tr>
+<tr class="row-odd"><td><p>Vaultwarden over Bitwarden</p></td>
+<td><p>Same UX, €15/mo saving, data in EU, full control</p></td>
+</tr>
+<tr class="row-even"><td><p>Infisical over Vault/Consul</p></td>
+<td><p>MIT licence, no IBM/BSL risk, covers secrets + config in one tool</p></td>
+</tr>
+<tr class="row-odd"><td><p>Authentik over Keycloak</p></td>
+<td><p>Lighter (300-500 MB vs 1-2 GB), MIT, excellent UI, proxy provider</p></td>
+</tr>
+<tr class="row-even"><td><p>BorgBackup over restic</p></td>
+<td><p>Mature, deduplication, encryption built-in, Hetzner Storage Box native</p></td>
+</tr>
+<tr class="row-odd"><td><p>Two-node split (Core + Workload)</p></td>
+<td><p>Core VPS (CX22, Docker Compose) is the trust anchor — Authentik, Vaultwarden, Infisical never disrupted by experiments; Workload VPS (CPX41, k3s) is expendable — break and rebuild freely</p></td>
+</tr>
+<tr class="row-even"><td><p>k3s for workload</p></td>
+<td><p>Helm-native upgrades, rollback, ESO secrets integration; easy to add worker nodes; family-5 apps fit comfortably on CPX41</p></td>
+</tr>
+<tr class="row-odd"><td><p>GitHub Secrets for Core bootstrap</p></td>
+<td><p>Chicken-and-egg: Infisical not running yet during first deploy; acceptable for one-time bootstrap only; runtime uses Infisical</p></td>
+</tr>
+<tr class="row-even"><td><p>Infisical token only for Workload</p></td>
+<td><p>k3s node has no Hetzner API key, SSH key, or admin credentials — only an ESO token scoped to its own secrets namespace</p></td>
+</tr>
+<tr class="row-odd"><td><p>strata over Terragrunt</p></td>
+<td><p>strata is own Python CLI purpose-built for this workflow; no HCL wrapper overhead, full control</p></td>
+</tr>
+<tr class="row-even"><td><p>.be domain decommissioned</p></td>
+<td><p>theorderoftheblacklizard.be not transferred; low/no usage, avoids €10/yr + operational overhead</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<hr class="docutils" />
+<section id="risks-mitigations">
+<h2>Risks &amp; mitigations<a class="headerlink" href="#risks-mitigations" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Risk</p></th>
+<th class="head"><p>Impact</p></th>
+<th class="head"><p>Mitigation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Infomaniak outage (mail/files)</p></td>
+<td><p>High</p></td>
+<td><p>kDrive has 30-day versioning; email is SaaS-HA; standard protocols allow emergency IMAP pull</p></td>
+</tr>
+<tr class="row-odd"><td><p>kSuite data loss (no independent backup)</p></td>
+<td><p>Medium</p></td>
+<td><p>Infomaniak has internal redundancy; mitigate with periodic IMAP/CalDAV/WebDAV export to VPS or cold storage</p></td>
+</tr>
+<tr class="row-even"><td><p>VPS failure (photos/passwords)</p></td>
+<td><p>High</p></td>
+<td><p>Daily encrypted BorgBackup to Storage Box; restore tested monthly</p></td>
+</tr>
+<tr class="row-odd"><td><p>Hetzner regional incident (VPS + Storage Box same DC)</p></td>
+<td><p>Medium</p></td>
+<td><p>Both VPS and backup in same region; mitigate with cold copy to Backblaze B2 or Wasabi (~€2/mo for 100 GB)</p></td>
+</tr>
+<tr class="row-even"><td><p>Infomaniak changes pricing or terms</p></td>
+<td><p>Medium</p></td>
+<td><p>Standard protocols (IMAP/CalDAV/CardDAV) — migrate to Mailbox.org/Proton</p></td>
+</tr>
+<tr class="row-odd"><td><p>Admin unavailable (bus factor = 1)</p></td>
+<td><p>Medium</p></td>
+<td><p>All procedures in hosting-steps.md; emergency Vaultwarden admin token shared with trusted person; IaC in git</p></td>
+</tr>
+<tr class="row-even"><td><p>Authentik compromise (SSO for all apps)</p></td>
+<td><p>High</p></td>
+<td><p>2FA enforced; daily DB backup; OIDC client secrets in Infisical; Authentik has no Caddy bypass</p></td>
+</tr>
+<tr class="row-odd"><td><p>BorgBackup silently fails</p></td>
+<td><p>High</p></td>
+<td><p>Healthchecks.io dead-man’s switch; Gatus monitors backup job exit codes</p></td>
+</tr>
+<tr class="row-even"><td><p>Domain registrar issues</p></td>
+<td><p>Low</p></td>
+<td><p>INWX is ICANN-accredited; EPP transfer out always possible</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<hr class="docutils" />
+<section id="future-considerations">
+<h2>Future considerations<a class="headerlink" href="#future-considerations" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Add CPX31 worker node</strong> to k3s if Workload VPS RAM becomes the bottleneck (easy — k3s designed for this).</p></li>
+<li><p><strong>Add Flagsmith</strong> if feature-flag rollout percentages or A/B testing are needed beyond Infisical boolean config.</p></li>
+<li><p><strong>Tailscale mesh</strong> for admin-only VPS access (SSH + Infisical API) without public exposure; replaces UFW SSH exception for admin sessions.</p></li>
+<li><p><strong>Promote Core VPS to HA</strong> (second CX22 + keepalived) if uptime SLA becomes critical.</p></li>
+<li><p><strong>Nextcloud</strong> on Workload VPS only if kDrive becomes insufficient for power-user file workflows.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="haven-configuration-reference">
+<h2>haven configuration reference<a class="headerlink" href="#haven-configuration-reference" title="Link to this heading"></a></h2>
+<blockquote>
+<div><p>This section contains the exact values needed to create every <code class="docutils literal notranslate"><span class="pre">haven</span></code> YAML file for this platform. Each subsection maps to one file. All files use <code class="docutils literal notranslate"><span class="pre">apiVersion:</span> <span class="pre">platform.huybrechts.xyz/v1</span></code>.</p>
+</div></blockquote>
+<hr class="docutils" />
+<section id="stack-dc-eu-central-yaml-provider">
+<h3><code class="docutils literal notranslate"><span class="pre">stack/dc-eu-central.yaml</span></code> — provider<a class="headerlink" href="#stack-dc-eu-central-yaml-provider" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">provider</span>
+<span class="nt">meta</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hetzner_eu_central</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Hetzner Cloud — EU Central (Nuremberg / Falkenstein)</span>
+<span class="w">  </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">hetzner</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">provider</span><span class="p p-Indicator">]</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">properties</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hetzner</span>
+<span class="w">    </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">eu-central</span><span class="w">   </span><span class="c1"># nbg1 (Nuremberg) preferred; fsn1 (Falkenstein) fallback</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="stack-vm-core-yaml-core-vps-resource">
+<h3><code class="docutils literal notranslate"><span class="pre">stack/vm-core.yaml</span></code> — Core VPS resource<a class="headerlink" href="#stack-vm-core-yaml-core-vps-resource" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">resource</span>
+<span class="nt">meta</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_vm_core</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Hetzner CX22 — Core VPS (Caddy, Authentik, Vaultwarden, Infisical)</span>
+<span class="w">  </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">vm</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">core</span><span class="p p-Indicator">]</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">properties</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">provider_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hetzner</span>
+<span class="w">    </span><span class="nt">resource_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">virtualmachine</span>
+<span class="w">    </span><span class="nt">unit_cost</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4.00</span><span class="w">   </span><span class="c1"># EUR per month</span>
+<span class="w">  </span><span class="nt">configuration</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">os_name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Ubuntu&quot;</span>
+<span class="w">    </span><span class="nt">os_code</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;24.04</span><span class="nv"> </span><span class="s">LTS&quot;</span>
+<span class="w">    </span><span class="nt">cpu_cores</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="w">    </span><span class="nt">ram_mb</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4096</span>
+<span class="w">    </span><span class="nt">billing</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monthly</span>
+<span class="w">    </span><span class="nt">disk_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">40</span>
+<span class="w">  </span><span class="nt">storage</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">install_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/opt/haven</span>
+<span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: config   path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/opt/haven/etc</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: data     path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/opt/haven/var/data</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: logs     path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/opt/haven/var/logs</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: certs    path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/opt/haven/var/certs</span><span class="w">    </span><span class="c1"># Caddy ACME storage</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="stack-vm-workload-yaml-workload-vps-resource">
+<h3><code class="docutils literal notranslate"><span class="pre">stack/vm-workload.yaml</span></code> — Workload VPS resource<a class="headerlink" href="#stack-vm-workload-yaml-workload-vps-resource" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">resource</span>
+<span class="nt">meta</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_vm_workload</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Hetzner CPX41 — Workload VPS (k3s; Immich, Gatus, apps)</span>
+<span class="w">  </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">vm</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">workload</span><span class="p p-Indicator">]</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">properties</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">provider_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hetzner</span>
+<span class="w">    </span><span class="nt">resource_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">virtualmachine</span>
+<span class="w">    </span><span class="nt">unit_cost</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">26.00</span><span class="w">   </span><span class="c1"># EUR per month</span>
+<span class="w">  </span><span class="nt">configuration</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">os_name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Ubuntu&quot;</span>
+<span class="w">    </span><span class="nt">os_code</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;24.04</span><span class="nv"> </span><span class="s">LTS&quot;</span>
+<span class="w">    </span><span class="nt">cpu_cores</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8</span>
+<span class="w">    </span><span class="nt">ram_mb</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">16384</span>
+<span class="w">    </span><span class="nt">billing</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monthly</span>
+<span class="w">    </span><span class="nt">disk_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">240</span>
+<span class="w">  </span><span class="nt">storage</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">install_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/opt/haven</span>
+<span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: immich-data   path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/opt/haven/var/immich</span><span class="w">       </span><span class="c1"># photo originals</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: k3s-data      path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/var/lib/rancher/k3s</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: logs          path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/opt/haven/var/logs</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="stack-fw-core-yaml-core-vps-firewall">
+<h3><code class="docutils literal notranslate"><span class="pre">stack/fw-core.yaml</span></code> — Core VPS firewall<a class="headerlink" href="#stack-fw-core-yaml-core-vps-firewall" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">firewall</span>
+<span class="nt">meta</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_fw_core</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Firewall for Core VPS — public HTTPS only; SSH from private network</span>
+<span class="w">  </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">firewall</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">core</span><span class="p p-Indicator">]</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">reset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">defaults</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: in   permission: deny   comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Deny all inbound</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: out  permission: deny   comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Deny all outbound</span>
+<span class="w">  </span><span class="nt">allow</span><span class="p">:</span>
+<span class="w">    </span><span class="c1"># Essential</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: out  proto: udp  port: 53       comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DNS</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: out  proto: tcp  port: 53       comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DNS TCP</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: out  proto: udp  port: 123      comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NTP</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: in   interface: lo              comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Loopback IN</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: out  interface: lo              comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Loopback OUT</span>
+<span class="w">    </span><span class="c1"># Public ingress</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: in   proto: tcp  port: 80       comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HTTP (redirect to HTTPS)</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: in   proto: tcp  port: 443      comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HTTPS</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: out  proto: tcp  port: 80       comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HTTP out</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: out  proto: tcp  port: 443      comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HTTPS out</span>
+<span class="w">    </span><span class="c1"># SSH — restricted to Hetzner private network or Tailscale CGNAT</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: in   proto: tcp  port: 22       from: 10.0.0.0/8   comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SSH (private only)</span>
+<span class="w">    </span><span class="c1"># Internal — Core→Workload (Infisical API)</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: out  proto: tcp  port: 8080     comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Infisical internal API to workload</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="stack-fw-workload-yaml-workload-vps-firewall">
+<h3><code class="docutils literal notranslate"><span class="pre">stack/fw-workload.yaml</span></code> — Workload VPS firewall<a class="headerlink" href="#stack-fw-workload-yaml-workload-vps-firewall" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">firewall</span>
+<span class="nt">meta</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_fw_workload</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Firewall for Workload VPS — proxied behind Core Caddy; SSH private only</span>
+<span class="w">  </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">firewall</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">workload</span><span class="p p-Indicator">]</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">reset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">defaults</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: in   permission</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: out  permission</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deny</span>
+<span class="w">  </span><span class="nt">allow</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: out  proto: udp  port: 53       comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DNS</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: out  proto: tcp  port: 53       comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DNS TCP</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: out  proto: udp  port: 123      comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NTP</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: in   interface: lo              comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Loopback IN</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: out  interface: lo              comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Loopback OUT</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: out  proto: tcp  port: 80       comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HTTP out (image pulls)</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: out  proto: tcp  port: 443      comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HTTPS out</span>
+<span class="w">    </span><span class="c1"># From Core Caddy proxy only</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: in   proto: tcp  port: 80       from: &lt;CORE_VPS_IP&gt;   comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Proxy from Core</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: in   proto: tcp  port: 443      from: &lt;CORE_VPS_IP&gt;   comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Proxy from Core</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: in   proto: tcp  port: 22       from: 10.0.0.0/8      comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SSH private only</span>
+<span class="w">    </span><span class="c1"># k3s API server (admin kubectl)</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">direction: in   proto: tcp  port: 6443     from: 10.0.0.0/8      comment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">k3s API private only</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="apps-mod-caddy-yaml-caddy-module-core-vps">
+<h3><code class="docutils literal notranslate"><span class="pre">apps/mod-caddy.yaml</span></code> — Caddy module (Core VPS)<a class="headerlink" href="#apps-mod-caddy-yaml-caddy-module-core-vps" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">module</span>
+<span class="nt">meta</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_caddy</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Caddy reverse proxy — auto TLS, HSTS, subdomain routing</span>
+<span class="w">  </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">caddy</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">core</span><span class="p p-Indicator">]</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">source</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven</span>
+<span class="w">    </span><span class="nt">source_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">services/caddy</span>
+<span class="w">  </span><span class="nt">properties</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">caddy:2-alpine</span>
+<span class="w">    </span><span class="nt">mounts</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: config    type: config   target_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/caddy</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: certs     type: data     target_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/caddy</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: logs      type: logs     target_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/var/log/caddy</span>
+<span class="w">  </span><span class="nt">checks</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: caddy_health   type: http   endpoint: http://localhost:2019/metrics   interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30s</span>
+<span class="w">  </span><span class="nt">endpoints</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: https_entry    url: https://huybrechts.xyz   description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Public entry point</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="apps-mod-authentik-yaml-authentik-module-core-vps">
+<h3><code class="docutils literal notranslate"><span class="pre">apps/mod-authentik.yaml</span></code> — Authentik module (Core VPS)<a class="headerlink" href="#apps-mod-authentik-yaml-authentik-module-core-vps" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">module</span>
+<span class="nt">meta</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_authentik</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Authentik — Identity provider, SSO, 2FA for all services</span>
+<span class="w">  </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">authentik</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">core</span><span class="p p-Indicator">]</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">source</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven</span>
+<span class="w">    </span><span class="nt">source_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">services/authentik</span>
+<span class="w">  </span><span class="nt">properties</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ghcr.io/goauthentik/server:2024.x</span>
+<span class="w">    </span><span class="nt">mounts</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: media     type: data    target_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/media</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: certs     type: config  target_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/certs</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: logs      type: logs    target_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/var/log/authentik</span>
+<span class="w">  </span><span class="nt">checks</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: authentik_health   type: http   endpoint: http://localhost:9000/-/health/ready/   interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30s</span>
+<span class="w">  </span><span class="nt">endpoints</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: sso_ui   url: https://auth.huybrechts.xyz   description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Authentik admin UI and SSO login</span>
+<span class="w">  </span><span class="nt">oidc_clients</span><span class="p">:</span><span class="w">            </span><span class="c1"># fill in client IDs after first deploy</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: vaultwarden    client_id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: immich         client_id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: infisical      client_id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="apps-mod-vaultwarden-yaml-vaultwarden-module-core-vps">
+<h3><code class="docutils literal notranslate"><span class="pre">apps/mod-vaultwarden.yaml</span></code> — Vaultwarden module (Core VPS)<a class="headerlink" href="#apps-mod-vaultwarden-yaml-vaultwarden-module-core-vps" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">module</span>
+<span class="nt">meta</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_vaultwarden</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Vaultwarden — Bitwarden-compatible password manager</span>
+<span class="w">  </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">vaultwarden</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">core</span><span class="p p-Indicator">]</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">source</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven</span>
+<span class="w">    </span><span class="nt">source_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">services/vaultwarden</span>
+<span class="w">  </span><span class="nt">properties</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">vaultwarden/server:latest</span>
+<span class="w">    </span><span class="nt">mounts</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: data   type: data   target_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data</span>
+<span class="w">  </span><span class="nt">checks</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: vaultwarden_health   type: http   endpoint: http://localhost:80/alive   interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30s</span>
+<span class="w">  </span><span class="nt">endpoints</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: vault_ui   url: https://vault.huybrechts.xyz   description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Vaultwarden web UI</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="apps-mod-infisical-yaml-infisical-module-core-vps">
+<h3><code class="docutils literal notranslate"><span class="pre">apps/mod-infisical.yaml</span></code> — Infisical module (Core VPS)<a class="headerlink" href="#apps-mod-infisical-yaml-infisical-module-core-vps" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">module</span>
+<span class="nt">meta</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_infisical</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Infisical — secrets management and app config (ESO source for Workload VPS)</span>
+<span class="w">  </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">infisical</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">core</span><span class="p p-Indicator">]</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">source</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven</span>
+<span class="w">    </span><span class="nt">source_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">services/infisical</span>
+<span class="w">  </span><span class="nt">properties</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">infisical/infisical:latest</span>
+<span class="w">    </span><span class="nt">mounts</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: data   type: data   target_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/app/data</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: logs   type: logs   target_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/var/log/infisical</span>
+<span class="w">  </span><span class="nt">checks</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: infisical_health   type: http   endpoint: http://localhost:8080/api/status   interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30s</span>
+<span class="w">  </span><span class="nt">endpoints</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: secrets_ui    url: https://secrets.huybrechts.xyz   description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Infisical admin UI (Authentik SSO only)</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: internal_api  url: http://infisical:8080             description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Internal API for ESO on Workload VPS</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="apps-mod-immich-yaml-immich-module-workload-vps-k3s">
+<h3><code class="docutils literal notranslate"><span class="pre">apps/mod-immich.yaml</span></code> — Immich module (Workload VPS / k3s)<a class="headerlink" href="#apps-mod-immich-yaml-immich-module-workload-vps-k3s" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">module</span>
+<span class="nt">meta</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_immich</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Immich — self-hosted photo and video management</span>
+<span class="w">  </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">immich</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">workload</span><span class="p p-Indicator">]</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">source</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven</span>
+<span class="w">    </span><span class="nt">source_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">services/immich</span>
+<span class="w">  </span><span class="nt">properties</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ghcr.io/immich-app/immich-server:release</span>
+<span class="w">    </span><span class="nt">helm_chart</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">immich/immich</span><span class="w">   </span><span class="c1"># if Helm path used on k3s</span>
+<span class="w">    </span><span class="nt">mounts</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: library   type: data   target_path: /usr/src/app/upload   description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Photo originals on VPS SSD</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: logs      type: logs   target_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/var/log/immich</span>
+<span class="w">  </span><span class="nt">checks</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: immich_health   type: http   endpoint: http://localhost:2283/api/server-info/ping   interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30s</span>
+<span class="w">  </span><span class="nt">endpoints</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: photos_ui   url: https://photos.huybrechts.xyz   description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Immich web UI</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="apps-mod-gatus-yaml-gatus-module-workload-vps-k3s">
+<h3><code class="docutils literal notranslate"><span class="pre">apps/mod-gatus.yaml</span></code> — Gatus module (Workload VPS / k3s)<a class="headerlink" href="#apps-mod-gatus-yaml-gatus-module-workload-vps-k3s" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">module</span>
+<span class="nt">meta</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_gatus</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Gatus — self-hosted service health dashboard</span>
+<span class="w">  </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">gatus</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">workload</span><span class="p p-Indicator">]</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">source</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven</span>
+<span class="w">    </span><span class="nt">source_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">services/gatus</span>
+<span class="w">  </span><span class="nt">properties</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">twinproduction/gatus:latest</span>
+<span class="w">    </span><span class="nt">mounts</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: config   type: config   target_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/config</span>
+<span class="w">  </span><span class="nt">checks</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: gatus_self   type: http   endpoint: http://localhost:8080/health   interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30s</span>
+<span class="w">  </span><span class="nt">endpoints</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: status_ui   url: https://status.huybrechts.xyz   description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Public status page</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="stack-ns-core-yaml-core-namespace">
+<h3><code class="docutils literal notranslate"><span class="pre">stack/ns-core.yaml</span></code> — Core namespace<a class="headerlink" href="#stack-ns-core-yaml-core-namespace" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">namespace</span>
+<span class="nt">meta</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_ns_core</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Core infrastructure namespace — identity, secrets, passwords, proxy</span>
+<span class="w">  </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">namespace</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">core</span><span class="p p-Indicator">]</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">modules</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: caddy          file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apps/mod-caddy.yaml</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: authentik      file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apps/mod-authentik.yaml</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: vaultwarden    file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apps/mod-vaultwarden.yaml</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: infisical      file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apps/mod-infisical.yaml</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="stack-ns-workload-yaml-workload-namespace">
+<h3><code class="docutils literal notranslate"><span class="pre">stack/ns-workload.yaml</span></code> — Workload namespace<a class="headerlink" href="#stack-ns-workload-yaml-workload-namespace" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">namespace</span>
+<span class="nt">meta</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_ns_workload</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Workload namespace — family apps on k3s</span>
+<span class="w">  </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">namespace</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">workload</span><span class="p p-Indicator">]</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">modules</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: immich   file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apps/mod-immich.yaml</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: gatus    file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apps/mod-gatus.yaml</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="stack-ws-family-yaml-workspace">
+<h3><code class="docutils literal notranslate"><span class="pre">stack/ws-family.yaml</span></code> — Workspace<a class="headerlink" href="#stack-ws-family-yaml-workspace" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">workspace</span>
+<span class="nt">meta</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_family</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Family platform workspace — Core VPS (Docker Compose) + Workload VPS (k3s)</span>
+<span class="w">  </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">platform</span><span class="p p-Indicator">]</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">providers</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: hetzner_eu_central   file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stack/dc-eu-central.yaml</span>
+<span class="w">  </span><span class="nt">provisioners</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: haven_iac   provisioner: terraform   source</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> repository</span><span class="p">:</span><span class="w"> </span><span class="nv">haven</span><span class="p p-Indicator">,</span><span class="nt"> source_path</span><span class="p">:</span><span class="w"> </span><span class="nv">terraform</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">topology</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">core_node</span>
+<span class="w">      </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hetzner_eu_central</span>
+<span class="w">      </span><span class="nt">provisioner</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">terraform</span>
+<span class="w">      </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">single_node</span><span class="w">          </span><span class="c1"># Docker Compose — no cluster</span>
+<span class="w">      </span><span class="nt">volumes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">config</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">data</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">logs</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">certs</span><span class="p p-Indicator">]</span>
+<span class="w">      </span><span class="nt">components</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">resource</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_vm_core</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">workload_node</span>
+<span class="w">      </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hetzner_eu_central</span>
+<span class="w">      </span><span class="nt">provisioner</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">terraform</span>
+<span class="w">      </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">k3s_single</span><span class="w">           </span><span class="c1"># k3s single-node</span>
+<span class="w">      </span><span class="nt">volumes</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">immich-data</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">k3s-data</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">logs</span><span class="p p-Indicator">]</span>
+<span class="w">      </span><span class="nt">components</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">resource</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_vm_workload</span>
+<span class="w">  </span><span class="nt">resources</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: haven_vm_core       file: stack/vm-core.yaml      role</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">core</span>
+<span class="w">      </span><span class="nt">firewalls</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven_fw_core</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: haven_vm_workload   file: stack/vm-workload.yaml  role</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">workload</span>
+<span class="w">      </span><span class="nt">firewalls</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven_fw_workload</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">namespaces</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: haven_ns_core       file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stack/ns-core.yaml</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: haven_ns_workload   file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stack/ns-workload.yaml</span>
+<span class="w">  </span><span class="nt">firewalls</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: haven_fw_core       file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stack/fw-core.yaml</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: haven_fw_workload   file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stack/fw-workload.yaml</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="deploy-deploy-prd-yaml-production-deployment">
+<h3><code class="docutils literal notranslate"><span class="pre">deploy/deploy-prd.yaml</span></code> — Production deployment<a class="headerlink" href="#deploy-deploy-prd-yaml-production-deployment" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deployment</span>
+<span class="nt">meta</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_deploy_prd</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Production deployment — family platform on Hetzner</span>
+<span class="w">  </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">production</span><span class="p p-Indicator">]</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">layers</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">environment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">prd</span>
+<span class="w">  </span><span class="nt">properties</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">environment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">prd</span>
+<span class="w">  </span><span class="nt">workspace</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_family</span>
+<span class="w">    </span><span class="nt">file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stack/ws-family.yaml</span>
+<span class="w">  </span><span class="nt">environments</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">envs/env-prd.yaml</span>
+<span class="w">  </span><span class="nt">stages</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: infrastructure   type: infrastructure   scope: all         depends_on: null        on_failure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stop</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: core_bootstrap   type: configuration    scope: core_node   depends_on: infrastructure   on_failure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stop</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name: workload_deploy  type: configuration    scope: workload_node   depends_on: core_bootstrap   on_failure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stop</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="envs-env-prd-yaml-environment-values">
+<h3><code class="docutils literal notranslate"><span class="pre">envs/env-prd.yaml</span></code> — Environment values<a class="headerlink" href="#envs-env-prd-yaml-environment-values" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">environment</span>
+<span class="nt">meta</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haven_env_prd</span>
+<span class="w">  </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">haven</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">prd</span><span class="p p-Indicator">]</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">properties</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">environment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">prd</span>
+<span class="w">  </span><span class="nt">variables</span><span class="p">:</span>
+<span class="w">    </span><span class="c1"># DNS</span>
+<span class="w">    </span><span class="nt">DOMAIN_PRIMARY</span><span class="p">:</span><span class="w">   </span><span class="l l-Scalar l-Scalar-Plain">huybrechts.xyz</span>
+<span class="w">    </span><span class="nt">DOMAIN_ALIAS_1</span><span class="p">:</span><span class="w">   </span><span class="l l-Scalar l-Scalar-Plain">huybrechts.dev</span>
+<span class="w">    </span><span class="nt">DOMAIN_ALIAS_2</span><span class="p">:</span><span class="w">   </span><span class="l l-Scalar l-Scalar-Plain">alderwyn.xyz</span>
+<span class="w">    </span><span class="nt">DOMAIN_ALIAS_3</span><span class="p">:</span><span class="w">   </span><span class="l l-Scalar l-Scalar-Plain">madebyjana.be</span>
+<span class="w">    </span><span class="c1"># Subdomains (all A records on Core VPS IP)</span>
+<span class="w">    </span><span class="nt">SUBDOMAIN_AUTH</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">auth.huybrechts.xyz</span>
+<span class="w">    </span><span class="nt">SUBDOMAIN_VAULT</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">vault.huybrechts.xyz</span>
+<span class="w">    </span><span class="nt">SUBDOMAIN_SECRETS</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">secrets.huybrechts.xyz</span>
+<span class="w">    </span><span class="nt">SUBDOMAIN_PHOTOS</span><span class="p">:</span><span class="w">   </span><span class="l l-Scalar l-Scalar-Plain">photos.huybrechts.xyz</span>
+<span class="w">    </span><span class="nt">SUBDOMAIN_STATUS</span><span class="p">:</span><span class="w">   </span><span class="l l-Scalar l-Scalar-Plain">status.huybrechts.xyz</span>
+<span class="w">    </span><span class="c1"># Infrastructure</span>
+<span class="w">    </span><span class="nt">HETZNER_REGION</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">eu-central</span>
+<span class="w">    </span><span class="nt">CORE_VM_TYPE</span><span class="p">:</span><span class="w">       </span><span class="l l-Scalar l-Scalar-Plain">cx22</span>
+<span class="w">    </span><span class="nt">WORKLOAD_VM_TYPE</span><span class="p">:</span><span class="w">   </span><span class="l l-Scalar l-Scalar-Plain">cpx41</span>
+<span class="w">    </span><span class="nt">STORAGE_BOX_TYPE</span><span class="p">:</span><span class="w">   </span><span class="l l-Scalar l-Scalar-Plain">bx11</span>
+<span class="w">    </span><span class="c1"># Secrets — all values stored in Infisical (not here)</span>
+<span class="w">    </span><span class="c1"># Bootstrap only: loaded from GitHub Secrets on first deploy</span>
+<span class="w">    </span><span class="c1"># HETZNER_API_TOKEN:  → GitHub Secret: HETZNER_API_TOKEN</span>
+<span class="w">    </span><span class="c1"># SSH_PUBLIC_KEY:     → GitHub Secret: SSH_PUBLIC_KEY</span>
+<span class="w">    </span><span class="c1"># Runtime secrets (post-bootstrap): pulled via Infisical ESO</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="migration-scope">
+<h2>Migration scope<a class="headerlink" href="#migration-scope" title="Link to this heading"></a></h2>
+<p>Data that must be migrated or bootstrapped before decommissioning Google Workspace and Kamatera VPS:</p>
+<ul class="simple">
+<li><p><strong>Email history</strong> — export from Gmail (Google Takeout MBOX) → import into kSuite via IMAP migration tool</p></li>
+<li><p><strong>Contacts</strong> — export from Google Contacts (vCard) → import into kSuite Contacts</p></li>
+<li><p><strong>Calendar</strong> — export from Google Calendar (ICS) → import into kSuite Calendar</p></li>
+<li><p><strong>Files</strong> — export from Google Drive → upload to kDrive (desktop sync client)</p></li>
+<li><p><strong>Photos</strong> — migrate from Google Photos → ingest into Immich (mobile app + web upload)</p></li>
+<li><p><strong>Passwords</strong> — export from Bitwarden (JSON/CSV) → import into Vaultwarden (same format)</p></li>
+<li><p><strong>DNS</strong> — transfer 3 domains from Versio → INWX; update NS/MX records; verify email flow before cutover</p></li>
+<li><p><strong>VPS workloads</strong> — re-deploy from Kamatera → Hetzner via <code class="docutils literal notranslate"><span class="pre">strata</span></code> + <code class="docutils literal notranslate"><span class="pre">haven</span></code> (no lift-and-shift; rebuild from IaC)</p></li>
+<li><p><strong>Secrets</strong> — seed Infisical with all service credentials during VPS bootstrap</p></li>
+</ul>
+<blockquote>
+<div><p>Detailed step-by-step sequence and cutover order in <a class="reference internal" href="hosting-steps.html"><span class="std std-doc">hosting-steps.md</span></a>.</p>
+</div></blockquote>
+<hr class="docutils" />
+<p><em>Next: <a class="reference internal" href="hosting-steps.html"><span class="std std-doc">hosting-steps.md</span></a> — end-to-end migration plan.</em></p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="hosting-solutions.html" class="btn btn-neutral float-left" title="Hosting Design Specifications" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="hosting-deploy.html" class="btn btn-neutral float-right" title="Haven Deployment Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Vincent Huybrechts.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
