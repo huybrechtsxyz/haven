@@ -47,19 +47,9 @@ GitHub only needs a **machine identity** to connect to Infisical Cloud. Once tha
 | ---------------------- | ---------------------- | ----------------------------------------------------- |
 | `INFISICAL_PROJECT_ID` | Infisical project UUID | Settings → Project ID in your haven Infisical project |
 
-
-
-
-
-
-
-
-
-
-
 ### Secret for Hetzner SSH Deployment Key
 
-> **ACTION:** Generate an ed25519 SSH key pair. Store the public key in the Hetzner Cloud project and the private key in GitHub Secrets and Bitwarden.
+> **ACTION:** Generate an ed25519 SSH key pair. Store the public key in the Hetzner Cloud project and the private key in Bitwarden. Create Infisical secrets.
 
 Create an ed25519 SSH key pair for deployment. The public key goes to Hetzner (for Terraform provisioning and BorgBackup), the private key goes to GitHub Secrets (for the deployment workflow) and Bitwarden. You can generate the key pair using PowerShell or any SSH key generation tool. Bitwarden also has a built-in SSH key generator that can create and store the key pair directly in your vault.
 
@@ -73,6 +63,11 @@ Get-Content ~/.ssh/haven_ed25519.pub
 # Private key → GitHub Secrets
 Get-Content ~/.ssh/haven_ed25519 -Raw
 ```
+
+| Infisical Secret      | Value       | Notes                                |
+| --------------------- | ----------- | ------------------------------------ |
+| `HETZNER_PRIVATE_KEY` | Private Key | Hetzner SSH deployment key (ed25519) |
+| `HETZNER_PUBLIC_KEY`  | Public Key  | Hetzner SSH deployment key (ed25519) |
 
 ### Secrets for Hetzner S3 Object Storage
 
@@ -99,8 +94,6 @@ Four buckets are provisioned by the `ansible-s3/forge-s3.yml` playbook:
 
 > The secret key is only displayed once at creation time. If lost, delete the key and create a new one.
 > Additional key pairs can be created (e.g. a separate pair for rclone offsite sync) but each still has project-wide access — Hetzner does not support bucket-scoped keys.
-
-
 
 ---
 
