@@ -32,13 +32,6 @@ Stored in Infisical Cloud → haven project → `prod` environment. Fetched at d
 | `STORAGEBOX_PASSWORD`           | Sub-account password     | Set when creating sub-account in Hetzner Robot             |
 | `HEALTHCHECK_PING_URL`          | Healthchecks.io ping URL | Dead man's switch for backup monitoring                    |
 
-> **Vaultwarden admin token** must be Argon2-hashed before storing. Generate with:
-> ```powershell
-> python -c "import secrets; print(secrets.token_urlsafe(48))"
-> # Then hash it: docker run --rm vaultwarden/server /vaultwarden hash --preset owasp
-> ```
-> Store the **plaintext token** in Bitwarden (you need it to log in); store the **hashed value** in Infisical.
-
 
 
 ---

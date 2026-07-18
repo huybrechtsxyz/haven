@@ -29,29 +29,48 @@ Complete list of what goes in GitHub Secrets vs Infisical Cloud.
 
 **Infisical Secrets** are secrets stored in Infisical Cloud. All secrets are fetched at runtime via machine identity (Universal Auth). Store every value in Bitwarden as a backup.
 
-| Infisical Key               | Value             | Notes                                                              |
-| --------------------------- | ----------------- | ------------------------------------------------------------------ |
-| **Hetzner**                 |                   |                                                                    |
-| `HETZNER_API_TOKEN`         | API token         | Hetzner Cloud project token                                        |
-| `HETZNER_PRIVATE_KEY`       | Private Key       | Hetzner SSH deployment key (ed25519)                               |
-| `HETZNER_PUBLIC_KEY`        | Public Key        | Hetzner SSH deployment key (ed25519)                               |
-| `HETZNER_S3_ACCESS_KEY`     | Access Key ID     | Hetzner Object Storage — project-level (all buckets)               |
-| `HETZNER_S3_SECRET_KEY`     | Secret Access Key | Hetzner Object Storage — project-level (all buckets)               |
-| `HETZNER_ROOT_PASSWORD`     | Random password   | `token_urlsafe(32)` — initial root access only                     |
-|                             |                   |                                                                    |
-| **Storagebox**              |                   |                                                                    |
-| `STORAGEBOX_HOST_MAIN`      | Configuration     | e.g. `uXXXXXX.your-storagebox.de`- Storage Box URL                 |
-| `STORAGEBOX_HOST_HEART`     | Configuration     | e.g. `uXXXXXX.your-storagebox.de`- Storage Box URL                 |
-| `STORAGEBOX_HOST_FORGE`     | Configuration     | e.g. `uXXXXXX.your-storagebox.de`- Storage Box URL                 |
-| `STORAGEBOX_HEART_PASSWORD` | Password          | Sub-account password set on creation subaccount                    |
-| `STORAGEBOX_FORGE_PASSWORD` | Password          | Sub-account password set on creation subaccount                    |
-|                             |                   |                                                                    |
-| **Borg backup**             |                   |                                                                    |
-| `BORG_PASSPHRASE_HEART`     | Passphrase        | `token_urlsafe(48)` — Used to encrypt/decrypt Borg backup archives |
-| `BORG_PASSPHRASE_FORGE`     | Passphrase        | `token_urlsafe(48)` — Used to encrypt/decrypt Borg backup archives |
-|                             |                   |                                                                    |
-| **Terraform**               |                   |                                                                    |
-| `TERRAFORM_API_TOKEN`       | API token         | Terraform Cloud API token                                          |
+| Infisical Key                   | Value             | Notes                                                                                                              |
+| ------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Hetzner**                     |                   |                                                                                                                    |
+| `HETZNER_API_TOKEN`             | API token         | Created in Hetzner Cloud → Project → Security → API Tokens                                                         |
+| `HETZNER_PRIVATE_KEY`           | Private Key       | Hetzner SSH deployment key (ed25519)                                                                               |
+| `HETZNER_PUBLIC_KEY`            | Public Key        | Hetzner SSH deployment key (ed25519)                                                                               |
+| `HETZNER_S3_ACCESS_KEY`         | Access Key ID     | Hetzner Object Storage project-level (all buckets)                                                                 |
+| `HETZNER_S3_SECRET_KEY`         | Secret Access Key | Hetzner Object Storage project-level (all buckets)                                                                 |
+| `HETZNER_ROOT_PASSWORD`         | Random password   | `token_urlsafe(32)` initial root access only                                                                       |
+|                                 |                   |                                                                                                                    |
+| **Storagebox**                  |                   |                                                                                                                    |
+| `STORAGEBOX_HOST_MAIN`          | Configuration     | e.g. `uXXXXXX.your-storagebox.de`- Storage Box URL                                                                 |
+| `STORAGEBOX_HOST_HEARTH`        | Configuration     | e.g. `uXXXXXX-sub1.your-storagebox.de`- Storage Box URL                                                            |
+| `STORAGEBOX_HOST_FORGE`         | Configuration     | e.g. `uXXXXXX-sub2.your-storagebox.de`- Storage Box URL                                                            |
+| `STORAGEBOX_HEARTH_PASSWORD`    | Password          | Sub-account password set on creation subaccount                                                                    |
+| `STORAGEBOX_FORGE_PASSWORD`     | Password          | Sub-account password set on creation subaccount                                                                    |
+|                                 |                   |                                                                                                                    |
+| **Borg backup**                 |                   |                                                                                                                    |
+| `BORG_PASSPHRASE_HEARTH`        | Passphrase        | `token_urlsafe(48)` — Used to encrypt/decrypt Borg backup archives                                                 |
+| `BORG_PASSPHRASE_FORGE`         | Passphrase        | `token_urlsafe(48)` — Used to encrypt/decrypt Borg backup archives                                                 |
+|                                 |                   |                                                                                                                    |
+| **Terraform**                   |                   |                                                                                                                    |
+| `TERRAFORM_API_TOKEN`           | API token         | Created in Terraform Cloud → User Settings → Tokens                                                                |
+|                                 |                   |                                                                                                                    |
+| **Authentik**                   |                   |                                                                                                                    |
+| `AUTHENTIK_EMAIL__USERNAME`     | Email             | See [infomaniak.md → SMTP Server Configuration](../services/infomaniak.md#smtp-server-configuration-for-authentik) |
+| `AUTHENTIK_EMAIL__PASSWORD`     | Password          | See [infomaniak.md → SMTP Server Configuration](../services/infomaniak.md#smtp-server-configuration-for-authentik) |
+| `AUTHENTIK_POSTGRESQL_PASSWORD` | Password          | `token_urlsafe(48)` — Used for Authentik PostgreSQL database                                                       |
+| `AUTHENTIK_SECRET_KEY`          | Secret Key        | `token_urlsafe(64)` — Used for Authentik session signing (86 chars)                                                |
+|                                 |                   |                                                                                                                    |
+| **Portainer**                   |                   |                                                                                                                    |
+| `PORTAINER_SSO_CLIENT_SECRET`   | Secret            | Secret used for Portainer SSO                                                                                      |
+|                                 |                   |                                                                                                                    |
+| **Wud**                         |                   |                                                                                                                    |
+| `WUD_SSO_CLIENT_SECRET`         | Secret            | Secret used for Wud SSO                                                                                            |
+|                                 |                   |                                                                                                                    |
+| **Vaultwarden**                 |                   |                                                                                                                    |
+| `VAULTWARDEN_ADMIN_TOKEN`       | Token             | Admin token used for Vaultwarden                                                                                   |
+| `VAULTWARDEN_SSO_CLIENT_SECRET` | Secret            | Secret used for Vaultwarden SSO                                                                                    |
+|                                 |                   |                                                                                                                    |
+| **Healthcheck**                 |                   |                                                                                                                    |
+| `HEALTHCHECK_PING_URL_BACKUP`   | URL               | Backup ping URL for Healthcheck                                                                                    |
 
 ### Generating Secrets
 
@@ -102,6 +121,17 @@ Get-Content ~/.ssh/haven_ed25519.pub
 Get-Content ~/.ssh/haven_ed25519 -Raw
 ```
 
+### Secrets for Storagebox
+
+> **ACTION:** Create a Storage Box in Hetzner Robot and two sub-accounts (one per node). Store passwords in Bitwarden and Infisical Cloud.
+
+Sub-accounts are created in **Hetzner Robot** (not the Cloud Console):
+
+1. [robot.hetzner.com](https://robot.hetzner.com) → Storage Box → Sub-accounts → Create sub-account
+2. Create one sub-account per node (`hearth`, `forge`)
+3. Set a password for each — store in Bitwarden and Infisical
+4. Sub-account hostnames follow the pattern `uXXXXXX-sub1.your-storagebox.de`
+
 ### Secrets for Hetzner S3 Object Storage
 
 > **ACTION:** Generate an S3 access key pair in the Hetzner Cloud console. Store the Access Key ID and Secret Access Key in Bitwarden and Infisical Cloud.
@@ -126,3 +156,40 @@ Four buckets are provisioned by the `ansible-s3/forge-s3.yml` playbook:
 ### Secrets for Terraform Cloud API Token
 
 > **ACTION:** Generate a Terraform Cloud API token. Store it in Bitwarden and Infisical Cloud.
+
+### Secrets for Authentik
+
+> **ACTION:** Generate an Authentik secret key and PostgreSQL password. Store them in Bitwarden and Infisical Cloud.
+
+```powershell
+# Secret key (86 chars)
+python -c "import secrets; print(secrets.token_urlsafe(64))"
+
+# PostgreSQL password
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+### Secrets for Portainer
+
+> **ACTION:** Secret created by Authentik during provisioning. Store it in Bitwarden and Infisical Cloud.
+
+### Secrets for Wud
+
+> **ACTION:** Secret created by Authentik during provisioning. Store it in Bitwarden and Infisical Cloud.
+
+### Secrets for Vaultwarden
+
+> **Vaultwarden admin token** must be Argon2-hashed before storing. Generate with:
+> ```powershell
+> python -c "import secrets; print(secrets.token_urlsafe(48))"
+> # Then hash it: docker run --rm vaultwarden/server /vaultwarden hash --preset owasp
+> ```
+> Store the **plaintext token** in Bitwarden (you need it to log in); store the **hashed value** in Infisical.
+
+### Secrets for Healthcheck
+
+> **ACTION:** Create a check in Healthchecks.io for backup monitoring. Store the ping URL in Bitwarden and Infisical Cloud.
+
+1. [healthchecks.io](https://healthchecks.io) → New Check → name it `haven-backup`
+2. Set the period to match the backup schedule (e.g. 24h) with a grace period (e.g. 1h)
+3. Copy the **Ping URL** → store in Bitwarden and Infisical as `HEALTHCHECK_PING_URL_BACKUP`
