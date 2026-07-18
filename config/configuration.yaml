@@ -12,7 +12,7 @@ spec:
   # Logging
   # ---------------------------------------------------------------------------
   logging:
-    file: "config/cfg-logging.yaml"
+    file: "config/logging.cfg.yaml"
 
   # ---------------------------------------------------------------------------
   # Deployment layering — single environment layer
@@ -59,6 +59,18 @@ spec:
         min_version: "1.6.0"
       authentication:
         method: cli
+
+    - name: infisical
+      type: infisical
+      capabilities: [secrets]
+      description: Infisical secrets manager — Universal Auth machine identity
+      required: true
+      authentication:
+        method: universal_auth
+        client_id_env: INFISICAL_CLIENT_ID
+        client_secret_env: INFISICAL_CLIENT_SECRET
+      configuration:
+        project_id_env: INFISICAL_PROJECT_ID
 
   # ---------------------------------------------------------------------------
   # Providers

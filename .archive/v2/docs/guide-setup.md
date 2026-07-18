@@ -1,4 +1,45 @@
 
+### GitHub Secrets (infrastructure bootstrap)
+
+| GitHub Secret             | Value                          | Notes                                                |
+| ------------------------- | ------------------------------ | ---------------------------------------------------- |
+| `TERRAFORM_API_TOKEN`     | Terraform Cloud API token      | Terraform Cloud → User Settings → Tokens             |
+| `HETZNER_API_TOKEN`       | Hetzner Cloud project token    | Hetzner Cloud → Project → Security → API Tokens      |
+| `HETZNER_PUBLIC_KEY`      | SSH public key (`.pub`)        | Single line — see SSH key section above              |
+| `HETZNER_PRIVATE_KEY`     | SSH private key (full content) | Including `-----BEGIN/END-----` lines                |
+| `HETZNER_ROOT_PASSWORD`   | Random password                | `token_urlsafe(32)` — initial root access only       |
+| `HETZNER_S3_ACCESS_KEY`   | S3 access key ID               | Hetzner Object Storage — project-level (all buckets) |
+| `HETZNER_S3_SECRET_KEY`   | S3 secret access key           | Hetzner Object Storage — project-level (all buckets) |
+| `INFISICAL_CLIENT_ID`     | Machine identity client ID     | To connect GitHub Actions to Infisical Cloud         |
+| `INFISICAL_CLIENT_SECRET` | Machine identity client secret | To connect GitHub Actions to Infisical Cloud         |
+
+### Infisical Cloud Secrets (application secrets)
+
+Stored in Infisical Cloud → haven project → `prod` environment. Fetched at deploy time via machine identity. Store every value in Bitwarden as well (backup copy).
+
+| Infisical Key                   | Value                    | Notes                                                      |
+| ------------------------------- | ------------------------ | ---------------------------------------------------------- |
+| `AUTHENTIK_SECRET_KEY`          | Random string (86 chars) | `token_urlsafe(64)`                                        |
+| `AUTHENTIK_POSTGRESQL_PASSWORD` | Random password          | `token_urlsafe(32)`                                        |
+| `AUTHENTIK_EMAIL__USERNAME`     | SMTP username            | kSuite email — see [infomaniak.md](./infomaniak.md)        |
+| `AUTHENTIK_EMAIL__PASSWORD`     | SMTP app password        | kSuite app password — see [infomaniak.md](./infomaniak.md) |
+| `VAULTWARDEN_ADMIN_TOKEN`       | Argon2 hashed token      | See note below                                             |
+| `VAULTWARDEN_SSO_CLIENT_SECRET` | OIDC client secret       | `token_urlsafe(48)` — used in Authentik provider setup     |
+| `WUD_SSO_CLIENT_SECRET`         | OIDC client secret       | `token_urlsafe(48)` — used in Authentik provider setup     |
+| `BORG_PASSPHRASE`               | Random passphrase        | `token_urlsafe(48)`                                        |
+| `STORAGEBOX_HOST`               | Storage Box hostname     | e.g. `uXXXXXX.your-storagebox.de`                          |
+| `STORAGEBOX_SUBACCOUNT`         | Storage Box sub-account  | e.g. `uXXXXXX-sub1`                                        |
+| `STORAGEBOX_PASSWORD`           | Sub-account password     | Set when creating sub-account in Hetzner Robot             |
+| `HEALTHCHECK_PING_URL`          | Healthchecks.io ping URL | Dead man's switch for backup monitoring                    |
+
+> **Vaultwarden admin token** must be Argon2-hashed before storing. Generate with:
+> ```powershell
+> python -c "import secrets; print(secrets.token_urlsafe(48))"
+> # Then hash it: docker run --rm vaultwarden/server /vaultwarden hash --preset owasp
+> ```
+> Store the **plaintext token** in Bitwarden (you need it to log in); store the **hashed value** in Infisical.
+
+
 
 ---
 

@@ -8,7 +8,52 @@
 
 Generate all secrets once, store every value in Bitwarden, then configure them in GitHub and Terraform Cloud.
 
-### Generate Secrets
+### Secrets Overview
+
+Complete list of what goes in GitHub Secrets vs Infisical Cloud.
+
+**Rule:** GitHub Secrets hold only what is needed to connect to Infisical. Everything else is a secret that lives in Infisical Cloud.
+
+**GitHub Secrets** are Used by GitHub Actions to provision infrastructure and connect to Infisical Cloud. Store the secrets in Bitwarden, then add them to GitHub Secrets.
+
+| GitHub Secret             | Value                          | Notes                                                 |
+| ------------------------- | ------------------------------ | ----------------------------------------------------- |
+| `INFISICAL_CLIENT_ID`     | Machine identity client ID     | Infisical Cloud → Machine Identities → Universal Auth |
+| `INFISICAL_CLIENT_SECRET` | Machine identity client secret | Infisical Cloud → Machine Identities → Universal Auth |
+
+**GitHub Variables** are non-sensitive values used by GitHub Actions. Store the values in Bitwarden, then add them to GitHub Variables.
+
+| GitHub Variable        | Value                  | Notes                                                 |
+| ---------------------- | ---------------------- | ----------------------------------------------------- |
+| `INFISICAL_PROJECT_ID` | Infisical project UUID | Settings → Project ID in your haven Infisical project |
+
+**Infisical Secrets** are secrets stored in Infisical Cloud. All secrets are fetched at runtime via machine identity (Universal Auth). Store every value in Bitwarden as a backup.
+
+| Infisical Key               | Value             | Notes                                                              |
+| --------------------------- | ----------------- | ------------------------------------------------------------------ |
+| **Hetzner**                 |                   |                                                                    |
+| `HETZNER_API_TOKEN`         | API token         | Hetzner Cloud project token                                        |
+| `HETZNER_PRIVATE_KEY`       | Private Key       | Hetzner SSH deployment key (ed25519)                               |
+| `HETZNER_PUBLIC_KEY`        | Public Key        | Hetzner SSH deployment key (ed25519)                               |
+| `HETZNER_S3_ACCESS_KEY`     | Access Key ID     | Hetzner Object Storage — project-level (all buckets)               |
+| `HETZNER_S3_SECRET_KEY`     | Secret Access Key | Hetzner Object Storage — project-level (all buckets)               |
+| `HETZNER_ROOT_PASSWORD`     | Random password   | `token_urlsafe(32)` — initial root access only                     |
+|                             |                   |                                                                    |
+| **Storagebox**              |                   |                                                                    |
+| `STORAGEBOX_HOST_MAIN`      | Configuration     | e.g. `uXXXXXX.your-storagebox.de`- Storage Box URL                 |
+| `STORAGEBOX_HOST_HEART`     | Configuration     | e.g. `uXXXXXX.your-storagebox.de`- Storage Box URL                 |
+| `STORAGEBOX_HOST_FORGE`     | Configuration     | e.g. `uXXXXXX.your-storagebox.de`- Storage Box URL                 |
+| `STORAGEBOX_HEART_PASSWORD` | Password          | Sub-account password set on creation subaccount                    |
+| `STORAGEBOX_FORGE_PASSWORD` | Password          | Sub-account password set on creation subaccount                    |
+|                             |                   |                                                                    |
+| **Borg backup**             |                   |                                                                    |
+| `BORG_PASSPHRASE_HEART`     | Passphrase        | `token_urlsafe(48)` — Used to encrypt/decrypt Borg backup archives |
+| `BORG_PASSPHRASE_FORGE`     | Passphrase        | `token_urlsafe(48)` — Used to encrypt/decrypt Borg backup archives |
+|                             |                   |                                                                    |
+| **Terraform**               |                   |                                                                    |
+| `TERRAFORM_API_TOKEN`       | API token         | Terraform Cloud API token                                          |
+
+### Generating Secrets
 
 > Note. Strata can generate random secrets for you during provisioning. So no extra tools are needed.
 > You do need to generate the secrets at least once and store them in Bitwarden and Infisical Cloud,
@@ -24,9 +69,9 @@ strata secret generate --length 64 --format urlsafe
 strata secret generate --length 64 --format hex
 ```
 
-### GitHub Setup for Infisical Cloud
+### Infisical Cloud Setup
 
-GitHub only needs a **machine identity** to connect to Infisical Cloud. Once that connection is established, all application secrets are fetched from Infisical at deploy time; nothing else goes in GitHub Secrets.
+> **ACTION:** Create a new project in Infisical Cloud for Haven. Store the project ID in Bitwarden and GitHub Variables.
 
 **Create a machine identity in Infisical Cloud:**
 
@@ -36,22 +81,15 @@ GitHub only needs a **machine identity** to connect to Infisical Cloud. Once tha
 4. Assign to your haven project with `read` role
 5. Copy the **Client ID** and **Client Secret** → store in Bitwarden → add to GitHub Secrets
 
-| GitHub Secret             | Value                          | Notes                                                 |
-| ------------------------- | ------------------------------ | ----------------------------------------------------- |
-| `INFISICAL_CLIENT_ID`     | Machine identity client ID     | Infisical Cloud → Machine Identities → Universal Auth |
-| `INFISICAL_CLIENT_SECRET` | Machine identity client secret | Infisical Cloud → Machine Identities → Universal Auth |
+### Secrets for Hetzner API Token
 
-**GitHub Variable (non-sensitive):**
+> **ACTION:** Generate a Hetzner Cloud project token. Store it in Bitwarden and Infisical Cloud.
 
-| GitHub Variable        | Value                  | Notes                                                 |
-| ---------------------- | ---------------------- | ----------------------------------------------------- |
-| `INFISICAL_PROJECT_ID` | Infisical project UUID | Settings → Project ID in your haven Infisical project |
-
-### Secret for Hetzner SSH Deployment Key
+### Secrets for Hetzner SSH Deployment Key
 
 > **ACTION:** Generate an ed25519 SSH key pair. Store the public key in the Hetzner Cloud project and the private key in Bitwarden. Create Infisical secrets.
 
-Create an ed25519 SSH key pair for deployment. The public key goes to Hetzner (for Terraform provisioning and BorgBackup), the private key goes to GitHub Secrets (for the deployment workflow) and Bitwarden. You can generate the key pair using PowerShell or any SSH key generation tool. Bitwarden also has a built-in SSH key generator that can create and store the key pair directly in your vault.
+Create an ed25519 SSH key pair for deployment. The public key goes to Hetzner (for Terraform provisioning and BorgBackup), the private key goes to Infisical Cloud and Bitwarden. You can generate the key pair using PowerShell or any SSH key generation tool. Bitwarden also has a built-in SSH key generator that can create and store the key pair directly in your vault.
 
 ```powershell
 # Generate ed25519 SSH key pair
@@ -60,18 +98,13 @@ ssh-keygen -t ed25519 -C "haven-deploy" -f ~/.ssh/haven_ed25519 -N ""
 # Public key → Hetzner Cloud project
 Get-Content ~/.ssh/haven_ed25519.pub
 
-# Private key → GitHub Secrets
+# Private key → Infisical Cloud
 Get-Content ~/.ssh/haven_ed25519 -Raw
 ```
 
-| Infisical Secret      | Value       | Notes                                |
-| --------------------- | ----------- | ------------------------------------ |
-| `HETZNER_PRIVATE_KEY` | Private Key | Hetzner SSH deployment key (ed25519) |
-| `HETZNER_PUBLIC_KEY`  | Public Key  | Hetzner SSH deployment key (ed25519) |
-
 ### Secrets for Hetzner S3 Object Storage
 
-> **ACTION:** Generate an S3 access key pair in the Hetzner Cloud console. Store the Access Key ID and Secret Access Key in Bitwarden and GitHub Secrets.
+> **ACTION:** Generate an S3 access key pair in the Hetzner Cloud console. Store the Access Key ID and Secret Access Key in Bitwarden and Infisical Cloud.
 
 Hetzner Object Storage uses S3-compatible credentials at the **project level** — one key pair grants access to all buckets in the project. There are no per-bucket IAM policies or scoped keys.
 
@@ -85,61 +118,11 @@ Four buckets are provisioned by the `ansible-s3/forge-s3.yml` playbook:
 1. [console.hetzner.cloud](https://console.hetzner.cloud) → Project → Object Storage → Access Keys → Create access key
 2. Create **one** key pair (used by the CI/CD pipeline to provision buckets and by apps to read/write them)
 3. Copy the **Access Key ID** and **Secret Access Key** immediately — the secret is only shown once
-4. Store both values in Bitwarden and GitHub Secrets (see table below)
-
-| GitHub Secret           | Value             | Notes                                                |
-| ----------------------- | ----------------- | ---------------------------------------------------- |
-| `HETZNER_S3_ACCESS_KEY` | Access Key ID     | Hetzner Object Storage — project-level (all buckets) |
-| `HETZNER_S3_SECRET_KEY` | Secret Access Key | Hetzner Object Storage — project-level (all buckets) |
+4. Store both values in Bitwarden and Infisical Cloud
 
 > The secret key is only displayed once at creation time. If lost, delete the key and create a new one.
 > Additional key pairs can be created (e.g. a separate pair for rclone offsite sync) but each still has project-wide access — Hetzner does not support bucket-scoped keys.
 
----
+### Secrets for Terraform Cloud API Token
 
-## GitHub Secrets Inventory
-
-Complete list of what goes in GitHub Secrets vs Infisical Cloud.
-
-**Rule:** GitHub Secrets hold only what is needed to provision infrastructure and connect to Infisical. Everything else is an application secret and lives in Infisical Cloud.
-
-### GitHub Secrets (infrastructure bootstrap)
-
-| GitHub Secret             | Value                          | Notes                                                |
-| ------------------------- | ------------------------------ | ---------------------------------------------------- |
-| `TERRAFORM_API_TOKEN`     | Terraform Cloud API token      | Terraform Cloud → User Settings → Tokens             |
-| `HETZNER_API_TOKEN`       | Hetzner Cloud project token    | Hetzner Cloud → Project → Security → API Tokens      |
-| `HETZNER_PUBLIC_KEY`      | SSH public key (`.pub`)        | Single line — see SSH key section above              |
-| `HETZNER_PRIVATE_KEY`     | SSH private key (full content) | Including `-----BEGIN/END-----` lines                |
-| `HETZNER_ROOT_PASSWORD`   | Random password                | `token_urlsafe(32)` — initial root access only       |
-| `HETZNER_S3_ACCESS_KEY`   | S3 access key ID               | Hetzner Object Storage — project-level (all buckets) |
-| `HETZNER_S3_SECRET_KEY`   | S3 secret access key           | Hetzner Object Storage — project-level (all buckets) |
-| `INFISICAL_CLIENT_ID`     | Machine identity client ID     | To connect GitHub Actions to Infisical Cloud         |
-| `INFISICAL_CLIENT_SECRET` | Machine identity client secret | To connect GitHub Actions to Infisical Cloud         |
-
-### Infisical Cloud Secrets (application secrets)
-
-Stored in Infisical Cloud → haven project → `prod` environment. Fetched at deploy time via machine identity. Store every value in Bitwarden as well (backup copy).
-
-| Infisical Key                   | Value                    | Notes                                                      |
-| ------------------------------- | ------------------------ | ---------------------------------------------------------- |
-| `AUTHENTIK_SECRET_KEY`          | Random string (86 chars) | `token_urlsafe(64)`                                        |
-| `AUTHENTIK_POSTGRESQL_PASSWORD` | Random password          | `token_urlsafe(32)`                                        |
-| `AUTHENTIK_EMAIL__USERNAME`     | SMTP username            | kSuite email — see [infomaniak.md](./infomaniak.md)        |
-| `AUTHENTIK_EMAIL__PASSWORD`     | SMTP app password        | kSuite app password — see [infomaniak.md](./infomaniak.md) |
-| `VAULTWARDEN_ADMIN_TOKEN`       | Argon2 hashed token      | See note below                                             |
-| `VAULTWARDEN_SSO_CLIENT_SECRET` | OIDC client secret       | `token_urlsafe(48)` — used in Authentik provider setup     |
-| `WUD_SSO_CLIENT_SECRET`         | OIDC client secret       | `token_urlsafe(48)` — used in Authentik provider setup     |
-| `BORG_PASSPHRASE`               | Random passphrase        | `token_urlsafe(48)`                                        |
-| `STORAGEBOX_HOST`               | Storage Box hostname     | e.g. `uXXXXXX.your-storagebox.de`                          |
-| `STORAGEBOX_SUBACCOUNT`         | Storage Box sub-account  | e.g. `uXXXXXX-sub1`                                        |
-| `STORAGEBOX_PASSWORD`           | Sub-account password     | Set when creating sub-account in Hetzner Robot             |
-| `HEALTHCHECK_PING_URL`          | Healthchecks.io ping URL | Dead man's switch for backup monitoring                    |
-
-> **Vaultwarden admin token** must be Argon2-hashed before storing. Generate with:
-> ```powershell
-> python -c "import secrets; print(secrets.token_urlsafe(48))"
-> # Then hash it: docker run --rm vaultwarden/server /vaultwarden hash --preset owasp
-> ```
-> Store the **plaintext token** in Bitwarden (you need it to log in); store the **hashed value** in Infisical.
-
+> **ACTION:** Generate a Terraform Cloud API token. Store it in Bitwarden and Infisical Cloud.
