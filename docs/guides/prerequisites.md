@@ -1,4 +1,4 @@
-# Haven — Prerequisites
+# Haven Prerequisites
 
 > Before you deploy anything, complete this checklist. All provider accounts, MFA, and tools must be in place before the infrastructure deployment begins.
 

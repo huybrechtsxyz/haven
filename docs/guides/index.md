@@ -62,17 +62,17 @@ Haven uses **three independent GitHub Actions workflows** for independent schedu
 
 ## Deployment Phases
 
-| Phase             | Guide                                | Contents                                                  |
-| ----------------- | ------------------------------------ | --------------------------------------------------------- |
-| **Prerequisites** | [prerequisites.md](prerequisites.md) | Accounts, MFA, tools — complete before deploying anything |
-| **Domains**       | [domains.md](domains.md)             | Domain registration, DNS records, email setup             |
-| **Setup**         | [setup.md](setup.md)                 | Initial setup of cloud services, secrets, and credentials |
+| Phase              | Guide                                  | Contents                                                  |
+| ------------------ | -------------------------------------- | --------------------------------------------------------- |
+| **Prerequisites**  | [prerequisites.md](prerequisites.md)   | Accounts, MFA, tools — complete before deploying anything |
+| **Domains**        | [domains.md](domains.md)               | Domain registration, DNS records, email setup             |
+| **Setup**          | [setup.md](setup.md)                   | Initial setup of cloud services, secrets, and credentials |
+| **Infrastructure** | [infrastructure.md](infrastructure.md) | Terraform + S3 buckets + SSH keys + DNS                   |
+| **Haven Hearth**   | [hearth.md](hearth.md)                 | Core VPS: Caddy, Authentik, Vaultwarden                   |
 
 
+## TODO
 
-
-| **Infrastructure** | [infra.md](infra.md)                 | Terraform + S3 buckets + SSH keys + DNS                                     |
-| **Haven Hearth**   | [hearth.md](hearth.md)               | Core VPS: Caddy, Authentik, Vaultwarden                                     |
 | **Haven Forge**    | [forge.md](forge.md) *(coming soon)*                   | Workload VPS: k3s, Immich, Jellyfin, Gatus                                  |
 | **Verify**         | [verify.md](verify.md) *(coming soon)*                  | Post-deploy smoke tests + verification checklist                            |
 | **Migration**      | [migration.md](migration.md) *(coming soon)*                     | Migrating from Google Workspace + Bitwarden                                 |
