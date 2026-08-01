@@ -106,7 +106,7 @@ GitHub Actions → Select `deploy-hearth` → Run workflow from your feature bra
 | `full_restart`         | `false`                                                 | Stops **all** containers before deploying — use only when containers have stale state      |
 | `backup_before_deploy` | `false`                                                 | Runs a BorgBackup snapshot before deploying (requires `configure_borg: true` already done) |
 
-All secrets referenced by this run are declared in [setup.md](./setup.md) — `AUTHENTIK_SECRET_KEY`, `AUTHENTIK_POSTGRESQL_PASSWORD`, `VAULTWARDEN_ADMIN_TOKEN` (hashed), `VAULTWARDEN_SSO_CLIENT_SECRET`, `WUD_SSO_CLIENT_SECRET`, `PORTAINER_SSO_CLIENT_SECRET`, plus the Storage Box and BorgBackup values. See the **Known gaps** table above — as of this rebuild, these still come from GitHub Secrets rather than Infisical Cloud.
+All secrets referenced by this run are declared in [setup.md](./setup.md) — `AUTHENTIK_SECRET_KEY`, `AUTHENTIK_POSTGRESQL__PASSWORD`, `VAULTWARDEN_ADMIN_TOKEN_RAW` (hashed to `VAULTWARDEN_ADMIN_TOKEN` at deploy time), `VAULTWARDEN_SSO_CLIENT_SECRET`, `WUD_SSO_CLIENT_SECRET`, `PORTAINER_SSO_CLIENT_SECRET`, plus the Storage Box and BorgBackup values. See the **Known gaps** table above — as of this rebuild, these still come from GitHub Secrets rather than Infisical Cloud.
 
 **Subsequent deployments** (after config changes, once `run_init` and `configure_borg` have succeeded once): set `run_init: false`, `configure_borg: false`, and leave `run_config: true` / `run_deploy: true`. Optionally set `backup_before_deploy: true` to snapshot before applying changes.
 
