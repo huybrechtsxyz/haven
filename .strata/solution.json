@@ -14,9 +14,9 @@
         "configfile_paths": [
           {
             "name": "config",
-            "path": "config/cfg-haven.yaml",
+            "path": "config/configuration.yaml",
             "type": "configfile",
-            "created": "2026-05-21T13:08:37.486604+00:00"
+            "created": "2026-08-01T14:12:48.096801+00:00"
           }
         ],
         "envfile_paths": [],
