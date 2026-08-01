@@ -109,7 +109,7 @@ spec:
   additional_topologies: false
   topologies:
     - type: single_node
-      description: Single-node Docker Compose host (Hearth — Caddy, Authentik, Vaultwarden, Infisical)
+      description: Single-node Docker Compose host (Hearth — Caddy, Authentik, Vaultwarden, Portainer, WUD)
       additional_components: false
       components:
         - role: node
