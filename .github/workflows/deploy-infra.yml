@@ -140,6 +140,21 @@ jobs:
           fi
           strata deploy run $ARGS
 
+      - name: Show terraform plan (human-readable)
+        run: |
+          TF_DIR=$(find build -type d -name terraform | head -n1)
+          if [ -z "$TF_DIR" ]; then
+            echo "No terraform build directory found — skipping plan display."
+            exit 0
+          fi
+          cd "$TF_DIR"
+          shopt -s nullglob
+          for f in *.tfplan; do
+            echo "::group::Terraform plan — $f"
+            terraform show "$f"
+            echo "::endgroup::"
+          done
+
       # ------------------------------------------------------------------
       # S3 bucket provisioning (run_s3=true)
       # Creates Hetzner Object Storage buckets — idempotent, no SSH needed.
