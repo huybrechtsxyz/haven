@@ -83,9 +83,9 @@ spec:
       description: Terraform Cloud API token
 
     # Infrastructure — Healthchecks.io
-    - key: HEALTHCHECK_PING_URL_BACKUP
+    - key: HEALTHCHECK_PING_BACKUP
       store: infisical
-      value: HEALTHCHECK_PING_URL_BACKUP
+      value: HEALTHCHECK_PING_BACKUP
       description: Healthchecks.io ping URL for backup monitoring
 
     # Application secrets — Authentik
@@ -103,40 +103,40 @@ spec:
       generate:
         type: urlsafe
         length: 48
-    - key: AUTHENTIK_EMAIL__USERNAME
+    # Infomaniak SMTP — reusable across services (Authentik, and any future service needing outbound email)
+    - key: INFOMANIAK_EMAIL__HOST
       store: infisical
-      value: AUTHENTIK_EMAIL__USERNAME
-      description: Infomaniak SMTP username for Authentik outbound email (enable after Infomaniak migration)
-    - key: AUTHENTIK_EMAIL__PASSWORD
+      value: INFOMANIAK_EMAIL__HOST
+      description: Infomaniak SMTP host (reusable — shared by any service needing outbound email)
+    - key: INFOMANIAK_EMAIL__PORT
       store: infisical
-      value: AUTHENTIK_EMAIL__PASSWORD
-      description: Infomaniak SMTP password for Authentik outbound email (enable after Infomaniak migration)
+      value: INFOMANIAK_EMAIL__PORT
+      description: Infomaniak SMTP port (reusable — shared by any service needing outbound email)
+    - key: INFOMANIAK_EMAIL__USERNAME
+      store: infisical
+      value: INFOMANIAK_EMAIL__USERNAME
+      description: Infomaniak SMTP username (reusable — shared by any service needing outbound email; enable in Authentik after Infomaniak migration)
+    - key: INFOMANIAK_EMAIL__PASSWORD
+      store: infisical
+      value: INFOMANIAK_EMAIL__PASSWORD
+      description: Infomaniak SMTP password (reusable — shared by any service needing outbound email; enable in Authentik after Infomaniak migration)
 
     # Application secrets — Vaultwarden
-    - key: VAULTWARDEN_ADMIN_TOKEN_RAW
+    - key: VAULTWARDEN_ADMIN_TOKEN
       store: infisical
-      value: VAULTWARDEN_ADMIN_TOKEN_RAW
-      description: Vaultwarden admin token (raw) — the Argon2 hash Vaultwarden actually needs is computed at deploy time
+      value: VAULTWARDEN_ADMIN_TOKEN
+      description: Vaultwarden admin token (raw/unsigned) — the Argon2 hash Vaultwarden actually needs is stored separately as VAULTWARDEN_ADMIN_ARGON
       generate:
         type: urlsafe
         length: 48
-    - key: VAULTWARDEN_ADMIN_TOKEN
-      store: environment
-      value: VAULTWARDEN_ADMIN_TOKEN
-      description: Vaultwarden admin token (Argon2 hash) — computed by the deploy pipeline from VAULTWARDEN_ADMIN_TOKEN_RAW, not stored anywhere; resolved from a CI-set env var at deploy time
+    - key: VAULTWARDEN_ADMIN_ARGON
+      store: infisical
+      value: VAULTWARDEN_ADMIN_ARGON
+      description: Vaultwarden admin token (Argon2 hash of VAULTWARDEN_ADMIN_TOKEN) — precomputed via scripts/hash_argon2.py and stored directly; no generate spec (derived value, not random)
     - key: VAULTWARDEN_SSO_CLIENT_SECRET
       store: infisical
       value: VAULTWARDEN_SSO_CLIENT_SECRET
       description: OIDC client secret for Vaultwarden SSO via Authentik
-      generate:
-        type: urlsafe
-        length: 48
-
-    # Application secrets — Portainer
-    - key: PORTAINER_SSO_CLIENT_SECRET
-      store: infisical
-      value: PORTAINER_SSO_CLIENT_SECRET
-      description: OIDC client secret for Portainer SSO via Authentik (not yet wired into the compose module)
       generate:
         type: urlsafe
         length: 48

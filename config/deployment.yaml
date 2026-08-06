@@ -33,6 +33,7 @@ spec:
     - name: infrastructure_hearth
       topology: hetzner_hearth
       scope: all
+      secrets: ["*"]
       depends_on: null
       on_failure: stop
 
@@ -40,5 +41,6 @@ spec:
     - name: infrastructure_forge
       topology: hetzner_forge
       scope: all
+      secrets: ["*"]
       depends_on: infrastructure_hearth
       on_failure: stop

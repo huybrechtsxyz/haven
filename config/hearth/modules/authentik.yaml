@@ -17,8 +17,8 @@ spec:
       - AUTHENTIK_SECRET_KEY
       - AUTHENTIK_POSTGRESQL__PASSWORD
       # SMTP — enable after Infomaniak migration
-      # - AUTHENTIK_EMAIL__USERNAME
-      # - AUTHENTIK_EMAIL__PASSWORD
+      # - INFOMANIAK_EMAIL__USERNAME
+      # - INFOMANIAK_EMAIL__PASSWORD
   services:
     - name: db
       image: docker.io/library/postgres:16-alpine
@@ -85,13 +85,13 @@ spec:
           secret: AUTHENTIK_SECRET_KEY
         # SMTP — enable after Infomaniak migration
         # - key: AUTHENTIK_EMAIL__HOST
-        #   value: mail.infomaniak.com
+        #   secret: INFOMANIAK_EMAIL__HOST
         # - key: AUTHENTIK_EMAIL__PORT
-        #   value: "587"
+        #   secret: INFOMANIAK_EMAIL__PORT
         # - key: AUTHENTIK_EMAIL__USERNAME
-        #   secret: AUTHENTIK_EMAIL__USERNAME
+        #   secret: INFOMANIAK_EMAIL__USERNAME
         # - key: AUTHENTIK_EMAIL__PASSWORD
-        #   secret: AUTHENTIK_EMAIL__PASSWORD
+        #   secret: INFOMANIAK_EMAIL__PASSWORD
         # - key: AUTHENTIK_EMAIL__USE_TLS
         #   value: "true"
         # - key: AUTHENTIK_EMAIL__USE_SSL
@@ -138,13 +138,13 @@ spec:
           secret: AUTHENTIK_SECRET_KEY
         # SMTP — enable after Infomaniak migration
         # - key: AUTHENTIK_EMAIL__HOST
-        #   value: mail.infomaniak.com
+        #   secret: INFOMANIAK_EMAIL__HOST
         # - key: AUTHENTIK_EMAIL__PORT
-        #   value: "587"
+        #   secret: INFOMANIAK_EMAIL__PORT
         # - key: AUTHENTIK_EMAIL__USERNAME
-        #   secret: AUTHENTIK_EMAIL__USERNAME
+        #   secret: INFOMANIAK_EMAIL__USERNAME
         # - key: AUTHENTIK_EMAIL__PASSWORD
-        #   secret: AUTHENTIK_EMAIL__PASSWORD
+        #   secret: INFOMANIAK_EMAIL__PASSWORD
         # - key: AUTHENTIK_EMAIL__USE_TLS
         #   value: "true"
         # - key: AUTHENTIK_EMAIL__USE_SSL
