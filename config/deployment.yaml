@@ -33,7 +33,15 @@ spec:
     - name: infrastructure_hearth
       topology: hetzner_hearth
       scope: all
-      secrets: ["*"]
+      # deploy/terraform/main.tf declares both the hearth + forge modules unconditionally in one
+      # shared root config, so every plan/apply needs all 5 of these regardless of which stage runs.
+      # Nothing else (Vaultwarden/Authentik/WUD/Portainer/S3/etc.) is read by this Terraform root.
+      secrets:
+        - HETZNER_API_TOKEN
+        - HETZNER_PUBLIC_KEY
+        - HETZNER_PRIVATE_KEY
+        - HEARTH_SSH_PRIVATE_KEY
+        - HETZNER_ROOT_PASSWORD
       depends_on: null
       on_failure: stop
 
@@ -41,6 +49,11 @@ spec:
     - name: infrastructure_forge
       topology: hetzner_forge
       scope: all
-      secrets: ["*"]
+      secrets:
+        - HETZNER_API_TOKEN
+        - HETZNER_PUBLIC_KEY
+        - HETZNER_PRIVATE_KEY
+        - HEARTH_SSH_PRIVATE_KEY
+        - HETZNER_ROOT_PASSWORD
       depends_on: infrastructure_hearth
       on_failure: stop
