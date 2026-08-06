@@ -141,6 +141,10 @@ jobs:
           strata deploy run $ARGS
 
       - name: Show terraform plan (human-readable)
+        env:
+          # terraform show re-reads provider schemas via the cloud {} backend, same auth as plan/apply
+          TERRAFORM_API_TOKEN: ${{ secrets.TERRAFORM_API_TOKEN }}
+          TF_TOKEN_app_terraform_io: ${{ secrets.TERRAFORM_API_TOKEN }}
         run: |
           TF_DIR=$(find build -type d -name terraform | head -n1)
           if [ -z "$TF_DIR" ]; then
