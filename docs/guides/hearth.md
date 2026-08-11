@@ -12,18 +12,27 @@ Hearth is the core VPS. It runs as a single Docker Compose stack on a Hetzner CX
 
 ---
 
-## ⚠️ Known gaps before this matches reality
+## Design decision — Portainer stays on local auth, not SSO
 
-This guide describes the **intended** deployment, matching the secrets/Infisical Cloud model established in [setup.md](./setup.md). The actual code hasn't fully caught up yet:
+Portainer is **intentionally not** wired through Authentik SSO. Portainer exists to check on and
+recover other containers (including Authentik itself), so it must stay reachable even when
+Authentik is down, misconfigured, or mid-upgrade — putting it behind the identity provider it may
+need to fix would defeat that purpose. Portainer uses its own local admin account instead (create
+it + enable MFA on first login).
 
-| Gap                                                      | Where                                                                                                                                                | What needs to happen                                                                                                                    |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Ansible playbooks missing from active repo               | `deploy-hearth.yml` runs `deploy/ansible-init`, `deploy/ansible-config`, `deploy/ansible-deploy` — none of these exist outside `.archive/v1/deploy/` | Restore/update the three playbooks at their new paths before this workflow can run at all                                               |
-| Self-hosted Infisical still in the compose stack         | `hearth/docker-compose.yml` still defines `infisical`, `infisical-db`, `infisical-redis`                                                             | Remove — Infisical Cloud replaces it entirely                                                                                           |
-| Secrets fetched from GitHub Secrets, not Infisical Cloud | `deploy-hearth.yml` reads `AUTHENTIK_SECRET_KEY`, `VAULTWARDEN_ADMIN_TOKEN`, etc. straight from `secrets.*`                                          | Update the workflow to fetch from Infisical Cloud at runtime via the machine identity (`INFISICAL_CLIENT_ID`/`INFISICAL_CLIENT_SECRET`) |
-| Vaultwarden admin token hashing                          | Workflow passes `VAULTWARDEN_ADMIN_TOKEN` directly                                                                                                   | Needs the raw-token + deploy-time-hash flow — see [setup.md → Secrets for Vaultwarden](./setup.md#secrets-for-vaultwarden)              |
-| Storage Box secret/variable naming mismatch              | `deploy-hearth.yml` uses `HETZNER_STORAGEBOX_PASSWORD` / `vars.STORAGEBOX_SUBACCOUNT_HEARTH`                                                         | Align with the per-node naming in [setup.md → Secrets for Hetzner Storagebox](./setup.md#secrets-for-hetzner-storagebox)                |
-| Portainer SSO not wired up                               | `PORTAINER_SSO_CLIENT_SECRET` is documented but the `portainer` service has no OIDC env vars in `docker-compose.yml`                                 | Add OIDC config to the Portainer service definition                                                                                     |
+As a secondary consideration, Portainer CE (the free edition used here) doesn't support OAuth/OIDC
+at all — SSO would require upgrading to Portainer Business Edition (free up to 3 nodes / 5 users).
+Not a blocker either way, since local auth is the deliberate choice regardless of edition.
+
+As of 2026-08-11, all other previously-tracked gaps are resolved: the three Ansible playbooks now
+live at `deploy/ansible-hearth/` (consolidated single directory, restored from `.archive/v1/deploy/`
+with all self-hosted-Infisical references stripped), `deploy-hearth.yml` resolves every secret via
+`strata values get` against Infisical Cloud (machine identity auth, same pattern as `deploy-infra.yml`)
+instead of raw GitHub Secrets, Vaultwarden's admin token is fetched pre-hashed as
+`VAULTWARDEN_ADMIN_ARGON`, and the Storage Box / BorgBackup secret names match the per-node
+naming declared in `environment.yaml` (`STORAGEBOX_HEARTH_PASSWORD`, `BORG_PASSPHRASE_HEARTH`).
+The compose stack itself never carried self-hosted Infisical to begin with — `hearth/namespace.yaml`
+only declares `caddy`/`authentik`/`vaultwarden`/`portainer`/`wud`.
 
 ---
 
@@ -106,7 +115,7 @@ GitHub Actions → Select `deploy-hearth` → Run workflow from your feature bra
 | `full_restart`         | `false`                                                 | Stops **all** containers before deploying — use only when containers have stale state      |
 | `backup_before_deploy` | `false`                                                 | Runs a BorgBackup snapshot before deploying (requires `configure_borg: true` already done) |
 
-All secrets referenced by this run are declared in [setup.md](./setup.md) — `AUTHENTIK_SECRET_KEY`, `AUTHENTIK_POSTGRESQL__PASSWORD`, `VAULTWARDEN_ADMIN_TOKEN_RAW` (hashed to `VAULTWARDEN_ADMIN_TOKEN` at deploy time), `VAULTWARDEN_SSO_CLIENT_SECRET`, `WUD_SSO_CLIENT_SECRET`, `PORTAINER_SSO_CLIENT_SECRET`, plus the Storage Box and BorgBackup values. See the **Known gaps** table above — as of this rebuild, these still come from GitHub Secrets rather than Infisical Cloud.
+All secrets referenced by this run are declared in [setup.md](./setup.md) — `AUTHENTIK_SECRET_KEY`, `AUTHENTIK_POSTGRESQL__PASSWORD`, `VAULTWARDEN_ADMIN_ARGON` (the precomputed Argon2 hash written into the container's `VAULTWARDEN_ADMIN_TOKEN` env var), `VAULTWARDEN_SSO_CLIENT_SECRET`, `WUD_SSO_CLIENT_SECRET`, plus the per-node Storage Box (`STORAGEBOX_HEARTH_PASSWORD`) and BorgBackup (`BORG_PASSPHRASE_HEARTH`) values. `deploy-hearth.yml` resolves all of these from Infisical Cloud at runtime via `strata values get` (machine identity auth) — none are read from raw GitHub Secrets. Portainer has no SSO secret by design — see **Design decision** above.
 
 **Subsequent deployments** (after config changes, once `run_init` and `configure_borg` have succeeded once): set `run_init: false`, `configure_borg: false`, and leave `run_config: true` / `run_deploy: true`. Optionally set `backup_before_deploy: true` to snapshot before applying changes.
 
@@ -131,12 +140,12 @@ All secrets referenced by this run are declared in [setup.md](./setup.md) — `A
 
 ## Post-deploy configuration
 
-| Service     | Post-deploy steps                                                            | Guide                                                      |
-| ----------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Authentik   | Create admin account, configure OIDC providers for Vaultwarden/Portainer/WUD | [services/infomaniak.md](../services/infomaniak.md) (SMTP) |
-| Vaultwarden | Create admin account, enable SSO, create family accounts                     | [services/bitwarden.md](../services/bitwarden.md)          |
-| Portainer   | Create local admin account, configure MFA                                    | —                                                          |
-| WUD         | Verify container watch list                                                  | —                                                          |
+| Service     | Post-deploy steps                                                         | Guide                                                      |
+| ----------- | ------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Authentik   | Create admin account, configure OIDC providers for Vaultwarden/WUD        | [services/infomaniak.md](../services/infomaniak.md) (SMTP) |
+| Vaultwarden | Create admin account, enable SSO, create family accounts                  | [services/bitwarden.md](../services/bitwarden.md)          |
+| Portainer   | Create local admin account, configure MFA (local auth by design, not SSO) | —                                                          |
+| WUD         | Verify container watch list                                               | —                                                          |
 
 ## Verification checklist
 

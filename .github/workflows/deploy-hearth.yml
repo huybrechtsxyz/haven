@@ -50,6 +50,8 @@ permissions:
   contents: read
 
 env:
+  STRATA_OUTPUT: json
+  DEPLOYMENT_FILE: "config/deployment.yaml"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -157,6 +159,10 @@ jobs:
         if: ${{ inputs.dry_run != true }}
         run: pip install ansible-core
 
+      - name: Install strata
+        if: ${{ inputs.dry_run != true }}
+        run: pip install "xyz-strata==1.6.1"
+
       - name: Write deploy SSH private key
         if: ${{ inputs.dry_run != true }}
         run: |
@@ -167,25 +173,32 @@ jobs:
       # ------------------------------------------------------------------
       # Init (one-time server initialisation)
       # ------------------------------------------------------------------
-      - name: Install Ansible collections (init)
-        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
-        working-directory: deploy/ansible-init
+      - name: Install Ansible collections
+        if: ${{ (inputs.run_init == true || inputs.run_config == true) && inputs.dry_run != true }}
+        working-directory: deploy/ansible-hearth
         run: ansible-galaxy collection install -r requirements.yml -p ./collections
 
       - name: Write Ansible vars file for borg init
         if: ${{ inputs.run_init == true && inputs.configure_borg == true && inputs.dry_run != true }}
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
+          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH STORAGEBOX_HEARTH_PASSWORD -f $DEPLOYMENT_FILE --output json)
+          BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_HEARTH')
+          STORAGEBOX_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.STORAGEBOX_HEARTH_PASSWORD')
           cat > /tmp/init_vars.yml << VARSEOF
           configure_borg: true
           storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
           storagebox_subaccount: "${{ vars.STORAGEBOX_SUBACCOUNT_HEARTH }}"
-          borg_passphrase: "${{ secrets.BORG_PASSPHRASE }}"
-          storagebox_password: "${{ secrets.HETZNER_STORAGEBOX_PASSWORD }}"
+          borg_passphrase: "$BORG_PASSPHRASE"
+          storagebox_password: "$STORAGEBOX_PASSWORD"
           VARSEOF
 
       - name: Run hearth-init playbook
         if: ${{ inputs.run_init == true && inputs.dry_run != true }}
-        working-directory: deploy/ansible-init
+        working-directory: deploy/ansible-hearth
         run: |
           if [ "${{ inputs.configure_borg }}" = "true" ]; then
             EXTRA_ARGS="-e @/tmp/init_vars.yml"
@@ -204,26 +217,30 @@ jobs:
       # ------------------------------------------------------------------
       # Config (idempotent configuration enforcement)
       # ------------------------------------------------------------------
-      - name: Install Ansible collections (config)
-        if: ${{ inputs.run_config == true && inputs.dry_run != true }}
-        working-directory: deploy/ansible-config
-        run: ansible-galaxy collection install -r requirements.yml -p ./collections
-
       - name: Write Ansible vars file for config secrets
         if: ${{ inputs.run_config == true && inputs.dry_run != true }}
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
+          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_BACKUP VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_HEARTH')
+          HEALTHCHECK_URL=$(echo "$VALUES" | jq -r '.data.results.HEALTHCHECK_PING_BACKUP')
+          VAULTWARDEN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.VAULTWARDEN_SSO_CLIENT_SECRET')
+          WUD_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.WUD_SSO_CLIENT_SECRET')
           cat > /tmp/config_vars.yml << VARSEOF
-          borg_passphrase: "${{ secrets.BORG_PASSPHRASE }}"
+          borg_passphrase: "$BORG_PASSPHRASE"
           storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
           storagebox_subaccount: "${{ vars.STORAGEBOX_SUBACCOUNT_HEARTH }}"
-          healthcheck_ping_url: "${{ vars.HEALTHCHECK_PING_URL_BACKUP }}"
-          vaultwarden_sso_client_secret: "${{ secrets.VAULTWARDEN_SSO_CLIENT_SECRET }}"
-          wud_sso_client_secret: "${{ secrets.WUD_SSO_CLIENT_SECRET }}"
+          healthcheck_ping_url: "$HEALTHCHECK_URL"
+          vaultwarden_sso_client_secret: "$VAULTWARDEN_SSO_SECRET"
+          wud_sso_client_secret: "$WUD_SSO_SECRET"
           VARSEOF
 
       - name: Run hearth-config playbook
         if: ${{ inputs.run_config == true && inputs.dry_run != true }}
-        working-directory: deploy/ansible-config
+        working-directory: deploy/ansible-hearth
         run: |
           ansible-playbook hearth-config.yml \
             -i "${{ steps.hearth_ip.outputs.ip }}," \
@@ -262,25 +279,33 @@ jobs:
       # ------------------------------------------------------------------
       - name: Write Ansible vars file for deploy secrets
         if: ${{ inputs.run_deploy == true && inputs.dry_run != true }}
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
-          cat > /tmp/deploy_vars.yml << 'VARSEOF'
-          authentik_secret_key: "${{ secrets.AUTHENTIK_SECRET_KEY }}"
-          authentik_postgresql_password: "${{ secrets.AUTHENTIK_POSTGRESQL_PASSWORD }}"
-          vaultwarden_admin_token: "${{ secrets.VAULTWARDEN_ADMIN_TOKEN }}"
-          infisical_auth_secret: "${{ secrets.INFISICAL_AUTH_SECRET }}"
-          infisical_encryption_key: "${{ secrets.INFISICAL_ENCRYPTION_KEY }}"
-          infisical_postgresql_password: "${{ secrets.INFISICAL_POSTGRESQL_PASSWORD }}"
-          vaultwarden_sso_client_secret: "${{ secrets.VAULTWARDEN_SSO_CLIENT_SECRET }}"
-          wud_sso_client_secret: "${{ secrets.WUD_SSO_CLIENT_SECRET }}"
+          VALUES=$(strata values get AUTHENTIK_SECRET_KEY AUTHENTIK_POSTGRESQL__PASSWORD VAULTWARDEN_ADMIN_ARGON VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          AUTHENTIK_KEY=$(echo "$VALUES" | jq -r '.data.results.AUTHENTIK_SECRET_KEY')
+          AUTHENTIK_DB_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.AUTHENTIK_POSTGRESQL__PASSWORD')
+          VAULTWARDEN_TOKEN=$(echo "$VALUES" | jq -r '.data.results.VAULTWARDEN_ADMIN_ARGON')
+          VAULTWARDEN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.VAULTWARDEN_SSO_CLIENT_SECRET')
+          WUD_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.WUD_SSO_CLIENT_SECRET')
+          cat > /tmp/deploy_vars.yml << VARSEOF
+          authentik_secret_key: "$AUTHENTIK_KEY"
+          authentik_postgresql_password: "$AUTHENTIK_DB_PASSWORD"
+          vaultwarden_admin_token: "$VAULTWARDEN_TOKEN"
+          vaultwarden_sso_client_secret: "$VAULTWARDEN_SSO_SECRET"
+          wud_sso_client_secret: "$WUD_SSO_SECRET"
           VARSEOF
 
       - name: Run hearth-deploy playbook
         if: ${{ inputs.run_deploy == true && inputs.dry_run != true }}
-        working-directory: deploy/ansible-deploy
+        working-directory: deploy/ansible-hearth
         run: |
           ansible-playbook hearth-deploy.yml \
             -i "${{ steps.hearth_ip.outputs.ip }}," \
             --private-key ~/.ssh/haven_ed25519 \
+            -e full_restart=${{ inputs.full_restart }} \
             -e @/tmp/deploy_vars.yml
 
       - name: Clean up deploy vars file

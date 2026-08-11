@@ -199,7 +199,7 @@ graph TB
 | `auth.{domain}`  | Authentik       | Hearth     | N/A (identity provider) | SSO / OIDC provider; 2FA enrollment    |
 | `vault.{domain}` | Vaultwarden     | Hearth     | Bitwarden extension     | Password manager                       |
 
-| `portainer.{domain}` | Portainer       | Hearth     | Authentik OIDC            | Docker Compose container management UI         |
+| `portainer.{domain}` | Portainer       | Hearth     | Local (by design — must stay reachable if Authentik is down) | Docker Compose container management UI |
 | `wud.{domain}`       | WUD             | Hearth     | Authentik OIDC            | Container image update notifications           |
 | app.infisical.com    | Infisical Cloud | ☁️ Cloud    | Infisical account         | Application secrets management (cloud-hosted)  |
 | app.terraform.io     | Terraform Cloud | ☁️ Cloud    | Terraform account         | Remote state backend (cloud-hosted)            |

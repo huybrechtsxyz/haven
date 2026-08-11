@@ -1,0 +1,53 @@
+---
+# =============================================================================
+# Playbook: haven-dns.yml
+# Applies all `kind: dns` zone configurations — merged into the workspace's
+# `dns_zones:` list and built by `strata build run` — to INWX via the INWX API.
+#
+# Idempotent — inwx.collection.dns only changes records that differ from the
+# desired state. Runs locally: DNS management is a pure API call, no target
+# host involved.
+#
+# LIMITATION (strata v1.6.1): only records with a literal `value:` in the
+# source `kind: dns` YAML are applied. Records sourced from `var:`/`secret:`
+# are skipped with a warning — strata's Ansible builder does not resolve
+# those today (unlike the Terraform builder, which does resolve `var:` and
+# buckets `secret:` separately for TF_VAR_* injection). See tasks/apply_zone.yml.
+#
+# Credentials — provide via extra-vars, never commit:
+#   inwx_username    INWX account username (must have DNS API access)
+#   inwx_password    INWX account password
+#   inwx_api_env     optional — 'ote' to test against the free INWX sandbox first
+#
+# Install collections first (once):
+#   ansible-galaxy collection install -r requirements.yml -p ./collections
+#
+# Run:
+#   ansible-playbook haven-dns.yml \
+#     -e inwx_username=... -e inwx_password=... \
+#     -e inwx_api_env=ote
+# =============================================================================
+
+- name: Haven — apply DNS zones to INWX
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - vars/main.yml
+
+  pre_tasks:
+    - name: Load generated DNS vars from strata build output
+      ansible.builtin.include_vars:
+        file: "{{ dns_vars_file }}"
+
+  tasks:
+    - name: "Apply DNS configuration: {{ dns_item.key }}"
+      ansible.builtin.include_tasks: apply_dns_config.yml
+      loop: "{{ strata_dns_zones | dict2items }}"
+      loop_control:
+        loop_var: dns_item
+        label: "{{ dns_item.key }}"
+      vars:
+        dns_name: "{{ dns_item.key }}"
+        dns_data: "{{ dns_item.value }}"

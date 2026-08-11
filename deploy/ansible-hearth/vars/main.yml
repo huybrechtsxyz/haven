@@ -1,0 +1,49 @@
+# =============================================================================
+# Shared, non-sensitive configuration variables for the Hearth Ansible
+# playbooks (hearth-init.yml, hearth-config.yml, hearth-deploy.yml).
+#
+# Sensitive values (service secrets/tokens, Storage Box credentials, Borg
+# passphrase) are passed via --extra-vars / -e @file at run time and are
+# never committed here.
+# =============================================================================
+
+# haven service account (runs Docker containers)
+haven_user: haven
+haven_group: haven
+haven_install_path: /opt/haven
+
+# Server timezone
+haven_timezone: Europe/Brussels
+
+# Docker Compose working directory (where docker-compose.yml lives on the host)
+haven_compose_path: "{{ haven_install_path }}/etc"
+
+# Authentik MFA behavior when a user has no authenticator configured.
+# Valid values: configure, deny, skip
+authentik_mfa_not_configured_action: configure
+
+# =============================================================================
+# BorgBackup
+# =============================================================================
+# Set to true only after the borg SSH key has been authorised on the Storage
+# Box sub-account (hearth-init Step 2) and the repo has been initialised.
+configure_borg: false
+
+# Storage Box connection details — passed via --extra-vars at run time.
+storagebox_host: ""
+storagebox_subaccount: ""
+
+# Backup retention policy
+borg_keep_daily: 7
+borg_keep_weekly: 4
+borg_keep_monthly: 6
+
+# Healthchecks.io ping URL for backup monitoring (dead man's switch).
+# Leave empty to disable. Passed via --extra-vars at run time.
+healthcheck_ping_url: ""
+
+# =============================================================================
+# Deploy — build artifact location
+# =============================================================================
+# Deployment name — used to locate build artifacts (build/<deployment_name>/hearth/)
+deployment_name: haven_deploy_prd-1.0.0

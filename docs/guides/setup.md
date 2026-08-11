@@ -23,9 +23,12 @@ Complete list of what goes in GitHub Secrets vs Infisical Cloud.
 
 **GitHub Variables** are non-sensitive values used by GitHub Actions. Store the values in Bitwarden, then add them to GitHub Variables.
 
-| GitHub Variable        | Value                  | Notes                                                 |
-| ---------------------- | ---------------------- | ----------------------------------------------------- |
-| `INFISICAL_PROJECT_ID` | Infisical project UUID | Settings → Project ID in your haven Infisical project |
+| GitHub Variable                | Value                  | Notes                                                                               |
+| ------------------------------ | ---------------------- | ----------------------------------------------------------------------------------- |
+| `INFISICAL_PROJECT_ID`         | Infisical project UUID | Settings → Project ID in your haven Infisical project                               |
+| `STORAGEBOX_HOST`              | Configuration          | e.g. `uXXXXXX.your-storagebox.de` — Storage Box hostname (shared by Hearth + Forge) |
+| `STORAGEBOX_SUBACCOUNT_HEARTH` | Configuration          | e.g. `uXXXXXX-sub1` — Storage Box sub-account username for Hearth backups           |
+| `STORAGEBOX_SUBACCOUNT_FORGE`  | Configuration          | e.g. `uXXXXXX-sub2` — Storage Box sub-account username for Forge backups            |
 
 **Infisical Secrets** are secrets stored in Infisical Cloud. All secrets are fetched at runtime via machine identity (Universal Auth). Store every value in Bitwarden as a backup.
 
@@ -41,9 +44,6 @@ Complete list of what goes in GitHub Secrets vs Infisical Cloud.
 | `HETZNER_ROOT_PASSWORD`          | Random password   | `token_urlsafe(32)` initial root access only                                                                                                                                                                        |
 |                                  |                   |                                                                                                                                                                                                                     |
 | **Storagebox**                   |                   |                                                                                                                                                                                                                     |
-| `STORAGEBOX_HOST_MAIN`           | Configuration     | e.g. `uXXXXXX.your-storagebox.de`- Storage Box URL                                                                                                                                                                  |
-| `STORAGEBOX_HOST_HEARTH`         | Configuration     | e.g. `uXXXXXX-sub1.your-storagebox.de`- Storage Box URL                                                                                                                                                             |
-| `STORAGEBOX_HOST_FORGE`          | Configuration     | e.g. `uXXXXXX-sub2.your-storagebox.de`- Storage Box URL                                                                                                                                                             |
 | `STORAGEBOX_HEARTH_PASSWORD`     | Password          | Sub-account password set on creation subaccount                                                                                                                                                                     |
 | `STORAGEBOX_FORGE_PASSWORD`      | Password          | Sub-account password set on creation subaccount                                                                                                                                                                     |
 |                                  |                   |                                                                                                                                                                                                                     |
@@ -60,18 +60,18 @@ Complete list of what goes in GitHub Secrets vs Infisical Cloud.
 | `AUTHENTIK_POSTGRESQL__PASSWORD` | Password          | `token_urlsafe(48)` — Used for Authentik PostgreSQL database (double underscore — matches Authentik's own env var convention)                                                                                       |
 | `AUTHENTIK_SECRET_KEY`           | Secret Key        | `token_urlsafe(64)` — Used for Authentik session signing (86 chars)                                                                                                                                                 |
 |                                  |                   |                                                                                                                                                                                                                     |
-| **Portainer**                    |                   |                                                                                                                                                                                                                     |
-| `PORTAINER_SSO_CLIENT_SECRET`    | Secret            | Secret used for Portainer SSO                                                                                                                                                                                       |
+| **Portainer**                    |                   | No secrets — local admin auth by design (must stay reachable even if Authentik is down); see [hearth.md → Design decision](./hearth.md#design-decision--portainer-stays-on-local-auth-not-sso)                      |
 |                                  |                   |                                                                                                                                                                                                                     |
 | **Wud**                          |                   |                                                                                                                                                                                                                     |
 | `WUD_SSO_CLIENT_SECRET`          | Secret            | Secret used for Wud SSO                                                                                                                                                                                             |
 |                                  |                   |                                                                                                                                                                                                                     |
 | **Vaultwarden**                  |                   |                                                                                                                                                                                                                     |
-| `VAULTWARDEN_ADMIN_TOKEN_RAW`    | Token             | Raw admin token for Vaultwarden — strata generates/stores this; the Argon2 hash Vaultwarden actually needs is computed at deploy time (see [Automated Secrets Generation](#automated-secrets-generation))           |
+| `VAULTWARDEN_ADMIN_TOKEN`        | Token             | Raw admin token for Vaultwarden — strata auto-generates/stores this; used to log in to the admin panel                                                                                                              |
+| `VAULTWARDEN_ADMIN_ARGON`        | Hash              | Argon2 hash of `VAULTWARDEN_ADMIN_TOKEN` — this is what Vaultwarden's `ADMIN_TOKEN` env var actually needs; precomputed once and stored directly (see [Secrets for Vaultwarden](#secrets-for-vaultwarden))          |
 | `VAULTWARDEN_SSO_CLIENT_SECRET`  | Secret            | Secret used for Vaultwarden SSO                                                                                                                                                                                     |
 |                                  |                   |                                                                                                                                                                                                                     |
 | **Healthcheck**                  |                   |                                                                                                                                                                                                                     |
-| `HEALTHCHECK_PING_URL_BACKUP`    | URL               | Backup ping URL for Healthcheck                                                                                                                                                                                     |
+| `HEALTHCHECK_PING_BACKUP`        | URL               | Backup ping URL for Healthcheck                                                                                                                                                                                     |
 
 ### Generating Secrets
 
@@ -172,7 +172,7 @@ strata secret put STORAGEBOX_HEARTH_PASSWORD --value "<hearth-sub-account-passwo
 strata secret put STORAGEBOX_FORGE_PASSWORD --value "<forge-sub-account-password>" -f config/env-haven-prd.yaml
 ```
 
-`STORAGEBOX_HOST_MAIN`, `STORAGEBOX_HOST_HEARTH`, and `STORAGEBOX_HOST_FORGE` are non-secret hostnames — add them as plain configuration variables rather than pushing them through `strata secret put`.
+`STORAGEBOX_HOST`, `STORAGEBOX_SUBACCOUNT_HEARTH`, and `STORAGEBOX_SUBACCOUNT_FORGE` are non-secret hostnames/usernames — add them as GitHub Variables (see the table above), not as Infisical secrets or via `strata secret put`.
 
 ### Secrets for Hetzner S3 Storage
 
@@ -204,15 +204,15 @@ strata secret put HETZNER_S3_SECRET_KEY --value "<secret-access-key>" -f config/
 
 1. [healthchecks.io](https://healthchecks.io) → New Check → name it `haven-backup`
 2. Set the period to match the backup schedule (e.g. 24h) with a grace period (e.g. 1h)
-3. Copy the **Ping URL** → store in Bitwarden and Infisical as `HEALTHCHECK_PING_URL_BACKUP`
+3. Copy the **Ping URL** → store in Bitwarden and Infisical as `HEALTHCHECK_PING_BACKUP`
 
 ### Automated Secrets Generation
 
 > **ACTION:** For each service that requires a random secret, declare the key in the environment YAML with a `generate:` spec. Strata will generate the value and write it directly to Infisical Cloud in one step.
 
-Other services (Authentik, Portainer, Wud, Vaultwarden) require random secrets for SSO and database access. These are generated automatically via `strata secret put --generate` and stored in Infisical Cloud. No manual steps are required. Strata will create the value and writes them directly to Infisical Cloud in one step (see [Generating Secrets](#generating-secrets) above for the mechanism).
+Other services (Authentik, Wud, Vaultwarden) require random secrets for SSO and database access. These are generated automatically via `strata secret put --generate` and stored in Infisical Cloud. No manual steps are required. Strata will create the value and writes them directly to Infisical Cloud in one step (see [Generating Secrets](#generating-secrets) above for the mechanism). Portainer needs no secrets at all — it uses local admin auth by design, not SSO.
 
-**Vaultwarden admin token is automated.** Strata auto-generates the **raw** token (`VAULTWARDEN_ADMIN_TOKEN_RAW`) like any other secret. The **hash** is computed as a step in the deploy pipeline itself — `deploy-hearth.yml` fetches the raw token and pipes it through `scripts/hash_argon2.py` (which shells out to `docker run vaultwarden/server /vaultwarden hash --preset owasp`), then passes only the resulting hash to the `hearth-deploy` Ansible playbook as `VAULTWARDEN_ADMIN_TOKEN`. Strata only generates and stores the raw value. Still copy the raw token from Infisical into Bitwarden once (you need it to log in and it isn't recoverable from the hash).
+**Vaultwarden admin token is automated, hashing is a one-time manual step.** Strata auto-generates the **raw** token (`VAULTWARDEN_ADMIN_TOKEN`) like any other secret. Vaultwarden's container needs the **Argon2 hash** of that token in its own `ADMIN_TOKEN` env var, not the raw value — this hash is precomputed **once**, interactively, via [Cookbook: Storing a Hashed Secret Before Storage](../cookbooks/hash-secret-before-storage.md) (pipes the raw token through `docker run vaultwarden/server /vaultwarden hash --preset owasp`, `scripts/hash_argon2.py` automates that same transform) and stored directly as `VAULTWARDEN_ADMIN_ARGON`. `deploy-hearth.yml` fetches `VAULTWARDEN_ADMIN_ARGON` directly at deploy time — no hashing happens in the pipeline itself. Still copy the raw token from Infisical into Bitwarden once (you need it to log in and it isn't recoverable from the hash).
 
 Every key in the **Infisical Secrets** table above that needs a random value is declared the same way: one entry per key, with a `generate:` spec on it. There's no separate list to maintain here; the table above is the single source of truth for which keys exist, and the environment YAML just adds the `generate:` block to each:
 
@@ -241,7 +241,7 @@ Still store a copy of every generated value in Bitwarden as backup.
 
 #### Secrets for Portainer
 
-> **ACTION:** Generated automatically via `strata secret put --generate` (see above). No manual steps required.
+> **ACTION:** None — Portainer uses local admin auth by design (must stay reachable even if Authentik is down). No secrets to generate. See [hearth.md → Design decision](./hearth.md#design-decision--portainer-stays-on-local-auth-not-sso).
 
 #### Secrets for Wud
 
@@ -249,8 +249,8 @@ Still store a copy of every generated value in Bitwarden as backup.
 
 #### Secrets for Vaultwarden
 
-> **ACTION:** `VAULTWARDEN_SSO_CLIENT_SECRET` and `VAULTWARDEN_ADMIN_TOKEN_RAW` are generated automatically via `strata secret put --generate`. No manual steps required for generation.
+> **ACTION:** `VAULTWARDEN_SSO_CLIENT_SECRET` and `VAULTWARDEN_ADMIN_TOKEN` are generated automatically via `strata secret put --generate`. No manual steps required for generation.
 >
-> The **hash** that Vaultwarden actually needs is computed by a deploy-pipeline step (not strata) that pipes `VAULTWARDEN_ADMIN_TOKEN_RAW` through `scripts/hash_argon2.py` and passes the result to the `hearth-deploy` Ansible playbook as `vaultwarden_admin_token` — see [Automated Secrets Generation](#automated-secrets-generation) above. This needs to be added to `deploy-hearth.yml` as part of the rebuild (currently it reads `VAULTWARDEN_ADMIN_TOKEN` directly from GitHub Secrets — update it to fetch `VAULTWARDEN_ADMIN_TOKEN_RAW` from Infisical and hash it inline instead).
+> The **hash** that Vaultwarden's container actually needs (`VAULTWARDEN_ADMIN_ARGON`) is a one-time manual step, not part of any pipeline — run [Cookbook: Storing a Hashed Secret Before Storage](../cookbooks/hash-secret-before-storage.md) (or `scripts/hash_argon2.py`, which automates the same `docker run vaultwarden/server /vaultwarden hash` transform) once, interactively, and store the result directly as `VAULTWARDEN_ADMIN_ARGON`. `deploy-hearth.yml` fetches `VAULTWARDEN_ADMIN_ARGON` directly at deploy time via `strata values get` — it does not hash anything itself.
 >
-> Copy the raw token from Infisical into Bitwarden once (you need it to log in — it cannot be recovered from the hash). For an interactive/manual alternative (e.g. testing locally before wiring up the pipeline step), see [Cookbook: Storing a Hashed Secret Before Storage](./cookbook-hash-secret-before-storage.md).
+> Copy the raw token from Infisical into Bitwarden once (you need it to log in — it cannot be recovered from the hash).

@@ -38,7 +38,7 @@ Healthchecks.io monitors **cron job execution** — it alerts when a scheduled t
 | `hearth-backup` | 24 hours | 1 hour | BorgBackup daily cron (02:00 UTC) |
 
 4. Copy the ping URL (e.g. `https://hc-ping.com/<uuid>`)
-5. Add it as GitHub Environment Variable `HEALTHCHECK_PING_URL_BACKUP`
+5. Add it to Infisical Cloud as `HEALTHCHECK_PING_BACKUP` (see [setup.md → Infisical Secrets](../guides/setup.md#secrets-overview))
 6. Add it to Bitwarden, linked to the Healthchecks.io account entry
 7. Run pipeline with `run_config: true` to deploy the updated backup script
 8. Configure alert integrations (email, Telegram, or Pushover)
