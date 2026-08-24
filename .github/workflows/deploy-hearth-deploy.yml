@@ -107,6 +107,21 @@ jobs:
           chmod 600 ~/.ssh/haven_ed25519
 
       # ------------------------------------------------------------------
+      # Build — hearth-deploy.yml copies docker-compose.yml from build/<deployment_name>/hearth/,
+      # which strata generates. build/ is gitignored, so it must be (re)built fresh on every run —
+      # there is no artifact carried over from deploy-infra.yml or a prior deploy.
+      # ------------------------------------------------------------------
+      - name: Validate deployment file
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          strata validate -f $DEPLOYMENT_FILE --deep
+
+      - name: Build platform artifacts
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          strata build run --file $DEPLOYMENT_FILE
+
+      # ------------------------------------------------------------------
       # Full restart (optional — clean slate before redeploy)
       # ------------------------------------------------------------------
       - name: Stop all haven containers
