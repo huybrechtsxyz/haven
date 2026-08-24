@@ -118,7 +118,15 @@ jobs:
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
+          set +e
           VALUES=$(strata values get BORG_PASSPHRASE_HEARTH STORAGEBOX_HEARTH_PASSWORD -f $DEPLOYMENT_FILE --output json)
+          STATUS=$?
+          set -e
+          if [ $STATUS -ne 0 ]; then
+            echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
+            echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+            exit $STATUS
+          fi
           BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_HEARTH')
           STORAGEBOX_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.STORAGEBOX_HEARTH_PASSWORD')
           cat > /tmp/init_vars.yml << VARSEOF

@@ -113,7 +113,15 @@ jobs:
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
+          set +e
           VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_BACKUP VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          STATUS=$?
+          set -e
+          if [ $STATUS -ne 0 ]; then
+            echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
+            echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+            exit $STATUS
+          fi
           BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_HEARTH')
           HEALTHCHECK_URL=$(echo "$VALUES" | jq -r '.data.results.HEALTHCHECK_PING_BACKUP')
           VAULTWARDEN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.VAULTWARDEN_SSO_CLIENT_SECRET')
