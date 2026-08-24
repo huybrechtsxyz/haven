@@ -1,0 +1,151 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: environment
+meta:
+  name: haven_env_prd
+  annotations:
+    description: Production environment for the family platform on Hetzner
+  labels:
+    version: "1.0.0"
+  tags: [haven, hetzner, family, production]
+spec:
+  variables:
+    - key: WORKSPACE
+      store: constant
+      value: haven
+    - key: DATACENTER
+      store: constant
+      value: hetzner-eu-de
+
+  secrets:
+    # Infrastructure — Hetzner
+    - key: HETZNER_API_TOKEN
+      store: infisical
+      value: HETZNER_API_TOKEN
+      description: Hetzner Cloud project API token
+    - key: HETZNER_PRIVATE_KEY
+      store: infisical
+      value: HETZNER_PRIVATE_KEY
+      description: Hetzner SSH deployment key (private, ed25519)
+    - key: HEARTH_SSH_PRIVATE_KEY
+      store: infisical
+      value: HETZNER_PRIVATE_KEY
+      description: Same value as HETZNER_PRIVATE_KEY — satisfies deploy/terraform/variables.tf's separate (legacy) required variable of this name without duplicating the key in Infisical
+    - key: HETZNER_PUBLIC_KEY
+      store: infisical
+      value: HETZNER_PUBLIC_KEY
+      description: Hetzner SSH deployment key (public, ed25519)
+    - key: HETZNER_ROOT_PASSWORD
+      store: infisical
+      value: HETZNER_ROOT_PASSWORD
+      description: Initial root access password
+      generate:
+        type: urlsafe
+        length: 32
+    - key: HETZNER_S3_ACCESS_KEY
+      store: infisical
+      value: HETZNER_S3_ACCESS_KEY
+      description: Hetzner Object Storage access key ID (project-level, all buckets)
+    - key: HETZNER_S3_SECRET_KEY
+      store: infisical
+      value: HETZNER_S3_SECRET_KEY
+      description: Hetzner Object Storage secret access key (project-level, all buckets)
+
+    # Infrastructure — Hetzner Storage Box
+    - key: STORAGEBOX_HEARTH_PASSWORD
+      store: infisical
+      value: STORAGEBOX_HEARTH_PASSWORD
+      description: Storage Box sub-account password for Hearth backups
+    - key: STORAGEBOX_FORGE_PASSWORD
+      store: infisical
+      value: STORAGEBOX_FORGE_PASSWORD
+      description: Storage Box sub-account password for Forge backups
+
+    # Infrastructure — BorgBackup
+    - key: BORG_PASSPHRASE_HEARTH
+      store: infisical
+      value: BORG_PASSPHRASE_HEARTH
+      description: BorgBackup encryption passphrase — Hearth archive
+      generate:
+        type: urlsafe
+        length: 48
+    - key: BORG_PASSPHRASE_FORGE
+      store: infisical
+      value: BORG_PASSPHRASE_FORGE
+      description: BorgBackup encryption passphrase — Forge archive
+      generate:
+        type: urlsafe
+        length: 48
+
+    # Infrastructure — Terraform Cloud
+    - key: TERRAFORM_API_TOKEN
+      store: infisical
+      value: TERRAFORM_API_TOKEN
+      description: Terraform Cloud API token
+
+    # Infrastructure — Healthchecks.io
+    - key: HEALTHCHECK_PING_BACKUP
+      store: infisical
+      value: HEALTHCHECK_PING_BACKUP
+      description: Healthchecks.io ping URL for backup monitoring
+
+    # Application secrets — Authentik
+    - key: AUTHENTIK_SECRET_KEY
+      store: infisical
+      value: AUTHENTIK_SECRET_KEY
+      description: Authentik internal encryption key (session signing)
+      generate:
+        type: urlsafe
+        length: 64
+    - key: AUTHENTIK_POSTGRESQL__PASSWORD
+      store: infisical
+      value: AUTHENTIK_POSTGRESQL__PASSWORD
+      description: PostgreSQL password for Authentik database
+      generate:
+        type: urlsafe
+        length: 48
+    # Infomaniak SMTP — reusable across services (Authentik, and any future service needing outbound email)
+    - key: INFOMANIAK_EMAIL__HOST
+      store: infisical
+      value: INFOMANIAK_EMAIL__HOST
+      description: Infomaniak SMTP host (reusable — shared by any service needing outbound email)
+    - key: INFOMANIAK_EMAIL__PORT
+      store: infisical
+      value: INFOMANIAK_EMAIL__PORT
+      description: Infomaniak SMTP port (reusable — shared by any service needing outbound email)
+    - key: INFOMANIAK_EMAIL__USERNAME
+      store: infisical
+      value: INFOMANIAK_EMAIL__USERNAME
+      description: Infomaniak SMTP username (reusable — shared by any service needing outbound email; enable in Authentik after Infomaniak migration)
+    - key: INFOMANIAK_EMAIL__PASSWORD
+      store: infisical
+      value: INFOMANIAK_EMAIL__PASSWORD
+      description: Infomaniak SMTP password (reusable — shared by any service needing outbound email; enable in Authentik after Infomaniak migration)
+
+    # Application secrets — Vaultwarden
+    - key: VAULTWARDEN_ADMIN_TOKEN
+      store: infisical
+      value: VAULTWARDEN_ADMIN_TOKEN
+      description: Vaultwarden admin token (raw/unsigned) — the Argon2 hash Vaultwarden actually needs is stored separately as VAULTWARDEN_ADMIN_ARGON
+      generate:
+        type: urlsafe
+        length: 48
+    - key: VAULTWARDEN_ADMIN_ARGON
+      store: infisical
+      value: VAULTWARDEN_ADMIN_ARGON
+      description: Vaultwarden admin token (Argon2 hash of VAULTWARDEN_ADMIN_TOKEN) — precomputed via scripts/hash_argon2.py and stored directly; no generate spec (derived value, not random)
+    - key: VAULTWARDEN_SSO_CLIENT_SECRET
+      store: infisical
+      value: VAULTWARDEN_SSO_CLIENT_SECRET
+      description: OIDC client secret for Vaultwarden SSO via Authentik
+      generate:
+        type: urlsafe
+        length: 48
+
+    # Application secrets — WUD
+    - key: WUD_SSO_CLIENT_SECRET
+      store: infisical
+      value: WUD_SSO_CLIENT_SECRET
+      description: OIDC client secret for WUD SSO via Authentik
+      generate:
+        type: urlsafe
+        length: 48

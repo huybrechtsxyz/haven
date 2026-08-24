@@ -1,0 +1,15 @@
+---
+# Applies all zones within a single DNS configuration resource.
+# Included once per named `kind: dns` resource by haven-dns.yml, with
+# `dns_name` and `dns_data` ({description, labels, tags, provider, zones})
+# set by the parent loop.
+
+- name: "Apply zone: {{ zone_item.key }} ({{ dns_name }})"
+  ansible.builtin.include_tasks: apply_zone.yml
+  loop: "{{ dns_data.zones | dict2items }}"
+  loop_control:
+    loop_var: zone_item
+    label: "{{ zone_item.key }}"
+  vars:
+    zone_name: "{{ zone_item.key }}"
+    zone_data: "{{ zone_item.value }}"

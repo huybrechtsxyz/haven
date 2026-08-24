@@ -1,0 +1,86 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: firewall
+meta:
+  name: haven_fw_hetzner_forge
+  annotations:
+    description: Firewall for Forge VPS — k3s API + web ingress from private network; SSH from private network only
+  labels:
+    version: "1.0.0"
+  tags: [haven, firewall, forge, family]
+spec:
+  reset: true
+  defaults:
+    - direction: in
+      permission: deny
+      comment: Deny all incoming traffic by default
+    - direction: out
+      permission: deny
+      comment: Deny all outgoing traffic by default
+  deny:
+  allow:
+    # Essential system services
+    - direction: out
+      proto: udp
+      port: [53]
+      comment: DNS (UDP)
+    - direction: out
+      proto: tcp
+      port: [53]
+      comment: DNS (TCP)
+    - direction: out
+      proto: udp
+      port: [123]
+      comment: NTP
+    - direction: in
+      interface: lo
+      comment: Loopback IN
+    - direction: out
+      interface: lo
+      comment: Loopback OUT
+    # Package management + image pulls + Helm charts
+    - direction: out
+      proto: tcp
+      port: [20, 21]
+      comment: FTP (apt)
+    - direction: out
+      proto: tcp
+      port: [11371]
+      comment: GPG keyserver
+    - direction: out
+      proto: tcp
+      port: [80]
+      comment: HTTP outbound (apt, image pulls, Helm)
+    - direction: out
+      proto: tcp
+      port: [443]
+      comment: HTTPS outbound (apt, image pulls, Helm, OCSP)
+    # BorgBackup + NFS — Hetzner Storage Box uses SSH on port 23
+    - direction: out
+      proto: tcp
+      port: [23]
+      comment: SSH to Storage Box (BorgBackup + NFS mount)
+    # Public web ingress
+    - direction: in
+      proto: tcp
+      port: [80]
+      comment: HTTP (redirect to HTTPS)
+    - direction: in
+      proto: tcp
+      port: [443]
+      comment: HTTPS
+    # Private network — SSH, k3s API, Flannel VXLAN
+    - direction: in
+      proto: tcp
+      port: [22]
+      from: 10.0.0.0/8
+      comment: SSH (private network only)
+    - direction: in
+      proto: tcp
+      port: [6443]
+      from: 10.0.0.0/8
+      comment: k3s API server (private network only)
+    - direction: in
+      proto: udp
+      port: [8472]
+      from: 10.0.0.0/8
+      comment: Flannel VXLAN (private network only)

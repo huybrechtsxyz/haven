@@ -1,0 +1,44 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: deployment
+meta:
+  name: haven_deploy_prd
+  annotations:
+    description: Production deployment for the family platform on Hetzner — Hearth (Docker Compose) + Forge (k3s)
+  labels:
+    version: "1.0.0"
+  tags: [haven, hetzner, family, production, deployment]
+spec:
+  configurations:
+    - name: config
+      file: config/cfg-haven.yaml
+
+  lifecycle: null
+
+  layers:
+    environment: prd
+
+  properties:
+    environment: prd
+
+  workspace:
+    name: haven_platform
+    description: Haven Family Platform Workspace
+    file: "config/ws-haven.yaml"
+
+  environments:
+    - "config/env-haven-prd.yaml"
+
+  stages:
+    # Stage 1 — provision Hearth VPS via Terraform
+    - name: infrastructure_hearth
+      topology: hetzner_hearth
+      scope: all
+      depends_on: null
+      on_failure: stop
+
+    # Stage 2 — provision Forge VPS via Terraform (after Hearth — shared network must exist first)
+    - name: infrastructure_forge
+      topology: hetzner_forge
+      scope: all
+      depends_on: infrastructure_hearth
+      on_failure: stop

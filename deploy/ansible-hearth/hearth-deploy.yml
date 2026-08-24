@@ -1,0 +1,579 @@
+---
+# =============================================================================
+# Playbook: hearth-deploy.yml
+# Idempotent service deployment — runs on every pipeline push.
+# Syncs compose file, Caddyfile, and .env to the server then brings
+# all services up with docker compose up -d --remove-orphans.
+#
+# Prerequisites:
+#   hearth-init.yml and hearth-config.yml must have been run first.
+#
+# Run manually (from repo root):
+#   ansible-playbook deploy/ansible-hearth/hearth-deploy.yml \
+#     -i <hearth_public_ip>, \
+#     --private-key ~/.ssh/haven_ed25519 \
+#     -e @/tmp/deploy_secrets.yml
+#
+# Required extra-vars (pass via -e @file or -e key=value):
+#   authentik_secret_key
+#   authentik_postgresql_password
+#   vaultwarden_admin_token
+#   vaultwarden_sso_client_secret
+#   wud_sso_client_secret
+# =============================================================================
+
+- name: Hearth — deploy Docker Compose services
+  hosts: all
+  remote_user: root
+  gather_facts: false
+
+  vars_files:
+    - vars/main.yml
+
+  tasks:
+    # =========================================================================
+    # Directory structure — ensure service data dirs exist
+    # =========================================================================
+
+    - name: Create service config directories (haven-owned)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0750"
+      loop:
+        - "{{ haven_install_path }}/etc/caddy"
+        - "{{ haven_install_path }}/etc/caddy/config"
+        - "{{ haven_install_path }}/var/data/vaultwarden"
+
+    - name: Create root-owned container data directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - "{{ haven_install_path }}/var/data/portainer"
+
+    # Authentik containers run as uid 1000 (non-root). The media and templates
+    # bind-mount dirs must be owned by 1000:1000 so the container process can
+    # traverse and write them. Using numeric uid/gid avoids a host-user mismatch.
+    - name: Create authentik media and templates dirs (owned by container uid 1000)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "1000"
+        group: "1000"
+        mode: "0750"
+      loop:
+        - "{{ haven_install_path }}/etc/authentik/templates"
+        - "{{ haven_install_path }}/var/data/authentik/media"
+        - "{{ haven_install_path }}/var/data/authentik/media/public"
+
+    # PostgreSQL data dirs must NOT be pre-created with haven ownership.
+    # The postgres image (uid 999) needs to chown and initdb them on first start.
+    # Docker Compose creates bind-mount host paths as root (mode 755) automatically,
+    # which allows the postgres entrypoint to take ownership.
+    - name: Ensure parent dirs for postgres data exist (root-owned)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - "{{ haven_install_path }}/var/data/authentik"
+
+    # =========================================================================
+    # Sync build artifacts — compose file and Caddyfile
+    # =========================================================================
+
+    - name: Copy docker-compose.yml to server
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../build/{{ deployment_name }}/hearth/docker-compose.yml"
+        dest: "{{ haven_install_path }}/etc/docker-compose.yml"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0640"
+
+    - name: Copy Caddyfile to server
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../services/hearth/caddy/Caddyfile"
+        dest: "{{ haven_install_path }}/etc/caddy/Caddyfile"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0640"
+      register: copy_caddyfile
+
+    # =========================================================================
+    # .env file — secrets injected at deploy time, never committed
+    # =========================================================================
+
+    - name: Write .env file with service secrets
+      ansible.builtin.copy:
+        dest: "{{ haven_install_path }}/etc/.env"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0600"
+        content: |
+          AUTHENTIK_SECRET_KEY={{ authentik_secret_key }}
+          AUTHENTIK_POSTGRESQL__PASSWORD={{ authentik_postgresql_password }}
+          VAULTWARDEN_ADMIN_TOKEN={{ vaultwarden_admin_token }}
+          VAULTWARDEN_SSO_CLIENT_SECRET={{ vaultwarden_sso_client_secret }}
+          WUD_SSO_CLIENT_SECRET={{ wud_sso_client_secret }}
+      no_log: true
+
+    - name: Verify .env keys (values masked)
+      ansible.builtin.shell:
+        cmd: |
+          echo "=== .env keys present on server ==="
+          while IFS='=' read -r key value; do
+            [ -z "$key" ] && continue
+            [[ "$key" =~ ^# ]] && continue
+            echo "  ✓ ${key}=$(echo "$value" | head -c3)***"
+          done < "{{ haven_install_path }}/etc/.env"
+          echo "=== end .env ==="
+        executable: /bin/bash
+      changed_when: false
+
+    # =========================================================================
+    # Docker Compose — pull images and bring services up
+    # =========================================================================
+
+    # Stop any lingering compose stacks from previous runs (e.g. wrong project name)
+    # and forcibly release ports 80/443 before we bring up Caddy.
+    - name: Stop any old etc-prefixed compose stack (pre-project-name fix)
+      ansible.builtin.shell:
+        cmd: |
+          docker compose -p etc down --remove-orphans 2>/dev/null || true
+          docker compose -p haven_deploy_prd down --remove-orphans 2>/dev/null || true
+      changed_when: false
+
+    - name: Release ports 80 and 443 before starting services
+      ansible.builtin.shell:
+        cmd: |
+          fuser -k 80/tcp 2>/dev/null || true
+          fuser -k 443/tcp 2>/dev/null || true
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Wipe Portainer data (full_restart only — forces fresh admin setup)
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/var/data/portainer"
+        state: absent
+      when: full_restart | default(false) | bool
+
+    - name: Recreate Portainer data directory after wipe
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/var/data/portainer"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      when: full_restart | default(false) | bool
+
+    # Vaultwarden stores runtime config in data/config.json which takes
+    # precedence over env vars. Delete it before every deploy so env vars
+    # (DOMAIN, SSO_*) are always authoritative. Vaultwarden recreates it.
+    - name: Remove Vaultwarden config.json so env vars take effect
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/var/data/vaultwarden/config.json"
+        state: absent
+
+    - name: Pull latest Docker images
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          --env-file {{ haven_install_path }}/etc/.env
+          pull
+      register: compose_pull
+      changed_when: true
+      ignore_errors: true
+
+    - name: Show image pull output
+      ansible.builtin.debug:
+        var: compose_pull.stdout_lines
+
+    - name: Start / update services (up -d)
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          --env-file {{ haven_install_path }}/etc/.env
+          up -d --remove-orphans
+      register: compose_up
+      changed_when: true
+
+    - name: Show compose up output
+      ansible.builtin.debug:
+        var: compose_up.stdout_lines
+
+    - name: Show deployed docker-compose.yml
+      ansible.builtin.shell:
+        cmd: cat {{ haven_install_path }}/etc/docker-compose.yml
+      register: compose_file_content
+      changed_when: false
+
+    - name: Display docker-compose.yml
+      ansible.builtin.debug:
+        var: compose_file_content.stdout_lines
+
+    # =========================================================================
+    # Caddy — force-recreate only when compose file changed (to apply network
+    # alias changes). Aliases are stable once applied so this is a no-op on
+    # normal deploys. Must happen BEFORE WUD restart so Caddy is ready when
+    # WUD fetches the OIDC discovery document.
+    # =========================================================================
+
+    - name: Force-recreate Caddy to apply network alias changes
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          --env-file {{ haven_install_path }}/etc/.env
+          up -d --force-recreate caddy
+      when: compose_up.changed
+      changed_when: true
+
+    - name: Wait for Caddy to be ready after recreate
+      ansible.builtin.pause:
+        seconds: 10
+      when: compose_up.changed
+
+    - name: Show Caddy network aliases (verify aliases applied)
+      ansible.builtin.command:
+        cmd: docker inspect haven-caddy-1 --format '{{ "{{" }}json .NetworkSettings.Networks{{ "}}" }}'
+      register: caddy_networks
+      changed_when: false
+      failed_when: false
+
+    - name: Display Caddy network aliases
+      ansible.builtin.debug:
+        var: caddy_networks.stdout
+
+    # Restart authentik containers so they pick up the correct /media ownership.
+    # docker compose up -d skips containers whose config hasn't changed, so
+    # without an explicit restart the old gunicorn process keeps the stale state.
+    - name: Restart authentik-server and authentik-worker
+      ansible.builtin.command:
+        cmd: docker restart haven-authentik-server-1 haven-authentik-worker-1
+      changed_when: true
+
+    # Wait for Authentik to be healthy before restarting WUD.
+    # WUD only registers OIDC once at startup — if Authentik isn't ready
+    # then, OIDC silently fails and SSO never works for that session.
+    # Port 9000 is not exposed to the host so we check Docker's own health status.
+    - name: Wait for Authentik server to report healthy
+      ansible.builtin.command:
+        cmd: docker inspect --format "{{ '{{' }}.State.Health.Status{{ '}}' }}" haven-authentik-server-1
+      register: authentik_health
+      until: authentik_health.stdout | trim == "healthy"
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Restart WUD so it can register OIDC now that Authentik is ready
+      ansible.builtin.command:
+        cmd: docker restart haven-wud-1
+      changed_when: true
+
+    - name: Find existing LE production TLS certificates
+      ansible.builtin.find:
+        paths: "{{ haven_install_path }}/var/certs/caddy/certificates/acme-v02.api.letsencrypt.org-directory"
+        recurse: true
+        patterns: "*.crt"
+      register: existing_certs
+      failed_when: false
+
+    - name: Reload Caddy config (Caddyfile changed or no valid LE certs found)
+      ansible.builtin.command:
+        cmd: docker exec haven-caddy-1 caddy reload --config /etc/caddy/Caddyfile
+      when: copy_caddyfile.changed or (existing_certs.matched | default(0)) == 0
+      changed_when: true
+
+    # =========================================================================
+    # Diagnostics — show container state and logs for debugging
+    # =========================================================================
+
+    - name: Wait 60 seconds for containers to stabilise and ACME to complete
+      ansible.builtin.pause:
+        seconds: 60
+
+    - name: Show all container states
+      ansible.builtin.command:
+        cmd: docker ps -a --format "table {{'{{'}}.Names{{'}}'}}\t{{'{{'}}.Status{{'}}'}}\t{{'{{'}}.Ports{{'}}'}}"
+      register: container_states
+      changed_when: false
+
+    - name: Display container states
+      ansible.builtin.debug:
+        var: container_states.stdout_lines
+
+    - name: Capture authentik-db logs
+      ansible.builtin.command:
+        cmd: docker logs haven-authentik-db-1 --tail 50
+      register: authentik_db_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display authentik-db logs
+      ansible.builtin.debug:
+        var: authentik_db_logs.stdout_lines
+
+    - name: Display authentik-db error logs
+      ansible.builtin.debug:
+        var: authentik_db_logs.stderr_lines
+      when: authentik_db_logs.stderr_lines | default([]) | length > 0
+
+    - name: Capture authentik-worker logs
+      ansible.builtin.shell:
+        cmd: docker logs haven-authentik-worker-1 --tail 100 2>&1
+      register: authentik_worker_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display authentik-worker logs
+      ansible.builtin.debug:
+        var: authentik_worker_logs.stdout_lines
+
+    - name: Capture authentik-server logs
+      ansible.builtin.shell:
+        cmd: docker logs haven-authentik-server-1 --tail 50 2>&1
+      register: authentik_server_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display authentik-server logs
+      ansible.builtin.debug:
+        var: authentik_server_logs.stdout_lines
+
+    - name: Capture caddy logs
+      ansible.builtin.shell:
+        cmd: docker logs haven-caddy-1 --tail 200 2>&1
+      register: caddy_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display caddy logs (stdout + stderr)
+      ansible.builtin.debug:
+        var: caddy_logs.stdout_lines
+
+    - name: Verify WUD OIDC env vars inside container
+      ansible.builtin.shell:
+        cmd: docker exec haven-wud-1 env 2>/dev/null | grep -i "WUD_AUTH_OIDC\|WUD_PUBLIC_URL" || echo "NO OIDC ENV VARS FOUND"
+      register: wud_env_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display WUD OIDC env vars
+      ansible.builtin.debug:
+        var: wud_env_check.stdout_lines
+
+    - name: Capture WUD logs
+      ansible.builtin.shell:
+        cmd: docker logs haven-wud-1 --tail 50 2>&1
+      register: wud_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Display WUD logs
+      ansible.builtin.debug:
+        var: wud_logs.stdout_lines
+
+    - name: Check port 80 reachability from runner
+      ansible.builtin.shell:
+        cmd: curl -sS -o /dev/null -w "%{http_code}" --max-time 10 http://{{ ansible_host }}/ || echo "FAILED"
+      register: port80_check
+      changed_when: false
+      failed_when: false
+      delegate_to: localhost
+
+    - name: Display port 80 check result
+      ansible.builtin.debug:
+        msg: "Port 80 HTTP response code: {{ port80_check.stdout }}"
+
+    - name: Check TLS certificate status for all domains
+      ansible.builtin.shell:
+        cmd: |
+          for domain in auth.huybrechts.xyz vault.huybrechts.xyz portainer.huybrechts.xyz wud.huybrechts.xyz; do
+            echo "=== $domain ==="
+            echo | openssl s_client -connect "$domain:443" -servername "$domain" 2>&1 \
+              | openssl x509 -noout -issuer -subject -dates 2>/dev/null \
+              || echo "  [no valid cert yet]"
+          done
+        executable: /bin/bash
+      register: cert_check
+      changed_when: false
+      failed_when: false
+      delegate_to: localhost
+
+    - name: Display TLS cert status
+      ansible.builtin.debug:
+        var: cert_check.stdout_lines
+
+    # =========================================================================
+    # Health — wait for services to be healthy
+    # =========================================================================
+
+    # Wait for the container to be in 'running' state before attempting exec.
+    # A restarting container returns an error from 'docker compose exec'.
+    - name: Wait for authentik-db container to reach running state
+      ansible.builtin.command:
+        cmd: docker ps -q --filter name=haven-authentik-db-1 --filter status=running
+      register: authentik_db_running
+      until: authentik_db_running.stdout | trim != ''
+      retries: 30
+      delay: 5
+      changed_when: false
+
+    - name: Wait for authentik-db to accept connections
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          --env-file {{ haven_install_path }}/etc/.env
+          exec -T authentik-db pg_isready -d authentik -U authentik
+      register: authentik_db_ready
+      until: authentik_db_ready.rc == 0
+      retries: 20
+      delay: 5
+      changed_when: false
+
+    # =========================================================================
+    # Validation — post-deploy diagnostics
+    # =========================================================================
+    # All container-level checks run here, after docker compose up has started
+    # all services. Read this output to spot mount, config, or runtime issues.
+
+    # ----- Container states -----
+
+    - name: "Validate: All container states"
+      ansible.builtin.shell:
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          ps --format "table {{ '{{' }}.Name{{ '}}' }}\t{{ '{{' }}.Status{{ '}}' }}\t{{ '{{' }}.Ports{{ '}}' }}" 2>&1
+      register: deploy_container_states
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show container states"
+      ansible.builtin.debug:
+        var: deploy_container_states.stdout_lines
+
+    # ----- Caddy -----
+
+    - name: "Validate: Caddyfile inside caddy container"
+      ansible.builtin.shell:
+        cmd: docker exec haven-caddy-1 cat /etc/caddy/Caddyfile 2>&1 | head -40
+      register: caddy_caddyfile_inside
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show Caddyfile inside container (first 40 lines)"
+      ansible.builtin.debug:
+        var: caddy_caddyfile_inside.stdout_lines
+
+    - name: "Validate: Caddy TLS certificate storage"
+      ansible.builtin.shell:
+        cmd: ls -la {{ haven_install_path }}/var/certs/ 2>&1 | head -20
+      register: caddy_certs
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show Caddy cert storage"
+      ansible.builtin.debug:
+        var: caddy_certs.stdout_lines
+
+    # ----- Authentik -----
+
+    - name: "Validate: Blueprint inside authentik-worker container"
+      ansible.builtin.shell:
+        cmd: docker exec haven-authentik-worker-1 ls -la /blueprints/custom/ 2>&1
+      register: blueprint_container_ls
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show blueprint container listing"
+      ansible.builtin.debug:
+        var: blueprint_container_ls.stdout_lines
+
+    - name: "Validate: Authentik-worker volume mounts"
+      ansible.builtin.shell:
+        cmd: >
+          docker inspect haven-authentik-worker-1
+          --format '{{ '{{' }} json .Mounts {{ '}}' }}' 2>&1 | python3 -m json.tool
+      register: worker_mounts
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show authentik-worker mounts"
+      ansible.builtin.debug:
+        var: worker_mounts.stdout_lines
+
+    - name: "Validate: Blueprint-related entries in worker logs"
+      ansible.builtin.shell:
+        cmd: >
+          docker logs haven-authentik-worker-1 --tail 200 2>&1
+          | grep -i "blueprint" || echo "NO BLUEPRINT LOG ENTRIES FOUND"
+      register: blueprint_worker_logs
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show blueprint worker log entries"
+      ansible.builtin.debug:
+        var: blueprint_worker_logs.stdout_lines
+
+    - name: "Validate: Authentik DB connectivity"
+      ansible.builtin.shell:
+        cmd: docker exec haven-authentik-db-1 pg_isready -d authentik -U authentik 2>&1
+      register: authentik_db_check
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show authentik DB status"
+      ansible.builtin.debug:
+        var: authentik_db_check.stdout_lines
+
+    # ----- Vaultwarden -----
+
+    - name: "Validate: Vaultwarden data directory"
+      ansible.builtin.shell:
+        cmd: ls -la {{ haven_install_path }}/var/data/vaultwarden/ 2>&1 | head -20
+      register: vaultwarden_data
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show Vaultwarden data listing"
+      ansible.builtin.debug:
+        var: vaultwarden_data.stdout_lines
+
+    - name: "Validate: Vaultwarden config.json absent (env vars authoritative)"
+      ansible.builtin.stat:
+        path: "{{ haven_install_path }}/var/data/vaultwarden/config.json"
+      register: vw_config_json
+
+    - name: "Validate: Show Vaultwarden config.json status"
+      ansible.builtin.debug:
+        msg: "config.json exists={{ vw_config_json.stat.exists | default(false) }} — should be false (env vars are authoritative; Vaultwarden regenerates on startup)"
+
+    # ----- Portainer -----
+
+    - name: "Validate: Portainer data directory"
+      ansible.builtin.shell:
+        cmd: ls -la {{ haven_install_path }}/var/data/portainer/ 2>&1 | head -10
+      register: portainer_data
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show Portainer data listing"
+      ansible.builtin.debug:
+        var: portainer_data.stdout_lines

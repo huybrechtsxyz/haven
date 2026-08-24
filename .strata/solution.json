@@ -6,6 +6,23 @@
   },
   "spec": {
     "solution_id": "7de99a3b-3dab-43da-9162-c621cdaf383c",
+    "repositories": [
+      {
+        "name": "haven",
+        "url": "https://github.com/huybrechtsxyz/haven.git",
+        "path": ".",
+        "type": "gitops",
+        "branch": "main",
+        "created": "2026-08-01T17:40:13.677070+00:00"
+      }
+    ],
+    "deployments": [
+      {
+        "name": "haven_deploy_prd",
+        "path": "config\\deployment.yaml",
+        "created": "2026-08-01T20:48:43.548202+00:00"
+      }
+    ],
     "profiles": [
       {
         "name": "prd",
@@ -14,12 +31,19 @@
         "configfile_paths": [
           {
             "name": "config",
-            "path": "config/cfg-haven.yaml",
+            "path": "config/configuration.yaml",
             "type": "configfile",
-            "created": "2026-05-21T13:08:37.486604+00:00"
+            "created": "2026-08-01T14:12:48.096801+00:00"
           }
         ],
-        "envfile_paths": [],
+        "envfile_paths": [
+          {
+            "name": "environment",
+            "path": "config/environment.yaml",
+            "type": "envfile",
+            "created": "2026-08-01T20:48:29.793238+00:00"
+          }
+        ],
         "datafile_paths": [],
         "secretfile_paths": []
       }

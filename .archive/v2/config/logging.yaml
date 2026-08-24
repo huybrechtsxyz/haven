@@ -1,0 +1,41 @@
+# ===============================================================================
+# Production Logging Configuration - File only
+# ===============================================================================
+# JSON rotating file — scraped by Promtail/Alloy and shipped to Loki.
+# No console output. No remote handlers.
+# ===============================================================================
+
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  json:
+    (): strata.logger.formatters.JsonFormatter
+
+handlers:
+  file:
+    class: logging.handlers.RotatingFileHandler
+    level: INFO
+    formatter: json
+    filename: .strata/logs/application.json
+    maxBytes: 52428800 # 50MB
+    backupCount: 10
+    encoding: utf8
+
+loggers:
+  strata:
+    level: INFO
+    handlers: [file]
+    propagate: false
+
+  # Reduce third-party noise
+  urllib3:
+    level: ERROR
+  requests:
+    level: ERROR
+  paramiko:
+    level: ERROR
+
+root:
+  level: WARNING
+  handlers: [file]

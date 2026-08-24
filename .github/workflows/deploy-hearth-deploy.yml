@@ -1,0 +1,178 @@
+# ==============================================================================
+# Workflow: Hearth — Deploy (Docker Compose services)
+# ==============================================================================
+# Deploys/updates the Hearth Docker Compose stack (Caddy, Authentik,
+# Vaultwarden, Portainer, WUD). Run after deploy-hearth-config.yml on every
+# routine deploy.
+#
+# Prerequisites: deploy-hearth-init.yml and deploy-hearth-config.yml must
+# have run at least once.
+# ==============================================================================
+
+name: 23 - Hearth - Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Confirm branch to deploy (must match the branch this workflow runs on)"
+        type: string
+        required: true
+      dry_run:
+        description: "Dry run (skip playbook execution)"
+        type: boolean
+        default: false
+      full_restart:
+        description: "Stop ALL containers before deploying (clean restart — use when containers have stale state)"
+        type: boolean
+        default: false
+      backup_before_deploy:
+        description: "Run a BorgBackup snapshot before deploying (requires configure_borg=true on server)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  STRATA_OUTPUT: json
+  DEPLOYMENT_FILE: "config/deployment.yaml"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  hearth-deploy:
+    name: Deploy Hearth
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      # ------------------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # ------------------------------------------------------------------
+      # Safety: block main branch deployments
+      # ------------------------------------------------------------------
+      - name: Block deployment from main branch
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "::error::Deployment from 'main' is blocked. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" = "main" ]; then
+            echo "::error::Branch input cannot be 'main'. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" != "${{ github.ref_name }}" ]; then
+            echo "::error::Branch input '${{ inputs.branch }}' does not match the running branch '${{ github.ref_name }}'. Re-run from the correct branch."
+            exit 1
+          fi
+
+      # ------------------------------------------------------------------
+      # Network setup — get IP, open SSH on Hearth firewall
+      # ------------------------------------------------------------------
+      - name: Open temporary SSH access
+        id: ssh
+        uses: ./.github/actions/hetzner-ssh-open
+        with:
+          hetzner_api_token: ${{ secrets.HETZNER_API_TOKEN }}
+          server_name: haven-platform-hearth
+          firewall_name: haven-platform-fw-hearth
+          dry_run: ${{ inputs.dry_run }}
+
+      # ------------------------------------------------------------------
+      # Ansible setup
+      # ------------------------------------------------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install Ansible
+        if: ${{ inputs.dry_run != true }}
+        run: pip install ansible-core
+
+      - name: Install strata
+        if: ${{ inputs.dry_run != true }}
+        run: pip install "xyz-strata==1.6.1"
+
+      - name: Write deploy SSH private key
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_PRIVATE_KEY }}" > ~/.ssh/haven_ed25519
+          chmod 600 ~/.ssh/haven_ed25519
+
+      # ------------------------------------------------------------------
+      # Full restart (optional — clean slate before redeploy)
+      # ------------------------------------------------------------------
+      - name: Stop all haven containers
+        if: ${{ inputs.full_restart == true && inputs.dry_run != true }}
+        run: |
+          ssh -i ~/.ssh/haven_ed25519 -o StrictHostKeyChecking=no \
+            root@${{ steps.ssh.outputs.server_ip }} \
+            "docker compose --project-name haven -f /opt/haven/etc/docker-compose.yml down || true"
+
+      # ------------------------------------------------------------------
+      # Pre-deploy backup (optional)
+      # ------------------------------------------------------------------
+      - name: Run pre-deploy backup
+        if: ${{ inputs.backup_before_deploy == true && inputs.dry_run != true }}
+        run: |
+          ansible all \
+            -i "${{ steps.ssh.outputs.server_ip }}," \
+            -u root \
+            --private-key ~/.ssh/haven_ed25519 \
+            -m command \
+            -a "/opt/haven/scripts/backup.sh"
+
+      # ------------------------------------------------------------------
+      # Deploy (Docker Compose services)
+      # ------------------------------------------------------------------
+      - name: Write Ansible vars file for deploy secrets
+        if: ${{ inputs.dry_run != true }}
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
+        run: |
+          VALUES=$(strata values get AUTHENTIK_SECRET_KEY AUTHENTIK_POSTGRESQL__PASSWORD VAULTWARDEN_ADMIN_ARGON VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          AUTHENTIK_KEY=$(echo "$VALUES" | jq -r '.data.results.AUTHENTIK_SECRET_KEY')
+          AUTHENTIK_DB_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.AUTHENTIK_POSTGRESQL__PASSWORD')
+          VAULTWARDEN_TOKEN=$(echo "$VALUES" | jq -r '.data.results.VAULTWARDEN_ADMIN_ARGON')
+          VAULTWARDEN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.VAULTWARDEN_SSO_CLIENT_SECRET')
+          WUD_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.WUD_SSO_CLIENT_SECRET')
+          cat > /tmp/deploy_vars.yml << VARSEOF
+          authentik_secret_key: "$AUTHENTIK_KEY"
+          authentik_postgresql_password: "$AUTHENTIK_DB_PASSWORD"
+          vaultwarden_admin_token: "$VAULTWARDEN_TOKEN"
+          vaultwarden_sso_client_secret: "$VAULTWARDEN_SSO_SECRET"
+          wud_sso_client_secret: "$WUD_SSO_SECRET"
+          VARSEOF
+
+      - name: Run hearth-deploy playbook
+        if: ${{ inputs.dry_run != true }}
+        working-directory: deploy/ansible-hearth
+        run: |
+          ansible-playbook hearth-deploy.yml \
+            -i "${{ steps.ssh.outputs.server_ip }}," \
+            --private-key ~/.ssh/haven_ed25519 \
+            -e full_restart=${{ inputs.full_restart }} \
+            -e @/tmp/deploy_vars.yml
+
+      - name: Clean up deploy vars file
+        if: ${{ always() && inputs.dry_run != true }}
+        run: rm -f /tmp/deploy_vars.yml
+
+      # ------------------------------------------------------------------
+      # Cleanup — always remove temporary SSH rule
+      # ------------------------------------------------------------------
+      - name: Close temporary SSH access
+        if: ${{ always() }}
+        uses: ./.github/actions/hetzner-ssh-close
+        with:
+          hetzner_api_token: ${{ secrets.HETZNER_API_TOKEN }}
+          firewall_id: ${{ steps.ssh.outputs.firewall_id }}
+          dry_run: ${{ inputs.dry_run }}

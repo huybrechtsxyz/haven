@@ -1,0 +1,4 @@
+---
+collections:
+  - name: inwx.collection
+    version: ">=1.4.0"

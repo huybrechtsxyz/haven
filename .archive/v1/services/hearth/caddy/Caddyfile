@@ -1,0 +1,35 @@
+{
+    # Global options
+    email admin@huybrechts.xyz
+    acme_ca https://acme-v02.api.letsencrypt.org/directory
+}
+
+# Authentik — Identity Provider & SSO
+auth.huybrechts.xyz {
+    reverse_proxy authentik-server:9000
+}
+
+# Vaultwarden — Password Manager
+vault.huybrechts.xyz {
+    reverse_proxy vaultwarden:80
+}
+
+# Infisical — Secrets Manager
+secrets.huybrechts.xyz {
+    reverse_proxy infisical:8080
+}
+
+# Portainer — Container Management
+portainer.huybrechts.xyz {
+    reverse_proxy portainer:9443 {
+        transport http {
+            tls_insecure_skip_verify
+        }
+        header_up Origin {scheme}://{host}
+    }
+}
+
+# WUD — Container Update Notifications
+wud.huybrechts.xyz {
+    reverse_proxy wud:3000
+}

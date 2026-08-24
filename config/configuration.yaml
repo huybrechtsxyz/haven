@@ -12,7 +12,7 @@ spec:
   # Logging
   # ---------------------------------------------------------------------------
   logging:
-    file: "config/cfg-logging.yaml"
+    file: "config/logging.yaml"
 
   # ---------------------------------------------------------------------------
   # Deployment layering — single environment layer
@@ -60,6 +60,17 @@ spec:
       authentication:
         method: cli
 
+    - name: infisical
+      type: infisical
+      capabilities: [secrets]
+      description: Infisical secrets manager — Universal Auth machine identity
+      required: true
+      authentication:
+        method: oauth2
+        oauth2:
+          client_id: INFISICAL_CLIENT_ID
+          client_secret: INFISICAL_CLIENT_SECRET
+
   # ---------------------------------------------------------------------------
   # Providers
   # ---------------------------------------------------------------------------
@@ -98,7 +109,7 @@ spec:
   additional_topologies: false
   topologies:
     - type: single_node
-      description: Single-node Docker Compose host (Hearth — Caddy, Authentik, Vaultwarden, Infisical)
+      description: Single-node Docker Compose host (Hearth — Caddy, Authentik, Vaultwarden, Portainer, WUD)
       additional_components: false
       components:
         - role: node

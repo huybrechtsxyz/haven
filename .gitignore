@@ -48,3 +48,4 @@ node_modules/
 ERRORS.md
 
 .strata/cli.yaml
+.strata/cache/model/cache.db

@@ -14,11 +14,6 @@ vault.huybrechts.xyz {
     reverse_proxy vaultwarden:80
 }
 
-# Infisical — Secrets Manager
-secrets.huybrechts.xyz {
-    reverse_proxy infisical:8080
-}
-
 # Portainer — Container Management
 portainer.huybrechts.xyz {
     reverse_proxy portainer:9443 {

@@ -1,0 +1,36 @@
+---
+# Applies all records within a single DNS zone (domain) to INWX.
+# Included once per zone by apply_dns_config.yml, with `zone_name` (the
+# domain, e.g. "huybrechts.xyz") and `zone_data` ({ttl, records}) set by
+# the parent loop.
+
+- name: "Warn on unresolved var:/secret: records ({{ zone_name }})"
+  ansible.builtin.debug:
+    msg: >-
+      Skipping {{ item.type }} record '{{ item.name }}' in zone '{{ zone_name }}' —
+      no literal value in the generated vars (this record is sourced from
+      var:/secret: in the kind: dns YAML; strata's Ansible builder only
+      carries records with a literal `value:` today). Apply this record
+      manually, or add a literal value / extend strata's ansible_builder.
+  loop: "{{ zone_data.records }}"
+  loop_control:
+    label: "{{ item.type }} {{ item.name }}"
+  when: item.value is not defined or item.value is none
+
+- name: "Apply DNS record ({{ zone_name }})"
+  inwx.collection.dns:
+    domain: "{{ zone_name }}"
+    record: "{{ '' if item.name == '@' else item.name }}"
+    type: "{{ item.type }}"
+    value: "{{ item.value }}"
+    ttl: "{{ item.ttl | default(zone_data.ttl, true) }}"
+    priority: "{{ item.priority | default(omit) }}"
+    username: "{{ inwx_username }}"
+    password: "{{ inwx_password }}"
+    api_env: "{{ inwx_api_env | default('live') }}"
+    state: present
+  loop: "{{ zone_data.records }}"
+  loop_control:
+    label: "{{ item.type }} {{ item.name }}"
+  when: item.value is defined and item.value is not none
+  no_log: true

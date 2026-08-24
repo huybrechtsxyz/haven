@@ -6,11 +6,12 @@
 #
 # Run order (full stack from scratch):
 #   1. deploy-infra.yml   (this file — terraform + S3)
-#   2. deploy-hearth.yml  (server init + config + Docker Compose deploy)
+#   2. deploy-hearth-init.yml / deploy-hearth-config.yml / deploy-hearth-deploy.yml
+#      (server init + config + Docker Compose deploy)
 #   3. deploy-forge.yml   (server init + config + k3s deploy)
 # ==============================================================================
 
-name: Infra - haven
+name: 10 - Infra - haven
 
 on:
   workflow_dispatch:
@@ -38,7 +39,7 @@ permissions:
 env:
   STRATA_OUTPUT: json
   STRATA_WORK_PATH: ${{ github.workspace }}
-  DEPLOYMENT_FILE: "config/deploy-haven-prd.yaml"
+  DEPLOYMENT_FILE: "config/deployment.yaml"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -81,7 +82,7 @@ jobs:
           python-version: "3.13"
 
       - name: Install strata
-        run: pip install "xyz-strata==0.1.1"
+        run: pip install "xyz-strata==1.6.1"
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v4
@@ -120,30 +121,16 @@ jobs:
 
       - name: Deploy infrastructure
         env:
+          # Terraform Cloud auth (read directly by the terraform/tofu CLI — not a strata-resolved secret)
           TERRAFORM_API_TOKEN: ${{ secrets.TERRAFORM_API_TOKEN }}
           TF_TOKEN_app_terraform_io: ${{ secrets.TERRAFORM_API_TOKEN }}
-          TF_VAR_HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
-          TF_VAR_HETZNER_PUBLIC_KEY: ${{ secrets.HETZNER_PUBLIC_KEY }}
-          TF_VAR_HETZNER_PRIVATE_KEY: ${{ secrets.HETZNER_PRIVATE_KEY }}
-          TF_VAR_HEARTH_SSH_PRIVATE_KEY: ${{ secrets.HETZNER_PRIVATE_KEY }}
-          TF_VAR_HETZNER_ROOT_PASSWORD: ${{ secrets.HETZNER_ROOT_PASSWORD }}
-          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
-          HETZNER_PUBLIC_KEY: ${{ secrets.HETZNER_PUBLIC_KEY }}
-          HETZNER_PRIVATE_KEY: ${{ secrets.HETZNER_PRIVATE_KEY }}
-          HETZNER_ROOT_PASSWORD: ${{ secrets.HETZNER_ROOT_PASSWORD }}
-          HETZNER_STORAGEBOX_PASSWORD: ${{ secrets.HETZNER_STORAGEBOX_PASSWORD }}
-          HEALTHCHECK_PING_URL_BACKUP: ${{ vars.HEALTHCHECK_PING_URL_BACKUP }}
-          STORAGEBOX_HOST: ${{ vars.STORAGEBOX_HOST }}
-          STORAGEBOX_SUBACCOUNT_HEARTH: ${{ vars.STORAGEBOX_SUBACCOUNT_HEARTH }}
-          BORG_PASSPHRASE: ${{ secrets.BORG_PASSPHRASE }}
-          AUTHENTIK_SECRET_KEY: ${{ secrets.AUTHENTIK_SECRET_KEY }}
-          AUTHENTIK_POSTGRESQL_PASSWORD: ${{ secrets.AUTHENTIK_POSTGRESQL_PASSWORD }}
-          VAULTWARDEN_ADMIN_TOKEN: ${{ secrets.VAULTWARDEN_ADMIN_TOKEN }}
-          VAULTWARDEN_SSO_CLIENT_SECRET: ${{ secrets.VAULTWARDEN_SSO_CLIENT_SECRET }}
-          INFISICAL_AUTH_SECRET: ${{ secrets.INFISICAL_AUTH_SECRET }}
-          INFISICAL_ENCRYPTION_KEY: ${{ secrets.INFISICAL_ENCRYPTION_KEY }}
-          INFISICAL_POSTGRESQL_PASSWORD: ${{ secrets.INFISICAL_POSTGRESQL_PASSWORD }}
-          WUD_SSO_CLIENT_SECRET: ${{ secrets.WUD_SSO_CLIENT_SECRET }}
+          # Infisical Cloud machine identity — lets strata resolve every `store: infisical`
+          # secret declared in config/environment.yaml at deploy time. The terraform deployer
+          # auto-injects each resolved secret as TF_VAR_<key> before plan/apply/destroy — no
+          # manual TF_VAR_* wiring needed here (see strata's inject_tf_vars()).
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
           ARGS="--file $DEPLOYMENT_FILE --force"
           if [ "${{ inputs.dry_run }}" = "true" ]; then
@@ -153,6 +140,25 @@ jobs:
             ARGS="$ARGS --stage ${{ inputs.stage }}"
           fi
           strata deploy run $ARGS
+
+      - name: Show terraform plan (human-readable)
+        env:
+          # terraform show re-reads provider schemas via the cloud {} backend, same auth as plan/apply
+          TERRAFORM_API_TOKEN: ${{ secrets.TERRAFORM_API_TOKEN }}
+          TF_TOKEN_app_terraform_io: ${{ secrets.TERRAFORM_API_TOKEN }}
+        run: |
+          TF_DIR=$(find build -type d -name terraform | head -n1)
+          if [ -z "$TF_DIR" ]; then
+            echo "No terraform build directory found — skipping plan display."
+            exit 0
+          fi
+          cd "$TF_DIR"
+          shopt -s nullglob
+          for f in *.tfplan; do
+            echo "::group::Terraform plan — $f"
+            terraform show "$f"
+            echo "::endgroup::"
+          done
 
       # ------------------------------------------------------------------
       # S3 bucket provisioning (run_s3=true)
