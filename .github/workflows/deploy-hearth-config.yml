@@ -81,7 +81,11 @@ jobs:
         if: ${{ inputs.dry_run != true }}
         uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.6.1
         with:
-          strata-version: "1.6.1"
+          # See deploy-infra.yml for why this must be '==1.6.1', not a bare '1.6.1'.
+          strata-version: "==1.6.1"
+        env:
+          # See deploy-infra.yml for why this is set — no-op on GitHub-hosted runners.
+          UV_INDEX_STRATEGY: unsafe-best-match
 
       - name: Install Ansible
         if: ${{ inputs.dry_run != true }}
