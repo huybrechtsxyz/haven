@@ -1,15 +1,19 @@
 # ==============================================================================
 # Workflow: Forge — Config + Deploy (k3s)
 # ==============================================================================
-# Manages the Forge VPS: init (k3s, NFS, BorgBackup), config enforcement,
-# and k3s workload deployment (Helm charts).
+# Manages the Forge VPS after one-time init (see deploy-forge-init.yml):
+# idempotent config enforcement and k3s workload deployment (Helm charts).
 # Temporarily opens SSH on the Forge firewall for the runner IP, runs
 # the selected Ansible playbooks, then always removes the rule.
 #
-# Prerequisites: deploy-infra.yml must have run at least once (VPS exists).
+# Prerequisites: deploy-infra.yml and deploy-forge-init.yml must have run
+# at least once (VPS exists and is initialised).
+#
+# NOTE: forge-config.yml / forge-deploy.yml Ansible playbooks do not exist
+# yet — the steps below are placeholders until those are authored.
 # ==============================================================================
 
-name: Forge - haven
+name: 32 - Forge - Config + Deploy
 
 on:
   workflow_dispatch:
@@ -20,18 +24,6 @@ on:
         required: true
       dry_run:
         description: "Dry run (skip playbook execution)"
-        type: boolean
-        default: false
-      run_init:
-        description: "Run one-time server initialisation (forge-init — k3s, NFS mount, BorgBackup key)"
-        type: boolean
-        default: false
-      configure_borg:
-        description: "Initialise BorgBackup repo on Storage Box (run only after SSH key is authorised in Hetzner Robot)"
-        type: boolean
-        default: false
-      configure_nfs:
-        description: "Mount Storage Box NFS share at /mnt/storagebox (requires storagebox_nfs_share)"
         type: boolean
         default: false
       run_config:
@@ -51,7 +43,7 @@ env:
 
 jobs:
   forge:
-    name: Deploy Forge
+    name: Config + Deploy Forge
     runs-on: ubuntu-latest
     environment: production
 
@@ -81,66 +73,16 @@ jobs:
           fi
 
       # ------------------------------------------------------------------
-      # Network setup — get IPs, open SSH on Forge firewall
+      # Network setup — get IP, open SSH on Forge firewall
       # ------------------------------------------------------------------
-      - name: Get runner public IP
-        id: runner_ip
-        run: echo "ip=$(curl -sf https://api.ipify.org)" >> $GITHUB_OUTPUT
-
-      - name: Get Forge server public IP
-        id: forge_ip
-        env:
-          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
-        run: |
-          ip=$(curl -sf \
-            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
-            "https://api.hetzner.cloud/v1/servers?name=haven-platform-forge" \
-            | jq -r '.servers[0].public_net.ipv4.ip')
-          if [ -z "$ip" ] || [ "$ip" = "null" ]; then
-            echo "::error::Forge server not found. Run deploy-infra.yml first."
-            exit 1
-          fi
-          echo "ip=$ip" >> $GITHUB_OUTPUT
-
-      - name: Get Forge firewall ID
-        id: fw
-        env:
-          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
-        run: |
-          RESPONSE=$(curl -sf \
-            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
-            "https://api.hetzner.cloud/v1/firewalls?name=haven-platform-fw-forge")
-          id=$(echo "$RESPONSE" | jq -r '.firewalls[0].id // empty')
-          if [ -z "$id" ]; then
-            echo "::error::Firewall 'haven-platform-fw-forge' not found."
-            curl -sf -H "Authorization: Bearer $HETZNER_API_TOKEN" \
-              "https://api.hetzner.cloud/v1/firewalls" | jq -r '.firewalls[].name'
-            exit 1
-          fi
-          echo "id=$id" >> $GITHUB_OUTPUT
-
-      - name: Open temporary SSH rule for runner
-        if: ${{ inputs.dry_run != true }}
-        env:
-          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
-        run: |
-          FW_ID="${{ steps.fw.outputs.id }}"
-          RUNNER_IP="${{ steps.runner_ip.outputs.ip }}/32"
-          RUN_ID="${{ github.run_id }}"
-          CURRENT=$(curl -sf \
-            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
-            "https://api.hetzner.cloud/v1/firewalls/$FW_ID")
-          PAYLOAD=$(echo "$CURRENT" | jq \
-            --arg ip "$RUNNER_IP" \
-            --arg run "$RUN_ID" \
-            '{rules: (.firewall.rules + [{direction:"in",protocol:"tcp",port:"22",source_ips:[$ip],description:("CI forge SSH run-"+$run)}])}')
-          HTTP=$(curl -s -o /tmp/fw_set.json -w "%{http_code}" -X POST \
-            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://api.hetzner.cloud/v1/firewalls/$FW_ID/actions/set_rules" \
-            -d "$PAYLOAD")
-          cat /tmp/fw_set.json
-          [ "$HTTP" -lt 400 ]
+      - name: Open temporary SSH access
+        id: ssh
+        uses: ./.github/actions/hetzner-ssh-open
+        with:
+          hetzner_api_token: ${{ secrets.HETZNER_API_TOKEN }}
+          server_name: haven-platform-forge
+          firewall_name: haven-platform-fw-forge
+          dry_run: ${{ inputs.dry_run }}
 
       # ------------------------------------------------------------------
       # Ansible setup
@@ -162,95 +104,41 @@ jobs:
           chmod 600 ~/.ssh/haven_ed25519
 
       # ------------------------------------------------------------------
-      # Init (one-time: k3s install, NFS mount, BorgBackup key)
-      # ------------------------------------------------------------------
-      - name: Install Ansible collections (init)
-        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
-        working-directory: deploy/ansible-init
-        run: ansible-galaxy collection install -r requirements.yml -p ./collections
-
-      - name: Write Ansible vars file for forge init
-        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
-        run: |
-          cat > /tmp/forge_init_vars.yml << VARSEOF
-          configure_borg: ${{ inputs.configure_borg }}
-          VARSEOF
-
-          if [ "${{ inputs.configure_borg }}" = "true" ]; then
-            cat >> /tmp/forge_init_vars.yml << VARSEOF
-          storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
-          storagebox_subaccount: "${{ vars.STORAGEBOX_SUBACCOUNT_FORGE }}"
-          borg_passphrase: "${{ secrets.BORG_PASSPHRASE_FORGE }}"
-          storagebox_password: "${{ secrets.HETZNER_STORAGEBOX_PASSWORD }}"
-          VARSEOF
-          fi
-
-          if [ "${{ inputs.configure_nfs }}" = "true" ]; then
-            cat >> /tmp/forge_init_vars.yml << VARSEOF
-          storagebox_nfs_share: "${{ vars.STORAGEBOX_NFS_SHARE }}"
-          VARSEOF
-          fi
-
-      - name: Run forge-init playbook
-        if: ${{ inputs.run_init == true && inputs.dry_run != true }}
-        working-directory: deploy/ansible-init
-        run: |
-          ansible-playbook forge-init.yml \
-            -i "${{ steps.forge_ip.outputs.ip }}," \
-            --private-key ~/.ssh/haven_ed25519 \
-            -e @/tmp/forge_init_vars.yml
-
-      - name: Clean up forge init vars file
-        if: ${{ always() && inputs.run_init == true && inputs.dry_run != true }}
-        run: rm -f /tmp/forge_init_vars.yml
-
-      # ------------------------------------------------------------------
       # Config (idempotent configuration enforcement)
       # ------------------------------------------------------------------
-      # TODO: Create deploy/ansible-config/forge-config.yml
+      # TODO: Create deploy/ansible-forge/forge-config.yml
       # - name: Install Ansible collections (config)
       #   if: ${{ inputs.run_config == true && inputs.dry_run != true }}
-      #   working-directory: deploy/ansible-config
+      #   working-directory: deploy/ansible-forge
       #   run: ansible-galaxy collection install -r requirements.yml -p ./collections
       #
       # - name: Run forge-config playbook
       #   if: ${{ inputs.run_config == true && inputs.dry_run != true }}
-      #   working-directory: deploy/ansible-config
+      #   working-directory: deploy/ansible-forge
       #   run: |
       #     ansible-playbook forge-config.yml \
-      #       -i "${{ steps.forge_ip.outputs.ip }}," \
+      #       -i "${{ steps.ssh.outputs.server_ip }}," \
       #       --private-key ~/.ssh/haven_ed25519
 
       # ------------------------------------------------------------------
       # Deploy (k3s workloads — Helm charts)
       # ------------------------------------------------------------------
-      # TODO: Create deploy/ansible-deploy/forge-deploy.yml
+      # TODO: Create deploy/ansible-forge/forge-deploy.yml
       # - name: Run forge-deploy playbook
       #   if: ${{ inputs.run_deploy == true && inputs.dry_run != true }}
-      #   working-directory: deploy/ansible-deploy
+      #   working-directory: deploy/ansible-forge
       #   run: |
       #     ansible-playbook forge-deploy.yml \
-      #       -i "${{ steps.forge_ip.outputs.ip }}," \
+      #       -i "${{ steps.ssh.outputs.server_ip }}," \
       #       --private-key ~/.ssh/haven_ed25519
 
       # ------------------------------------------------------------------
       # Cleanup — always remove temporary SSH rule
       # ------------------------------------------------------------------
-      - name: Remove temporary SSH rule for runner
-        if: ${{ always() && inputs.dry_run != true }}
-        env:
-          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
-        run: |
-          FW_ID="${{ steps.fw.outputs.id }}"
-          RUN_ID="${{ github.run_id }}"
-          CURRENT=$(curl -sf \
-            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
-            "https://api.hetzner.cloud/v1/firewalls/$FW_ID")
-          PAYLOAD=$(echo "$CURRENT" | jq \
-            --arg run "$RUN_ID" \
-            '{rules: [.firewall.rules[] | select(.description != ("CI forge SSH run-"+$run))]}')
-          curl -s -X POST \
-            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://api.hetzner.cloud/v1/firewalls/$FW_ID/actions/set_rules" \
-            -d "$PAYLOAD" || true
+      - name: Close temporary SSH access
+        if: ${{ always() }}
+        uses: ./.github/actions/hetzner-ssh-close
+        with:
+          hetzner_api_token: ${{ secrets.HETZNER_API_TOKEN }}
+          firewall_id: ${{ steps.ssh.outputs.firewall_id }}
+          dry_run: ${{ inputs.dry_run }}
