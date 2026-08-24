@@ -22,6 +22,10 @@ on:
         description: "Dry run (skip playbook execution)"
         type: boolean
         default: false
+      configure_borg:
+        description: "Deploy/refresh the BorgBackup script, cron job, and passphrase file (leave true once Borg has been initialised via deploy-hearth-init.yml)"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -142,6 +146,7 @@ jobs:
           ansible-playbook hearth-config.yml \
             -i "${{ steps.ssh.outputs.server_ip }}," \
             --private-key ~/.ssh/haven_ed25519 \
+            -e configure_borg=${{ inputs.configure_borg }} \
             -e @/tmp/config_vars.yml
 
       - name: Clean up config vars file
