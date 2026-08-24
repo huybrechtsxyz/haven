@@ -76,13 +76,10 @@ jobs:
       # ------------------------------------------------------------------
       # Install tools
       # ------------------------------------------------------------------
-      - name: Setup Python
-        uses: actions/setup-python@v6
+      - name: Setup strata
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.6.1
         with:
-          python-version: "3.13"
-
-      - name: Install strata
-        run: pip install "xyz-strata==1.6.1"
+          strata-version: "1.6.1"
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v4

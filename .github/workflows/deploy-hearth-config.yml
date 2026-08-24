@@ -77,18 +77,15 @@ jobs:
       # ------------------------------------------------------------------
       # Ansible setup
       # ------------------------------------------------------------------
-      - name: Setup Python
-        uses: actions/setup-python@v6
+      - name: Setup strata
+        if: ${{ inputs.dry_run != true }}
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.6.1
         with:
-          python-version: "3.13"
+          strata-version: "1.6.1"
 
       - name: Install Ansible
         if: ${{ inputs.dry_run != true }}
         run: pip install ansible-core
-
-      - name: Install strata
-        if: ${{ inputs.dry_run != true }}
-        run: pip install "xyz-strata==1.6.1"
 
       - name: Write deploy SSH private key
         if: ${{ inputs.dry_run != true }}

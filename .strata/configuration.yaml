@@ -43,8 +43,13 @@ spec:
     type: terraform
     capabilities:
     - infrastructure
-    description: OpenTofu / Terraform infrastructure provisioner
-    required: true
+    description: "OpenTofu / Terraform infrastructure provisioner. Marked required:\
+      \ false deliberately \u2014 strata's required-integration check is global (any\
+      \ command touching this config, not just terraform ones), and would otherwise\
+      \ block commands like `strata values get` (used by the Hearth workflows for\
+      \ secret resolution only) on runners that never install Terraform. deploy-infra.yml\
+      \ still installs it explicitly before use."
+    required: false
     validation:
       command: tofu version
       min_version: 1.6.0
