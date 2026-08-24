@@ -1,0 +1,151 @@
+# ==============================================================================
+# Workflow: Hearth — Config (idempotent configuration enforcement)
+# ==============================================================================
+# Runs on every routine deploy (paired with deploy-hearth-deploy.yml): stops
+# competing web servers, applies security updates, enforces SSH hardening,
+# deploys the BorgBackup script + cron, and (re-)applies the Authentik SSO
+# blueprint. Safe to re-run — corrects drift without touching containers.
+#
+# Prerequisites: deploy-hearth-init.yml must have run at least once.
+# ==============================================================================
+
+name: 22 - Hearth - Config
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Confirm branch to deploy (must match the branch this workflow runs on)"
+        type: string
+        required: true
+      dry_run:
+        description: "Dry run (skip playbook execution)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  STRATA_OUTPUT: json
+  DEPLOYMENT_FILE: "config/deployment.yaml"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  hearth-config:
+    name: Config Hearth
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      # ------------------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # ------------------------------------------------------------------
+      # Safety: block main branch deployments
+      # ------------------------------------------------------------------
+      - name: Block deployment from main branch
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "::error::Deployment from 'main' is blocked. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" = "main" ]; then
+            echo "::error::Branch input cannot be 'main'. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" != "${{ github.ref_name }}" ]; then
+            echo "::error::Branch input '${{ inputs.branch }}' does not match the running branch '${{ github.ref_name }}'. Re-run from the correct branch."
+            exit 1
+          fi
+
+      # ------------------------------------------------------------------
+      # Network setup — get IP, open SSH on Hearth firewall
+      # ------------------------------------------------------------------
+      - name: Open temporary SSH access
+        id: ssh
+        uses: ./.github/actions/hetzner-ssh-open
+        with:
+          hetzner_api_token: ${{ secrets.HETZNER_API_TOKEN }}
+          server_name: haven-platform-hearth
+          firewall_name: haven-platform-fw-hearth
+          dry_run: ${{ inputs.dry_run }}
+
+      # ------------------------------------------------------------------
+      # Ansible setup
+      # ------------------------------------------------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install Ansible
+        if: ${{ inputs.dry_run != true }}
+        run: pip install ansible-core
+
+      - name: Install strata
+        if: ${{ inputs.dry_run != true }}
+        run: pip install "xyz-strata==1.6.1"
+
+      - name: Write deploy SSH private key
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_PRIVATE_KEY }}" > ~/.ssh/haven_ed25519
+          chmod 600 ~/.ssh/haven_ed25519
+
+      - name: Install Ansible collections
+        if: ${{ inputs.dry_run != true }}
+        working-directory: deploy/ansible-hearth
+        run: ansible-galaxy collection install -r requirements.yml -p ./collections
+
+      # ------------------------------------------------------------------
+      # Config (idempotent configuration enforcement)
+      # ------------------------------------------------------------------
+      - name: Write Ansible vars file for config secrets
+        if: ${{ inputs.dry_run != true }}
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
+        run: |
+          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_BACKUP VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_HEARTH')
+          HEALTHCHECK_URL=$(echo "$VALUES" | jq -r '.data.results.HEALTHCHECK_PING_BACKUP')
+          VAULTWARDEN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.VAULTWARDEN_SSO_CLIENT_SECRET')
+          WUD_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.WUD_SSO_CLIENT_SECRET')
+          cat > /tmp/config_vars.yml << VARSEOF
+          borg_passphrase: "$BORG_PASSPHRASE"
+          storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
+          storagebox_subaccount: "${{ vars.STORAGEBOX_SUBACCOUNT_HEARTH }}"
+          healthcheck_ping_url: "$HEALTHCHECK_URL"
+          vaultwarden_sso_client_secret: "$VAULTWARDEN_SSO_SECRET"
+          wud_sso_client_secret: "$WUD_SSO_SECRET"
+          VARSEOF
+
+      - name: Run hearth-config playbook
+        if: ${{ inputs.dry_run != true }}
+        working-directory: deploy/ansible-hearth
+        run: |
+          ansible-playbook hearth-config.yml \
+            -i "${{ steps.ssh.outputs.server_ip }}," \
+            --private-key ~/.ssh/haven_ed25519 \
+            -e @/tmp/config_vars.yml
+
+      - name: Clean up config vars file
+        if: ${{ always() && inputs.dry_run != true }}
+        run: rm -f /tmp/config_vars.yml
+
+      # ------------------------------------------------------------------
+      # Cleanup — always remove temporary SSH rule
+      # ------------------------------------------------------------------
+      - name: Close temporary SSH access
+        if: ${{ always() }}
+        uses: ./.github/actions/hetzner-ssh-close
+        with:
+          hetzner_api_token: ${{ secrets.HETZNER_API_TOKEN }}
+          firewall_id: ${{ steps.ssh.outputs.firewall_id }}
+          dry_run: ${{ inputs.dry_run }}

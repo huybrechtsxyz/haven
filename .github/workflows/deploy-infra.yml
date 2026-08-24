@@ -6,11 +6,12 @@
 #
 # Run order (full stack from scratch):
 #   1. deploy-infra.yml   (this file — terraform + S3)
-#   2. deploy-hearth.yml  (server init + config + Docker Compose deploy)
+#   2. deploy-hearth-init.yml / deploy-hearth-config.yml / deploy-hearth-deploy.yml
+#      (server init + config + Docker Compose deploy)
 #   3. deploy-forge.yml   (server init + config + k3s deploy)
 # ==============================================================================
 
-name: Infra - haven
+name: 10 - Infra - haven
 
 on:
   workflow_dispatch:

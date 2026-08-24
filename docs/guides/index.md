@@ -43,19 +43,21 @@ haven (workspace)
 
 ### Deployment Workflow
 
-Haven uses **three independent GitHub Actions workflows** for independent scheduling and rapid iteration:
+Haven uses **independent GitHub Actions workflows** for independent scheduling and rapid iteration. Hearth is split into three, matching its three Ansible playbooks (one-time bootstrap vs the routine config+deploy pair):
 
-| Workflow            | Purpose                                      | Frequency   | When to run                  |
-| ------------------- | -------------------------------------------- | ----------- | ---------------------------- |
-| `deploy-infra.yml`  | Terraform + S3 provisioning                  | Once (rare) | After infrastructure changes |
-| `deploy-hearth.yml` | Core VPS init/config/deploy (Docker Compose) | On-demand   | After service config changes |
-| `deploy-forge.yml`  | Workload VPS init/config/deploy (k3s)        | On-demand   | After app/chart updates      |
+| Workflow                   | Purpose                                       | Frequency                      | When to run                         |
+| -------------------------- | --------------------------------------------- | ------------------------------ | ----------------------------------- |
+| `deploy-infra.yml`         | Terraform + S3 provisioning                   | Once (rare)                    | After infrastructure changes        |
+| `deploy-hearth-init.yml`   | Core VPS one-time bootstrap                   | Once (rare)                    | New server, or after a full rebuild |
+| `deploy-hearth-config.yml` | Core VPS idempotent configuration enforcement | On-demand (paired with deploy) | After service config changes        |
+| `deploy-hearth-deploy.yml` | Core VPS Docker Compose deploy                | On-demand (paired with config) | After service config changes        |
+| `deploy-forge.yml`         | Workload VPS init/config/deploy (k3s)         | On-demand                      | After app/chart updates             |
 
 **Typical deployment order:**
 
 1. Run `deploy-infra.yml` once (Terraform + S3 buckets)
 2. Configure DNS at INWX
-3. Run `deploy-hearth.yml` for core services
+3. Run `deploy-hearth-init.yml` once (first run only), then `deploy-hearth-config.yml` + `deploy-hearth-deploy.yml` for core services
 4. Run `deploy-forge.yml` for workload apps
 
 ---

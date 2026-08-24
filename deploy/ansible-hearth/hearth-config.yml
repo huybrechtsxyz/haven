@@ -8,7 +8,7 @@
 #   hearth-init.yml must have been run once before this playbook.
 #
 # SSH CONNECTIVITY NOTE:
-#   The deploy-hearth.yml workflow handles firewall access automatically when
+#   The deploy-hearth-config.yml workflow handles firewall access automatically when
 #   run_config=true. See hearth-init.yml for manual access instructions.
 #
 # Install collections first (once):

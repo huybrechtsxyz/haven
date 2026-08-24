@@ -8,7 +8,7 @@
 #   The Hetzner Cloud Firewall restricts SSH to the private network (10.0.0.0/8).
 #
 #   Via pipeline (recommended):
-#     The deploy-hearth.yml workflow handles this automatically when run_init=true:
+#     The deploy-hearth-init.yml workflow handles this automatically when configure_borg=true:
 #     it opens a temporary SSH rule scoped to the runner's IP before running
 #     this playbook, and always removes it afterwards (even on failure).
 #

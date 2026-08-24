@@ -1,0 +1,40 @@
+name: "Hetzner - Close temporary SSH access"
+description: >
+  Removes the temporary SSH rule added by hetzner-ssh-open for this run ID.
+  Always use with `if: always()` in the calling workflow so the rule is
+  removed even if earlier steps failed.
+
+inputs:
+  hetzner_api_token:
+    description: "Hetzner Cloud API token"
+    required: true
+  firewall_id:
+    description: "Hetzner Cloud firewall ID (output of hetzner-ssh-open)"
+    required: true
+  dry_run:
+    description: "Skip the actual firewall rule mutation (no rule was opened)"
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Remove temporary SSH rule for runner
+      if: ${{ inputs.dry_run != 'true' }}
+      shell: bash
+      env:
+        HETZNER_API_TOKEN: ${{ inputs.hetzner_api_token }}
+      run: |
+        FW_ID="${{ inputs.firewall_id }}"
+        RUN_ID="${{ github.run_id }}"
+        CURRENT=$(curl -sf \
+          -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+          "https://api.hetzner.cloud/v1/firewalls/$FW_ID")
+        PAYLOAD=$(echo "$CURRENT" | jq \
+          --arg run "$RUN_ID" \
+          '{rules: [.firewall.rules[] | select(.description != ("CI ssh run-"+$run))]}')
+        curl -s -X POST \
+          -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+          -H "Content-Type: application/json" \
+          "https://api.hetzner.cloud/v1/firewalls/$FW_ID/actions/set_rules" \
+          -d "$PAYLOAD" || true
