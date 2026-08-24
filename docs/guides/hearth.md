@@ -97,16 +97,15 @@ Optionally set `configure_borg: true` on this run to also initialise the BorgBac
 
 ## Hearth Config (`deploy-hearth-config.yml`)
 
-Idempotent configuration enforcement: uploads the BorgBackup SSH key to the Storage Box sub-account, writes the backup script, and configures monitoring. Run this on every routine deploy, immediately before `deploy-hearth-deploy.yml`.
+Idempotent configuration enforcement: security updates, SSH hardening, deploys the BorgBackup backup script + daily cron + passphrase file, (re-)applies the Authentik SSO blueprint, and runs post-config diagnostics. Run this on every routine deploy, immediately before `deploy-hearth-deploy.yml`.
 
-**BorgBackup authorization is automated** — the config playbook uploads the generated `borg_ed25519.pub` key to the Storage Box sub-account via `install-ssh-key` (Hetzner's standard SSH key installation command on port 23), using the Storage Box password (from Infisical). No manual Hetzner Robot step is required.
+The Storage Box SSH key itself is uploaded once by `deploy-hearth-init.yml` (see above) — this workflow only deploys the backup script/cron that *uses* that already-authorised key.
 
-> **⚠️ External reachability** must be enabled on the sub-account (see [Secrets for Hetzner Storagebox](./setup.md#secrets-for-hetzner-storagebox)). Without it, the automated upload on port 23 will fail.
-
-| Input     | Value         | Notes                                              |
-| --------- | ------------- | -------------------------------------------------- |
-| `branch`  | *your branch* | Must match the branch the workflow is running on   |
-| `dry_run` | `false`       | `true` skips playbook execution entirely (preview) |
+| Input            | Value         | Notes                                                                                                                                                                                        |
+| ---------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `branch`         | *your branch* | Must match the branch the workflow is running on                                                                                                                                             |
+| `dry_run`        | `false`       | `true` skips playbook execution entirely (preview)                                                                                                                                           |
+| `configure_borg` | `true`        | Deploys/refreshes the BorgBackup script, cron, and passphrase file — leave `true` once Borg has been initialised via `deploy-hearth-init.yml`, only set `false` before that's ever been done |
 
 ---
 

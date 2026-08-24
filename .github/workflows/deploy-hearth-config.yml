@@ -22,6 +22,10 @@ on:
         description: "Dry run (skip playbook execution)"
         type: boolean
         default: false
+      configure_borg:
+        description: "Deploy/refresh the BorgBackup script, cron job, and passphrase file (leave true once Borg has been initialised via deploy-hearth-init.yml)"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -77,18 +81,19 @@ jobs:
       # ------------------------------------------------------------------
       # Ansible setup
       # ------------------------------------------------------------------
-      - name: Setup Python
-        uses: actions/setup-python@v6
+      - name: Setup strata
+        if: ${{ inputs.dry_run != true }}
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.6.1
         with:
-          python-version: "3.13"
+          # See deploy-infra.yml for why this must be '==1.6.1', not a bare '1.6.1'.
+          strata-version: "==1.6.1"
+        env:
+          # See deploy-infra.yml for why this is set — no-op on GitHub-hosted runners.
+          UV_INDEX_STRATEGY: unsafe-best-match
 
       - name: Install Ansible
         if: ${{ inputs.dry_run != true }}
         run: pip install ansible-core
-
-      - name: Install strata
-        if: ${{ inputs.dry_run != true }}
-        run: pip install "xyz-strata==1.6.1"
 
       - name: Write deploy SSH private key
         if: ${{ inputs.dry_run != true }}
@@ -112,7 +117,15 @@ jobs:
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
+          set +e
           VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_BACKUP VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          STATUS=$?
+          set -e
+          if [ $STATUS -ne 0 ]; then
+            echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
+            echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+            exit $STATUS
+          fi
           BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_HEARTH')
           HEALTHCHECK_URL=$(echo "$VALUES" | jq -r '.data.results.HEALTHCHECK_PING_BACKUP')
           VAULTWARDEN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.VAULTWARDEN_SSO_CLIENT_SECRET')
@@ -133,6 +146,7 @@ jobs:
           ansible-playbook hearth-config.yml \
             -i "${{ steps.ssh.outputs.server_ip }}," \
             --private-key ~/.ssh/haven_ed25519 \
+            -e configure_borg=${{ inputs.configure_borg }} \
             -e @/tmp/config_vars.yml
 
       - name: Clean up config vars file

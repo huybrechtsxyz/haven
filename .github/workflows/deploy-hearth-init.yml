@@ -82,18 +82,19 @@ jobs:
       # ------------------------------------------------------------------
       # Ansible setup
       # ------------------------------------------------------------------
-      - name: Setup Python
-        uses: actions/setup-python@v6
+      - name: Setup strata
+        if: ${{ inputs.dry_run != true }}
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.6.1
         with:
-          python-version: "3.13"
+          # See deploy-infra.yml for why this must be '==1.6.1', not a bare '1.6.1'.
+          strata-version: "==1.6.1"
+        env:
+          # See deploy-infra.yml for why this is set — no-op on GitHub-hosted runners.
+          UV_INDEX_STRATEGY: unsafe-best-match
 
       - name: Install Ansible
         if: ${{ inputs.dry_run != true }}
         run: pip install ansible-core
-
-      - name: Install strata
-        if: ${{ inputs.dry_run != true }}
-        run: pip install "xyz-strata==1.6.1"
 
       - name: Write deploy SSH private key
         if: ${{ inputs.dry_run != true }}
@@ -117,7 +118,15 @@ jobs:
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
+          set +e
           VALUES=$(strata values get BORG_PASSPHRASE_HEARTH STORAGEBOX_HEARTH_PASSWORD -f $DEPLOYMENT_FILE --output json)
+          STATUS=$?
+          set -e
+          if [ $STATUS -ne 0 ]; then
+            echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
+            echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+            exit $STATUS
+          fi
           BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_HEARTH')
           STORAGEBOX_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.STORAGEBOX_HEARTH_PASSWORD')
           cat > /tmp/init_vars.yml << VARSEOF

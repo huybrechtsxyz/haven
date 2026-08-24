@@ -85,18 +85,19 @@ jobs:
       # ------------------------------------------------------------------
       # Ansible setup
       # ------------------------------------------------------------------
-      - name: Setup Python
-        uses: actions/setup-python@v6
+      - name: Setup strata
+        if: ${{ inputs.dry_run != true }}
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.6.1
         with:
-          python-version: "3.13"
+          # See deploy-infra.yml for why this must be '==1.6.1', not a bare '1.6.1'.
+          strata-version: "==1.6.1"
+        env:
+          # See deploy-infra.yml for why this is set — no-op on GitHub-hosted runners.
+          UV_INDEX_STRATEGY: unsafe-best-match
 
       - name: Install Ansible
         if: ${{ inputs.dry_run != true }}
         run: pip install ansible-core
-
-      - name: Install strata
-        if: ${{ inputs.dry_run != true }}
-        run: pip install "xyz-strata==1.6.1"
 
       - name: Write deploy SSH private key
         if: ${{ inputs.dry_run != true }}
@@ -104,6 +105,21 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.HETZNER_PRIVATE_KEY }}" > ~/.ssh/haven_ed25519
           chmod 600 ~/.ssh/haven_ed25519
+
+      # ------------------------------------------------------------------
+      # Build — hearth-deploy.yml copies docker-compose.yml from build/<deployment_name>/hearth/,
+      # which strata generates. build/ is gitignored, so it must be (re)built fresh on every run —
+      # there is no artifact carried over from deploy-infra.yml or a prior deploy.
+      # ------------------------------------------------------------------
+      - name: Validate deployment file
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          strata validate -f $DEPLOYMENT_FILE --deep
+
+      - name: Build platform artifacts
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          strata build run --file $DEPLOYMENT_FILE
 
       # ------------------------------------------------------------------
       # Full restart (optional — clean slate before redeploy)
@@ -138,7 +154,15 @@ jobs:
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
+          set +e
           VALUES=$(strata values get AUTHENTIK_SECRET_KEY AUTHENTIK_POSTGRESQL__PASSWORD VAULTWARDEN_ADMIN_ARGON VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          STATUS=$?
+          set -e
+          if [ $STATUS -ne 0 ]; then
+            echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
+            echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+            exit $STATUS
+          fi
           AUTHENTIK_KEY=$(echo "$VALUES" | jq -r '.data.results.AUTHENTIK_SECRET_KEY')
           AUTHENTIK_DB_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.AUTHENTIK_POSTGRESQL__PASSWORD')
           VAULTWARDEN_TOKEN=$(echo "$VALUES" | jq -r '.data.results.VAULTWARDEN_ADMIN_ARGON')

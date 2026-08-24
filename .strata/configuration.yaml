@@ -43,8 +43,13 @@ spec:
     type: terraform
     capabilities:
     - infrastructure
-    description: OpenTofu / Terraform infrastructure provisioner
-    required: true
+    description: "OpenTofu / Terraform infrastructure provisioner. Marked required:\
+      \ false deliberately \u2014 strata's required-integration check is global (any\
+      \ command touching this config, not just terraform ones), and would otherwise\
+      \ block commands like `strata values get` (used by the Hearth workflows for\
+      \ secret resolution only) on runners that never install Terraform. deploy-infra.yml\
+      \ still installs it explicitly before use."
+    required: false
     validation:
       command: tofu version
       min_version: 1.6.0
@@ -54,8 +59,19 @@ spec:
     type: infisical
     capabilities:
     - secrets
-    description: "Infisical secrets manager \u2014 Universal Auth machine identity"
-    required: true
+    description: "Infisical secrets manager \u2014 Universal Auth machine identity.\
+      \ Marked required: false deliberately, same reasoning as haven_iac above: strata's\
+      \ built-in `is_available()` check only looks for the `infisical` CLI binary\
+      \ in PATH (unused here \u2014 we authenticate via INFISICAL_CLIENT_ID/CLIENT_SECRET\
+      \ over the HTTP API, no CLI needed), and the required-integration check is global\
+      \ rather than scoped to the capability a given command actually needs. With\
+      \ required: true this hard-aborted every strata command touching this config\
+      \ on any runner without the CLI installed, even though secret resolution works\
+      \ fine via the API. Genuinely missing/invalid credentials still produce a clear\
+      \ error at actual resolution time (value_controller's own \"project ID not configured\"\
+      \ / auth check), so no fail-fast safety is lost \u2014 only the misleading PATH-based\
+      \ pre-flight check."
+    required: false
     authentication:
       method: oauth2
       oauth2:
