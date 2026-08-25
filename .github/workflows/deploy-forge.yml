@@ -115,7 +115,7 @@ jobs:
 
       - name: Setup Helm
         if: ${{ inputs.run_deploy == true }}
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
 
       - name: Write deploy SSH private key
         if: ${{ inputs.dry_run != true }}
