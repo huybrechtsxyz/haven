@@ -106,10 +106,12 @@ jobs:
       # ------------------------------------------------------------------
       - name: Setup strata
         if: ${{ inputs.run_deploy == true }}
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.2
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.3
         with:
-          # See deploy-infra.yml for why this is '==1.8.2'.
-          strata-version: "==1.8.2"
+          # See deploy-infra.yml for why this is '==1.8.3' — also fixes 'strata
+          # deploy run' crashing unconditionally on every invocation (v1.7.0-1.8.2),
+          # which is exactly the command this workflow's deploy step runs.
+          strata-version: "==1.8.3"
         env:
           UV_INDEX_STRATEGY: unsafe-best-match
 
