@@ -203,7 +203,7 @@ jobs:
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
-          strata deploy run --file $DEPLOYMENT_FILE --stage applications_forge --force
+          strata deploy run --file $DEPLOYMENT_FILE --scope apps --stage applications_forge --force
 
       - name: Close SSH tunnel to k3s API
         if: ${{ always() }}

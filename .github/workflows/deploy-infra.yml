@@ -150,7 +150,12 @@ jobs:
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
-          ARGS="--file $DEPLOYMENT_FILE --force"
+          # --scope infra restricts this run to stages that declare scope: infra
+          # (infrastructure_hearth, infrastructure_forge) — this workflow is
+          # explicitly API-only (no SSH/kubeconfig setup), so it must never
+          # pick up applications_forge (scope: apps, or any future Helm/Compose
+          # app stage) even when --stage is omitted.
+          ARGS="--file $DEPLOYMENT_FILE --force --scope infra"
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
           fi
