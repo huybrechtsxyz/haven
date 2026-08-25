@@ -1,0 +1,11 @@
+apiVersion: v2
+name: rclone-mount
+description: >
+  Mounts a Hetzner Object Storage (S3-compatible) bucket onto the Forge node's
+  filesystem via `rclone mount` (FUSE), so multiple apps (Nextcloud, Kavita,
+  and any future document-reading app) can all read/write the SAME real files
+  — not separate S3 clients each guessing at directory state independently.
+  Requires a privileged pod (FUSE + /dev/fuse) and hostPath mount propagation
+  so the mount becomes visible to other pods on the same node.
+type: application
+version: "1.0.0"

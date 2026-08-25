@@ -1,0 +1,8 @@
+apiVersion: v2
+name: nextcloud-redis
+description: >
+  Single-pod Redis for Nextcloud's memory caching + file locking (recommended
+  by Nextcloud to avoid file corruption during concurrent access). No
+  persistence — cache only, safe to lose on restart.
+type: application
+version: "1.0.0"

@@ -1,0 +1,26 @@
+# Defaults — override via the strata module's spec.configuration (see
+# config/forge/modules/rclone-mount.yaml).
+image:
+  repository: rclone/rclone
+  tag: latest
+
+s3:
+  bucket: haven-docs
+  endpoint: https://eu-central.your-objectstorage.com
+  region: eu-central
+  # Real values injected by strata at deploy time — never written here.
+  accessKeyId: ""
+  secretAccessKey: ""
+
+mount:
+  # Path on the Forge HOST (not just inside the pod) where the bucket becomes
+  # a normal directory tree — every consuming app (Nextcloud, Kavita, ...)
+  # hostPath-mounts a subpath of this same tree.
+  hostPath: /mnt/haven-docs
+  # rclone VFS cache mode — "writes" caches written data locally until synced,
+  # giving apps a consistent view without needing full-file re-downloads on
+  # every read. Some caching delay is expected and accepted (per design
+  # discussion) — not real-time shared state, just much tighter than two
+  # independent S3 clients.
+  vfsCacheMode: writes
+  dirCacheTime: 30s

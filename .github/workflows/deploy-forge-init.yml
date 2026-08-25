@@ -91,10 +91,12 @@ jobs:
       # ------------------------------------------------------------------
       - name: Setup strata
         if: ${{ inputs.dry_run != true }}
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.6.1
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.2
         with:
-          # See deploy-infra.yml for why this must be '==1.6.1', not a bare '1.6.1'.
-          strata-version: "==1.6.1"
+          # See deploy-infra.yml for why this is '==1.8.2' — fixes the Helm local-chart
+          # Jinja2 crash, the global Terraform input-validator regression, OCI charts,
+          # and shallow-only secret substitution.
+          strata-version: "==1.8.2"
         env:
           # See deploy-infra.yml for why this is set — no-op on GitHub-hosted runners.
           UV_INDEX_STRATEGY: unsafe-best-match

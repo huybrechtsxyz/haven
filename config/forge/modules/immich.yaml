@@ -12,8 +12,10 @@ spec:
   source:
     # Immich's chart moved to OCI-only distribution — the old HTTP repo
     # (https://immich-app.github.io/immich-charts/) is deprecated/frozen.
-    # Requires strata 1.8.0+ (OCI chart_repository support — see the bug
-    # report filed against strata for the current 1.6.1 gap).
+    # Requires strata 1.8.2+ (OCI chart_repository support — see the bug
+    # report filed against strata; also needs 1.8.2's Terraform input-validator
+    # scoping fix, since IMMICH_DB_PASSWORD is a Helm-only secret unused by
+    # Terraform — a workspace-wide 'strata build run' blocker on 1.7.0-1.8.1).
     chart_repository: oci://ghcr.io/immich-app/immich-charts
     chart_name: immich
     # Verify this is still current before applying: https://github.com/immich-app/immich-charts/releases

@@ -30,12 +30,13 @@ Application-level traffic wasn't — Forge apps authenticating against Hearth's 
 
 ## What runs where
 
-| Namespace (k8s) | Guide                                           | Purpose                                                                                                       |
-| --------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `immich`        | [services/immich.md](../services/immich.md)     | Photo/video management (Immich + its own Postgres/library modules)                                            |
-| `media`         | [services/jellyfin.md](../services/jellyfin.md) | Media streaming (Jellyfin)                                                                                    |
-| `system`        | *(this doc, below)*                             | Cross-cutting cluster tooling not tied to one app layer — Portainer's Kubernetes agent, cert-manager (future) |
-| *(future)*      | —                                               | Other self-hosted apps get their own namespace each, same pattern                                             |
+| Namespace (k8s) | Guide                                                                                          | Purpose                                                                                                                                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `immich`        | [services/immich.md](../services/immich.md)                                                    | Photo/video management (Immich + its own Postgres/library modules)                                                                                                                                               |
+| `media`         | [services/jellyfin.md](../services/jellyfin.md)                                                | Media streaming (Jellyfin)                                                                                                                                                                                       |
+| `documents`     | [services/nextcloud.md](../services/nextcloud.md), [services/kavita.md](../services/kavita.md) | Family documents — Nextcloud (Drive replacement) + Kavita (PDF/TTRPG library), sharing the same `haven-docs` S3 bucket via the `rclone-mount` module below                                                       |
+| `system`        | *(this doc, below)*                                                                            | Cross-cutting cluster tooling not tied to one app layer — `rclone-mount` (bridges `haven-docs` to a real filesystem path for `documents` apps to share); Portainer's Kubernetes agent and cert-manager to follow |
+| *(future)*      | —                                                                                              | Other self-hosted apps get their own namespace each, same pattern                                                                                                                                                |
 
 Each app group gets its own strata namespace file under `config/forge/namespaces/` and its own Kubernetes namespace — deliberately not shared, so apps can't collide or take each other down.
 
@@ -52,7 +53,20 @@ To set it up:
 1. In Portainer (on Hearth): **Environments → Add environment → Kubernetes → via agent** — this generates a `kubectl apply -f ...` command specific to your installed Portainer version.
 2. Run that command against Forge (over the LAN — see [LAN routing](#design-decision--lan-routing-between-hearth-and-forge) above).
 3. Back in Portainer, finish adding the environment using the agent's address on Forge's private IP.
-4. Once working, capture the resulting manifest as a local Helm chart under `services/forge/portainer-agent/` + a `config/forge/modules/portainer-agent.yaml` module, referenced from a new `config/forge/namespaces/system.yaml` (strata rejects empty namespaces — this one needs at least this module before it can be created) — same pattern as the other namespaces in this repo.
+4. Once working, capture the resulting manifest as a local Helm chart under `services/forge/portainer-agent/` + a `config/forge/modules/portainer-agent.yaml` module, added to the existing `config/forge/namespaces/system.yaml` (which already exists, holding `rclone-mount`) — same pattern as every other module in this repo.
+
+---
+
+## rclone-mount — shared filesystem bridge for `haven-docs`
+
+Neither Kavita nor most self-hosted document apps have a native S3 backend — they expect a plain POSIX folder. Nextcloud's External Storage *can* talk to S3 directly, but if Nextcloud used its own S3 connection while Kavita read a separately-mounted copy of the same bucket, the two would be independent S3 clients potentially disagreeing about directory state at any moment.
+
+Instead, `rclone-mount` (`config/forge/modules/rclone-mount.yaml`, `system` namespace) is the single canonical bridge: a privileged pod runs `rclone mount` (FUSE) against the `haven-docs` bucket, publishing it as a real directory tree at `/mnt/haven-docs` on the Forge **host** (not just inside its own pod — `mountPropagation: Bidirectional` makes it visible node-wide). Every consuming app then hostPath-mounts a subpath of that same tree:
+
+- **Nextcloud** → `/mnt/haven-docs` (its External Storage root, once configured — see [services/nextcloud.md](../services/nextcloud.md))
+- **Kavita** → `/mnt/haven-docs/games` (read-only)
+
+**Caching trade-off (accepted by design):** `rclone mount` uses `--vfs-cache-mode=writes`, so there's a tunable window where one app's write might not be instantly visible to another. Not real-time shared state, but far tighter than two independent S3 clients — and simple enough for a family server.
 
 ---
 

@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: { { .Release.Name } }
+  labels:
+    app: { { .Release.Name } }
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: { { .Release.Name } }
+  template:
+    metadata:
+      labels:
+        app: { { .Release.Name } }
+    spec:
+      # Single-node cluster — pin to avoid the mount "moving" to a node
+      # without the corresponding hostPath consumers.
+      containers:
+        - name: rclone
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          # rclone's own env-var config style — no config file needed.
+          env:
+            - name: RCLONE_CONFIG_HAVENDOCS_TYPE
+              value: s3
+            - name: RCLONE_CONFIG_HAVENDOCS_PROVIDER
+              value: Other
+            - name: RCLONE_CONFIG_HAVENDOCS_ENDPOINT
+              value: { { .Values.s3.endpoint | quote } }
+            - name: RCLONE_CONFIG_HAVENDOCS_REGION
+              value: { { .Values.s3.region | quote } }
+            - name: RCLONE_CONFIG_HAVENDOCS_ACCESS_KEY_ID
+              value: { { .Values.s3.accessKeyId | quote } }
+            - name: RCLONE_CONFIG_HAVENDOCS_SECRET_ACCESS_KEY
+              value: { { .Values.s3.secretAccessKey | quote } }
+          command: ["rclone"]
+          args:
+            - mount
+            - "havendocs:{{ .Values.s3.bucket }}"
+            - /mnt/bucket
+            - --allow-other
+            - --allow-non-empty
+            - --uid=0
+            - --gid=0
+            - --dir-cache-time={{ .Values.mount.dirCacheTime }}
+            - --vfs-cache-mode={{ .Values.mount.vfsCacheMode }}
+            - --vfs-cache-max-age=24h
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: fuse
+              mountPath: /dev/fuse
+            - name: mountpoint
+              mountPath: /mnt/bucket
+              # Bidirectional: makes this mount visible back on the HOST,
+              # which is what lets other pods hostPath-mount the same path.
+              mountPropagation: Bidirectional
+          livenessProbe:
+            exec:
+              command: ["mountpoint", "-q", "/mnt/bucket"]
+            initialDelaySeconds: 15
+            periodSeconds: 30
+      volumes:
+        - name: fuse
+          hostPath:
+            path: /dev/fuse
+            type: CharDevice
+        - name: mountpoint
+          hostPath:
+            path: { { .Values.mount.hostPath } }
+            type: DirectoryOrCreate

@@ -1,0 +1,26 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: nextcloud-redis
+  annotations:
+    description: Redis for Nextcloud memory caching + file locking — single pod
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, documents, nextcloud, redis, cache]
+spec:
+  type: helm
+  source:
+    repository: haven
+    source_path: services/forge/nextcloud-redis
+  kubernetes_namespace: documents
+  references:
+    secrets:
+      - NEXTCLOUD_REDIS_PASSWORD
+  configuration:
+    image:
+      repository: redis
+      tag: 7-alpine
+    # Real value injected by strata at deploy time — never written here.
+    password: "${NEXTCLOUD_REDIS_PASSWORD}"
+    service:
+      port: 6379

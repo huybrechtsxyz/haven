@@ -20,13 +20,34 @@ spec:
         source_path: deploy/terraform
         target_path: terraform
 
+    - name: haven_helm
+      provisioner: helm
+      description: Deploys Helm modules declared in Forge's k3s namespaces (immich, media, system, documents).
+      source:
+        # Required by the model for non-sync provisioner types, but functionally
+        # unused here — each module (config/forge/modules/*.yaml) declares its
+        # own chart source (OCI, HTTP repo, or local chart path). This just
+        # needs to point somewhere valid.
+        repository: haven
+        source_path: services/forge
+
+  # STEP-BY-STEP ACTIVATION: strata's Helm deployer has no per-stage namespace
+  # filter (unlike the argocd/flux sync provisioners) — it discovers every
+  # namespace listed below and deploys all of their Helm modules in one pass.
+  # To try out Forge services one at a time, only one forge namespace is
+  # active below. Once it's verified, uncomment the next one and re-run
+  # `strata deploy run --stage applications_forge`.
   namespaces:
     - name: hearth
       file: config/hearth/namespace.yaml
-    - name: immich
-      file: config/forge/namespaces/immich.yaml
-    - name: media
-      file: config/forge/namespaces/media.yaml
+    - name: system
+      file: config/forge/namespaces/system.yaml # 1st — rclone-mount (documents' shared storage depends on it)
+    # - name: immich
+    #   file: config/forge/namespaces/immich.yaml # 2nd — self-contained, no shared-storage dependency
+    # - name: media
+    #   file: config/forge/namespaces/media.yaml # 3rd — self-contained, no shared-storage dependency
+    # - name: documents
+    #   file: config/forge/namespaces/documents.yaml # 4th — needs 'system' (rclone-mount) deployed first
 
   topology:
     - name: hetzner_hearth
@@ -50,10 +71,14 @@ spec:
     - name: hetzner_forge
       provider: hetzner_dc_eu_de
       provisioner: haven_iac
-      type: single_node # k3s — one k8s namespace per app group (immich, media now; system + apps namespaces later)
+      type: single_node # k3s — one k8s namespace per app group (immich, media, documents; system for cross-cutting tooling; apps namespace later)
+      # Kept in lockstep with spec.namespaces above — uncomment each entry
+      # together with its spec.namespaces counterpart as services are activated.
       namespaces:
-        - namespace: immich
-        - namespace: media
+        - namespace: system
+        # - namespace: immich
+        # - namespace: media
+        # - namespace: documents
       volumes:
         - name: k3s
           type: local

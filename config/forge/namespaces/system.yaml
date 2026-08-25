@@ -1,0 +1,15 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: namespace
+meta:
+  name: system
+  annotations:
+    description: Cross-cutting infrastructure add-ons for Forge (k3s) — not tied to any one app layer. rclone's S3 mount lives here; Portainer's Kubernetes agent and cert-manager will join once ready.
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, k3s, system]
+spec:
+  type: shared
+  modules:
+    - name: rclone-mount
+      description: Mounts haven-docs (S3) onto the Forge host filesystem for Nextcloud + Kavita to share
+      file: config/forge/modules/rclone-mount.yaml

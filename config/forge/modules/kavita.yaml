@@ -1,0 +1,43 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: kavita
+  annotations:
+    description: Kavita — PDF/EPUB/comic library server for TTRPG PDFs and family reference material
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, documents, kavita, library]
+spec:
+  type: helm
+  source:
+    repository: haven
+    source_path: services/forge/kavita
+  kubernetes_namespace: documents
+  configuration:
+    image:
+      repository: lscr.io/linuxserver/kavita
+      tag: latest
+    env:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: Europe/Brussels
+    persistence:
+      config:
+        storageClass: local-path
+        size: 5Gi
+    # Same shared haven-docs tree as Nextcloud (mounted by the rclone-mount
+    # module in the system namespace) — Kavita only reads, never
+    # renames/reorganizes, so it's safe to share.
+    library:
+      hostPath: /mnt/haven-docs/games
+    service:
+      port: 5000
+    ingress:
+      enabled: true
+      className: traefik
+      host: books.huybrechts.xyz
+
+  # TODO: Kavita supports OIDC natively (per its own README), but the exact
+  # settings/UI flow weren't verified when this module was authored — wire up
+  # Authentik SSO as a follow-up, same category of manual first-boot step as
+  # Jellyfin's plugin registration (see docs/services/jellyfin.md).

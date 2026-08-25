@@ -1,0 +1,34 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: rclone-mount
+  annotations:
+    description: Mounts the haven-docs S3 bucket onto the Forge host filesystem via rclone/FUSE, shared by Nextcloud + Kavita
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, system, rclone, storage]
+spec:
+  type: helm
+  source:
+    repository: haven
+    source_path: services/forge/rclone-mount
+  kubernetes_namespace: system
+  references:
+    secrets:
+      - HETZNER_S3_ACCESS_KEY
+      - HETZNER_S3_SECRET_KEY
+  configuration:
+    image:
+      repository: rclone/rclone
+      tag: latest
+    s3:
+      bucket: haven-docs
+      endpoint: https://eu-central.your-objectstorage.com
+      region: eu-central
+      # Real values injected by strata at deploy time — never written here.
+      accessKeyId: "${HETZNER_S3_ACCESS_KEY}"
+      secretAccessKey: "${HETZNER_S3_SECRET_KEY}"
+    mount:
+      hostPath: /mnt/haven-docs
+      vfsCacheMode: writes
+      dirCacheTime: 30s

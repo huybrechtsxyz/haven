@@ -1,0 +1,9 @@
+image:
+  repository: redis
+  tag: 7-alpine
+
+# Set via ${NEXTCLOUD_REDIS_PASSWORD} substitution token — never a literal value here.
+password: ""
+
+service:
+  port: 6379

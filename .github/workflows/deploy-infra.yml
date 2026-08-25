@@ -77,15 +77,18 @@ jobs:
       # Install tools
       # ------------------------------------------------------------------
       - name: Setup strata
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.6.1
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.2
         with:
-          # NOTE: must be a PEP 440 specifier ('==1.6.1'), not a bare version ('1.6.1').
-          # The v1.6.1/v1.7.0 tags of this action have a bug where a bare version falls
-          # through to `uv tool install "xyz-strata${VERSION}"` with no operator inserted,
-          # producing the invalid spec `xyz-strata1.6.1` ("unsatisfiable"). Passing our own
-          # '==' prefix sidesteps the bug since that branch just concatenates the string.
-          # Fixed upstream on strata's main branch, but not yet in a tagged release.
-          strata-version: "==1.6.1"
+          # 1.8.2 fixes all bugs found while building Forge's Helm modules this
+          # session: (1) OCI chart_repository support, (2) Helm ${KEY} secret
+          # substitution now matches any nested env: dict (was one-level-only),
+          # (3) HelmBuilder no longer Jinja2-renders a local chart's templates/
+          # dir (was crashing on Go-template syntax like '{{ .Release.Name }}'),
+          # (4) TerraformBuilder's input validator now scopes secret checks to
+          # the resolving provisioner's stage(s) instead of globally sweeping
+          # every secret in environment.yaml (was hard-failing 'build run' for
+          # any multi-provisioner workspace). Confirmed via source review.
+          strata-version: "==1.8.2"
         env:
           # Only matters when multiple package indexes are configured (e.g. a corporate
           # PyPI mirror in front of public PyPI) — makes uv fall through to a later index

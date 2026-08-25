@@ -294,6 +294,65 @@ entries:
       timeout: 30
 
   # ---------------------------------------------------------------------------
+  # Nextcloud — OAuth2/OIDC Provider + Application
+  # ---------------------------------------------------------------------------
+  # Runs on Forge (k3s), not Hearth — same reasoning as Jellyfin's block above.
+  # RBAC comes from the "groups" claim (this provider's scope mappings already
+  # include the openid/email/profile scopes needed) — Nextcloud's user_oidc
+  # app maps Authentik groups to Nextcloud groups automatically via its own
+  # --group-provisioning=1 setting (see config/forge/modules/nextcloud.yaml).
+
+  - model: authentik_providers_oauth2.oauth2provider
+    state: present
+    identifiers:
+      name: Nextcloud
+    id: provider-nextcloud
+    attrs:
+      name: Nextcloud
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      client_type: confidential
+      client_id: nextcloud
+      client_secret: "{{ nextcloud_sso_client_secret }}"
+      redirect_uris:
+        - matching_mode: strict
+          url: "https://drive.huybrechts.xyz/apps/user_oidc/code"
+      grant_types:
+        - authorization_code
+        - refresh_token
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !KeyOf mapping-email-verified
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
+      sub_mode: hashed_user_id
+      issuer_mode: global
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: nextcloud
+    attrs:
+      name: Nextcloud
+      slug: nextcloud
+      provider: !KeyOf provider-nextcloud
+      meta_launch_url: https://drive.huybrechts.xyz
+
+  - model: authentik_policies.policybinding
+    state: present
+    identifiers:
+      target: !Find [authentik_core.application, [slug, nextcloud]]
+      order: 0
+    attrs:
+      target: !Find [authentik_core.application, [slug, nextcloud]]
+      policy: !KeyOf policy-group-members
+      order: 0
+      enabled: true
+      negate: false
+      timeout: 30
+
+  # ---------------------------------------------------------------------------
   # Branding
   # ---------------------------------------------------------------------------
 
