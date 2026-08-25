@@ -9,8 +9,10 @@
 # Prerequisites: deploy-infra.yml and deploy-forge-init.yml must have run
 # at least once (VPS exists and is initialised).
 #
-# NOTE: forge-config.yml / forge-deploy.yml Ansible playbooks do not exist
-# yet — the steps below are placeholders until those are authored.
+# NOTE: forge-deploy.yml Ansible playbook does not exist yet — the deploy
+# steps below are placeholders until it's authored. forge-config.yml exists
+# and runs for real (currently: LAN-routes Forge → Hearth's Authentik via a
+# /etc/hosts override, since both VPS's share a private Hetzner network).
 # ==============================================================================
 
 name: 32 - Forge - Config + Deploy
@@ -106,19 +108,35 @@ jobs:
       # ------------------------------------------------------------------
       # Config (idempotent configuration enforcement)
       # ------------------------------------------------------------------
-      # TODO: Create deploy/ansible-forge/forge-config.yml
-      # - name: Install Ansible collections (config)
-      #   if: ${{ inputs.run_config == true && inputs.dry_run != true }}
-      #   working-directory: deploy/ansible-forge
-      #   run: ansible-galaxy collection install -r requirements.yml -p ./collections
-      #
-      # - name: Run forge-config playbook
-      #   if: ${{ inputs.run_config == true && inputs.dry_run != true }}
-      #   working-directory: deploy/ansible-forge
-      #   run: |
-      #     ansible-playbook forge-config.yml \
-      #       -i "${{ steps.ssh.outputs.server_ip }}," \
-      #       --private-key ~/.ssh/haven_ed25519
+      - name: Get Hearth private IP (LAN routing for Forge → Authentik)
+        id: hearth_ip
+        if: ${{ inputs.run_config == true && inputs.dry_run != true }}
+        env:
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          ip=$(curl -sf \
+            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+            "https://api.hetzner.cloud/v1/servers?name=haven-platform-hearth" \
+            | jq -r '.servers[0].private_net[0].ip // empty')
+          if [ -z "$ip" ]; then
+            echo "::error::Hearth private IP not found. Run deploy-infra.yml first."
+            exit 1
+          fi
+          echo "ip=$ip" >> "$GITHUB_OUTPUT"
+
+      - name: Install Ansible collections (config)
+        if: ${{ inputs.run_config == true && inputs.dry_run != true }}
+        working-directory: deploy/ansible-forge
+        run: ansible-galaxy collection install -r requirements.yml -p ./collections
+
+      - name: Run forge-config playbook
+        if: ${{ inputs.run_config == true && inputs.dry_run != true }}
+        working-directory: deploy/ansible-forge
+        run: |
+          ansible-playbook forge-config.yml \
+            -i "${{ steps.ssh.outputs.server_ip }}," \
+            --private-key ~/.ssh/haven_ed25519 \
+            -e hearth_private_ip=${{ steps.hearth_ip.outputs.ip }}
 
       # ------------------------------------------------------------------
       # Deploy (k3s workloads — Helm charts)

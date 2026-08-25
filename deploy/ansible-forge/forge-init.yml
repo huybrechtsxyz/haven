@@ -123,9 +123,9 @@
         path: /usr/local/bin/k3s
       register: k3s_binary
 
-    - name: Install k3s (Traefik disabled — Caddy on Hearth handles ingress)
+    - name: Install k3s (Traefik enabled — Forge terminates its own TLS via cert-manager, independent of Hearth's Caddy)
       ansible.builtin.shell:
-        cmd: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --write-kubeconfig-mode=644" sh -
+        cmd: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --write-kubeconfig-mode=644" sh -
         executable: /bin/bash
       when: not k3s_binary.stat.exists
       changed_when: true

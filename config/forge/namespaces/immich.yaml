@@ -1,0 +1,20 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: namespace
+meta:
+  name: immich
+  annotations:
+    description: Immich namespace — photo/video management (k3s on Forge, CPX41). Own k8s namespace to avoid collisions with future media-server / self-hosted-app namespaces on the same node.
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, immich, k3s, family]
+spec:
+  modules:
+    - name: immich-library
+      description: Static PV/PVC for the photo/video library (Storage Box NFS)
+      file: config/forge/modules/immich-library.yaml
+    - name: immich-postgres
+      description: PostgreSQL (vectorchord-enabled) for Immich
+      file: config/forge/modules/immich-postgres.yaml
+    - name: immich
+      description: Immich server, machine learning, and cache
+      file: config/forge/modules/immich.yaml

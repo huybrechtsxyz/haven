@@ -149,3 +149,21 @@ spec:
       generate:
         type: urlsafe
         length: 48
+
+    # Application secrets — Jellyfin (Forge)
+    - key: JELLYFIN_SSO_CLIENT_SECRET
+      store: infisical
+      value: JELLYFIN_SSO_CLIENT_SECRET
+      description: OIDC client secret for Jellyfin SSO via Authentik (K0lin/jellyfin-plugin-sso)
+      generate:
+        type: urlsafe
+        length: 48
+
+    # Application secrets — Immich (Forge)
+    - key: IMMICH_DB_PASSWORD
+      store: infisical
+      value: IMMICH_DB_PASSWORD
+      description: PostgreSQL password for Immich's database (vectorchord-enabled Postgres on Forge)
+      generate:
+        type: urlsafe
+        length: 48

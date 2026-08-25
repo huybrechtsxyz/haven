@@ -2,11 +2,13 @@
 # Workflow: Forge — Init (one-time server bootstrap)
 # ==============================================================================
 # One-time initialisation of a fresh Forge VPS: installs k3s (single-node,
-# Traefik disabled since Caddy on Hearth handles ingress), creates the haven
-# service user, optionally mounts the Storage Box NFS share, hardens SSH, and
-# generates the BorgBackup SSH key pair. Idempotent (safe to re-run) but
-# normally only needed once per server — routine changes will go through
-# forge-config.yml / forge-deploy.yml once those exist (see deploy-forge.yml).
+# Traefik enabled — Forge terminates its own TLS via cert-manager, independent
+# of Hearth's Caddy, so Forge apps can be added/changed freely without ever
+# touching Hearth), creates the haven service user, optionally mounts the
+# Storage Box NFS share, hardens SSH, and generates the BorgBackup SSH key
+# pair. Idempotent (safe to re-run) but normally only needed once per server —
+# routine changes will go through forge-config.yml / forge-deploy.yml once
+# those exist (see deploy-forge.yml).
 #
 # Prerequisites: deploy-infra.yml must have run at least once (VPS exists).
 # ==============================================================================

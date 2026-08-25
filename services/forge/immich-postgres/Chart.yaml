@@ -1,0 +1,9 @@
+apiVersion: v2
+name: immich-postgres
+description: >
+  Minimal single-pod PostgreSQL for Immich, using the immich-app-maintained
+  image that bundles the vectorchord extension Immich's server requires.
+  No operator, no replication — a single small family server doesn't need one.
+type: application
+version: "1.0.0"
+appVersion: "14-vectorchord0.4.3-pgvectors0.2.0"

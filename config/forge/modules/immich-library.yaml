@@ -1,0 +1,19 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: immich-library
+  annotations:
+    description: Static PV/PVC for Immich's photo/video library, backed by the Storage Box NFS mount
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, immich, storage]
+spec:
+  type: helm
+  source:
+    repository: haven
+    source_path: services/forge/immich-library
+  kubernetes_namespace: immich
+  configuration:
+    storage:
+      hostPath: /mnt/storagebox/immich
+      size: 500Gi

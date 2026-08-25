@@ -23,6 +23,10 @@ spec:
   namespaces:
     - name: hearth
       file: config/hearth/namespace.yaml
+    - name: immich
+      file: config/forge/namespaces/immich.yaml
+    - name: media
+      file: config/forge/namespaces/media.yaml
 
   topology:
     - name: hetzner_hearth
@@ -46,7 +50,10 @@ spec:
     - name: hetzner_forge
       provider: hetzner_dc_eu_de
       provisioner: haven_iac
-      type: single_node # k3s — Immich, Jellyfin, Gatus, home apps
+      type: single_node # k3s — one k8s namespace per app group (immich, media now; apps namespace later)
+      namespaces:
+        - namespace: immich
+        - namespace: media
       volumes:
         - name: k3s
           type: local

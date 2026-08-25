@@ -45,20 +45,21 @@ haven (workspace)
 
 Haven uses **independent GitHub Actions workflows** for independent scheduling and rapid iteration. Hearth is split into three, matching its three Ansible playbooks (one-time bootstrap vs the routine config+deploy pair):
 
-| Workflow                   | Purpose                                       | Frequency                      | When to run                         |
-| -------------------------- | --------------------------------------------- | ------------------------------ | ----------------------------------- |
-| `deploy-infra.yml`         | Terraform + S3 provisioning                   | Once (rare)                    | After infrastructure changes        |
-| `deploy-hearth-init.yml`   | Core VPS one-time bootstrap                   | Once (rare)                    | New server, or after a full rebuild |
-| `deploy-hearth-config.yml` | Core VPS idempotent configuration enforcement | On-demand (paired with deploy) | After service config changes        |
-| `deploy-hearth-deploy.yml` | Core VPS Docker Compose deploy                | On-demand (paired with config) | After service config changes        |
-| `deploy-forge.yml`         | Workload VPS init/config/deploy (k3s)         | On-demand                      | After app/chart updates             |
+| Workflow                   | Purpose                                        | Frequency                      | When to run                         |
+| -------------------------- | ---------------------------------------------- | ------------------------------ | ----------------------------------- |
+| `deploy-infra.yml`         | Terraform + S3 provisioning                    | Once (rare)                    | After infrastructure changes        |
+| `deploy-hearth-init.yml`   | Core VPS one-time bootstrap                    | Once (rare)                    | New server, or after a full rebuild |
+| `deploy-hearth-config.yml` | Core VPS idempotent configuration enforcement  | On-demand (paired with deploy) | After service config changes        |
+| `deploy-hearth-deploy.yml` | Core VPS Docker Compose deploy                 | On-demand (paired with config) | After service config changes        |
+| `deploy-forge-init.yml`    | Workload VPS one-time bootstrap (k3s, Traefik) | Once (rare)                    | New server, or after a full rebuild |
+| `deploy-forge.yml`         | Workload VPS idempotent config + app deploy    | On-demand                      | After app/chart updates             |
 
 **Typical deployment order:**
 
 1. Run `deploy-infra.yml` once (Terraform + S3 buckets)
 2. Configure DNS at INWX
 3. Run `deploy-hearth-init.yml` once (first run only), then `deploy-hearth-config.yml` + `deploy-hearth-deploy.yml` for core services
-4. Run `deploy-forge.yml` for workload apps
+4. Run `deploy-forge-init.yml` once (first run only), then `deploy-forge.yml` for workload apps
 
 ---
 
@@ -71,10 +72,11 @@ Haven uses **independent GitHub Actions workflows** for independent scheduling a
 | **Setup**          | [setup.md](setup.md)                   | Initial setup of cloud services, secrets, and credentials |
 | **Infrastructure** | [infrastructure.md](infrastructure.md) | Terraform + S3 buckets + SSH keys + DNS                   |
 | **Haven Hearth**   | [hearth.md](hearth.md)                 | Core VPS: Caddy, Authentik, Vaultwarden                   |
+| **Haven Forge**    | [forge.md](forge.md)                   | Workload VPS: k3s, Traefik, per-app namespaces            |
 
+Per-app guides (Immich, Jellyfin, and future self-hosted apps) live under [docs/services/](../services/) — linked from [forge.md](forge.md#what-runs-where).
 
 ## TODO
 
-| **Haven Forge**    | [forge.md](forge.md) *(coming soon)*                   | Workload VPS: k3s, Immich, Jellyfin, Gatus                                  |
 | **Verify**         | [verify.md](verify.md) *(coming soon)*                  | Post-deploy smoke tests + verification checklist                            |
 | **Migration**      | [migration.md](migration.md) *(coming soon)*                     | Migrating from Google Workspace + Bitwarden                                 |

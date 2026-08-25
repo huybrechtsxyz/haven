@@ -1,0 +1,89 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: jellyfin
+  annotations:
+    description: Jellyfin — media streaming server (k3s / Helm)
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, media, jellyfin, streaming]
+spec:
+  type: helm
+  source:
+    # Official chart — still on the classic HTTP repo (not OCI-only like
+    # Immich), so this one is unaffected by the strata OCI gap.
+    chart_repository: https://jellyfin.github.io/jellyfin-helm
+    chart_name: jellyfin
+    chart_version: "3.2.0"
+  kubernetes_namespace: media
+  # Raw passthrough — same reasoning as the immich module: this chart's
+  # top-level keys (persistence/service/ingress/jellyfin) are fixed by the
+  # chart itself, so spec.configuration (no module-name prefixing) is used
+  # instead of spec.services.
+  configuration:
+    # image.tag intentionally left unset — the chart defaults to its own
+    # matching appVersion (10.11.8 for chart 3.2.0) when omitted.
+    persistence:
+      config:
+        enabled: true
+        storageClass: local-path
+        size: 5Gi
+      # Media library — read-only, backed by the SAME Storage Box NFS mount
+      # forge-init.yml already sets up on the host at /mnt/storagebox (same
+      # hostPath approach as the immich-library module, not a separate
+      # in-pod NFS mount — avoids a second independent NFS auth/mount path).
+      media:
+        enabled: true
+        type: hostPath
+        hostPath: /mnt/storagebox/media
+      cache:
+        enabled: false
+
+    service:
+      type: ClusterIP
+      port: 8096
+
+    # TODO: no cert-manager / ClusterIssuer exists on Forge yet (Traefik was
+    # just re-enabled in forge-init.yml, nothing issues TLS certs yet) — tls
+    # is deliberately left empty until that's built. Ingress works over plain
+    # HTTP through Traefik until then.
+    ingress:
+      enabled: true
+      className: traefik
+      hosts:
+        - host: jellyfin.huybrechts.xyz
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+      tls: []
+
+    jellyfin:
+      env:
+        - name: JELLYFIN_PublishedServerUrl
+          value: https://jellyfin.huybrechts.xyz
+
+  # SSO setup (K0lin/jellyfin-plugin-sso — see below for why this fork).
+  # Not yet automated end-to-end — two manual/scripted steps remain:
+  #
+  # 1. Install the plugin (one-time, per Jellyfin instance):
+  #    Dashboard → Plugins → Repositories → add
+  #      https://raw.githubusercontent.com/k0lin/jellyfin-plugin-sso/manifest-release/manifest.json
+  #    then Catalog → install "SSO Authentication" → restart Jellyfin.
+  #    (Note: the original 9p4/jellyfin-plugin-sso was archived 2026-05-12 —
+  #    K0lin's fork is an active, transparent continuation of the same code,
+  #    same config/API shape, used here instead.)
+  #
+  # 2. Register the Authentik provider (needs a Jellyfin admin API key —
+  #    Dashboard → API Keys — which itself needs the one-time first-run admin
+  #    setup done via the web UI first; Jellyfin has no headless bootstrap):
+  #      curl -X POST -H "Content-Type: application/json" \
+  #        -d '{
+  #              "oidEndpoint": "https://auth.huybrechts.xyz/application/o/jellyfin/",
+  #              "oidClientId": "jellyfin",
+  #              "oidSecret": "<JELLYFIN_SSO_CLIENT_SECRET>",
+  #              "enabled": true,
+  #              "enableAuthorization": false
+  #            }' \
+  #        "https://jellyfin.huybrechts.xyz/sso/OID/Add/authentik?api_key=<JELLYFIN_API_KEY>"
+  #    The Authentik-side OAuth2 provider/application is already automated —
+  #    see deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2.
