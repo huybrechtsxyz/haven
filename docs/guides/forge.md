@@ -30,13 +30,29 @@ Application-level traffic wasn't — Forge apps authenticating against Hearth's 
 
 ## What runs where
 
-| Namespace (k8s) | Guide                                           | Purpose                                                            |
-| --------------- | ----------------------------------------------- | ------------------------------------------------------------------ |
-| `immich`        | [services/immich.md](../services/immich.md)     | Photo/video management (Immich + its own Postgres/library modules) |
-| `media`         | [services/jellyfin.md](../services/jellyfin.md) | Media streaming (Jellyfin)                                         |
-| *(future)*      | —                                               | Other self-hosted apps get their own namespace each, same pattern  |
+| Namespace (k8s) | Guide                                           | Purpose                                                                                                       |
+| --------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `immich`        | [services/immich.md](../services/immich.md)     | Photo/video management (Immich + its own Postgres/library modules)                                            |
+| `media`         | [services/jellyfin.md](../services/jellyfin.md) | Media streaming (Jellyfin)                                                                                    |
+| `system`        | *(this doc, below)*                             | Cross-cutting cluster tooling not tied to one app layer — Portainer's Kubernetes agent, cert-manager (future) |
+| *(future)*      | —                                               | Other self-hosted apps get their own namespace each, same pattern                                             |
 
 Each app group gets its own strata namespace file under `config/forge/namespaces/` and its own Kubernetes namespace — deliberately not shared, so apps can't collide or take each other down.
+
+---
+
+## Portainer Kubernetes agent
+
+Hearth's existing Portainer instance can manage Forge's k3s cluster too — Portainer CE natively supports adding both Docker *and* Kubernetes environments from one instance, so no second Portainer deployment is needed on Forge.
+
+**Not yet wired in as a strata module.** The agent needs `cluster-admin` RBAC, and the correct manifest for your exact running Portainer version should come from Portainer's own setup wizard — not a hand-authored or hardcoded one, since versions must match and getting cluster-admin YAML wrong is exactly the kind of thing worth avoiding.
+
+To set it up:
+
+1. In Portainer (on Hearth): **Environments → Add environment → Kubernetes → via agent** — this generates a `kubectl apply -f ...` command specific to your installed Portainer version.
+2. Run that command against Forge (over the LAN — see [LAN routing](#design-decision--lan-routing-between-hearth-and-forge) above).
+3. Back in Portainer, finish adding the environment using the agent's address on Forge's private IP.
+4. Once working, capture the resulting manifest as a local Helm chart under `services/forge/portainer-agent/` + a `config/forge/modules/portainer-agent.yaml` module, referenced from a new `config/forge/namespaces/system.yaml` (strata rejects empty namespaces — this one needs at least this module before it can be created) — same pattern as the other namespaces in this repo.
 
 ---
 

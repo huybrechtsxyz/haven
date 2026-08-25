@@ -25,8 +25,11 @@ updates:
       prefix: "chore(actions)"
 
   # Terraform — provider and module version constraints
+  # NOTE: path was previously "/terraform" (wrong — the actual directory is
+  # deploy/terraform) — Dependabot was silently scanning nothing since this
+  # config was added.
   - package-ecosystem: "terraform"
-    directory: "/terraform"
+    directory: "/deploy/terraform"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -35,3 +38,28 @@ updates:
       - "terraform"
     commit-message:
       prefix: "chore(terraform)"
+
+  # Docker — base image in the docs site's own Dockerfile
+  - package-ecosystem: "docker"
+    directory: "/docs"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(docker)"
+
+# ------------------------------------------------------------------------------
+# NOT covered by Dependabot — no ecosystem for it:
+#
+# Helm chart versions / app image tags declared inside strata's custom module
+# YAML (config/forge/modules/*.yaml — e.g. immich.yaml's chart_version: "0.13.1",
+# jellyfin.yaml's chart_version: "3.2.0"). Dependabot only understands a fixed
+# set of built-in manifest formats (package.json, Dockerfile, .tf files,
+# GitHub Actions workflows, etc.) — it has no "helm" ecosystem and can't parse
+# arbitrary custom YAML schemas. Tracking these would need Renovate instead,
+# using a custom regex manager (`customManagers` / `regexManagers`) targeting
+# the `chart_version:`/`image.tag:` fields — not yet set up.
+# ------------------------------------------------------------------------------

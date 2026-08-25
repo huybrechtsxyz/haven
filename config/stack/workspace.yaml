@@ -50,7 +50,7 @@ spec:
     - name: hetzner_forge
       provider: hetzner_dc_eu_de
       provisioner: haven_iac
-      type: single_node # k3s — one k8s namespace per app group (immich, media now; apps namespace later)
+      type: single_node # k3s — one k8s namespace per app group (immich, media now; system + apps namespaces later)
       namespaces:
         - namespace: immich
         - namespace: media
