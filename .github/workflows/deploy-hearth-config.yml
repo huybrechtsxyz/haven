@@ -83,10 +83,12 @@ jobs:
       # ------------------------------------------------------------------
       - name: Setup strata
         if: ${{ inputs.dry_run != true }}
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.6.1
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.2
         with:
-          # See deploy-infra.yml for why this must be '==1.6.1', not a bare '1.6.1'.
-          strata-version: "==1.6.1"
+          # See deploy-infra.yml for why this is '==1.8.2' — fixes the Helm local-chart
+          # Jinja2 crash, the global Terraform input-validator regression, OCI charts,
+          # and shallow-only secret substitution.
+          strata-version: "==1.8.2"
         env:
           # See deploy-infra.yml for why this is set — no-op on GitHub-hosted runners.
           UV_INDEX_STRATEGY: unsafe-best-match
@@ -118,7 +120,7 @@ jobs:
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
           set +e
-          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_BACKUP VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_BACKUP VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET JELLYFIN_SSO_CLIENT_SECRET NEXTCLOUD_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
           STATUS=$?
           set -e
           if [ $STATUS -ne 0 ]; then
@@ -130,6 +132,8 @@ jobs:
           HEALTHCHECK_URL=$(echo "$VALUES" | jq -r '.data.results.HEALTHCHECK_PING_BACKUP')
           VAULTWARDEN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.VAULTWARDEN_SSO_CLIENT_SECRET')
           WUD_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.WUD_SSO_CLIENT_SECRET')
+          JELLYFIN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.JELLYFIN_SSO_CLIENT_SECRET')
+          NEXTCLOUD_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.NEXTCLOUD_SSO_CLIENT_SECRET')
           cat > /tmp/config_vars.yml << VARSEOF
           borg_passphrase: "$BORG_PASSPHRASE"
           storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
@@ -137,6 +141,8 @@ jobs:
           healthcheck_ping_url: "$HEALTHCHECK_URL"
           vaultwarden_sso_client_secret: "$VAULTWARDEN_SSO_SECRET"
           wud_sso_client_secret: "$WUD_SSO_SECRET"
+          jellyfin_sso_client_secret: "$JELLYFIN_SSO_SECRET"
+          nextcloud_sso_client_secret: "$NEXTCLOUD_SSO_SECRET"
           VARSEOF
 
       - name: Run hearth-config playbook

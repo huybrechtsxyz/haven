@@ -8,14 +8,6 @@ meta:
     version: "1.0.0"
   tags: [haven, hetzner, family, production]
 spec:
-  variables:
-    - key: WORKSPACE
-      store: constant
-      value: haven
-    - key: DATACENTER
-      store: constant
-      value: hetzner-eu-de
-
   secrets:
     # Infrastructure — Hetzner
     - key: HETZNER_API_TOKEN
@@ -146,6 +138,54 @@ spec:
       store: infisical
       value: WUD_SSO_CLIENT_SECRET
       description: OIDC client secret for WUD SSO via Authentik
+      generate:
+        type: urlsafe
+        length: 48
+
+    # Application secrets — Jellyfin (Forge)
+    - key: JELLYFIN_SSO_CLIENT_SECRET
+      store: infisical
+      value: JELLYFIN_SSO_CLIENT_SECRET
+      description: OIDC client secret for Jellyfin SSO via Authentik (K0lin/jellyfin-plugin-sso)
+      generate:
+        type: urlsafe
+        length: 48
+
+    # Application secrets — Immich (Forge)
+    - key: IMMICH_DB_PASSWORD
+      store: infisical
+      value: IMMICH_DB_PASSWORD
+      description: PostgreSQL password for Immich's database (vectorchord-enabled Postgres on Forge)
+      generate:
+        type: urlsafe
+        length: 48
+
+    # Application secrets — Nextcloud (Forge)
+    - key: NEXTCLOUD_ADMIN_PASSWORD
+      store: infisical
+      value: NEXTCLOUD_ADMIN_PASSWORD
+      description: Nextcloud initial admin account password (auto-configured at container startup)
+      generate:
+        type: urlsafe
+        length: 48
+    - key: NEXTCLOUD_DB_PASSWORD
+      store: infisical
+      value: NEXTCLOUD_DB_PASSWORD
+      description: PostgreSQL password for Nextcloud's database
+      generate:
+        type: urlsafe
+        length: 48
+    - key: NEXTCLOUD_REDIS_PASSWORD
+      store: infisical
+      value: NEXTCLOUD_REDIS_PASSWORD
+      description: Redis password for Nextcloud memory caching + file locking
+      generate:
+        type: urlsafe
+        length: 48
+    - key: NEXTCLOUD_SSO_CLIENT_SECRET
+      store: infisical
+      value: NEXTCLOUD_SSO_CLIENT_SECRET
+      description: OIDC client secret for Nextcloud SSO via Authentik (user_oidc app)
       generate:
         type: urlsafe
         length: 48

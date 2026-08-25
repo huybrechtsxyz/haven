@@ -1,0 +1,111 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: nextcloud
+  annotations:
+    description: Nextcloud — family Google Drive replacement, External Storage over the shared haven-docs S3 bucket
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, documents, nextcloud, drive]
+spec:
+  type: helm
+  source:
+    # Official community-maintained chart (nextcloud org, classic HTTP repo —
+    # unaffected by the strata OCI gap).
+    chart_repository: https://nextcloud.github.io/helm
+    chart_name: nextcloud
+    chart_version: "9.2.6"
+  kubernetes_namespace: documents
+  references:
+    secrets:
+      - NEXTCLOUD_ADMIN_PASSWORD
+      - NEXTCLOUD_DB_PASSWORD
+      - NEXTCLOUD_REDIS_PASSWORD
+  # Raw passthrough — same reasoning as immich.yaml/jellyfin.yaml: this
+  # chart's top-level keys are fixed by the chart itself, so spec.configuration
+  # (no module-name prefixing) is used instead of spec.services.
+  configuration:
+    nextcloud:
+      host: drive.huybrechts.xyz
+      username: admin
+      # Real value injected by strata at deploy time — never written here.
+      password: "${NEXTCLOUD_ADMIN_PASSWORD}"
+      trustedDomains:
+        - drive.huybrechts.xyz
+      # Bridges the shared haven-docs mount (rclone-mount, system namespace)
+      # into the pod. External Storage ("Local" type, pointed at this path)
+      # is configured as a follow-up occ command — see docs/services/nextcloud.md.
+      extraVolumes:
+        - name: haven-docs
+          hostPath:
+            path: /mnt/haven-docs
+            type: DirectoryOrCreate
+      extraVolumeMounts:
+        - name: haven-docs
+          mountPath: /mnt/haven-docs
+
+    # Deliberately NOT using the chart's bundled Bitnami mariadb/postgresql/redis
+    # subcharts (same reasoning as Immich) — own small single-pod services instead.
+    internalDatabase:
+      enabled: false
+    mariadb:
+      enabled: false
+    postgresql:
+      enabled: false
+    redis:
+      enabled: false
+
+    externalDatabase:
+      enabled: true
+      type: postgresql
+      host: nextcloud-postgres
+      user: nextcloud
+      database: nextcloud
+      # Real value injected by strata at deploy time — never written here.
+      password: "${NEXTCLOUD_DB_PASSWORD}"
+
+    externalRedis:
+      enabled: true
+      host: nextcloud-redis
+      port: "6379"
+      # Real value injected by strata at deploy time — never written here.
+      password: "${NEXTCLOUD_REDIS_PASSWORD}"
+
+    persistence:
+      # Nextcloud's own primary storage (/var/www/html/data) — NOT the shared
+      # haven-docs tree. Small, local-disk, holds whatever isn't organized
+      # through External Storage.
+      enabled: true
+      storageClass: local-path
+      size: 8Gi
+
+    ingress:
+      enabled: true
+      className: traefik
+      hosts:
+        - host: drive.huybrechts.xyz
+          paths:
+            - path: /
+              pathType: Prefix
+      tls: []
+
+    # Nextcloud needs periodic background jobs (file scan, notifications,
+    # etc.) — including picking up files Kavita/other tools write directly
+    # into the shared tree outside Nextcloud's own UI/API.
+    cronjob:
+      enabled: true
+      type: sidecar
+
+  # TODO — follow-up steps, not yet automated (same category as Jellyfin's SSO
+  # plugin registration):
+  # 1. Install the `user_oidc` app (official Nextcloud app) via occ:
+  #      occ app:install user_oidc
+  #      occ user_oidc:provider authentik --clientid=nextcloud \
+  #        --clientsecret=<NEXTCLOUD_SSO_CLIENT_SECRET> \
+  #        --discoveryuri=https://auth.huybrechts.xyz/application/o/nextcloud/.well-known/openid-configuration \
+  #        --group-provisioning=1
+  #    (RBAC comes from Authentik's groups — admins/parents/members — mapped
+  #    automatically via user_oidc's group provisioning.)
+  # 2. Configure External Storage ("Local" type) pointed at /mnt/haven-docs
+  #    (mounted above) via occ files_external:create, or the admin UI.
+  # See docs/services/nextcloud.md once written.

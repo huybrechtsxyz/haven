@@ -1,0 +1,39 @@
+---
+# =============================================================================
+# Playbook: forge-config.yml
+# Idempotent configuration enforcement for the Forge VPS. Safe to re-run on
+# every deploy — unlike forge-init.yml (one-time bootstrap), this playbook
+# is meant to run routinely as Forge's configuration evolves.
+#
+# Run:
+#   ansible-playbook forge-config.yml \
+#     -i <forge_public_ip>, \
+#     --private-key ~/.ssh/haven_ed25519 \
+#     -e hearth_private_ip=<hearth_private_ip>
+# =============================================================================
+
+- name: Forge — idempotent configuration enforcement
+  hosts: all
+  remote_user: root
+  gather_facts: false
+
+  vars_files:
+    - vars/main.yml
+
+  tasks:
+    # =========================================================================
+    # LAN routing — Forge apps must reach Hearth's Authentik over the private
+    # network, not hairpin back out through the public internet. Both servers
+    # share the same Hetzner private network (deploy/terraform/main.tf's
+    # hcloud_network.haven); overriding DNS resolution here keeps the hostname
+    # (and therefore TLS SNI / cert validation against Caddy's cert) unchanged
+    # — only the resolved IP changes.
+    # =========================================================================
+
+    - name: Point auth.huybrechts.xyz at Hearth's private IP (LAN routing)
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: "\\s+auth\\.huybrechts\\.xyz$"
+        line: "{{ hearth_private_ip }} auth.huybrechts.xyz"
+        state: present
+      when: hearth_private_ip is defined

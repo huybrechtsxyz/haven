@@ -1,0 +1,31 @@
+# =============================================================================
+# Shared, non-sensitive configuration variables for the Forge Ansible
+# playbooks (forge-init.yml; forge-config.yml / forge-deploy.yml to follow).
+#
+# Sensitive values (Storage Box credentials, Borg passphrase) are passed via
+# --extra-vars / -e @file at run time and are never committed here.
+# =============================================================================
+
+# haven service account (same convention as Hearth, even though Forge's
+# workloads run under k3s rather than docker compose)
+haven_user: haven
+haven_group: haven
+haven_install_path: /opt/haven
+
+# Server timezone
+haven_timezone: Europe/Brussels
+
+# =============================================================================
+# BorgBackup
+# =============================================================================
+# Set to true only after the borg SSH key has been authorised on the Storage
+# Box sub-account (forge-init Step 2) and the repo has been initialised.
+configure_borg: false
+
+# Storage Box connection details — passed via --extra-vars at run time.
+storagebox_host: ""
+storagebox_subaccount: forge-backup
+
+# Storage Box NFS mount options (media library at /mnt/storagebox).
+# Pass -e storagebox_nfs_share=<host>:/homes/<username> at run time to enable.
+storagebox_nfs_opts: "nfsvers=3,uid=0,gid=0,_netdev,noatime,auto"

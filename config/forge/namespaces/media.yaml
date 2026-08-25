@@ -1,0 +1,14 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: namespace
+meta:
+  name: media
+  annotations:
+    description: Media namespace — Jellyfin streaming (k3s on Forge, CPX41). Own k8s namespace, separate from immich and future self-hosted-app namespaces.
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, media, k3s, family]
+spec:
+  modules:
+    - name: jellyfin
+      description: Jellyfin media server
+      file: config/forge/modules/jellyfin.yaml

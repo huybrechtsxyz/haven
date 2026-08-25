@@ -1,0 +1,78 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: immich
+  annotations:
+    description: Immich — self-hosted photo and video management (k3s / Helm)
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, immich, photos, media]
+spec:
+  type: helm
+  source:
+    # Immich's chart moved to OCI-only distribution — the old HTTP repo
+    # (https://immich-app.github.io/immich-charts/) is deprecated/frozen.
+    # Requires strata 1.8.2+ (OCI chart_repository support — see the bug
+    # report filed against strata; also needs 1.8.2's Terraform input-validator
+    # scoping fix, since IMMICH_DB_PASSWORD is a Helm-only secret unused by
+    # Terraform — a workspace-wide 'strata build run' blocker on 1.7.0-1.8.1).
+    chart_repository: oci://ghcr.io/immich-app/immich-charts
+    chart_name: immich
+    # Verify this is still current before applying: https://github.com/immich-app/immich-charts/releases
+    chart_version: "0.13.1"
+  kubernetes_namespace: immich
+  references:
+    secrets:
+      - IMMICH_DB_PASSWORD
+  # Raw passthrough — deliberately NOT using spec.services here. This chart's
+  # top-level value keys (controllers/valkey/server/machine-learning/immich)
+  # are fixed by the chart itself; strata's per-service module-name prefixing
+  # (module-name}-{service}) would break them. spec.configuration merges
+  # verbatim with no prefixing, so it's the correct mechanism for this shape.
+  configuration:
+    # Shared across all Immich components (bjw-s common-library convention).
+    controllers:
+      main:
+        containers:
+          main:
+            image:
+              # TODO: pin to a real Immich app release compatible with chart
+              # 0.13.1 before first deploy — check
+              # https://github.com/immich-app/immich-charts/releases/tag/immich-0.13.1
+              tag: "v2.x.x"
+            env:
+              DB_HOSTNAME: immich-postgres
+              DB_USERNAME: immich
+              DB_DATABASE_NAME: immich
+              # Real value injected by strata at deploy time — never written here.
+              DB_PASSWORD: "${IMMICH_DB_PASSWORD}"
+
+    # Photo/video library — PVC created by the immich-library module (backed
+    # by the Storage Box NFS mount, not local disk).
+    immich:
+      persistence:
+        library:
+          existingClaim: immich-library
+
+    # Bundled cache — kept enabled, but swapped to plain redis (per design
+    # decision) instead of the chart's default valkey image. Ephemeral cache
+    # only, no persistence needed.
+    valkey:
+      enabled: true
+      controllers:
+        main:
+          containers:
+            main:
+              image:
+                repository: redis
+                tag: 7-alpine
+      persistence:
+        data:
+          enabled: true
+          type: emptyDir
+
+    server:
+      enabled: true
+
+    machine-learning:
+      enabled: true

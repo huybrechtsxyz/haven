@@ -1,0 +1,23 @@
+# Defaults — override via the strata module's spec.configuration (see
+# config/forge/modules/postgres-immich.yaml).
+image:
+  # Official immich-app image — Postgres 14 with the vectorchord extension
+  # pre-installed. See https://github.com/immich-app/immich/blob/main/docker/docker-compose.yml
+  repository: ghcr.io/immich-app/postgres
+  tag: 14-vectorchord0.4.3-pgvectors0.2.0
+
+env:
+  POSTGRES_USER: immich
+  POSTGRES_DB: immich
+  # Set via ${IMMICH_DB_PASSWORD} substitution token — never a literal value here.
+  POSTGRES_PASSWORD: ""
+
+persistence:
+  # k3s ships local-path-provisioner by default — fine for a single-node
+  # cluster's own database storage (NOT the photo/video library — that goes
+  # on the Storage Box NFS mount instead, see the immich-library module).
+  storageClass: local-path
+  size: 10Gi
+
+service:
+  port: 5432
