@@ -15,7 +15,5 @@ s3_buckets:
     description: "Immich external photo library (originals + derivatives)"
   - name: haven-media
     description: "Media overflow — large binary assets if Storage Box capacity is exhausted"
-  - name: haven-archive
-    description: "Cold storage, documents, exports, long-term retention"
   - name: haven-docs
-    description: "Documentation, operational exports, runbook snapshots"
+    description: "Family documents — games/manuals, general archive, anything organized/browsed via Nextcloud, Kavita, Paperless-ngx"

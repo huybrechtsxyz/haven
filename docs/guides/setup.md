@@ -180,12 +180,11 @@ strata secret put STORAGEBOX_FORGE_PASSWORD --value "<forge-sub-account-password
 
 See [Hetzner Setup](../services/hetzner.md#create-hetzner-cloud-s3-access-keys) for the full explanation of creating the access key pair and its project-wide scope.
 
-Four buckets are provisioned by the `ansible-s3/forge-s3.yml` playbook using this one key pair:
+Three buckets are provisioned by the `ansible-s3/forge-s3.yml` playbook using this one key pair:
 
 - `haven-photos` — Immich external photo library
 - `haven-media` — media overflow (large binary assets)
-- `haven-archive` — cold storage, documents, exports
-- `haven-docs` — documentation and operational exports
+- `haven-docs` — family documents (games/manuals, general archive) — organized/browsed via Nextcloud, Kavita, Paperless-ngx
 
 This is another externally-created value, so push it the same way — `--value`, no `generate:` spec:
 
