@@ -2,17 +2,17 @@
 # Workflow: Forge — Config + Deploy (k3s)
 # ==============================================================================
 # Manages the Forge VPS after one-time init (see deploy-forge-init.yml):
-# idempotent config enforcement and k3s workload deployment (Helm charts).
-# Temporarily opens SSH on the Forge firewall for the runner IP, runs
-# the selected Ansible playbooks, then always removes the rule.
+# idempotent config enforcement (Ansible, over SSH) and k3s Helm workload
+# deployment (strata's own deploy pipeline, tunnelled to the k3s API over the
+# same SSH connection — see the 'Deploy' section below). Temporarily opens
+# SSH on the Forge firewall for the runner IP, then always removes the rule.
 #
 # Prerequisites: deploy-infra.yml and deploy-forge-init.yml must have run
 # at least once (VPS exists and is initialised).
 #
-# NOTE: forge-deploy.yml Ansible playbook does not exist yet — the deploy
-# steps below are placeholders until it's authored. forge-config.yml exists
-# and runs for real (currently: LAN-routes Forge → Hearth's Authentik via a
-# /etc/hosts override, since both VPS's share a private Hetzner network).
+# Which Forge namespaces/services actually get deployed is controlled by
+# config/stack/workspace.yaml's spec.namespaces list — see the comments there
+# for the step-by-step activation order (system -> immich/media -> documents).
 # ==============================================================================
 
 name: 32 - Forge - Config + Deploy
@@ -33,7 +33,7 @@ on:
         type: boolean
         default: true
       run_deploy:
-        description: "Deploy k3s workloads to Forge (forge-deploy Ansible playbook)"
+        description: "Deploy k3s Helm workloads to Forge (strata deploy run --stage applications_forge)"
         type: boolean
         default: true
 
@@ -41,6 +41,9 @@ permissions:
   contents: read
 
 env:
+  STRATA_OUTPUT: json
+  STRATA_WORK_PATH: ${{ github.workspace }}
+  DEPLOYMENT_FILE: "config/deployment.yaml"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -98,6 +101,22 @@ jobs:
         if: ${{ inputs.dry_run != true }}
         run: pip install ansible-core
 
+      # ------------------------------------------------------------------
+      # Strata + Helm setup (deploy phase only)
+      # ------------------------------------------------------------------
+      - name: Setup strata
+        if: ${{ inputs.run_deploy == true }}
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.2
+        with:
+          # See deploy-infra.yml for why this is '==1.8.2'.
+          strata-version: "==1.8.2"
+        env:
+          UV_INDEX_STRATEGY: unsafe-best-match
+
+      - name: Setup Helm
+        if: ${{ inputs.run_deploy == true }}
+        uses: azure/setup-helm@v4
+
       - name: Write deploy SSH private key
         if: ${{ inputs.dry_run != true }}
         run: |
@@ -139,16 +158,54 @@ jobs:
             -e hearth_private_ip=${{ steps.hearth_ip.outputs.ip }}
 
       # ------------------------------------------------------------------
-      # Deploy (k3s workloads — Helm charts)
+      # Deploy (k3s workloads — Helm charts, via strata's own deploy pipeline)
       # ------------------------------------------------------------------
-      # TODO: Create deploy/ansible-forge/forge-deploy.yml
-      # - name: Run forge-deploy playbook
-      #   if: ${{ inputs.run_deploy == true && inputs.dry_run != true }}
-      #   working-directory: deploy/ansible-forge
-      #   run: |
-      #     ansible-playbook forge-deploy.yml \
-      #       -i "${{ steps.ssh.outputs.server_ip }}," \
-      #       --private-key ~/.ssh/haven_ed25519
+      # Forge's k3s API is only reachable on the Hetzner private network (or
+      # localhost on the node itself) — there is no public LB in front of it.
+      # Rather than exposing port 6443 on the firewall, this tunnels through
+      # the SSH access already opened above: fetch the node's own kubeconfig
+      # (a fresh k3s install's default kubeconfig already points at
+      # 'https://127.0.0.1:6443', so no rewriting is needed) and forward local
+      # port 6443 to the same address on the far end of the SSH connection.
+      - name: Validate deployment file
+        if: ${{ inputs.run_deploy == true }}
+        run: strata validate -f $DEPLOYMENT_FILE --deep
+
+      - name: Build platform artifacts
+        if: ${{ inputs.run_deploy == true }}
+        run: strata build run --file $DEPLOYMENT_FILE
+
+      - name: Fetch k3s kubeconfig
+        if: ${{ inputs.run_deploy == true && inputs.dry_run != true }}
+        run: |
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/haven_ed25519 \
+            root@${{ steps.ssh.outputs.server_ip }}:/etc/rancher/k3s/k3s.yaml \
+            /tmp/forge-kubeconfig.yaml
+          chmod 600 /tmp/forge-kubeconfig.yaml
+
+      - name: Open SSH tunnel to k3s API
+        if: ${{ inputs.run_deploy == true && inputs.dry_run != true }}
+        run: |
+          ssh -f -N -L 6443:127.0.0.1:6443 \
+            -o StrictHostKeyChecking=no -o ExitOnForwardFailure=yes \
+            -i ~/.ssh/haven_ed25519 root@${{ steps.ssh.outputs.server_ip }}
+
+      - name: Deploy Forge Helm apps
+        if: ${{ inputs.run_deploy == true && inputs.dry_run != true }}
+        env:
+          KUBECONFIG: /tmp/forge-kubeconfig.yaml
+          # Which namespaces actually get deployed is controlled by
+          # config/stack/workspace.yaml's spec.namespaces list (pruned to one
+          # at a time for step-by-step activation), not by this stage.
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
+        run: |
+          strata deploy run --file $DEPLOYMENT_FILE --stage applications_forge --force
+
+      - name: Close SSH tunnel to k3s API
+        if: ${{ always() }}
+        run: pkill -f "6443:127.0.0.1:6443" || true
 
       # ------------------------------------------------------------------
       # Cleanup — always remove temporary SSH rule
