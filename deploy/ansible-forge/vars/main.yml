@@ -25,7 +25,3 @@ configure_borg: false
 # Storage Box connection details — passed via --extra-vars at run time.
 storagebox_host: ""
 storagebox_subaccount: forge-backup
-
-# Storage Box NFS mount options (media library at /mnt/storagebox).
-# Pass -e storagebox_nfs_share=<host>:/homes/<username> at run time to enable.
-storagebox_nfs_opts: "nfsvers=3,uid=0,gid=0,_netdev,noatime,auto"

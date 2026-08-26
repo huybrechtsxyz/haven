@@ -40,8 +40,12 @@
 #       -e storagebox_password=<storagebox-password> \
 #       -e borg_passphrase=<strong-passphrase>
 #
-#   NFS mount (Storage Box media share) — pass at runtime alongside Step 2:
-#       -e storagebox_nfs_share=<uXXXXXX.your-storagebox.de>:/homes/<uXXXXXX>
+#   SMB mount (Storage Box media share) — subaccounts don't support NFS, only
+#   SMB/CIFS + SSH. Pass at runtime alongside Step 2 (share name = subaccount
+#   username itself, e.g. host u604953-sub2.your-storagebox.de, share u604953-sub2):
+#       -e storagebox_host=<uXXXXXX-subN.your-storagebox.de> \
+#       -e storagebox_subaccount=<uXXXXXX-subN> \
+#       -e storagebox_password=<storagebox-password>
 # =============================================================================
 
 - name: Forge — one-time initialisation
@@ -81,7 +85,7 @@
           - ncdu
           - fail2ban
           - jq
-          - nfs-common # required for Storage Box NFS mount
+          - cifs-utils # required for Storage Box SMB mount (subaccounts don't support NFS)
           - open-iscsi # required for k3s iSCSI storage support
         state: present
 
@@ -197,19 +201,34 @@
         mode: "0755"
 
     # =========================================================================
-    # Storage Box NFS mount (media library)
+    # Storage Box SMB mount (media library)
     # =========================================================================
-    # Pass -e storagebox_nfs_share=<host>:/homes/<username> at run time.
-    # Example: u123456.your-storagebox.de:/homes/u123456
+    # Hetzner Storage Box subaccounts don't support NFS at all (NFS is only
+    # available on the top-level Storage Box, and even then it's IP-allowlisted
+    # rather than password-based). SMB/CIFS is what subaccounts actually offer.
+    # Share name equals the subaccount username itself (confirmed via Hetzner
+    # Robot's own connection details, e.g. \\u604953-sub2.your-storagebox.de\u604953-sub2).
 
-    - name: Mount Storage Box NFS share (media library)
+    - name: Write SMB credentials file
+      ansible.builtin.copy:
+        dest: "{{ haven_install_path }}/.smbcredentials"
+        owner: root
+        group: root
+        mode: "0600"
+        content: |
+          username={{ storagebox_subaccount }}
+          password={{ storagebox_password | default('') }}
+      when: storagebox_password | default('') | length > 0
+      no_log: true
+
+    - name: Mount Storage Box SMB share (media library)
       ansible.posix.mount:
         path: /mnt/storagebox
-        src: "{{ storagebox_nfs_share }}"
-        fstype: nfs
-        opts: "{{ storagebox_nfs_opts }}"
+        src: "//{{ storagebox_host }}/{{ storagebox_subaccount }}"
+        fstype: cifs
+        opts: "credentials={{ haven_install_path }}/.smbcredentials,uid=0,gid=0,_netdev,noatime,vers=3.0"
         state: mounted
-      when: storagebox_nfs_share is defined
+      when: storagebox_password | default('') | length > 0
 
     # =========================================================================
     # SSH hardening
