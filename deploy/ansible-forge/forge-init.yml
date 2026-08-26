@@ -403,6 +403,14 @@
       become_user: "{{ haven_user }}"
       vars:
         ansible_ssh_pipelining: false
+      register: borg_init
+      # borg_info can fail (rc != 0) for reasons other than "repo doesn't
+      # exist" — e.g. the passphrase changed since the repo was created,
+      # which makes `borg info` unable to unlock it even though the repo
+      # is physically there. Rely on borg init's own idempotency signal
+      # ("repository already exists") instead of failing in that case.
+      failed_when: borg_init.rc != 0 and 'repository already exists' not in borg_init.stderr
+      changed_when: borg_init.rc == 0
       when: configure_borg | bool and borg_info.rc != 0
 
     - name: Export and display BorgBackup repokey (store this in Vaultwarden!)
