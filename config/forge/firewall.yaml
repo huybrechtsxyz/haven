@@ -54,11 +54,17 @@ spec:
       proto: tcp
       port: [443]
       comment: HTTPS outbound (apt, image pulls, Helm, OCSP)
-    # BorgBackup + NFS — Hetzner Storage Box uses SSH on port 23
+    # BorgBackup — Hetzner Storage Box uses SSH on port 23
     - direction: out
       proto: tcp
       port: [23]
-      comment: SSH to Storage Box (BorgBackup + NFS mount)
+      comment: SSH to Storage Box (BorgBackup)
+    # Media library mount — Storage Box subaccounts don't support NFS,
+    # only SMB/CIFS + SSH.
+    - direction: out
+      proto: tcp
+      port: [445]
+      comment: SMB to Storage Box (media library mount)
     # Public web ingress
     - direction: in
       proto: tcp
