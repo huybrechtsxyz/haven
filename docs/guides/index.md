@@ -45,21 +45,22 @@ haven (workspace)
 
 Haven uses **independent GitHub Actions workflows** for independent scheduling and rapid iteration. Hearth is split into three, matching its three Ansible playbooks (one-time bootstrap vs the routine config+deploy pair):
 
-| Workflow                   | Purpose                                        | Frequency                      | When to run                         |
-| -------------------------- | ---------------------------------------------- | ------------------------------ | ----------------------------------- |
-| `deploy-infra.yml`         | Terraform + S3 provisioning                    | Once (rare)                    | After infrastructure changes        |
-| `deploy-hearth-init.yml`   | Core VPS one-time bootstrap                    | Once (rare)                    | New server, or after a full rebuild |
-| `deploy-hearth-config.yml` | Core VPS idempotent configuration enforcement  | On-demand (paired with deploy) | After service config changes        |
-| `deploy-hearth-deploy.yml` | Core VPS Docker Compose deploy                 | On-demand (paired with config) | After service config changes        |
-| `deploy-forge-init.yml`    | Workload VPS one-time bootstrap (k3s, Traefik) | Once (rare)                    | New server, or after a full rebuild |
-| `deploy-forge.yml`         | Workload VPS idempotent config + app deploy    | On-demand                      | After app/chart updates             |
+| Workflow                   | Purpose                                             | Frequency                      | When to run                         |
+| -------------------------- | --------------------------------------------------- | ------------------------------ | ----------------------------------- |
+| `deploy-infra.yml`         | Terraform + S3 provisioning                         | Once (rare)                    | After infrastructure changes        |
+| `deploy-hearth-init.yml`   | Core VPS one-time bootstrap                         | Once (rare)                    | New server, or after a full rebuild |
+| `deploy-hearth-config.yml` | Core VPS idempotent configuration enforcement       | On-demand (paired with deploy) | After service config changes        |
+| `deploy-hearth-deploy.yml` | Core VPS Docker Compose deploy                      | On-demand (paired with config) | After service config changes        |
+| `deploy-forge-init.yml`    | Workload VPS one-time bootstrap (k3s, Traefik)      | Once (rare)                    | New server, or after a full rebuild |
+| `deploy-forge-config.yml`  | Workload VPS idempotent configuration (LAN routing) | On-demand (paired with deploy) | After config changes                |
+| `deploy-forge-deploy.yml`  | Workload VPS k3s Helm app deploy                    | On-demand (paired with config) | After app/chart updates             |
 
 **Typical deployment order:**
 
 1. Run `deploy-infra.yml` once (Terraform + S3 buckets)
 2. Configure DNS at INWX
 3. Run `deploy-hearth-init.yml` once (first run only), then `deploy-hearth-config.yml` + `deploy-hearth-deploy.yml` for core services
-4. Run `deploy-forge-init.yml` once (first run only), then `deploy-forge.yml` for workload apps
+4. Run `deploy-forge-init.yml` once (first run only), then `deploy-forge-config.yml` + `deploy-forge-deploy.yml` for workload apps
 
 ---
 

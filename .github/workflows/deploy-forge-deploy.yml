@@ -1,0 +1,164 @@
+# ==============================================================================
+# Workflow: Forge — Deploy (k3s Helm workloads)
+# ==============================================================================
+# Deploys/updates Forge's k3s Helm workloads via strata's own deploy pipeline,
+# tunnelled to the k3s API over a temporary SSH connection (see the 'Deploy'
+# section below for why — Forge's k3s API has no public LB, only reachable on
+# the Hetzner private network or localhost on the node itself).
+#
+# Prerequisites: deploy-infra.yml and deploy-forge-init.yml must have run
+# at least once (VPS exists and is initialised). Pair with
+# deploy-forge-config.yml for routine LAN-routing drift correction.
+#
+# Which Forge namespaces/services actually get deployed is controlled by
+# config/stack/workspace.yaml's spec.namespaces list — see the comments there
+# for the step-by-step activation order (system -> immich/media -> documents).
+# ==============================================================================
+
+name: 33 - Forge - Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Confirm branch to deploy (must match the branch this workflow runs on)"
+        type: string
+        required: true
+      dry_run:
+        description: "Dry run (validate + build only, skip the actual Helm deploy)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  STRATA_OUTPUT: json
+  STRATA_WORK_PATH: ${{ github.workspace }}
+  DEPLOYMENT_FILE: "config/deployment.yaml"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  forge-deploy:
+    name: Deploy Forge
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      # ------------------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # ------------------------------------------------------------------
+      # Safety: block main branch deployments
+      # ------------------------------------------------------------------
+      - name: Block deployment from main branch
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "::error::Deployment from 'main' is blocked. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" = "main" ]; then
+            echo "::error::Branch input cannot be 'main'. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" != "${{ github.ref_name }}" ]; then
+            echo "::error::Branch input '${{ inputs.branch }}' does not match the running branch '${{ github.ref_name }}'. Re-run from the correct branch."
+            exit 1
+          fi
+
+      # ------------------------------------------------------------------
+      # Network setup — get IP, open SSH on Forge firewall
+      # ------------------------------------------------------------------
+      - name: Open temporary SSH access
+        id: ssh
+        uses: ./.github/actions/hetzner-ssh-open
+        with:
+          hetzner_api_token: ${{ secrets.HETZNER_API_TOKEN }}
+          server_name: haven-platform-forge
+          firewall_name: haven-platform-fw-forge
+          dry_run: ${{ inputs.dry_run }}
+
+      # ------------------------------------------------------------------
+      # Strata + Helm setup
+      # ------------------------------------------------------------------
+      - name: Setup strata
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.3
+        with:
+          # See deploy-infra.yml for why this is '==1.8.3' — also fixes 'strata
+          # deploy run' crashing unconditionally on every invocation (v1.7.0-1.8.2),
+          # which is exactly the command this workflow's deploy step runs.
+          strata-version: "==1.8.3"
+        env:
+          UV_INDEX_STRATEGY: unsafe-best-match
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v5
+
+      - name: Write deploy SSH private key
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_PRIVATE_KEY }}" > ~/.ssh/haven_ed25519
+          chmod 600 ~/.ssh/haven_ed25519
+
+      # ------------------------------------------------------------------
+      # Deploy (k3s workloads — Helm charts, via strata's own deploy pipeline)
+      # ------------------------------------------------------------------
+      # Forge's k3s API is only reachable on the Hetzner private network (or
+      # localhost on the node itself) — there is no public LB in front of it.
+      # Rather than exposing port 6443 on the firewall, this tunnels through
+      # the SSH access already opened above: fetch the node's own kubeconfig
+      # (a fresh k3s install's default kubeconfig already points at
+      # 'https://127.0.0.1:6443', so no rewriting is needed) and forward local
+      # port 6443 to the same address on the far end of the SSH connection.
+      - name: Validate deployment file
+        run: strata validate -f $DEPLOYMENT_FILE --deep
+
+      - name: Build platform artifacts
+        run: strata build run --file $DEPLOYMENT_FILE
+
+      - name: Fetch k3s kubeconfig
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/haven_ed25519 \
+            root@${{ steps.ssh.outputs.server_ip }}:/etc/rancher/k3s/k3s.yaml \
+            /tmp/forge-kubeconfig.yaml
+          chmod 600 /tmp/forge-kubeconfig.yaml
+
+      - name: Open SSH tunnel to k3s API
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          ssh -f -N -L 6443:127.0.0.1:6443 \
+            -o StrictHostKeyChecking=no -o ExitOnForwardFailure=yes \
+            -i ~/.ssh/haven_ed25519 root@${{ steps.ssh.outputs.server_ip }}
+
+      - name: Deploy Forge Helm apps
+        if: ${{ inputs.dry_run != true }}
+        env:
+          KUBECONFIG: /tmp/forge-kubeconfig.yaml
+          # Which namespaces actually get deployed is controlled by
+          # config/stack/workspace.yaml's spec.namespaces list (pruned to one
+          # at a time for step-by-step activation), not by this stage.
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
+        run: |
+          strata deploy run --file $DEPLOYMENT_FILE --scope apps --stage applications_forge --force
+
+      - name: Close SSH tunnel to k3s API
+        if: ${{ always() }}
+        run: pkill -f "6443:127.0.0.1:6443" || true
+
+      # ------------------------------------------------------------------
+      # Cleanup — always remove temporary SSH rule
+      # ------------------------------------------------------------------
+      - name: Close temporary SSH access
+        if: ${{ always() }}
+        uses: ./.github/actions/hetzner-ssh-close
+        with:
+          hetzner_api_token: ${{ secrets.HETZNER_API_TOKEN }}
+          firewall_id: ${{ steps.ssh.outputs.firewall_id }}
+          dry_run: ${{ inputs.dry_run }}

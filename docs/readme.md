@@ -28,7 +28,7 @@ Follow [guide.md](./guide.md) for the full deployment walkthrough — zero to ru
 3. DNS and domain setup
 4. Infrastructure provisioning (`deploy-infra.yml`)
 5. Hearth deployment (`deploy-hearth-init.yml` → `deploy-hearth-config.yml` → `deploy-hearth-deploy.yml`)
-6. Forge deployment (`deploy-forge.yml`)
+6. Forge deployment (`deploy-forge-init.yml` → `deploy-forge-config.yml` → `deploy-forge-deploy.yml`)
 
 ---
 
@@ -38,7 +38,7 @@ Follow [guide.md](./guide.md) for the full deployment walkthrough — zero to ru
 - **k3s cluster on Forge** — Immich, Jellyfin, Gatus
 - **Cloud services** — Bitwarden Cloud (deployment credentials), Infisical Cloud (app secrets), Terraform Cloud (state)
 - **BorgBackup to Hetzner Storage Box** — daily encrypted backups, `repokey-blake2`, separate repos for Hearth and Forge
-- **Independent GitHub Actions workflows** — `deploy-infra.yml`, `deploy-hearth-init.yml` / `deploy-hearth-config.yml` / `deploy-hearth-deploy.yml`, `deploy-forge.yml`
+- **Independent GitHub Actions workflows** — `deploy-infra.yml`, `deploy-hearth-init.yml` / `deploy-hearth-config.yml` / `deploy-hearth-deploy.yml`, `deploy-forge-init.yml` / `deploy-forge-config.yml` / `deploy-forge-deploy.yml`
 - **No lock-in** — build output is plain Terraform + Ansible
 
 ---
