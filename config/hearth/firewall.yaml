@@ -60,6 +60,16 @@ spec:
       proto: tcp
       port: [443]
       comment: HTTPS
+    # Portainer Kubernetes Edge Agent tunnel — Forge dials in on this port for
+    # live-connect features (console, live logs/stats). Routed over the
+    # private network via forge-config.yml's /etc/hosts override, so this
+    # only needs to accept from the private network, never the public
+    # internet — same convention as SSH/k3s-API/Flannel below.
+    - direction: in
+      proto: tcp
+      port: [8000]
+      from: 10.0.0.0/8
+      comment: Portainer Edge Agent tunnel (private network only)
     - direction: out
       proto: tcp
       port: [80]

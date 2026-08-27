@@ -37,3 +37,17 @@
         line: "{{ hearth_private_ip }} auth.huybrechts.xyz"
         state: present
       when: hearth_private_ip is defined
+
+    # Portainer's Edge Agent tunnel (live-connect: console access, live
+    # logs/stats) also needs to stay on the private network rather than
+    # dialling back out through the public internet — same rationale as
+    # Authentik above. The edge key baked into the agent always points at
+    # "portainer.huybrechts.xyz", so overriding its DNS resolution here is
+    # the only way to redirect it without regenerating the Edge environment.
+    - name: Point portainer.huybrechts.xyz at Hearth's private IP (LAN routing)
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: "\\s+portainer\\.huybrechts\\.xyz$"
+        line: "{{ hearth_private_ip }} portainer.huybrechts.xyz"
+        state: present
+      when: hearth_private_ip is defined

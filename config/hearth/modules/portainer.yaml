@@ -19,6 +19,12 @@ spec:
       image: portainer/portainer-ce:2.39.3-alpine
       restart: unless-stopped
       command: ["--http-disabled"]
+      # Edge tunnel port for Kubernetes/Docker Edge Agents (Forge) — NOT proxied
+      # by Caddy (raw tunnel protocol, not plain HTTP); must be published
+      # directly to the host and allowed through Hearth's firewall, scoped to
+      # Forge's public IP only (see config/hearth/firewall.yaml).
+      ports:
+        - "8000:8000"
       environment:
         - key: TZ
           value: Europe/Brussels
