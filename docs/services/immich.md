@@ -20,7 +20,7 @@ Three Helm modules make up the `immich` namespace, in dependency order:
 | `immich-postgres` | Local chart, `services/forge/immich-postgres/`                      | Single-pod PostgreSQL with the vectorchord extension Immich requires |
 | `immich`          | `oci://ghcr.io/immich-app/immich-charts` (chart `immich`, `0.13.1`) | Immich server, machine learning, and cache                           |
 
-`image.tag` for the `immich` module's server/ML containers is intentionally left as a placeholder (`v2.x.x`) — verify against [chart 0.13.1's compatible release](https://github.com/immich-app/immich-charts/releases/tag/immich-0.13.1) before the first real deploy.
+`image.tag` for the `immich` module's server/ML containers is pinned to `v3.0.0` — confirmed against chart 0.13.1's own `Chart.yaml` (`appVersion: v3.0.0`) and default `values.yaml`.
 
 > ⚠️ **Blocked on a strata bug**: Immich's chart moved to OCI-only distribution (the old HTTP repo is deprecated/frozen). Strata's current Helm deployer doesn't support `oci://` chart repositories correctly, and its `${KEY}` secret-substitution mechanism for Helm values doesn't actually resolve at deploy time — both were found and written up while building this module, targeted for a future strata release. See the module comments in `config/forge/modules/immich.yaml` for details.
 
