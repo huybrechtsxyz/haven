@@ -58,6 +58,13 @@ spec:
     # Bundled cache — kept enabled, but swapped to plain redis (per design
     # decision) instead of the chart's default valkey image. Ephemeral cache
     # only, no persistence needed.
+    # NOTE: the chart's default probes (inherited from bjw-s common-library's
+    # valkey preset) run `valkey-cli ping`, which doesn't exist in the plain
+    # redis:7-alpine image — this caused the startup probe to fail forever
+    # ("sh: valkey-cli: not found"), crash-looping this pod and, in turn,
+    # immich-server (which couldn't reach Redis). Overridden below to use
+    # `redis-cli` instead, keeping the same delay/period/failure thresholds
+    # as the chart's original valkey-cli probes.
     valkey:
       enabled: true
       controllers:
@@ -67,6 +74,36 @@ spec:
               image:
                 repository: redis
                 tag: 7-alpine
+              probes:
+                liveness:
+                  enabled: true
+                  custom: true
+                  spec:
+                    exec:
+                      command: ["sh", "-c", "redis-cli ping | grep PONG"]
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 3
+                readiness:
+                  enabled: true
+                  custom: true
+                  spec:
+                    exec:
+                      command: ["sh", "-c", "redis-cli ping | grep PONG"]
+                    initialDelaySeconds: 5
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 3
+                startup:
+                  enabled: true
+                  custom: true
+                  spec:
+                    exec:
+                      command: ["sh", "-c", "redis-cli ping | grep PONG"]
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 30
       persistence:
         data:
           enabled: true
