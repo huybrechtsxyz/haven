@@ -79,15 +79,20 @@ spec:
       # deliberately left empty until that's built. Ingress works over plain
       # HTTP through Traefik until then (see jellyfin.yaml/kavita.yaml for
       # the same pattern).
+      # NOTE: unlike jellyfin.yaml/kavita.yaml (bjw-s app-template, flat
+      # ingress: {enabled,className,hosts,tls}), the official immich-charts
+      # schema requires ingress to be a MAP of named ingresses — confirmed
+      # via a real `helm upgrade --dry-run` schema validation error.
       ingress:
-        enabled: true
-        className: traefik
-        hosts:
-          - host: photos.huybrechts.xyz
-            paths:
-              - path: /
-                pathType: ImplementationSpecific
-        tls: []
+        main:
+          enabled: true
+          className: traefik
+          hosts:
+            - host: photos.huybrechts.xyz
+              paths:
+                - path: /
+                  pathType: ImplementationSpecific
+          tls: []
 
     machine-learning:
       enabled: true
