@@ -38,16 +38,9 @@ spec:
         containers:
           main:
             image:
-              # Bumped v3.0.0 -> v3.1.0 (2026-08-28) to match the mobile app,
-              # which enforces a compatible server version and refused to
-              # connect otherwise ("server is not reachable"). immich-charts
-              # (the Helm chart repo) hasn't cut a new release for v3.1.0 yet
-              # (still 0.13.1 / appVersion v3.0.0 as of this writing) — the
-              # image tag is overridden independently of chart_version, same
-              # mechanism used for the original v3.0.0 pin. Re-check
-              # https://github.com/immich-app/immich-charts/releases for a
-              # matching chart bump before the NEXT server version change.
-              tag: "v3.1.0"
+              # Confirmed against chart 0.13.1's own Chart.yaml (appVersion)
+              # and default values.yaml — this IS the compatible app release.
+              tag: "v3.0.0"
             env:
               DB_HOSTNAME: immich-postgres
               DB_USERNAME: immich
