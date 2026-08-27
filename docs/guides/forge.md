@@ -16,7 +16,7 @@ Unlike Hearth's services (fronted by Caddy), Forge apps are reached directly —
 
 This keeps the two-node split's whole point intact: **Hearth stays stable** (only routine upgrades, never touched when Forge's app set changes) while **Forge can change freely** — adding, removing, or reconfiguring apps never requires touching Hearth's Caddy config. `docs/design.md`'s risk table already anticipated this: *"cert-manager on Forge + Caddy on Hearth provide dual renewal paths"* — two independent TLS points, not one proxying through the other.
 
-TLS is not wired up yet on Forge — no cert-manager/ClusterIssuer exists yet, so every Forge app is currently reachable over plain HTTP through Traefik only. HTTPS is a separate, still-open task.
+TLS is now wired up via cert-manager + Let's Encrypt ClusterIssuers (`letsencrypt-staging`/`letsencrypt-prod`, `system` namespace) — see [services/immich.md](../services/immich.md) for the per-app annotation pattern. Immich is the first app on `letsencrypt-prod`, verified working end-to-end 2026-08-27.
 
 ---
 
@@ -129,7 +129,7 @@ Per-app secrets (e.g. `IMMICH_DB_PASSWORD`, `JELLYFIN_SSO_CLIENT_SECRET`) are do
 ## Verification checklist
 
 - [ ] `kubectl get nodes` shows the Forge node `Ready`
-- [ ] `kubectl get pods -A` shows Traefik running in `kube-system`
+- [x] `kubectl get pods -A` shows Traefik running in `kube-system`
 - [ ] Storage Box SMB share mounted at `/mnt/storagebox` on the host (`mount | grep storagebox`)
 - [ ] BorgBackup repokey saved (from the `deploy-forge-init.yml` run log) to Bitwarden
 - [ ] `/etc/hosts` on Forge has an entry for `auth.{domain}` pointing at Hearth's private IP
@@ -139,6 +139,6 @@ Per-app secrets (e.g. `IMMICH_DB_PASSWORD`, `JELLYFIN_SSO_CLIENT_SECRET`) are do
 
 ## Still open
 
-- No TLS/cert-manager on Forge yet — every app is HTTP-only for now
-- `system` (`rclone-mount`) and `immich` namespaces are active and verified in production; `media` and `documents` are still pruned out in `config/stack/workspace.yaml`, to be activated one at a time in that order
-- Portainer's Kubernetes agent not yet wired in as a strata module (see [above](#portainer-kubernetes-agent))
+- `system` (`rclone-mount`, `cert-manager`, `cert-manager-issuers`) and `immich` namespaces are active and verified in production, including working HTTPS (Immich on `letsencrypt-prod`); `media` and `documents` are still pruned out in `config/stack/workspace.yaml`, to be activated one at a time in that order.
+- **Root cause found + fixed (2026-08-27): Traefik was never actually installed on this server.** An earlier `--disable traefik` flag in `forge-init.yml`'s k3s install command was removed at some point, but since that task is gated on the binary not already existing, the already-provisioned server never picked up the change. `forge-init.yml` now has a self-contained catch-up task (checks for the `traefik` deployment, re-runs k3s's install script + restarts the service if missing) — confirmed fixed after a real re-run.
+- **Portainer Edge Agent tunnel gotcha (2026-08-27, fixed): Kubernetes pods do not inherit the node's `/etc/hosts`.** The LAN-routing trick (override `/etc/hosts` to keep traffic on the private network, same pattern as Authentik) only works for processes on the VM itself — the Portainer Edge Agent pod needed a `kubectl patch ... hostAliases` instead, now automated in `forge-config.yml`. The same gap likely applies to any future in-cluster workload needing this pattern (e.g. Immich's own OIDC calls to `auth.{domain}`, if/when SSO is wired up) — not yet hit in practice, flagged for when it is.
