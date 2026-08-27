@@ -390,7 +390,18 @@ entries:
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
       sub_mode: hashed_user_id
-      issuer_mode: global
+      # per_provider (not global, unlike WUD/Jellyfin/Nextcloud above) — Immich
+      # does strict OIDC issuer validation (the discovery doc's "issuer" claim
+      # must exactly match the configured Issuer URL). In "global" mode
+      # Authentik's issuer is just the bare domain (https://auth.huybrechts.xyz/),
+      # which doesn't match the app-specific discovery path Immich fetches it
+      # from (.../application/o/immich/.well-known/openid-configuration) —
+      # confirmed via a real "discovered metadata issuer does not match
+      # expected issuer" error. per_provider makes the issuer itself
+      # app-specific (https://auth.huybrechts.xyz/application/o/immich/),
+      # self-consistent with the discovery path — same mode Vaultwarden
+      # already uses successfully.
+      issuer_mode: per_provider
 
   - model: authentik_core.application
     state: present
