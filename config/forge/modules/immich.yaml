@@ -75,6 +75,19 @@ spec:
 
     server:
       enabled: true
+      # TODO: no cert-manager / ClusterIssuer exists on Forge yet — tls is
+      # deliberately left empty until that's built. Ingress works over plain
+      # HTTP through Traefik until then (see jellyfin.yaml/kavita.yaml for
+      # the same pattern).
+      ingress:
+        enabled: true
+        className: traefik
+        hosts:
+          - host: photos.huybrechts.xyz
+            paths:
+              - path: /
+                pathType: ImplementationSpecific
+        tls: []
 
     machine-learning:
       enabled: true
