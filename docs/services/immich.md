@@ -55,10 +55,10 @@ The Immich side is a **one-time manual step** (Immich stores OAuth config in its
 
 ## Secrets
 
-| Secret                      | Store     | Used by                                                          |
-| ---------------------------- | --------- | ---------------------------------------------------------------- |
-| `IMMICH_DB_PASSWORD`         | Infisical | `immich-postgres`'s `POSTGRES_PASSWORD` + Immich's `DB_PASSWORD` |
-| `IMMICH_SSO_CLIENT_SECRET`   | Infisical | Authentik blueprint's Immich OAuth2 Provider (see SSO section above) |
+| Secret                     | Store     | Used by                                                              |
+| -------------------------- | --------- | -------------------------------------------------------------------- |
+| `IMMICH_DB_PASSWORD`       | Infisical | `immich-postgres`'s `POSTGRES_PASSWORD` + Immich's `DB_PASSWORD`     |
+| `IMMICH_SSO_CLIENT_SECRET` | Infisical | Authentik blueprint's Immich OAuth2 Provider (see SSO section above) |
 
 ---
 
