@@ -38,11 +38,27 @@ Three Helm modules make up the `immich` namespace, in dependency order:
 
 ---
 
+## Single Sign-On (Authentik)
+
+Immich has **native OIDC support** — unlike Jellyfin (needs a third-party plugin), no plugin/extension is needed on the Immich side.
+
+The Authentik side is **already automated** — `deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2` creates the OAuth2 Provider + Application for Immich (client ID `immich`, `members` group policy) every time `deploy-hearth-config.yml` runs, using the `IMMICH_SSO_CLIENT_SECRET` Infisical secret. Redirect URIs registered: `https://photos.huybrechts.xyz/auth/login`, `https://photos.huybrechts.xyz/user-settings`, and `app.immich:///oauth-callback` (mobile app).
+
+The Immich side is a **one-time manual step** (Immich stores OAuth config in its own database, not env vars/Helm values) — Administration → Settings → OAuth, with:
+
+- **Issuer URL:** `https://auth.huybrechts.xyz/application/o/immich/`
+- **Client ID:** `immich`
+- **Client Secret:** the `IMMICH_SSO_CLIENT_SECRET` value (Infisical)
+- **Scope:** `openid email profile`
+
+---
+
 ## Secrets
 
-| Secret               | Store     | Used by                                                          |
-| -------------------- | --------- | ---------------------------------------------------------------- |
-| `IMMICH_DB_PASSWORD` | Infisical | `immich-postgres`'s `POSTGRES_PASSWORD` + Immich's `DB_PASSWORD` |
+| Secret                      | Store     | Used by                                                          |
+| ---------------------------- | --------- | ---------------------------------------------------------------- |
+| `IMMICH_DB_PASSWORD`         | Infisical | `immich-postgres`'s `POSTGRES_PASSWORD` + Immich's `DB_PASSWORD` |
+| `IMMICH_SSO_CLIENT_SECRET`   | Infisical | Authentik blueprint's Immich OAuth2 Provider (see SSO section above) |
 
 ---
 
@@ -50,12 +66,13 @@ Three Helm modules make up the `immich` namespace, in dependency order:
 
 - [x] `strata build run`/`strata deploy run --scope apps --stage applications_forge` complete successfully
 - [x] `immich-postgres`, `immich-valkey`, `immich-machine-learning`, `immich-server` pods all reach `Ready` on the live cluster
-- [ ] `http://photos.{domain}` — Immich loads and is reachable from a browser (plain HTTP until TLS is wired up)
+- [x] `https://photos.huybrechts.xyz` — Immich loads and is reachable from a browser (TLS via cert-manager + `letsencrypt-prod`)
 - [ ] Photo/video library reads/writes to `/mnt/storagebox/immich`
+- [ ] OAuth login via Authentik configured in Immich's Admin Settings and tested end-to-end
 
 ---
 
 ## Still open
 
-- No TLS/cert-manager on Forge yet — Immich is HTTP-only for now
-- No SSO wired up yet for Immich (it has native OIDC support, unlike Jellyfin — not yet configured against Authentik)
+- Immich-side OAuth toggle (Admin Settings → OAuth) not yet configured — Authentik-side provider/application exists, but the login flow hasn't been exercised end-to-end yet
+- Photo/video library storage-box read/write not yet verified
