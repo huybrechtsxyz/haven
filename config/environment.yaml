@@ -75,10 +75,10 @@ spec:
       description: Terraform Cloud API token
 
     # Infrastructure — Healthchecks.io
-    - key: HEALTHCHECK_PING_BACKUP
+    - key: HEALTHCHECK_PING_HEARTH
       store: infisical
-      value: HEALTHCHECK_PING_BACKUP
-      description: Healthchecks.io ping URL for backup monitoring
+      value: HEALTHCHECK_PING_HEARTH
+      description: Healthchecks.io ping URL for Hearth backup monitoring
 
     # Application secrets — Authentik
     - key: AUTHENTIK_SECRET_KEY

@@ -119,7 +119,7 @@ jobs:
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
           set +e
-          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_BACKUP VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET JELLYFIN_SSO_CLIENT_SECRET NEXTCLOUD_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_HEARTH VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET JELLYFIN_SSO_CLIENT_SECRET NEXTCLOUD_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
           STATUS=$?
           set -e
           if [ $STATUS -ne 0 ]; then
@@ -128,7 +128,7 @@ jobs:
             exit $STATUS
           fi
           BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_HEARTH')
-          HEALTHCHECK_URL=$(echo "$VALUES" | jq -r '.data.results.HEALTHCHECK_PING_BACKUP')
+          HEALTHCHECK_URL=$(echo "$VALUES" | jq -r '.data.results.HEALTHCHECK_PING_HEARTH')
           VAULTWARDEN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.VAULTWARDEN_SSO_CLIENT_SECRET')
           WUD_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.WUD_SSO_CLIENT_SECRET')
           JELLYFIN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.JELLYFIN_SSO_CLIENT_SECRET')
