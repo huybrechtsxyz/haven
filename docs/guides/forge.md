@@ -30,13 +30,13 @@ Application-level traffic wasn't — Forge apps authenticating against Hearth's 
 
 ## What runs where
 
-| Namespace (k8s) | Guide                                                                                          | Purpose                                                                                                                                                                                                          |
-| --------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `immich`        | [services/immich.md](../services/immich.md)                                                    | Photo/video management (Immich + its own Postgres/library modules)                                                                                                                                               |
-| `media`         | [services/jellyfin.md](../services/jellyfin.md)                                                | Media streaming (Jellyfin)                                                                                                                                                                                       |
-| `documents`     | [services/nextcloud.md](../services/nextcloud.md), [services/kavita.md](../services/kavita.md) | Family documents — Nextcloud (Drive replacement) + Kavita (PDF/TTRPG library), sharing the same `haven-docs` S3 bucket via the `rclone-mount` module below                                                       |
+| Namespace (k8s) | Guide                                                                                          | Purpose                                                                                                                                                                                                                             |
+| --------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `immich`        | [services/immich.md](../services/immich.md)                                                    | Photo/video management (Immich + its own Postgres/library modules)                                                                                                                                                                  |
+| `media`         | [services/jellyfin.md](../services/jellyfin.md)                                                | Media streaming (Jellyfin)                                                                                                                                                                                                          |
+| `documents`     | [services/nextcloud.md](../services/nextcloud.md), [services/kavita.md](../services/kavita.md) | Family documents — Nextcloud (Drive replacement) + Kavita (PDF/TTRPG library), sharing the same `haven-docs` S3 bucket via the `rclone-mount` module below                                                                          |
 | `system`        | *(this doc, below)*                                                                            | Cross-cutting cluster tooling not tied to one app layer — `rclone-mount` (bridges `haven-docs` to a real filesystem path for `documents` apps to share), cert-manager + its ClusterIssuers, and the Portainer Kubernetes Edge Agent |
-| *(future)*      | —                                                                                              | Other self-hosted apps get their own namespace each, same pattern                                                                                                                                                |
+| *(future)*      | —                                                                                              | Other self-hosted apps get their own namespace each, same pattern                                                                                                                                                                   |
 
 Each app group gets its own strata namespace file under `config/forge/namespaces/` and its own Kubernetes namespace — deliberately not shared, so apps can't collide or take each other down.
 
@@ -77,13 +77,13 @@ One-time bootstrap of a fresh server: installs k3s (Traefik enabled), creates th
 
 > ✅ Verified end-to-end in production (2026-08-27) — full run completes with zero failures: k3s install, SMB media mount, SSH hardening, and BorgBackup repo init/repokey export all succeed.
 
-| Input            | Value         | Notes                                                                                                            |
-| ---------------- | ------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `branch`         | *your branch* | Must match the branch the workflow is running on                                                                 |
-| `dry_run`        | `false`       | `true` skips playbook execution entirely (preview)                                                               |
-| `configure_borg` | `false`       | Initialise the BorgBackup repo on Storage Box — only after the SSH key is authorised in Hetzner Robot            |
-| `configure_smb`  | `false`       | Mount the Storage Box SMB share at `/mnt/storagebox` (media library) — Storage Box subaccounts don't support NFS |
-| `configure_portainer_agent` | `false` | Install the Portainer Kubernetes Edge Agent — requires the "forge" environment to already exist in Portainer's Environments UI first (see [Portainer Kubernetes Edge Agent](#portainer-kubernetes-edge-agent) above) |
+| Input                       | Value         | Notes                                                                                                                                                                                                                |
+| --------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `branch`                    | *your branch* | Must match the branch the workflow is running on                                                                                                                                                                     |
+| `dry_run`                   | `false`       | `true` skips playbook execution entirely (preview)                                                                                                                                                                   |
+| `configure_borg`            | `false`       | Initialise the BorgBackup repo on Storage Box — only after the SSH key is authorised in Hetzner Robot                                                                                                                |
+| `configure_smb`             | `false`       | Mount the Storage Box SMB share at `/mnt/storagebox` (media library) — Storage Box subaccounts don't support NFS                                                                                                     |
+| `configure_portainer_agent` | `false`       | Install the Portainer Kubernetes Edge Agent — requires the "forge" environment to already exist in Portainer's Environments UI first (see [Portainer Kubernetes Edge Agent](#portainer-kubernetes-edge-agent) above) |
 
 ---
 
@@ -113,12 +113,12 @@ Runs `strata deploy run --scope apps --stage applications_forge` — tunnels to 
 
 ## Secrets
 
-| Secret                      | Store     | Used by                                       |
-| --------------------------- | --------- | --------------------------------------------- |
-| `BORG_PASSPHRASE_FORGE`     | Infisical | `forge-init.yml`'s BorgBackup repo init       |
-| `STORAGEBOX_FORGE_PASSWORD` | Infisical | `forge-init.yml`'s Storage Box SSH key upload |
+| Secret                      | Store     | Used by                                                                                                                         |
+| --------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `BORG_PASSPHRASE_FORGE`     | Infisical | `forge-init.yml`'s BorgBackup repo init                                                                                         |
+| `STORAGEBOX_FORGE_PASSWORD` | Infisical | `forge-init.yml`'s Storage Box SSH key upload                                                                                   |
 | `PORTAINER_EDGE_ID`         | Infisical | `forge-init.yml`'s Portainer Edge Agent bootstrap — a literal value from Portainer's environment-creation wizard, not generated |
-| `PORTAINER_EDGE_KEY`        | Infisical | `forge-init.yml`'s Portainer Edge Agent bootstrap — same wizard, paired with the ID above |
+| `PORTAINER_EDGE_KEY`        | Infisical | `forge-init.yml`'s Portainer Edge Agent bootstrap — same wizard, paired with the ID above                                       |
 
 Per-app secrets (e.g. `IMMICH_DB_PASSWORD`, `JELLYFIN_SSO_CLIENT_SECRET`) are documented in each app's own guide under [docs/services/](../services/).
 
