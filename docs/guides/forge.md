@@ -104,6 +104,8 @@ Runs `forge-config.yml` — currently: LAN-routes Forge → Hearth's Authentik v
 Runs `strata deploy run --scope apps --stage applications_forge` — tunnels to the k3s API over SSH (fetches the node's own kubeconfig, no public LB needed) and deploys whichever namespaces are currently active in `config/stack/workspace.yaml`.
 
 > ✅ Verified end-to-end in production (2026-08-27) — first real Helm deployment succeeded, deploying `rclone-mount` into the `system` namespace on the live cluster. Note: `deploy-forge-config.yml` is not a hard prerequisite for namespaces with no Authentik/SSO dependency (like `system`) — it only matters once SSO-enabled apps (Immich, Nextcloud) are activated.
+>
+> ✅ `immich` namespace also verified end-to-end in production (2026-08-27) — Immich server, machine learning, Postgres (vectorchord), and cache all deployed successfully via `strata deploy run --scope apps --stage applications_forge`.
 
 ---
 
@@ -131,5 +133,5 @@ Per-app secrets (e.g. `IMMICH_DB_PASSWORD`, `JELLYFIN_SSO_CLIENT_SECRET`) are do
 ## Still open
 
 - No TLS/cert-manager on Forge yet — every app is HTTP-only for now
-- Only the `system` namespace (`rclone-mount`) is currently active in `config/stack/workspace.yaml` — `immich`, `media`, and `documents` are pruned out pending their Infisical secrets, to be activated one at a time in that order
+- `system` (`rclone-mount`) and `immich` namespaces are active and verified in production; `media` and `documents` are still pruned out in `config/stack/workspace.yaml`, to be activated one at a time in that order
 - Portainer's Kubernetes agent not yet wired in as a strata module (see [above](#portainer-kubernetes-agent))
