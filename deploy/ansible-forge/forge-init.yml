@@ -46,6 +46,15 @@
 #       -e storagebox_host=<uXXXXXX-subN.your-storagebox.de> \
 #       -e storagebox_subaccount=<uXXXXXX-subN> \
 #       -e storagebox_password=<storagebox-password>
+#
+#   Portainer Edge Agent (Kubernetes) — after creating the "Forge" environment
+#   in Portainer (Environments > Add environment > Kubernetes > Edge Agent):
+#     ansible-playbook forge-init.yml \
+#       --private-key ~/.ssh/haven_ed25519 \
+#       -e forge_host=<public_ip> \
+#       -e configure_portainer_agent=true \
+#       -e portainer_edge_id=<edge-id> \
+#       -e portainer_edge_key=<edge-key>
 # =============================================================================
 
 - name: Forge — one-time initialisation
@@ -148,6 +157,37 @@
       retries: 30
       delay: 10
       changed_when: false
+
+    # =========================================================================
+    # Portainer Edge Agent — registers Forge's k3s cluster as a Kubernetes
+    # environment in the existing Hearth Portainer instance. Edge Agent mode:
+    # the agent polls OUT to Portainer over HTTPS, so no inbound port/firewall
+    # rule is needed on Forge (matches its default-deny-inbound firewall
+    # model already used for BorgBackup/SMB). Edge ID/key come from
+    # Portainer's own "Add environment > Kubernetes > Edge Agent" wizard —
+    # a one-time registration credential, not something Ansible generates.
+    # =========================================================================
+
+    - name: Check if Portainer Edge Agent is already installed
+      ansible.builtin.command:
+        cmd: kubectl get deployment portainer-agent -n portainer
+      register: portainer_agent_check
+      failed_when: false
+      changed_when: false
+      when: configure_portainer_agent | bool
+
+    - name: Install Portainer Edge Agent (Kubernetes)
+      ansible.builtin.shell:
+        cmd: >
+          curl -sfL https://downloads.portainer.io/ee2-39/portainer-edge-agent-setup.sh |
+          bash -s -- "{{ portainer_edge_id }}" "{{ portainer_edge_key }}" "1" "" ""
+        executable: /bin/bash
+      when: >
+        configure_portainer_agent | bool and
+        portainer_edge_id | default('') | length > 0 and
+        portainer_edge_key | default('') | length > 0 and
+        portainer_agent_check.rc != 0
+      changed_when: true
 
     # =========================================================================
     # haven service user

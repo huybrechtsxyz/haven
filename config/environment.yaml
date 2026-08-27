@@ -52,6 +52,21 @@ spec:
       value: STORAGEBOX_FORGE_PASSWORD
       description: Storage Box sub-account password for Forge backups
 
+    # Infrastructure — Portainer Kubernetes Edge Agent (Forge)
+    # Edge ID/key come from Portainer's own "Add environment > Kubernetes >
+    # Edge Agent" wizard (Environments UI) — a one-time registration
+    # credential tied to that specific environment slot, not something
+    # strata/Ansible generates. Set these via `strata secret put` (or the
+    # Infisical dashboard directly) once you've created the environment.
+    - key: PORTAINER_EDGE_ID
+      store: infisical
+      value: PORTAINER_EDGE_ID
+      description: Portainer Edge Agent ID for Forge's Kubernetes environment
+    - key: PORTAINER_EDGE_KEY
+      store: infisical
+      value: PORTAINER_EDGE_KEY
+      description: Portainer Edge Agent key for Forge's Kubernetes environment
+
     # Infrastructure — BorgBackup
     - key: BORG_PASSPHRASE_HEARTH
       store: infisical

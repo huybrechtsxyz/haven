@@ -25,3 +25,15 @@ configure_borg: false
 # Storage Box connection details — passed via --extra-vars at run time.
 storagebox_host: ""
 storagebox_subaccount: forge-backup
+
+# =============================================================================
+# Portainer Kubernetes Edge Agent
+# =============================================================================
+# Set to true only after creating the "Forge" environment in Portainer
+# (Environments > Add environment > Kubernetes > Edge Agent) and obtaining
+# its edge ID/key from the setup wizard.
+configure_portainer_agent: false
+
+# Edge ID/key — passed via --extra-vars at run time (never committed here).
+portainer_edge_id: ""
+portainer_edge_key: ""
