@@ -135,6 +135,28 @@ jobs:
             -o StrictHostKeyChecking=no -o ExitOnForwardFailure=yes \
             -i ~/.ssh/haven_ed25519 root@${{ steps.ssh.outputs.server_ip }}
 
+      # =========================================================================
+      # ONE-TIME CLEANUP — DELETE THIS STEP once it's confirmed no longer needed!
+      # A previous run's `helm upgrade --install --wait --atomic --timeout 5m`
+      # got force-killed (invalid image tag caused ImagePullBackOff, --wait
+      # blocked until the timeout, then the process was killed rather than
+      # cleanly failing/rolling back) — leaving the 'immich' release stuck in
+      # 'pending-install'. Helm refuses to touch a release in that state, so
+      # it must be uninstalled (no successful prior revision exists to roll
+      # back to) before the next deploy can proceed.
+      # =========================================================================
+      - name: ONE-TIME — clear stuck 'immich' Helm release (pending-install)
+        if: ${{ inputs.dry_run != true }}
+        env:
+          KUBECONFIG: /tmp/forge-kubeconfig.yaml
+        run: |
+          STATUS=$(helm status immich -n immich -o json 2>/dev/null | jq -r '.info.status // empty')
+          echo "Current 'immich' release status: ${STATUS:-<not found>}"
+          if [[ "$STATUS" == pending-* ]]; then
+            echo "Release is stuck in '$STATUS' — uninstalling before redeploy."
+            helm uninstall immich -n immich
+          fi
+
       - name: Deploy Forge Helm apps
         if: ${{ inputs.dry_run != true }}
         env:
