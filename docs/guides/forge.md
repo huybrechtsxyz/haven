@@ -35,25 +35,26 @@ Application-level traffic wasn't — Forge apps authenticating against Hearth's 
 | `immich`        | [services/immich.md](../services/immich.md)                                                    | Photo/video management (Immich + its own Postgres/library modules)                                                                                                                                               |
 | `media`         | [services/jellyfin.md](../services/jellyfin.md)                                                | Media streaming (Jellyfin)                                                                                                                                                                                       |
 | `documents`     | [services/nextcloud.md](../services/nextcloud.md), [services/kavita.md](../services/kavita.md) | Family documents — Nextcloud (Drive replacement) + Kavita (PDF/TTRPG library), sharing the same `haven-docs` S3 bucket via the `rclone-mount` module below                                                       |
-| `system`        | *(this doc, below)*                                                                            | Cross-cutting cluster tooling not tied to one app layer — `rclone-mount` (bridges `haven-docs` to a real filesystem path for `documents` apps to share); Portainer's Kubernetes agent and cert-manager to follow |
+| `system`        | *(this doc, below)*                                                                            | Cross-cutting cluster tooling not tied to one app layer — `rclone-mount` (bridges `haven-docs` to a real filesystem path for `documents` apps to share), cert-manager + its ClusterIssuers, and the Portainer Kubernetes Edge Agent |
 | *(future)*      | —                                                                                              | Other self-hosted apps get their own namespace each, same pattern                                                                                                                                                |
 
 Each app group gets its own strata namespace file under `config/forge/namespaces/` and its own Kubernetes namespace — deliberately not shared, so apps can't collide or take each other down.
 
 ---
 
-## Portainer Kubernetes agent
+## Portainer Kubernetes Edge Agent
 
-Hearth's existing Portainer instance can manage Forge's k3s cluster too — Portainer CE natively supports adding both Docker *and* Kubernetes environments from one instance, so no second Portainer deployment is needed on Forge.
+Hearth's existing Portainer instance manages Forge's k3s cluster too — Portainer CE natively supports adding both Docker *and* Kubernetes environments from one instance, so no second Portainer deployment is needed on Forge.
 
-**Not yet wired in as a strata module.** The agent needs `cluster-admin` RBAC, and the correct manifest for your exact running Portainer version should come from Portainer's own setup wizard — not a hand-authored or hardcoded one, since versions must match and getting cluster-admin YAML wrong is exactly the kind of thing worth avoiding.
+**Edge Agent mode**, not the standard agent — Forge's k3s API/firewall has no inbound exposure at all (see [config/forge/firewall.yaml](../../config/forge/firewall.yaml)), so the agent must poll *out* to Portainer over HTTPS rather than Portainer reaching *in* to a NodePort. This needs zero new firewall rules.
 
-To set it up:
+**Wired into `forge-init.yml`** (bootstrap step, not a strata Helm module — it's a one-time cluster registration via Portainer's own official install script, not something with a stable chart/manifest to template):
 
-1. In Portainer (on Hearth): **Environments → Add environment → Kubernetes → via agent** — this generates a `kubectl apply -f ...` command specific to your installed Portainer version.
-2. Run that command against Forge (over the LAN — see [LAN routing](#design-decision--lan-routing-between-hearth-and-forge) above).
-3. Back in Portainer, finish adding the environment using the agent's address on Forge's private IP.
-4. Once working, capture the resulting manifest as a local Helm chart under `services/forge/portainer-agent/` + a `config/forge/modules/portainer-agent.yaml` module, added to the existing `config/forge/namespaces/system.yaml` (which already exists, holding `rclone-mount`) — same pattern as every other module in this repo.
+1. In Portainer (on Hearth): **Environments → Add environment → Kubernetes → Edge Agent**. Give it a name (e.g. `forge`).
+2. When prompted for a command that generates the Edge ID, use `cat /proc/sys/kernel/random/uuid` (works in any container image, no `uuidgen` dependency). Leave the "URL or IP where exposed containers are reachable" field blank — cosmetic only, doesn't affect the tunnel.
+3. Portainer shows a `curl https://downloads.portainer.io/.../portainer-edge-agent-setup.sh | bash -s -- "<EDGE_ID>" "<EDGE_KEY>" ...` command. Store the two values as Infisical secrets `PORTAINER_EDGE_ID`/`PORTAINER_EDGE_KEY` (see [Secrets](#secrets) below) — do **not** commit them anywhere.
+4. Run **`31 - Forge - Init`** with `configure_portainer_agent: true`. The playbook runs the official setup script on the node (kubectl is already configured there from the k3s install step) and skips re-running it if the agent deployment already exists.
+5. The environment goes from pending to connected in Portainer's Environments list once the agent's first poll succeeds (usually under a minute).
 
 ---
 
@@ -82,6 +83,7 @@ One-time bootstrap of a fresh server: installs k3s (Traefik enabled), creates th
 | `dry_run`        | `false`       | `true` skips playbook execution entirely (preview)                                                               |
 | `configure_borg` | `false`       | Initialise the BorgBackup repo on Storage Box — only after the SSH key is authorised in Hetzner Robot            |
 | `configure_smb`  | `false`       | Mount the Storage Box SMB share at `/mnt/storagebox` (media library) — Storage Box subaccounts don't support NFS |
+| `configure_portainer_agent` | `false` | Install the Portainer Kubernetes Edge Agent — requires the "forge" environment to already exist in Portainer's Environments UI first (see [Portainer Kubernetes Edge Agent](#portainer-kubernetes-edge-agent) above) |
 
 ---
 
@@ -115,6 +117,8 @@ Runs `strata deploy run --scope apps --stage applications_forge` — tunnels to 
 | --------------------------- | --------- | --------------------------------------------- |
 | `BORG_PASSPHRASE_FORGE`     | Infisical | `forge-init.yml`'s BorgBackup repo init       |
 | `STORAGEBOX_FORGE_PASSWORD` | Infisical | `forge-init.yml`'s Storage Box SSH key upload |
+| `PORTAINER_EDGE_ID`         | Infisical | `forge-init.yml`'s Portainer Edge Agent bootstrap — a literal value from Portainer's environment-creation wizard, not generated |
+| `PORTAINER_EDGE_KEY`        | Infisical | `forge-init.yml`'s Portainer Edge Agent bootstrap — same wizard, paired with the ID above |
 
 Per-app secrets (e.g. `IMMICH_DB_PASSWORD`, `JELLYFIN_SSO_CLIENT_SECRET`) are documented in each app's own guide under [docs/services/](../services/).
 
@@ -127,6 +131,7 @@ Per-app secrets (e.g. `IMMICH_DB_PASSWORD`, `JELLYFIN_SSO_CLIENT_SECRET`) are do
 - [ ] Storage Box SMB share mounted at `/mnt/storagebox` on the host (`mount | grep storagebox`)
 - [ ] BorgBackup repokey saved (from the `deploy-forge-init.yml` run log) to Bitwarden
 - [ ] `/etc/hosts` on Forge has an entry for `auth.{domain}` pointing at Hearth's private IP
+- [ ] Forge's environment shows as connected (not pending) in Portainer's Environments list
 
 ---
 
