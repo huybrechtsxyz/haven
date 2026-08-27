@@ -42,8 +42,8 @@ spec:
       file: config/hearth/namespace.yaml
     - name: system
       file: config/forge/namespaces/system.yaml # 1st — rclone-mount (documents' shared storage depends on it)
-    # - name: immich
-    #   file: config/forge/namespaces/immich.yaml # 2nd — self-contained, no shared-storage dependency
+    - name: immich
+      file: config/forge/namespaces/immich.yaml # 2nd — self-contained, no shared-storage dependency
     # - name: media
     #   file: config/forge/namespaces/media.yaml # 3rd — self-contained, no shared-storage dependency
     # - name: documents
@@ -76,7 +76,7 @@ spec:
       # together with its spec.namespaces counterpart as services are activated.
       namespaces:
         - namespace: system
-        # - namespace: immich
+        - namespace: immich
         # - namespace: media
         # - namespace: documents
       volumes:
@@ -85,7 +85,7 @@ spec:
         - name: data
           type: local
         - name: media
-          type: local # NFS mount managed by Ansible (Hetzner Storage Box)
+          type: local # SMB mount managed by Ansible (Hetzner Storage Box)
       components:
         - resource: haven_vm_hetzner_forge
 

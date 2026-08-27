@@ -72,7 +72,9 @@ Instead, `rclone-mount` (`config/forge/modules/rclone-mount.yaml`, `system` name
 
 ## Forge Init (`deploy-forge-init.yml`)
 
-One-time bootstrap of a fresh server: installs k3s (Traefik enabled), creates the `haven` service user, optionally mounts the Storage Box NFS share, hardens SSH, and generates the BorgBackup SSH key pair. Idempotent — safe to re-run, but normally only needed once per server.
+One-time bootstrap of a fresh server: installs k3s (Traefik enabled), creates the `haven` service user, optionally mounts the Storage Box SMB share, hardens SSH, and generates the BorgBackup SSH key pair. Idempotent — safe to re-run, but normally only needed once per server.
+
+> ✅ Verified end-to-end in production (2026-08-27) — full run completes with zero failures: k3s install, SMB media mount, SSH hardening, and BorgBackup repo init/repokey export all succeed.
 
 | Input            | Value         | Notes                                                                                                            |
 | ---------------- | ------------- | ---------------------------------------------------------------------------------------------------------------- |
@@ -101,6 +103,8 @@ Runs `forge-config.yml` — currently: LAN-routes Forge → Hearth's Authentik v
 
 Runs `strata deploy run --scope apps --stage applications_forge` — tunnels to the k3s API over SSH (fetches the node's own kubeconfig, no public LB needed) and deploys whichever namespaces are currently active in `config/stack/workspace.yaml`.
 
+> ✅ Verified end-to-end in production (2026-08-27) — first real Helm deployment succeeded, deploying `rclone-mount` into the `system` namespace on the live cluster. Note: `deploy-forge-config.yml` is not a hard prerequisite for namespaces with no Authentik/SSO dependency (like `system`) — it only matters once SSO-enabled apps (Immich, Nextcloud) are activated.
+
 ---
 
 ## Secrets
@@ -127,5 +131,5 @@ Per-app secrets (e.g. `IMMICH_DB_PASSWORD`, `JELLYFIN_SSO_CLIENT_SECRET`) are do
 ## Still open
 
 - No TLS/cert-manager on Forge yet — every app is HTTP-only for now
-- `forge-deploy.yml` doesn't exist yet — namespaces/modules validate and build via strata, but nothing actually runs `helm upgrade` against the live cluster yet
-- No `apps` namespace or additional self-hosted apps beyond Immich/Jellyfin yet
+- Only the `system` namespace (`rclone-mount`) is currently active in `config/stack/workspace.yaml` — `immich`, `media`, and `documents` are pruned out pending their Infisical secrets, to be activated one at a time in that order
+- Portainer's Kubernetes agent not yet wired in as a strata module (see [above](#portainer-kubernetes-agent))
