@@ -24,7 +24,7 @@ TLS is not wired up yet on Forge — no cert-manager/ClusterIssuer exists yet, s
 
 Both VPS's share a private Hetzner network (`deploy/terraform/main.tf`'s `hcloud_network.haven`), with `hearth_private_ip`/`forge_private_ip` exposed as Terraform outputs. Infra-level traffic (SSH, k3s API, Flannel VXLAN) is already scoped to it.
 
-Application-level traffic wasn't — Forge apps authenticating against Hearth's Authentik (OIDC) would resolve `auth.{domain}` via public DNS → Hearth's *public* IP → out over the internet and back, despite both servers sitting on the same private network. `deploy-forge.yml`'s config phase now fixes this: it queries the Hetzner API for Hearth's private IP and passes it to `forge-config.yml`, which adds a static `/etc/hosts` entry mapping `auth.{domain}` → Hearth's private IP. The hostname stays the same, so TLS SNI / certificate validation against Caddy's real cert is unaffected — only DNS resolution changes.
+Application-level traffic wasn't — Forge apps authenticating against Hearth's Authentik (OIDC) would resolve `auth.{domain}` via public DNS → Hearth's *public* IP → out over the internet and back, despite both servers sitting on the same private network. `deploy-forge-config.yml` now fixes this: it queries the Hetzner API for Hearth's private IP and passes it to `forge-config.yml`, which adds a static `/etc/hosts` entry mapping `auth.{domain}` → Hearth's private IP. The hostname stays the same, so TLS SNI / certificate validation against Caddy's real cert is unaffected — only DNS resolution changes.
 
 ---
 
@@ -74,23 +74,32 @@ Instead, `rclone-mount` (`config/forge/modules/rclone-mount.yaml`, `system` name
 
 One-time bootstrap of a fresh server: installs k3s (Traefik enabled), creates the `haven` service user, optionally mounts the Storage Box NFS share, hardens SSH, and generates the BorgBackup SSH key pair. Idempotent — safe to re-run, but normally only needed once per server.
 
-| Input            | Value         | Notes                                                                                                      |
-| ---------------- | ------------- | ---------------------------------------------------------------------------------------------------------- |
-| `branch`         | *your branch* | Must match the branch the workflow is running on                                                           |
-| `dry_run`        | `false`       | `true` skips playbook execution entirely (preview)                                                         |
-| `configure_borg` | `false`       | Initialise the BorgBackup repo on Storage Box — only after the SSH key is authorised in Hetzner Robot      |
-| `configure_nfs`  | `false`       | Mount the Storage Box NFS share at `/mnt/storagebox` — requires `storagebox_nfs_share` (a GitHub Variable) |
+| Input            | Value         | Notes                                                                                                            |
+| ---------------- | ------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `branch`         | *your branch* | Must match the branch the workflow is running on                                                                 |
+| `dry_run`        | `false`       | `true` skips playbook execution entirely (preview)                                                               |
+| `configure_borg` | `false`       | Initialise the BorgBackup repo on Storage Box — only after the SSH key is authorised in Hetzner Robot            |
+| `configure_smb`  | `false`       | Mount the Storage Box SMB share at `/mnt/storagebox` (media library) — Storage Box subaccounts don't support NFS |
 
 ---
 
-## Forge Config + Deploy (`deploy-forge.yml`)
+## Forge Config (`deploy-forge-config.yml`)
 
-| Input        | Value         | Notes                                                                                                                                   |
-| ------------ | ------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `branch`     | *your branch* | Must match the branch the workflow is running on                                                                                        |
-| `dry_run`    | `false`       | `true` skips playbook execution entirely (preview)                                                                                      |
-| `run_config` | `true`        | Runs `forge-config.yml` — currently: LAN-routes Forge → Hearth's Authentik via the `/etc/hosts` override above                          |
-| `run_deploy` | `true`        | **Not yet functional** — `forge-deploy.yml` (the playbook that would run `helm upgrade` for each namespace's modules) doesn't exist yet |
+| Input     | Value         | Notes                                              |
+| --------- | ------------- | -------------------------------------------------- |
+| `branch`  | *your branch* | Must match the branch the workflow is running on   |
+| `dry_run` | `false`       | `true` skips playbook execution entirely (preview) |
+
+Runs `forge-config.yml` — currently: LAN-routes Forge → Hearth's Authentik via the `/etc/hosts` override above.
+
+## Forge Deploy (`deploy-forge-deploy.yml`)
+
+| Input     | Value         | Notes                                                                     |
+| --------- | ------------- | ------------------------------------------------------------------------- |
+| `branch`  | *your branch* | Must match the branch the workflow is running on                          |
+| `dry_run` | `false`       | `true` runs validate + build only, skips the actual Helm deploy (preview) |
+
+Runs `strata deploy run --scope apps --stage applications_forge` — tunnels to the k3s API over SSH (fetches the node's own kubeconfig, no public LB needed) and deploys whichever namespaces are currently active in `config/stack/workspace.yaml`.
 
 ---
 
@@ -109,7 +118,7 @@ Per-app secrets (e.g. `IMMICH_DB_PASSWORD`, `JELLYFIN_SSO_CLIENT_SECRET`) are do
 
 - [ ] `kubectl get nodes` shows the Forge node `Ready`
 - [ ] `kubectl get pods -A` shows Traefik running in `kube-system`
-- [ ] Storage Box NFS mounted at `/mnt/storagebox` on the host (`mount | grep storagebox`)
+- [ ] Storage Box SMB share mounted at `/mnt/storagebox` on the host (`mount | grep storagebox`)
 - [ ] BorgBackup repokey saved (from the `deploy-forge-init.yml` run log) to Bitwarden
 - [ ] `/etc/hosts` on Forge has an entry for `auth.{domain}` pointing at Hearth's private IP
 

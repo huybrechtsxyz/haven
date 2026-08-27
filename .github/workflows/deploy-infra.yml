@@ -77,9 +77,9 @@ jobs:
       # Install tools
       # ------------------------------------------------------------------
       - name: Setup strata
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.2
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.3
         with:
-          # 1.8.2 fixes all bugs found while building Forge's Helm modules this
+          # 1.8.2 fixed all bugs found while building Forge's Helm modules this
           # session: (1) OCI chart_repository support, (2) Helm ${KEY} secret
           # substitution now matches any nested env: dict (was one-level-only),
           # (3) HelmBuilder no longer Jinja2-renders a local chart's templates/
@@ -87,8 +87,14 @@ jobs:
           # (4) TerraformBuilder's input validator now scopes secret checks to
           # the resolving provisioner's stage(s) instead of globally sweeping
           # every secret in environment.yaml (was hard-failing 'build run' for
-          # any multi-provisioner workspace). Confirmed via source review.
-          strata-version: "==1.8.2"
+          # any multi-provisioner workspace).
+          # 1.8.3 fixes a further regression: 'strata deploy run' crashed
+          # unconditionally on every invocation since v1.7.0 (a stale no-op
+          # _load_related_services() override in RunDeployCommand skipped
+          # loading the environment/workspace services entirely — masked by
+          # 'validate --deep'/'build run' using different loading paths).
+          # All confirmed via source review.
+          strata-version: "==1.8.3"
         env:
           # Only matters when multiple package indexes are configured (e.g. a corporate
           # PyPI mirror in front of public PyPI) — makes uv fall through to a later index
@@ -144,7 +150,12 @@ jobs:
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
-          ARGS="--file $DEPLOYMENT_FILE --force"
+          # --scope infra restricts this run to stages that declare scope: infra
+          # (infrastructure_hearth, infrastructure_forge) — this workflow is
+          # explicitly API-only (no SSH/kubeconfig setup), so it must never
+          # pick up applications_forge (scope: apps, or any future Helm/Compose
+          # app stage) even when --stage is omitted.
+          ARGS="--file $DEPLOYMENT_FILE --force --scope infra"
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
           fi

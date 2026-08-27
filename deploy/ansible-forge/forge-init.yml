@@ -40,8 +40,12 @@
 #       -e storagebox_password=<storagebox-password> \
 #       -e borg_passphrase=<strong-passphrase>
 #
-#   NFS mount (Storage Box media share) — pass at runtime alongside Step 2:
-#       -e storagebox_nfs_share=<uXXXXXX.your-storagebox.de>:/homes/<uXXXXXX>
+#   SMB mount (Storage Box media share) — subaccounts don't support NFS, only
+#   SMB/CIFS + SSH. Pass at runtime alongside Step 2 (share name = subaccount
+#   username itself, e.g. host u604953-sub2.your-storagebox.de, share u604953-sub2):
+#       -e storagebox_host=<uXXXXXX-subN.your-storagebox.de> \
+#       -e storagebox_subaccount=<uXXXXXX-subN> \
+#       -e storagebox_password=<storagebox-password>
 # =============================================================================
 
 - name: Forge — one-time initialisation
@@ -81,7 +85,7 @@
           - ncdu
           - fail2ban
           - jq
-          - nfs-common # required for Storage Box NFS mount
+          - cifs-utils # required for Storage Box SMB mount (subaccounts don't support NFS)
           - open-iscsi # required for k3s iSCSI storage support
         state: present
 
@@ -188,6 +192,21 @@
         group: "{{ haven_group }}"
         mode: "0700"
 
+    # Lazy-unmount any stale/broken mount left at this path from a previous
+    # failed attempt (e.g. an NFS mount that timed out mid-registration). The
+    # kernel keeps a dead mount entry that makes even a plain stat()/mkdir on
+    # this path fail with "[Errno 112] Host is down" until it's cleared — seen
+    # on this exact path after the earlier NFS attempt (subaccounts don't
+    # support NFS, see below). "-l" detaches immediately without needing the
+    # remote host reachable; ignore errors since it's a no-op when nothing is
+    # actually mounted.
+    - name: Force-unmount any stale Storage Box mount
+      ansible.builtin.command:
+        cmd: umount -l /mnt/storagebox
+      register: force_unmount
+      changed_when: force_unmount.rc == 0
+      failed_when: false
+
     - name: Create Storage Box mount point
       ansible.builtin.file:
         path: /mnt/storagebox
@@ -197,19 +216,34 @@
         mode: "0755"
 
     # =========================================================================
-    # Storage Box NFS mount (media library)
+    # Storage Box SMB mount (media library)
     # =========================================================================
-    # Pass -e storagebox_nfs_share=<host>:/homes/<username> at run time.
-    # Example: u123456.your-storagebox.de:/homes/u123456
+    # Hetzner Storage Box subaccounts don't support NFS at all (NFS is only
+    # available on the top-level Storage Box, and even then it's IP-allowlisted
+    # rather than password-based). SMB/CIFS is what subaccounts actually offer.
+    # Share name equals the subaccount username itself (confirmed via Hetzner
+    # Robot's own connection details, e.g. \\u604953-sub2.your-storagebox.de\u604953-sub2).
 
-    - name: Mount Storage Box NFS share (media library)
+    - name: Write SMB credentials file
+      ansible.builtin.copy:
+        dest: "{{ haven_install_path }}/.smbcredentials"
+        owner: root
+        group: root
+        mode: "0600"
+        content: |
+          username={{ storagebox_subaccount }}
+          password={{ storagebox_password | default('') }}
+      when: storagebox_password | default('') | length > 0
+      no_log: true
+
+    - name: Mount Storage Box SMB share (media library)
       ansible.posix.mount:
         path: /mnt/storagebox
-        src: "{{ storagebox_nfs_share }}"
-        fstype: nfs
-        opts: "{{ storagebox_nfs_opts }}"
+        src: "//{{ storagebox_host }}/{{ storagebox_subaccount }}"
+        fstype: cifs
+        opts: "credentials={{ haven_install_path }}/.smbcredentials,uid=0,gid=0,_netdev,noatime,vers=3.0"
         state: mounted
-      when: storagebox_nfs_share is defined
+      when: storagebox_password | default('') | length > 0
 
     # =========================================================================
     # SSH hardening
@@ -369,6 +403,14 @@
       become_user: "{{ haven_user }}"
       vars:
         ansible_ssh_pipelining: false
+      register: borg_init
+      # borg_info can fail (rc != 0) for reasons other than "repo doesn't
+      # exist" — e.g. the passphrase changed since the repo was created,
+      # which makes `borg info` unable to unlock it even though the repo
+      # is physically there. Rely on borg init's own idempotency signal
+      # ("repository already exists") instead of failing in that case.
+      failed_when: borg_init.rc != 0 and 'repository already exists' not in borg_init.stderr
+      changed_when: borg_init.rc == 0
       when: configure_borg | bool and borg_info.rc != 0
 
     - name: Export and display BorgBackup repokey (store this in Vaultwarden!)

@@ -1,16 +1,21 @@
 # ==============================================================================
-# Workflow: Hearth — Init (one-time server bootstrap)
+# Workflow: Forge — Deploy (k3s Helm workloads)
 # ==============================================================================
-# One-time initialisation of a fresh Hearth VPS: creates the deploy user,
-# installs Docker, configures system settings, and generates the BorgBackup
-# SSH key pair. Idempotent (safe to re-run) but normally only needed once per
-# server — routine changes go through deploy-hearth-config.yml and
-# deploy-hearth-deploy.yml instead.
+# Deploys/updates Forge's k3s Helm workloads via strata's own deploy pipeline,
+# tunnelled to the k3s API over a temporary SSH connection (see the 'Deploy'
+# section below for why — Forge's k3s API has no public LB, only reachable on
+# the Hetzner private network or localhost on the node itself).
 #
-# Prerequisites: deploy-infra.yml must have run at least once (VPS exists).
+# Prerequisites: deploy-infra.yml and deploy-forge-init.yml must have run
+# at least once (VPS exists and is initialised). Pair with
+# deploy-forge-config.yml for routine LAN-routing drift correction.
+#
+# Which Forge namespaces/services actually get deployed is controlled by
+# config/stack/workspace.yaml's spec.namespaces list — see the comments there
+# for the step-by-step activation order (system -> immich/media -> documents).
 # ==============================================================================
 
-name: 21 - Hearth - Init
+name: 33 - Forge - Deploy
 
 on:
   workflow_dispatch:
@@ -20,11 +25,7 @@ on:
         type: string
         required: true
       dry_run:
-        description: "Dry run (skip playbook execution)"
-        type: boolean
-        default: false
-      configure_borg:
-        description: "Initialise BorgBackup repo on Storage Box (run only after SSH key is authorised in Hetzner Robot)"
+        description: "Dry run (validate + build only, skip the actual Helm deploy)"
         type: boolean
         default: false
 
@@ -33,12 +34,13 @@ permissions:
 
 env:
   STRATA_OUTPUT: json
+  STRATA_WORK_PATH: ${{ github.workspace }}
   DEPLOYMENT_FILE: "config/deployment.yaml"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
-  hearth-init:
-    name: Init Hearth
+  forge-deploy:
+    name: Deploy Forge
     runs-on: ubuntu-latest
     environment: production
 
@@ -68,34 +70,32 @@ jobs:
           fi
 
       # ------------------------------------------------------------------
-      # Network setup — get IP, open SSH on Hearth firewall
+      # Network setup — get IP, open SSH on Forge firewall
       # ------------------------------------------------------------------
       - name: Open temporary SSH access
         id: ssh
         uses: ./.github/actions/hetzner-ssh-open
         with:
           hetzner_api_token: ${{ secrets.HETZNER_API_TOKEN }}
-          server_name: haven-platform-hearth
-          firewall_name: haven-platform-fw-hearth
+          server_name: haven-platform-forge
+          firewall_name: haven-platform-fw-forge
           dry_run: ${{ inputs.dry_run }}
 
       # ------------------------------------------------------------------
-      # Ansible setup
+      # Strata + Helm setup
       # ------------------------------------------------------------------
       - name: Setup strata
-        if: ${{ inputs.dry_run != true }}
         uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.3
         with:
           # See deploy-infra.yml for why this is '==1.8.3' — also fixes 'strata
-          # deploy run' crashing unconditionally on every invocation (v1.7.0-1.8.2).
+          # deploy run' crashing unconditionally on every invocation (v1.7.0-1.8.2),
+          # which is exactly the command this workflow's deploy step runs.
           strata-version: "==1.8.3"
         env:
-          # See deploy-infra.yml for why this is set — no-op on GitHub-hosted runners.
           UV_INDEX_STRATEGY: unsafe-best-match
 
-      - name: Install Ansible
-        if: ${{ inputs.dry_run != true }}
-        run: pip install ansible-core
+      - name: Setup Helm
+        uses: azure/setup-helm@v5
 
       - name: Write deploy SSH private key
         if: ${{ inputs.dry_run != true }}
@@ -104,57 +104,53 @@ jobs:
           echo "${{ secrets.HETZNER_PRIVATE_KEY }}" > ~/.ssh/haven_ed25519
           chmod 600 ~/.ssh/haven_ed25519
 
-      - name: Install Ansible collections
-        if: ${{ inputs.dry_run != true }}
-        working-directory: deploy/ansible-hearth
-        run: ansible-galaxy collection install -r requirements.yml -p ./collections
+      # ------------------------------------------------------------------
+      # Deploy (k3s workloads — Helm charts, via strata's own deploy pipeline)
+      # ------------------------------------------------------------------
+      # Forge's k3s API is only reachable on the Hetzner private network (or
+      # localhost on the node itself) — there is no public LB in front of it.
+      # Rather than exposing port 6443 on the firewall, this tunnels through
+      # the SSH access already opened above: fetch the node's own kubeconfig
+      # (a fresh k3s install's default kubeconfig already points at
+      # 'https://127.0.0.1:6443', so no rewriting is needed) and forward local
+      # port 6443 to the same address on the far end of the SSH connection.
+      - name: Validate deployment file
+        run: strata validate -f $DEPLOYMENT_FILE --deep
 
-      # ------------------------------------------------------------------
-      # Init (one-time server initialisation)
-      # ------------------------------------------------------------------
-      - name: Write Ansible vars file for borg init
-        if: ${{ inputs.configure_borg == true && inputs.dry_run != true }}
+      - name: Build platform artifacts
+        run: strata build run --file $DEPLOYMENT_FILE
+
+      - name: Fetch k3s kubeconfig
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/haven_ed25519 \
+            root@${{ steps.ssh.outputs.server_ip }}:/etc/rancher/k3s/k3s.yaml \
+            /tmp/forge-kubeconfig.yaml
+          chmod 600 /tmp/forge-kubeconfig.yaml
+
+      - name: Open SSH tunnel to k3s API
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          ssh -f -N -L 6443:127.0.0.1:6443 \
+            -o StrictHostKeyChecking=no -o ExitOnForwardFailure=yes \
+            -i ~/.ssh/haven_ed25519 root@${{ steps.ssh.outputs.server_ip }}
+
+      - name: Deploy Forge Helm apps
+        if: ${{ inputs.dry_run != true }}
         env:
+          KUBECONFIG: /tmp/forge-kubeconfig.yaml
+          # Which namespaces actually get deployed is controlled by
+          # config/stack/workspace.yaml's spec.namespaces list (pruned to one
+          # at a time for step-by-step activation), not by this stage.
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
-          set +e
-          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH STORAGEBOX_HEARTH_PASSWORD -f $DEPLOYMENT_FILE --output json)
-          STATUS=$?
-          set -e
-          if [ $STATUS -ne 0 ]; then
-            echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
-            echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
-            exit $STATUS
-          fi
-          BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_HEARTH')
-          STORAGEBOX_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.STORAGEBOX_HEARTH_PASSWORD')
-          cat > /tmp/init_vars.yml << VARSEOF
-          configure_borg: true
-          storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
-          storagebox_subaccount: "${{ vars.STORAGEBOX_SUBACCOUNT_HEARTH }}"
-          borg_passphrase: "$BORG_PASSPHRASE"
-          storagebox_password: "$STORAGEBOX_PASSWORD"
-          VARSEOF
+          strata deploy run --file $DEPLOYMENT_FILE --scope apps --stage applications_forge --force
 
-      - name: Run hearth-init playbook
-        if: ${{ inputs.dry_run != true }}
-        working-directory: deploy/ansible-hearth
-        run: |
-          if [ "${{ inputs.configure_borg }}" = "true" ]; then
-            EXTRA_ARGS="-e @/tmp/init_vars.yml"
-          else
-            EXTRA_ARGS="-e configure_borg=false"
-          fi
-          ansible-playbook hearth-init.yml \
-            -i "${{ steps.ssh.outputs.server_ip }}," \
-            --private-key ~/.ssh/haven_ed25519 \
-            $EXTRA_ARGS
-
-      - name: Clean up init vars file
-        if: ${{ always() && inputs.configure_borg == true && inputs.dry_run != true }}
-        run: rm -f /tmp/init_vars.yml
+      - name: Close SSH tunnel to k3s API
+        if: ${{ always() }}
+        run: pkill -f "6443:127.0.0.1:6443" || true
 
       # ------------------------------------------------------------------
       # Cleanup — always remove temporary SSH rule

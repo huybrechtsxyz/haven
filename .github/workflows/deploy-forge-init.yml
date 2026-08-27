@@ -5,10 +5,11 @@
 # Traefik enabled — Forge terminates its own TLS via cert-manager, independent
 # of Hearth's Caddy, so Forge apps can be added/changed freely without ever
 # touching Hearth), creates the haven service user, optionally mounts the
-# Storage Box NFS share, hardens SSH, and generates the BorgBackup SSH key
-# pair. Idempotent (safe to re-run) but normally only needed once per server —
-# routine changes will go through forge-config.yml / forge-deploy.yml once
-# those exist (see deploy-forge.yml).
+# Storage Box SMB share (media library — subaccounts don't support NFS),
+# hardens SSH, and generates the BorgBackup SSH key pair. Idempotent (safe to
+# re-run) but normally only needed once per server — routine changes will go
+# through forge-config.yml / forge-deploy.yml once those exist (see
+# deploy-forge.yml).
 #
 # Prerequisites: deploy-infra.yml must have run at least once (VPS exists).
 # ==============================================================================
@@ -30,8 +31,8 @@ on:
         description: "Initialise BorgBackup repo on Storage Box (run only after SSH key is authorised in Hetzner Robot)"
         type: boolean
         default: false
-      configure_nfs:
-        description: "Mount Storage Box NFS share at /mnt/storagebox (requires storagebox_nfs_share)"
+      configure_smb:
+        description: "Mount Storage Box SMB share at /mnt/storagebox (media library) — Hetzner Storage Box subaccounts don't support NFS"
         type: boolean
         default: false
 
@@ -91,12 +92,11 @@ jobs:
       # ------------------------------------------------------------------
       - name: Setup strata
         if: ${{ inputs.dry_run != true }}
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.2
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.3
         with:
-          # See deploy-infra.yml for why this is '==1.8.2' — fixes the Helm local-chart
-          # Jinja2 crash, the global Terraform input-validator regression, OCI charts,
-          # and shallow-only secret substitution.
-          strata-version: "==1.8.2"
+          # See deploy-infra.yml for why this is '==1.8.3' — also fixes 'strata
+          # deploy run' crashing unconditionally on every invocation (v1.7.0-1.8.2).
+          strata-version: "==1.8.3"
         env:
           # See deploy-infra.yml for why this is set — no-op on GitHub-hosted runners.
           UV_INDEX_STRATEGY: unsafe-best-match
@@ -121,7 +121,7 @@ jobs:
       # Init (one-time server initialisation)
       # ------------------------------------------------------------------
       - name: Write Ansible vars file for forge init
-        if: ${{ (inputs.configure_borg == true || inputs.configure_nfs == true) && inputs.dry_run != true }}
+        if: ${{ (inputs.configure_borg == true || inputs.configure_smb == true) && inputs.dry_run != true }}
         env:
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
@@ -129,30 +129,39 @@ jobs:
         run: |
           : > /tmp/init_vars.yml
 
+          # storagebox_host/subaccount/password are needed for BOTH BorgBackup
+          # (SSH) and the SMB media-library mount — fetched once regardless of
+          # which flag(s) triggered this step.
+          set +e
+          VALUES=$(strata values get STORAGEBOX_FORGE_PASSWORD -f $DEPLOYMENT_FILE --output json)
+          STATUS=$?
+          set -e
+          if [ $STATUS -ne 0 ]; then
+            echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
+            echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+            exit $STATUS
+          fi
+          STORAGEBOX_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.STORAGEBOX_FORGE_PASSWORD')
+          cat >> /tmp/init_vars.yml << VARSEOF
+          storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
+          storagebox_subaccount: "${{ vars.STORAGEBOX_SUBACCOUNT_FORGE }}"
+          storagebox_password: "$STORAGEBOX_PASSWORD"
+          VARSEOF
+
           if [ "${{ inputs.configure_borg }}" = "true" ]; then
             set +e
-            VALUES=$(strata values get BORG_PASSPHRASE_FORGE STORAGEBOX_FORGE_PASSWORD -f $DEPLOYMENT_FILE --output json)
+            BORG_VALUES=$(strata values get BORG_PASSPHRASE_FORGE -f $DEPLOYMENT_FILE --output json)
             STATUS=$?
             set -e
             if [ $STATUS -ne 0 ]; then
               echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
-              echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+              echo "$BORG_VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
               exit $STATUS
             fi
-            BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_FORGE')
-            STORAGEBOX_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.STORAGEBOX_FORGE_PASSWORD')
+            BORG_PASSPHRASE=$(echo "$BORG_VALUES" | jq -r '.data.results.BORG_PASSPHRASE_FORGE')
             cat >> /tmp/init_vars.yml << VARSEOF
           configure_borg: true
-          storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
-          storagebox_subaccount: "${{ vars.STORAGEBOX_SUBACCOUNT_FORGE }}"
           borg_passphrase: "$BORG_PASSPHRASE"
-          storagebox_password: "$STORAGEBOX_PASSWORD"
-          VARSEOF
-          fi
-
-          if [ "${{ inputs.configure_nfs }}" = "true" ]; then
-            cat >> /tmp/init_vars.yml << VARSEOF
-          storagebox_nfs_share: "${{ vars.STORAGEBOX_NFS_SHARE }}"
           VARSEOF
           fi
 
@@ -160,7 +169,7 @@ jobs:
         if: ${{ inputs.dry_run != true }}
         working-directory: deploy/ansible-forge
         run: |
-          if [ "${{ inputs.configure_borg }}" = "true" ] || [ "${{ inputs.configure_nfs }}" = "true" ]; then
+          if [ "${{ inputs.configure_borg }}" = "true" ] || [ "${{ inputs.configure_smb }}" = "true" ]; then
             EXTRA_ARGS="-e @/tmp/init_vars.yml"
           else
             EXTRA_ARGS="-e configure_borg=false"
