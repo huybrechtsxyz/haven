@@ -3,13 +3,25 @@ kind: namespace
 meta:
   name: system
   annotations:
-    description: Cross-cutting infrastructure add-ons for Forge (k3s) — not tied to any one app layer. rclone's S3 mount lives here; Portainer's Kubernetes agent and cert-manager will join once ready.
+    description: Cross-cutting infrastructure add-ons for Forge (k3s) — not tied to any one app layer. rclone's S3 mount, cert-manager + its ClusterIssuers live here; Portainer's Kubernetes agent will join once ready.
   labels:
     version: "1.0.0"
   tags: [haven, forge, k3s, system]
 spec:
   type: shared
   modules:
+    # Listed before cert-manager-issuers: the issuers module creates
+    # ClusterIssuer custom resources, which requires cert-manager's CRDs to
+    # already be installed. If a first-ever deploy run ever fails on the
+    # issuers module because the CRDs aren't fully established yet, just
+    # re-run the deploy — this is a known cert-manager timing quirk, not a
+    # config bug.
+    - name: cert-manager
+      description: Automates Let's Encrypt TLS certificate issuance/renewal for Forge's Traefik ingress
+      file: config/forge/modules/cert-manager.yaml
+    - name: cert-manager-issuers
+      description: Let's Encrypt ClusterIssuers (staging + production), HTTP-01 via Traefik
+      file: config/forge/modules/cert-manager-issuers.yaml
     - name: rclone-mount
       description: Mounts haven-docs (S3) onto the Forge host filesystem for Nextcloud + Kavita to share
       file: config/forge/modules/rclone-mount.yaml
