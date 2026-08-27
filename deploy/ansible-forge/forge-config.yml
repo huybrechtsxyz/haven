@@ -44,6 +44,12 @@
     # Authentik above. The edge key baked into the agent always points at
     # "portainer.huybrechts.xyz", so overriding its DNS resolution here is
     # the only way to redirect it without regenerating the Edge environment.
+    # Portainer's Edge Agent tunnel (live-connect: console access, live
+    # logs/stats) also needs to stay on the private network rather than
+    # dialling back out through the public internet — same rationale as
+    # Authentik above. The edge key baked into the agent always points at
+    # "portainer.huybrechts.xyz", so overriding its DNS resolution here is
+    # the only way to redirect it without regenerating the Edge environment.
     - name: Point portainer.huybrechts.xyz at Hearth's private IP (LAN routing)
       ansible.builtin.lineinfile:
         path: /etc/hosts
@@ -51,3 +57,35 @@
         line: "{{ hearth_private_ip }} portainer.huybrechts.xyz"
         state: present
       when: hearth_private_ip is defined
+
+    # =========================================================================
+    # IMPORTANT: the node-level /etc/hosts edits above only affect processes
+    # running directly on the Forge VM (kubectl, ssh sessions, etc). They do
+    # NOT propagate into Kubernetes PODS — kubelet manages each pod's own
+    # /etc/hosts independently, and pod DNS resolution goes through CoreDNS,
+    # never consulting the node's /etc/hosts. The Portainer Edge Agent (and
+    # any future in-cluster workload needing this same LAN routing, e.g.
+    # Immich's OIDC calls to auth.huybrechts.xyz) needs the Kubernetes-native
+    # equivalent: hostAliases on the pod spec itself.
+    #
+    # The Edge Agent's Deployment comes from Portainer's own install script
+    # (not a Helm chart we template), so it's patched after the fact here
+    # rather than set via values at install time. kubectl patch is itself
+    # idempotent — safe to re-run every time this playbook runs.
+    # =========================================================================
+
+    - name: Check if Portainer Edge Agent deployment exists
+      ansible.builtin.command:
+        cmd: kubectl get deployment portainer-agent -n portainer
+      register: portainer_agent_present
+      failed_when: false
+      changed_when: false
+      when: hearth_private_ip is defined
+
+    - name: Patch Portainer Edge Agent with hostAliases (private-network DNS routing)
+      ansible.builtin.command:
+        cmd: >
+          kubectl patch deployment portainer-agent -n portainer --type=merge -p
+          '{"spec":{"template":{"spec":{"hostAliases":[{"ip":"{{ hearth_private_ip }}","hostnames":["portainer.huybrechts.xyz"]}]}}}}'
+      when: hearth_private_ip is defined and portainer_agent_present.rc == 0
+      changed_when: true
