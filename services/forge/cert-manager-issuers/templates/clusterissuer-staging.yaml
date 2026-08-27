@@ -5,10 +5,10 @@ metadata:
 spec:
   acme:
     server: https://acme-staging-v02.api.letsencrypt.org/directory
-    email: {{ .Values.acmeEmail | quote }}
+    email: { { .Values.acmeEmail | quote } }
     privateKeySecretRef:
       name: letsencrypt-staging-account-key
     solvers:
       - http01:
           ingress:
-            ingressClassName: {{ .Values.ingressClass }}
+            ingressClassName: { { .Values.ingressClass } }
