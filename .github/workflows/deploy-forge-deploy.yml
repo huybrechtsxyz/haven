@@ -136,26 +136,26 @@ jobs:
             -i ~/.ssh/haven_ed25519 root@${{ steps.ssh.outputs.server_ip }}
 
       # =========================================================================
-      # ONE-TIME CLEANUP — DELETE THIS STEP once it's confirmed no longer needed!
-      # A previous run's `helm upgrade --install --wait --atomic --timeout 5m`
-      # got force-killed (invalid image tag caused ImagePullBackOff, --wait
-      # blocked until the timeout, then the process was killed rather than
-      # cleanly failing/rolling back) — leaving the 'immich' release stuck in
-      # 'pending-install'. Helm refuses to touch a release in that state, so
-      # it must be uninstalled (no successful prior revision exists to roll
-      # back to) before the next deploy can proceed.
+      # Pre-flight safety net — clear any Helm release stuck in a 'pending-*'
+      # state (install/upgrade/rollback) before deploying. This happens when a
+      # previous `helm upgrade --wait --atomic --timeout Nm` gets killed rather
+      # than exiting cleanly (e.g. a bad image tag causing ImagePullBackOff,
+      # --wait blocking until the timeout, then the process being force-killed
+      # instead of rolling back) — Helm then refuses to touch that release
+      # until it's cleared. Not specific to any one app; runs every deploy.
       # =========================================================================
-      - name: ONE-TIME — clear stuck 'immich' Helm release (pending-install)
+      - name: Clear any stuck Helm releases (pending-*)
         if: ${{ inputs.dry_run != true }}
         env:
           KUBECONFIG: /tmp/forge-kubeconfig.yaml
         run: |
-          STATUS=$(helm status immich -n immich -o json 2>/dev/null | jq -r '.info.status // empty')
-          echo "Current 'immich' release status: ${STATUS:-<not found>}"
-          if [[ "$STATUS" == pending-* ]]; then
-            echo "Release is stuck in '$STATUS' — uninstalling before redeploy."
-            helm uninstall immich -n immich
-          fi
+          helm list --all-namespaces --pending -o json | jq -c '.[]' | while read -r release; do
+            name=$(echo "$release" | jq -r '.name')
+            namespace=$(echo "$release" | jq -r '.namespace')
+            status=$(echo "$release" | jq -r '.status')
+            echo "Found stuck release '$name' in namespace '$namespace' (status: $status) — uninstalling."
+            helm uninstall "$name" -n "$namespace"
+          done
 
       - name: Deploy Forge Helm apps
         if: ${{ inputs.dry_run != true }}
@@ -169,6 +169,36 @@ jobs:
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
           strata deploy run --file $DEPLOYMENT_FILE --scope apps --stage applications_forge --force
+
+      # =========================================================================
+      # Diagnostics on failure — the deploy step above uses `helm --wait
+      # --atomic --timeout`, which on failure is force-killed by strata's
+      # subprocess wrapper rather than exiting cleanly, so its own stderr
+      # rarely contains the real Kubernetes-level reason (ImagePullBackOff,
+      # CrashLoopBackOff, unbound PVC, etc.). Dump live cluster state here so
+      # failures are actually diagnosable from the workflow log.
+      # =========================================================================
+      - name: Dump pod diagnostics on failure
+        if: ${{ failure() && inputs.dry_run != true }}
+        env:
+          KUBECONFIG: /tmp/forge-kubeconfig.yaml
+        run: |
+          for ns in system immich media documents; do
+            echo "::group::Pods in namespace: $ns"
+            kubectl get pods -n "$ns" -o wide 2>/dev/null || true
+            echo "::endgroup::"
+          done
+          echo "::group::Describe non-Running/non-Completed pods"
+          kubectl get pods -A --field-selector=status.phase!=Running,status.phase!=Succeeded -o json 2>/dev/null \
+            | jq -r '.items[] | "\(.metadata.namespace)/\(.metadata.name)"' \
+            | while read -r pod; do
+                ns="${pod%%/*}"; name="${pod##*/}"
+                echo "--- describe $ns/$name ---"
+                kubectl describe pod "$name" -n "$ns" || true
+                echo "--- recent events ($ns) ---"
+                kubectl get events -n "$ns" --sort-by='.lastTimestamp' 2>/dev/null | tail -n 20 || true
+              done
+          echo "::endgroup::"
 
       - name: Close SSH tunnel to k3s API
         if: ${{ always() }}
