@@ -113,12 +113,12 @@ spec:
       enabled: true
       # cert-manager is now installed on Forge (see the `cert-manager` +
       # `cert-manager-issuers` modules in config/forge/namespaces/system.yaml).
-      # Using the STAGING issuer here deliberately — Let's Encrypt production
-      # has strict rate limits (5 certs/domain/week), so prove the HTTP-01
-      # flow works end-to-end first (staging certs are untrusted/self-signed
-      # by a non-public CA, browsers will warn). Once `kubectl describe
-      # certificate photos-tls -n immich` shows Ready=True, switch
-      # `cert-manager.io/cluster-issuer` below to `letsencrypt-prod`.
+      # Used the STAGING issuer initially — Let's Encrypt production has
+      # strict rate limits (5 certs/domain/week), so the HTTP-01 flow was
+      # proven end-to-end first (staging certs are untrusted/self-signed by a
+      # non-public CA, browsers warn — confirmed working 2026-08-27, saw
+      # "welcome to immich" with the expected dev-cert warning). Now switched
+      # to `letsencrypt-prod` for a real trusted cert.
       # NOTE: unlike jellyfin.yaml/kavita.yaml (bjw-s app-template, flat
       # ingress: {enabled,className,hosts,tls}), the official immich-charts
       # schema requires ingress to be a MAP of named ingresses — confirmed
@@ -128,7 +128,7 @@ spec:
           enabled: true
           className: traefik
           annotations:
-            cert-manager.io/cluster-issuer: letsencrypt-staging
+            cert-manager.io/cluster-issuer: letsencrypt-prod
           hosts:
             - host: photos.huybrechts.xyz
               paths:
