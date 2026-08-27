@@ -76,6 +76,8 @@ Instead, `rclone-mount` (`config/forge/modules/rclone-mount.yaml`, `system` name
 One-time bootstrap of a fresh server: installs k3s (Traefik enabled), creates the `haven` service user, optionally mounts the Storage Box SMB share, hardens SSH, and generates the BorgBackup SSH key pair. Idempotent — safe to re-run, but normally only needed once per server.
 
 > ✅ Verified end-to-end in production (2026-08-27) — full run completes with zero failures: k3s install, SMB media mount, SSH hardening, and BorgBackup repo init/repokey export all succeed.
+>
+> ✅ Portainer Kubernetes Edge Agent also verified end-to-end in production (2026-08-27) — `configure_portainer_agent: true` run succeeded; Forge shows as a connected Kubernetes environment in Portainer.
 
 | Input                       | Value         | Notes                                                                                                                                                                                                                |
 | --------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -131,7 +133,7 @@ Per-app secrets (e.g. `IMMICH_DB_PASSWORD`, `JELLYFIN_SSO_CLIENT_SECRET`) are do
 - [ ] Storage Box SMB share mounted at `/mnt/storagebox` on the host (`mount | grep storagebox`)
 - [ ] BorgBackup repokey saved (from the `deploy-forge-init.yml` run log) to Bitwarden
 - [ ] `/etc/hosts` on Forge has an entry for `auth.{domain}` pointing at Hearth's private IP
-- [ ] Forge's environment shows as connected (not pending) in Portainer's Environments list
+- [x] Forge's environment shows as connected (not pending) in Portainer's Environments list
 
 ---
 
