@@ -65,6 +65,15 @@ spec:
       proto: tcp
       port: [445]
       comment: SMB to Storage Box (media library mount)
+    # Portainer Kubernetes Edge Agent — the regular heartbeat/poll goes over
+    # HTTPS (443, already allowed above), but Portainer's "live connect"
+    # tunnel (console access, live logs/stats) uses a SEPARATE port — 8000
+    # by default, confirmed by decoding this environment's own edge key
+    # (format: <portainer_url>|<tunnel_host>:8000|<key>|<version>).
+    - direction: out
+      proto: tcp
+      port: [8000]
+      comment: Portainer Edge Agent live-connect tunnel
     # Public web ingress
     - direction: in
       proto: tcp
