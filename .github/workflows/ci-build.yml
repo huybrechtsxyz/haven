@@ -1,0 +1,137 @@
+# ==============================================================================
+# Workflow: CI - Build
+# ==============================================================================
+# Fast, side-effect-free checks that run automatically on every pull request
+# and on every push to main. Nothing here touches real infrastructure or
+# requires secrets — safe to run on PRs from any branch.
+#
+# Companion workflow (not yet created): ci-release.yml — will handle tagging/
+# publishing once the repo has a release process.
+#
+# Checks:
+#   - Helm chart template guard (spaced Go-template braces, a recurring bug
+#     in this repo — see scripts/check-helm-braces.ps1)
+#   - helm lint on every local chart under services/
+#   - strata validate --deep + strata build run (catches config/schema
+#     errors and Helm/Terraform template rendering bugs)
+#   - terraform fmt -check + terraform validate (no backend, no credentials)
+#   - actionlint on this repo's own GitHub Actions workflow files
+# ==============================================================================
+
+name: CI - Build
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  STRATA_OUTPUT: json
+  STRATA_WORK_PATH: ${{ github.workspace }}
+  DEPLOYMENT_FILE: "config/deployment.yaml"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  # ------------------------------------------------------------------
+  # Helm charts — brace guard + lint
+  # ------------------------------------------------------------------
+  helm-lint:
+    name: Helm chart checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v5
+
+      - name: Guard against spaced Go-template braces
+        shell: pwsh
+        run: ./scripts/check-helm-braces.ps1
+
+      - name: helm lint all local charts
+        shell: bash
+        run: |
+          set -euo pipefail
+          status=0
+          while IFS= read -r -d '' chart_file; do
+            chart_dir=$(dirname "$chart_file")
+            echo "::group::helm lint $chart_dir"
+            helm lint "$chart_dir" || status=1
+            echo "::endgroup::"
+          done < <(find services -name Chart.yaml -print0)
+          exit $status
+
+  # ------------------------------------------------------------------
+  # Strata — config validation + build
+  # ------------------------------------------------------------------
+  strata-validate:
+    name: Strata validate + build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup strata
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.3
+        with:
+          strata-version: "==1.8.3"
+        env:
+          UV_INDEX_STRATEGY: unsafe-best-match
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v5
+
+      - name: Validate deployment file
+        run: strata validate -f $DEPLOYMENT_FILE --deep
+
+      - name: Build platform artifacts
+        run: strata build run --file $DEPLOYMENT_FILE
+
+  # ------------------------------------------------------------------
+  # Terraform — format + validate (no backend, no credentials)
+  # ------------------------------------------------------------------
+  terraform-validate:
+    name: Terraform fmt + validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform fmt check
+        working-directory: deploy/terraform
+        run: terraform fmt -check -recursive -diff
+
+      - name: Terraform init (no backend)
+        working-directory: deploy/terraform
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        working-directory: deploy/terraform
+        run: terraform validate
+
+  # ------------------------------------------------------------------
+  # GitHub Actions workflows — actionlint
+  # ------------------------------------------------------------------
+  lint-workflows:
+    name: Lint GitHub Actions workflows
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Run actionlint
+        uses: raven-actions/actionlint@v2
