@@ -12,6 +12,9 @@ spec:
     - name: kavita
       description: PDF/EPUB/comic library server for TTRPG PDFs and reference material
       file: config/forge/modules/kavita.yaml
+    - name: nextcloud-secrets
+      description: Shared K8s Secret holding Nextcloud's real credentials (see module comment for why this indirection exists)
+      file: config/forge/modules/nextcloud-secrets.yaml
     - name: nextcloud-postgres
       description: PostgreSQL for Nextcloud
       file: config/forge/modules/nextcloud-postgres.yaml

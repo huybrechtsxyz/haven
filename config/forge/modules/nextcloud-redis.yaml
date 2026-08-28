@@ -20,7 +20,12 @@ spec:
     image:
       repository: redis
       tag: 7-alpine
-    # Real value injected by strata at deploy time — never written here.
-    password: "${NEXTCLOUD_REDIS_PASSWORD}"
+    # Credentials MUST live under a literal `env:` dict — strata's Helm
+    # secret substitution only resolves `${TOKEN}` placeholders found inside
+    # a dict node keyed literally "env" (see rclone-mount's module comment
+    # for the full writeup of this gotcha, confirmed 2026-08-28).
+    env:
+      # Real value injected by strata at deploy time — never written here.
+      NEXTCLOUD_REDIS_PASSWORD: "${NEXTCLOUD_REDIS_PASSWORD}"
     service:
       port: 6379
