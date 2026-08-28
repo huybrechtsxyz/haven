@@ -46,8 +46,8 @@ spec:
       file: config/forge/namespaces/immich.yaml # 2nd — self-contained, no shared-storage dependency
     - name: media
       file: config/forge/namespaces/media.yaml # 3rd — self-contained, no shared-storage dependency
-    # - name: documents
-    #   file: config/forge/namespaces/documents.yaml # 4th — needs 'system' (rclone-mount) deployed first
+    - name: documents
+      file: config/forge/namespaces/documents.yaml # 4th — needs 'system' (rclone-mount) deployed first
 
   topology:
     - name: hetzner_hearth
@@ -78,7 +78,7 @@ spec:
         - namespace: system
         - namespace: immich
         - namespace: media
-        # - namespace: documents
+        - namespace: documents
       volumes:
         - name: k3s
           type: local
