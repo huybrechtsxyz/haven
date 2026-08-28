@@ -140,6 +140,20 @@
         state: directory
         mode: "0755"
 
+    # Top-level library subfolders — plain SMB/CIFS mkdir (unlike the S3/FUSE
+    # rclone-mount below), so a normal Ansible file task works fine here.
+    # Add each as its own library in Jellyfin's UI (Dashboard → Libraries →
+    # Add Media Library) with the matching content type (Movies/Shows/Music).
+    - name: Ensure Jellyfin media library subfolders exist
+      ansible.builtin.file:
+        path: /mnt/storagebox/media/{{ item }}
+        state: directory
+        mode: "0755"
+      loop:
+        - movies
+        - shows
+        - music
+
     # Kavita library subfolder ("books") — NOT provisioned here. Confirmed
     # (2026-08-28, real CI run) that a plain host-level mkdir on /mnt/haven-docs
     # (an rclone FUSE mount over S3) fails with the same raw EIO kubelet hit —
