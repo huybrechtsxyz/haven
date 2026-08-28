@@ -352,7 +352,7 @@ entries:
       client_secret: "{{ nextcloud_sso_client_secret }}"
       redirect_uris:
         - matching_mode: strict
-          url: "https://drive.huybrechts.xyz/apps/user_oidc/code"
+          url: "https://docs.huybrechts.xyz/apps/user_oidc/code"
       grant_types:
         - authorization_code
         - refresh_token
@@ -378,7 +378,7 @@ entries:
       name: Nextcloud
       slug: nextcloud
       provider: !KeyOf provider-nextcloud
-      meta_launch_url: https://drive.huybrechts.xyz
+      meta_launch_url: https://docs.huybrechts.xyz
 
   - model: authentik_policies.policybinding
     state: present

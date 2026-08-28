@@ -72,8 +72,8 @@ Hand these off once both accounts above exist.
 
 ### Nextcloud (family drive)
 
-1. Browser: `https://drive.huybrechts.xyz` → log in via the Authentik SSO option.
-2. Desktop sync client and mobile app: server URL `https://drive.huybrechts.xyz`, log in via SSO the same way.
+1. Browser: `https://docs.huybrechts.xyz` → log in via the Authentik SSO option.
+2. Desktop sync client and mobile app: server URL `https://docs.huybrechts.xyz`, log in via SSO the same way.
 
 ### Infomaniak kSuite (email, calendar, contacts, kDrive)
 

@@ -1,12 +1,12 @@
 # Nextcloud
 
-> Nextcloud — family Google Drive replacement, self-hosted on Forge (k3s).
+> Nextcloud — family document archive & browsing layer, self-hosted on Forge (k3s). Not the live sync drive (that's Infomaniak kDrive) — Nextcloud organizes/shares what's already settled.
 
 ## Overview
 
 Nextcloud runs on **Forge** (Hetzner CPX41, k3s), in the shared `documents` Kubernetes namespace alongside Kavita. See [Forge](../guides/forge.md) for the node-level overview and [Kavita](./kavita.md) for the sibling app it shares files with.
 
-**Prerequisites:** `deploy-forge-init.yml` must have run successfully at least once, `rclone-mount` (system namespace) must be running so `/mnt/haven-docs` exists on the host, and a DNS A record for `drive.{domain}` must point directly at Forge's public IP (Forge terminates its own ingress — see [Forge's design decision](../guides/forge.md#design-decision--forge-terminates-its-own-ingress)).
+**Prerequisites:** `deploy-forge-init.yml` must have run successfully at least once, `rclone-mount` (system namespace) must be running so `/mnt/haven-docs` exists on the host, and a DNS A record for `docs.{domain}` must point directly at Forge's public IP (Forge terminates its own ingress — see [Forge's design decision](../guides/forge.md#design-decision--forge-terminates-its-own-ingress)).
 
 ---
 
@@ -36,7 +36,7 @@ Nextcloud doesn't talk to S3 directly, either — see [rclone-mount](../guides/f
 | Namespace | `documents` (Kubernetes), module file `config/forge/modules/nextcloud.yaml`                                                                    |
 | Database  | PostgreSQL — own single-pod instance (`nextcloud-postgres` module), not the chart's bundled Bitnami subchart                                   |
 | Cache     | Redis — own single-pod instance (`nextcloud-redis` module), for memory caching + file locking                                                  |
-| Ingress   | Traefik (`className: traefik`), host `drive.{domain}`, TLS via cert-manager (`letsencrypt-staging` initially, same pattern as Immich/Jellyfin) |
+| Ingress   | Traefik (`className: traefik`), host `docs.{domain}`, TLS via cert-manager (`letsencrypt-staging` initially, same pattern as Immich/Jellyfin) |
 
 The official Docker image supports **fully automated initial admin setup** via env vars (`NEXTCLOUD_ADMIN_USER`/`PASSWORD` + database connection vars) — no manual first-boot wizard needed, unlike Jellyfin/Portainer.
 
@@ -68,7 +68,7 @@ occ files_external:create "Family Documents" local null::null -c datadir=/mnt/ha
 
 `NEXTCLOUD_SSO_CLIENT_SECRET` is exposed to the hook as a plain container env var (`extraEnv`), same plaintext-substitution pattern already used for the admin/DB/Redis passwords in this file.
 
-**Also proactively fixed** (learned from Jellyfin's SSO debugging this session): Traefik terminates TLS and forwards plain HTTP to the pod, so without telling Nextcloud to trust the proxy, it would generate `http://` URLs for OIDC redirects and break SSO the same way Jellyfin's did initially. `extraEnv` sets `TRUSTED_PROXIES=10.42.0.0/16` (k3s's pod CIDR), `OVERWRITEPROTOCOL=https`, and `OVERWRITECLIURL=https://drive.huybrechts.xyz` — the chart already enables `reverse-proxy.config.php` by default, which reads these.
+**Also proactively fixed** (learned from Jellyfin's SSO debugging this session): Traefik terminates TLS and forwards plain HTTP to the pod, so without telling Nextcloud to trust the proxy, it would generate `http://` URLs for OIDC redirects and break SSO the same way Jellyfin's did initially. `extraEnv` sets `TRUSTED_PROXIES=10.42.0.0/16` (k3s's pod CIDR), `OVERWRITEPROTOCOL=https`, and `OVERWRITECLIURL=https://docs.huybrechts.xyz` — the chart already enables `reverse-proxy.config.php` by default, which reads these.
 
 ---
 
@@ -85,7 +85,7 @@ occ files_external:create "Family Documents" local null::null -c datadir=/mnt/ha
 
 ## Verification checklist
 
-- [ ] `https://drive.{domain}` — Nextcloud loads and is reachable from a browser
+- [ ] `https://docs.{domain}` — Nextcloud loads and is reachable from a browser
 - [ ] Admin login works with the auto-configured admin account
 - [ ] `user_oidc` installed and Authentik provider registered automatically — SSO login works
 - [ ] Authentik groups (admins/parents/members) map correctly into Nextcloud groups
@@ -96,6 +96,6 @@ occ files_external:create "Family Documents" local null::null -c datadir=/mnt/ha
 
 ## Still open
 
-- TLS cert: switch `cert-manager.io/cluster-issuer` from `letsencrypt-staging` to `letsencrypt-prod` once `kubectl describe certificate drive-tls -n documents` shows `Ready: True` (same staging-first pattern as Immich/Jellyfin)
+- TLS cert: switch `cert-manager.io/cluster-issuer` from `letsencrypt-staging` to `letsencrypt-prod` once `kubectl describe certificate docs-tls -n documents` shows `Ready: True` (same staging-first pattern as Immich/Jellyfin)
 - `documents` namespace is still pruned out of `config/stack/workspace.yaml` — Nextcloud hasn't been deployed to the live cluster yet, so none of the automation above has been exercised for real
 - Paperless-ngx (separate bucket, ingest-then-own workflow) not started — different use case, doesn't share this tree

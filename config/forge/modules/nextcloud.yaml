@@ -3,10 +3,10 @@ kind: module
 meta:
   name: nextcloud
   annotations:
-    description: Nextcloud — family Google Drive replacement, External Storage over the shared haven-docs S3 bucket
+    description: Nextcloud — family document archive/browsing layer, External Storage over the shared haven-docs S3 bucket (not the live sync drive — that's Infomaniak kDrive)
   labels:
     version: "1.0.0"
-  tags: [haven, forge, documents, nextcloud, drive]
+  tags: [haven, forge, documents, nextcloud, docs]
 spec:
   type: helm
   source:
@@ -27,12 +27,12 @@ spec:
   # (no module-name prefixing) is used instead of spec.services.
   configuration:
     nextcloud:
-      host: drive.huybrechts.xyz
+      host: docs.huybrechts.xyz
       username: admin
       # Real value injected by strata at deploy time — never written here.
       password: "${NEXTCLOUD_ADMIN_PASSWORD}"
       trustedDomains:
-        - drive.huybrechts.xyz
+        - docs.huybrechts.xyz
       # Bridges the shared haven-docs mount (rclone-mount, system namespace)
       # into the pod. External Storage is configured automatically — see the
       # post-installation hook below.
@@ -58,7 +58,7 @@ spec:
         - name: OVERWRITEPROTOCOL
           value: "https"
         - name: OVERWRITECLIURL
-          value: "https://drive.huybrechts.xyz"
+          value: "https://docs.huybrechts.xyz"
         # Consumed by the post-installation hook below. Same plaintext-value
         # substitution pattern already used for NEXTCLOUD_ADMIN_PASSWORD/etc.
         # in this file — real value injected by strata at deploy time.
@@ -131,7 +131,7 @@ spec:
     # Staging-first cert-manager pattern, same as Immich/Jellyfin — a
     # brand-new hostname needs its own HTTP-01 challenge to succeed at least
     # once before trusting production (rate-limited to 5 certs/domain/week).
-    # Once `kubectl describe certificate drive-tls -n documents` shows
+    # Once `kubectl describe certificate docs-tls -n documents` shows
     # Ready=True, switch cluster-issuer below to letsencrypt-prod.
     ingress:
       enabled: true
@@ -139,14 +139,14 @@ spec:
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-staging
       hosts:
-        - host: drive.huybrechts.xyz
+        - host: docs.huybrechts.xyz
           paths:
             - path: /
               pathType: Prefix
       tls:
         - hosts:
-            - drive.huybrechts.xyz
-          secretName: drive-tls
+            - docs.huybrechts.xyz
+          secretName: docs-tls
 
     # Nextcloud needs periodic background jobs (file scan, notifications,
     # etc.) — including picking up files Kavita/other tools write directly

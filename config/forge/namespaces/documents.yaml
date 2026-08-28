@@ -3,7 +3,7 @@ kind: namespace
 meta:
   name: documents
   annotations:
-    description: Family document/reference library (k3s on Forge) — Kavita now; Nextcloud (family Drive replacement, External Storage over the same haven-docs bucket) to follow.
+    description: Family document/reference library (k3s on Forge) — Kavita now; Nextcloud (family document archive/browsing layer, External Storage over the same haven-docs bucket) to follow.
   labels:
     version: "1.0.0"
   tags: [haven, forge, documents, k3s, family]
@@ -19,5 +19,5 @@ spec:
       description: Redis for Nextcloud memory caching + file locking
       file: config/forge/modules/nextcloud-redis.yaml
     - name: nextcloud
-      description: Family Google Drive replacement, External Storage over haven-docs
+      description: Family document archive/browsing layer, External Storage over haven-docs
       file: config/forge/modules/nextcloud.yaml
