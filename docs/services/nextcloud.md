@@ -29,13 +29,13 @@ Nextcloud doesn't talk to S3 directly, either — see [rclone-mount](../guides/f
 
 ## What gets deployed
 
-| Item      | Value                                                                                                        |
-| --------- | ------------------------------------------------------------------------------------------------------------ |
-| Chart     | `nextcloud` from the official community repo, `https://nextcloud.github.io/helm`                             |
-| Version   | `9.2.6` (chart), appVersion `v34.0.3`                                                                        |
-| Namespace | `documents` (Kubernetes), module file `config/forge/modules/nextcloud.yaml`                                  |
-| Database  | PostgreSQL — own single-pod instance (`nextcloud-postgres` module), not the chart's bundled Bitnami subchart |
-| Cache     | Redis — own single-pod instance (`nextcloud-redis` module), for memory caching + file locking                |
+| Item      | Value                                                                                                                                          |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chart     | `nextcloud` from the official community repo, `https://nextcloud.github.io/helm`                                                               |
+| Version   | `9.2.6` (chart), appVersion `v34.0.3`                                                                                                          |
+| Namespace | `documents` (Kubernetes), module file `config/forge/modules/nextcloud.yaml`                                                                    |
+| Database  | PostgreSQL — own single-pod instance (`nextcloud-postgres` module), not the chart's bundled Bitnami subchart                                   |
+| Cache     | Redis — own single-pod instance (`nextcloud-redis` module), for memory caching + file locking                                                  |
 | Ingress   | Traefik (`className: traefik`), host `drive.{domain}`, TLS via cert-manager (`letsencrypt-staging` initially, same pattern as Immich/Jellyfin) |
 
 The official Docker image supports **fully automated initial admin setup** via env vars (`NEXTCLOUD_ADMIN_USER`/`PASSWORD` + database connection vars) — no manual first-boot wizard needed, unlike Jellyfin/Portainer.
@@ -74,11 +74,11 @@ occ files_external:create "Family Documents" local null::null -c datadir=/mnt/ha
 
 ## Secrets
 
-| Secret                        | Store     | Used by                                                                                                 |
-| ----------------------------- | --------- | ------------------------------------------------------------------------------------------------------- |
-| `NEXTCLOUD_ADMIN_PASSWORD`    | Infisical | Initial admin account (auto-configured at container startup)                                            |
-| `NEXTCLOUD_DB_PASSWORD`       | Infisical | `nextcloud-postgres` + Nextcloud's `externalDatabase.password`                                          |
-| `NEXTCLOUD_REDIS_PASSWORD`    | Infisical | `nextcloud-redis` + Nextcloud's `externalRedis.password`                                                |
+| Secret                        | Store     | Used by                                                                                                                         |
+| ----------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXTCLOUD_ADMIN_PASSWORD`    | Infisical | Initial admin account (auto-configured at container startup)                                                                    |
+| `NEXTCLOUD_DB_PASSWORD`       | Infisical | `nextcloud-postgres` + Nextcloud's `externalDatabase.password`                                                                  |
+| `NEXTCLOUD_REDIS_PASSWORD`    | Infisical | `nextcloud-redis` + Nextcloud's `externalRedis.password`                                                                        |
 | `NEXTCLOUD_SSO_CLIENT_SECRET` | Infisical | Authentik's Nextcloud OAuth2 provider + the automated `post-installation` hook's `occ user_oidc:provider` call (both automated) |
 
 ---

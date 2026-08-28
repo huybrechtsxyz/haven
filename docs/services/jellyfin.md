@@ -53,6 +53,8 @@ The Jellyfin side is **also automated**, aside from one unavoidable one-time ste
 
 See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugin-sso) for the login-button snippet to add under Dashboard → General → Branding → Login disclaimer (still a manual, cosmetic, one-time step).
 
+**MILESTONE (2026-08-28): confirmed working end-to-end in production** — "Sign in with SSO" successfully authenticates via Authentik after the `schemeOverride: "https"` fix above. All three bugs hit along the way (curl TLS trust + `set -e` retry-loop bug, `issuer_mode` mismatch, redirect_uri scheme mismatch) are resolved.
+
 ---
 
 ## Secrets
@@ -66,14 +68,13 @@ See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugi
 
 ## Verification checklist
 
-- [ ] `https://media.{domain}` — Jellyfin loads and is reachable from a browser
-- [ ] Media library shows content from `/mnt/storagebox/media`
-- [ ] SSO plugin installed and Authentik provider registered
-- [ ] "Sign in with SSO" login button works end-to-end
+- [x] `https://media.{domain}` — Jellyfin loads and is reachable from a browser
+- [x] Media library shows content from `/mnt/storagebox/media`
+- [x] SSO plugin installed and Authentik provider registered
+- [x] "Sign in with SSO" login button works end-to-end (confirmed 2026-08-28)
 
 ---
 
 ## Still open
 
-- `JELLYFIN_API_KEY` must be created once via the Jellyfin web UI and stored in Infisical before the automated SSO-provider-registration step in `deploy-forge-deploy.yml` will actually do anything (it skips silently until then)
 - Login-button HTML snippet (Dashboard → General → Branding) is still a manual, cosmetic, one-time step
