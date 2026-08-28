@@ -67,8 +67,8 @@ Hand these off once both accounts above exist.
 
 ### Jellyfin (media streaming)
 
-1. Browser: `https://jellyfin.huybrechts.xyz` → log in via the Authentik SSO option on the login screen.
-2. Mobile/TV apps (Jellyfin has official apps for most platforms): server URL `https://jellyfin.huybrechts.xyz`, then choose SSO login.
+1. Browser: `https://media.huybrechts.xyz` → log in via the Authentik SSO option on the login screen.
+2. Mobile/TV apps (Jellyfin has official apps for most platforms): server URL `https://media.huybrechts.xyz`, then choose SSO login.
 
 ### Nextcloud (family drive)
 

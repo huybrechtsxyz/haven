@@ -258,7 +258,7 @@ entries:
       client_secret: "{{ jellyfin_sso_client_secret }}"
       redirect_uris:
         - matching_mode: strict
-          url: "https://jellyfin.huybrechts.xyz/sso/OID/redirect/authentik"
+          url: "https://media.huybrechts.xyz/sso/OID/redirect/authentik"
       grant_types:
         - authorization_code
         - refresh_token
@@ -284,7 +284,7 @@ entries:
       name: Jellyfin
       slug: jellyfin
       provider: !KeyOf provider-jellyfin
-      meta_launch_url: https://jellyfin.huybrechts.xyz
+      meta_launch_url: https://media.huybrechts.xyz
 
   - model: authentik_policies.policybinding
     state: present

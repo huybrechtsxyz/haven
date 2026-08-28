@@ -57,19 +57,19 @@ spec:
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-staging
       hosts:
-        - host: jellyfin.huybrechts.xyz
+        - host: media.huybrechts.xyz
           paths:
             - path: /
               pathType: ImplementationSpecific
       tls:
         - hosts:
-            - jellyfin.huybrechts.xyz
-          secretName: jellyfin-tls
+            - media.huybrechts.xyz
+          secretName: media-tls
 
     jellyfin:
       env:
         - name: JELLYFIN_PublishedServerUrl
-          value: https://jellyfin.huybrechts.xyz
+          value: https://media.huybrechts.xyz
 
   # SSO setup (K0lin/jellyfin-plugin-sso — see below for why this fork).
   # Not yet automated end-to-end — two manual/scripted steps remain:
@@ -93,6 +93,6 @@ spec:
   #              "enabled": true,
   #              "enableAuthorization": false
   #            }' \
-  #        "https://jellyfin.huybrechts.xyz/sso/OID/Add/authentik?api_key=<JELLYFIN_API_KEY>"
+  #        "https://media.huybrechts.xyz/sso/OID/Add/authentik?api_key=<JELLYFIN_API_KEY>"
   #    The Authentik-side OAuth2 provider/application is already automated —
   #    see deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2.

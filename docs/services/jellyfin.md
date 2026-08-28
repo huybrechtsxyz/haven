@@ -6,18 +6,18 @@
 
 Jellyfin runs on **Forge** (Hetzner CPX41, k3s), in its own `media` Kubernetes namespace — separate from Immich's `immich` namespace and any future self-hosted-app namespaces, so apps can be added/changed independently without colliding. See [Forge](../guides/forge.md) for the node-level overview.
 
-**Prerequisites:** `deploy-forge-init.yml` must have run successfully at least once (k3s + Traefik installed, Storage Box NFS mounted at `/mnt/storagebox`), and a DNS A record for `jellyfin.{domain}` must point directly at Forge's public IP (Forge terminates its own ingress — see [Forge's design decision](../guides/forge.md#design-decision--forge-terminates-its-own-ingress)).
+**Prerequisites:** `deploy-forge-init.yml` must have run successfully at least once (k3s + Traefik installed, Storage Box NFS mounted at `/mnt/storagebox`), and a DNS A record for `media.{domain}` must point directly at Forge's public IP (Forge terminates its own ingress — see [Forge's design decision](../guides/forge.md#design-decision--forge-terminates-its-own-ingress)).
 
 ---
 
 ## What gets deployed
 
-| Item      | Value                                                                                    |
-| --------- | ---------------------------------------------------------------------------------------- |
-| Chart     | `jellyfin` from the official repo, `https://jellyfin.github.io/jellyfin-helm`            |
-| Version   | `3.2.0` (`image.tag` intentionally left unset — auto-matches the chart's own appVersion) |
-| Namespace | `media` (Kubernetes), module file `config/forge/modules/jellyfin.yaml`                   |
-| Ingress   | Traefik (`className: traefik`), host `jellyfin.{domain}`, TLS via cert-manager (`letsencrypt-staging` initially, see [Immich's pattern](./immich.md)) |
+| Item      | Value                                                                                                                                                 |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chart     | `jellyfin` from the official repo, `https://jellyfin.github.io/jellyfin-helm`                                                                         |
+| Version   | `3.2.0` (`image.tag` intentionally left unset — auto-matches the chart's own appVersion)                                                              |
+| Namespace | `media` (Kubernetes), module file `config/forge/modules/jellyfin.yaml`                                                                                |
+| Ingress   | Traefik (`className: traefik`), host `media.{domain}`, TLS via cert-manager (`letsencrypt-staging` initially, see [Immich's pattern](./immich.md)) |
 
 ---
 
@@ -57,7 +57,7 @@ The Jellyfin side needs two manual/scripted steps — Jellyfin has no headless b
            "enabled": true,
            "enableAuthorization": false
          }' \
-     "https://jellyfin.huybrechts.xyz/sso/OID/Add/authentik?api_key=<JELLYFIN_API_KEY>"
+     "https://media.huybrechts.xyz/sso/OID/Add/authentik?api_key=<JELLYFIN_API_KEY>"
    ```
 
 See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugin-sso) for the login-button snippet to add under Dashboard → General → Branding → Login disclaimer.
@@ -74,7 +74,7 @@ See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugi
 
 ## Verification checklist
 
-- [ ] `https://jellyfin.{domain}` — Jellyfin loads and is reachable from a browser
+- [ ] `https://media.{domain}` — Jellyfin loads and is reachable from a browser
 - [ ] Media library shows content from `/mnt/storagebox/media`
 - [ ] SSO plugin installed and Authentik provider registered
 - [ ] "Sign in with SSO" login button works end-to-end

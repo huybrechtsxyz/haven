@@ -29,7 +29,7 @@ haven (workspace)
 │
 ├── forge (VPS — k3s)                      ← Workload: Immich, Jellyfin, Gatus, apps
 │   ├── Immich         — photo library     → photos.{domain}
-│   ├── Jellyfin       — media streaming   → jellyfin.{domain} (TBD)
+│   ├── Jellyfin       — media streaming   → media.{domain} (TBD)
 │   ├── Gatus          — health dashboard  → status.{domain}
 │   ├── Apps           — home-grown        → custom subdomains
 │   └── (possible) Kavita + Paperless-ngx  — TTRPG/PDF library + in-content full-text search (noted, not yet built)
@@ -204,7 +204,7 @@ graph TB
 | app.infisical.com    | Infisical Cloud | ☁️ Cloud    | Infisical account         | Application secrets management (cloud-hosted)  |
 | app.terraform.io     | Terraform Cloud | ☁️ Cloud    | Terraform account         | Remote state backend (cloud-hosted)            |
 | `photos.{domain}`    | Immich          | Forge      | Authentik OIDC            | Photo library, face recognition, shared albums |
-| `jellyfin.{domain}`  | Jellyfin        | Forge      | Authentik OIDC (optional) | Media streaming                                |
+| `media.{domain}`     | Jellyfin        | Forge      | Authentik OIDC (optional) | Media streaming                                |
 | `status.{domain}`    | Gatus           | Forge      | N/A (read-only)           | Health dashboard for all services              |
 
 ---
