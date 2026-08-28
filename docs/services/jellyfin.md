@@ -12,11 +12,11 @@ Jellyfin runs on **Forge** (Hetzner CPX41, k3s), in its own `media` Kubernetes n
 
 ## What gets deployed
 
-| Item      | Value                                                                                                                                                 |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Chart     | `jellyfin` from the official repo, `https://jellyfin.github.io/jellyfin-helm`                                                                         |
-| Version   | `3.2.0` (`image.tag` intentionally left unset — auto-matches the chart's own appVersion)                                                              |
-| Namespace | `media` (Kubernetes), module file `config/forge/modules/jellyfin.yaml`                                                                                |
+| Item      | Value                                                                                                                                              |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chart     | `jellyfin` from the official repo, `https://jellyfin.github.io/jellyfin-helm`                                                                      |
+| Version   | `3.2.0` (`image.tag` intentionally left unset — auto-matches the chart's own appVersion)                                                           |
+| Namespace | `media` (Kubernetes), module file `config/forge/modules/jellyfin.yaml`                                                                             |
 | Ingress   | Traefik (`className: traefik`), host `media.{domain}`, TLS via cert-manager (`letsencrypt-staging` initially, see [Immich's pattern](./immich.md)) |
 
 ---
