@@ -29,13 +29,13 @@ Nextcloud doesn't talk to S3 directly, either — see [rclone-mount](../guides/f
 
 ## What gets deployed
 
-| Item      | Value                                                                                                                                          |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Chart     | `nextcloud` from the official community repo, `https://nextcloud.github.io/helm`                                                               |
-| Version   | `9.2.6` (chart), appVersion `v34.0.3`                                                                                                          |
-| Namespace | `documents` (Kubernetes), module file `config/forge/modules/nextcloud.yaml`                                                                    |
-| Database  | PostgreSQL — own single-pod instance (`nextcloud-postgres` module), not the chart's bundled Bitnami subchart                                   |
-| Cache     | Redis — own single-pod instance (`nextcloud-redis` module), for memory caching + file locking                                                  |
+| Item      | Value                                                                                                                                         |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chart     | `nextcloud` from the official community repo, `https://nextcloud.github.io/helm`                                                              |
+| Version   | `9.2.6` (chart), appVersion `v34.0.3`                                                                                                         |
+| Namespace | `documents` (Kubernetes), module file `config/forge/modules/nextcloud.yaml`                                                                   |
+| Database  | PostgreSQL — own single-pod instance (`nextcloud-postgres` module), not the chart's bundled Bitnami subchart                                  |
+| Cache     | Redis — own single-pod instance (`nextcloud-redis` module), for memory caching + file locking                                                 |
 | Ingress   | Traefik (`className: traefik`), host `docs.{domain}`, TLS via cert-manager (`letsencrypt-staging` initially, same pattern as Immich/Jellyfin) |
 
 The official Docker image supports **fully automated initial admin setup** via env vars (`NEXTCLOUD_ADMIN_USER`/`PASSWORD` + database connection vars) — no manual first-boot wizard needed, unlike Jellyfin/Portainer.
