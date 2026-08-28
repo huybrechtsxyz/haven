@@ -62,9 +62,26 @@ spec:
           args:
             - |
               set -e
+              # Retry each rclone call a few times with a short delay.
+              # Confirmed (2026-08-28, real CI run): right at pod/container
+              # startup, external DNS resolution for the S3 endpoint can
+              # transiently fail ("no such host") via cluster CoreDNS —
+              # rclone's own built-in retries (3x) fire back-to-back within
+              # under a second, too fast for a transient resolver hiccup to
+              # clear. This loop spaces retries out over up to ~30s.
+              retry() {
+                for i in 1 2 3 4 5 6 7 8 9 10; do
+                  if "$@"; then
+                    return 0
+                  fi
+                  echo "Command failed (attempt $i/10), retrying in 3s: $*"
+                  sleep 3
+                done
+                return 1
+              }
               {{- range .Values.mount.subfolders }}
-              rclone deletefile "havendocs:{{ $.Values.s3.bucket }}/{{ . }}" || true
-              rclone mkdir "havendocs:{{ $.Values.s3.bucket }}/{{ . }}"
+              retry rclone deletefile "havendocs:{{ $.Values.s3.bucket }}/{{ . }}" || true
+              retry rclone mkdir "havendocs:{{ $.Values.s3.bucket }}/{{ . }}"
               {{- end }}
       containers:
         - name: rclone
