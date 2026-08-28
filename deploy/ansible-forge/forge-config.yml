@@ -90,17 +90,28 @@
     # Immich creates a hidden `.immich` marker in each of its 6 storage
     # subfolders on first successful startup, then verifies all of them exist
     # on every subsequent boot (protects against writing to an accidentally
-    # empty/detached mount). Several `helm upgrade --atomic` deploys this
-    # session got killed mid-startup (returncode=-9, hit the runner's own
-    # timeout) — plausible that immich-server was interrupted while creating
-    # these markers, leaving some folders without one
-    # ("ENOENT: .../encoded-video/.immich"), which then permanently
-    # crash-loops the server since it refuses to start with a suspected-bad
-    # mount. Immich's own docs list this exact scenario as the documented,
-    # sanctioned recovery: manually `touch .immich` in the affected folder(s).
-    # `creates:` makes this a true no-op once each marker already exists —
-    # safe to leave here permanently rather than a one-off manual step.
+    # empty/detached mount). immich-server has never actually completed a
+    # full startup on this cluster yet (every attempt this session crashed
+    # for a different reason first) — so the subfolders themselves don't
+    # exist yet either, not just the markers. Immich's own docs list manually
+    # creating `.immich` as the sanctioned recovery for a missing marker; we
+    # also need the parent folder to exist first, since Immich itself would
+    # normally create both together on its first successful boot.
+    # Both tasks are naturally idempotent — safe to leave here permanently.
     # =========================================================================
+
+    - name: Ensure Immich storage subfolders exist
+      ansible.builtin.file:
+        path: /mnt/storagebox/immich/{{ item }}
+        state: directory
+        mode: "0755"
+      loop:
+        - upload
+        - library
+        - thumbs
+        - "encoded-video"
+        - profile
+        - backups
 
     - name: Recreate any missing Immich folder-integrity markers
       ansible.builtin.command:
