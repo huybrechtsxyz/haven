@@ -41,6 +41,8 @@ INWX is the domain registrar for all haven domains. It provides a simple API for
 
 **If transferring from another registrar:**
 
+> ⚠️ **Disable DNSSEC at the CURRENT registrar before initiating the transfer.** If DNSSEC (DS records) is still active at the old registrar when the transfer completes, the new registrar (INWX) won't automatically have matching DNSKEY records in place — this creates a broken DNSSEC chain, and validating resolvers (Google 8.8.8.8, Cloudflare 1.1.1.1) will return `SERVFAIL` for the domain until it's fixed. This breaks everything depending on DNS resolution for that domain, including ACME/Let's Encrypt HTTP-01 challenges (no TLS certs can be issued). Disable DNSSEC at the old registrar first, confirm it's fully removed (`dig +dnssec <domain> DS` returns nothing), THEN start the transfer — never enable it again at INWX afterward either (same failure mode applies).
+
 | #   | Task                               | Notes                                                                                                                                                         |
 | --- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Unlock domain at current registrar | This allows the domain to be transferred out.                                                                                                                 |

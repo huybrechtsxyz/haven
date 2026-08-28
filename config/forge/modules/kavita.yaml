@@ -29,7 +29,7 @@ spec:
     # module in the system namespace) — Kavita only reads, never
     # renames/reorganizes, so it's safe to share.
     library:
-      hostPath: /mnt/haven-docs/games
+      hostPath: /mnt/haven-docs/books
     service:
       port: 5000
     ingress:

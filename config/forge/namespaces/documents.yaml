@@ -3,7 +3,7 @@ kind: namespace
 meta:
   name: documents
   annotations:
-    description: Family document/reference library (k3s on Forge) — Kavita now; Nextcloud (family Drive replacement, External Storage over the same haven-docs bucket) to follow.
+    description: Family document/reference library (k3s on Forge) — Kavita now; Nextcloud (family document archive/browsing layer, External Storage over the same haven-docs bucket) to follow.
   labels:
     version: "1.0.0"
   tags: [haven, forge, documents, k3s, family]
@@ -12,6 +12,9 @@ spec:
     - name: kavita
       description: PDF/EPUB/comic library server for TTRPG PDFs and reference material
       file: config/forge/modules/kavita.yaml
+    - name: nextcloud-secrets
+      description: Shared K8s Secret holding Nextcloud's real credentials (see module comment for why this indirection exists)
+      file: config/forge/modules/nextcloud-secrets.yaml
     - name: nextcloud-postgres
       description: PostgreSQL for Nextcloud
       file: config/forge/modules/nextcloud-postgres.yaml
@@ -19,5 +22,5 @@ spec:
       description: Redis for Nextcloud memory caching + file locking
       file: config/forge/modules/nextcloud-redis.yaml
     - name: nextcloud
-      description: Family Google Drive replacement, External Storage over haven-docs
+      description: Family document archive/browsing layer, External Storage over haven-docs
       file: config/forge/modules/nextcloud.yaml

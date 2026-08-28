@@ -65,6 +65,19 @@ spec:
       proto: tcp
       port: [445]
       comment: SMB to Storage Box (media library mount)
+    # Portainer Kubernetes Edge Agent — the regular heartbeat/poll goes over
+    # HTTPS (443, already allowed above), but Portainer's "live connect"
+    # tunnel (console access, live logs/stats) uses a SEPARATE port — 8000
+    # by default, confirmed by decoding this environment's own edge key
+    # (format: <portainer_url>|<tunnel_host>:8000|<key>|<version>). Routed
+    # over the private network via forge-config.yml's /etc/hosts override
+    # (portainer.huybrechts.xyz -> Hearth's private IP), same pattern as
+    # Authentik's LAN routing — scoped to the private network, not public.
+    - direction: out
+      proto: tcp
+      port: [8000]
+      to: 10.0.0.0/8
+      comment: Portainer Edge Agent live-connect tunnel (private network only)
     # Public web ingress
     - direction: in
       proto: tcp

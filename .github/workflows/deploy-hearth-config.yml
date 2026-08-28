@@ -119,7 +119,7 @@ jobs:
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
           set +e
-          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_BACKUP VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET JELLYFIN_SSO_CLIENT_SECRET NEXTCLOUD_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_HEARTH VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET JELLYFIN_SSO_CLIENT_SECRET NEXTCLOUD_SSO_CLIENT_SECRET IMMICH_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
           STATUS=$?
           set -e
           if [ $STATUS -ne 0 ]; then
@@ -128,11 +128,12 @@ jobs:
             exit $STATUS
           fi
           BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_HEARTH')
-          HEALTHCHECK_URL=$(echo "$VALUES" | jq -r '.data.results.HEALTHCHECK_PING_BACKUP')
+          HEALTHCHECK_URL=$(echo "$VALUES" | jq -r '.data.results.HEALTHCHECK_PING_HEARTH')
           VAULTWARDEN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.VAULTWARDEN_SSO_CLIENT_SECRET')
           WUD_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.WUD_SSO_CLIENT_SECRET')
           JELLYFIN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.JELLYFIN_SSO_CLIENT_SECRET')
           NEXTCLOUD_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.NEXTCLOUD_SSO_CLIENT_SECRET')
+          IMMICH_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.IMMICH_SSO_CLIENT_SECRET')
           cat > /tmp/config_vars.yml << VARSEOF
           borg_passphrase: "$BORG_PASSPHRASE"
           storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
@@ -142,6 +143,7 @@ jobs:
           wud_sso_client_secret: "$WUD_SSO_SECRET"
           jellyfin_sso_client_secret: "$JELLYFIN_SSO_SECRET"
           nextcloud_sso_client_secret: "$NEXTCLOUD_SSO_SECRET"
+          immich_sso_client_secret: "$IMMICH_SSO_SECRET"
           VARSEOF
 
       - name: Run hearth-config playbook

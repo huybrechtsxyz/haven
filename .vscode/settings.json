@@ -15,6 +15,10 @@
     "editor.defaultFormatter": "redhat.vscode-yaml",
     "editor.formatOnSave": true
   },
+  "files.associations": {
+    "services/**/templates/**/*.yaml": "plaintext",
+    "services/**/templates/**/*.tpl": "plaintext"
+  },
   "python.testing.pytestEnabled": true,
   "python.testing.pytestArgs": [
     "tests"

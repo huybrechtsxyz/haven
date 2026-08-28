@@ -20,11 +20,11 @@ The S3 access key pair should already be generated and stored as part of [Secret
 
 The buckets themselves are provisioned automatically by the `deploy-infra.yml` workflow (`run_s3: true`), using the `deploy/ansible-s3/forge-s3.yml` playbook:
 
-| Bucket         | Purpose                                                                                                    |
-| -------------- | ---------------------------------------------------------------------------------------------------------- |
-| `haven-photos` | Immich external photo library                                                                              |
-| `haven-media`  | Media overflow (large binary assets)                                                                       |
-| `haven-docs`   | Family documents (games/manuals, general archive) — organized/browsed via Nextcloud, Kavita, Paperless-ngx |
+| Bucket         | Purpose                                                                                                                |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `haven-photos` | Immich external photo library                                                                                          |
+| `haven-media`  | Media overflow (large binary assets)                                                                                   |
+| `haven-docs`   | Family documents (books/PDFs/EPUBs, manuals, general archive) — organized/browsed via Nextcloud, Kavita, Paperless-ngx |
 
 This is idempotent and safe to re-run.
 

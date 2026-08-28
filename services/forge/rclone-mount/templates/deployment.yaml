@@ -18,6 +18,71 @@ spec:
     spec:
       # Single-node cluster — pin to avoid the mount "moving" to a node
       # without the corresponding hostPath consumers.
+      initContainers:
+        # ---------------------------------------------------------------
+        # Pre-create app-expected subfolders (e.g. Kavita's "books") via a
+        # REAL `rclone mkdir` call straight against the S3 API — NOT a
+        # POSIX mkdir(2) through the FUSE mount. Confirmed (2026-08-28, real
+        # CI run): a bare filesystem mkdir on this mount fails with a raw
+        # EIO for any "directory" that doesn't already exist as an object in
+        # the bucket, regardless of whether kubelet, a pod, or a plain SSH
+        # shell issues it — an rclone/S3-backend limitation, not a
+        # kubelet-bind-mount quirk. `rclone mkdir` writes the zero-byte
+        # directory-marker object directly via the S3 API and sidesteps
+        # this entirely. No FUSE device / privileged mode needed for this —
+        # it's a plain API call, unlike the main `mount` container below.
+        #
+        # `rclone deletefile` runs FIRST for each folder (errors ignored):
+        # the earlier failed EIO mkdir attempts (kubelet's + Ansible's, both
+        # since removed) apparently managed a partial write before failing,
+        # leaving a stray zero-byte FILE object at the exact key (no
+        # trailing slash) instead of a proper directory marker. `rclone
+        # mkdir` correctly refuses to turn a file into a directory
+        # ("Failed to create file system for ...: is a file not a
+        # directory") — deleting any such stray object first makes this
+        # self-healing without needing manual S3 console access.
+        # Both steps are idempotent — safe to leave here permanently.
+        # ---------------------------------------------------------------
+        - name: ensure-subfolders
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          env:
+            - name: RCLONE_CONFIG_HAVENDOCS_TYPE
+              value: s3
+            - name: RCLONE_CONFIG_HAVENDOCS_PROVIDER
+              value: Other
+            - name: RCLONE_CONFIG_HAVENDOCS_ENDPOINT
+              value: {{ .Values.s3.endpoint | quote }}
+            - name: RCLONE_CONFIG_HAVENDOCS_REGION
+              value: {{ .Values.s3.region | quote }}
+            - name: RCLONE_CONFIG_HAVENDOCS_ACCESS_KEY_ID
+              value: {{ .Values.env.HETZNER_S3_ACCESS_KEY | quote }}
+            - name: RCLONE_CONFIG_HAVENDOCS_SECRET_ACCESS_KEY
+              value: {{ .Values.env.HETZNER_S3_SECRET_KEY | quote }}
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              # Retry each rclone call a few times with a short delay.
+              # Confirmed (2026-08-28, real CI run): right at pod/container
+              # startup, external DNS resolution for the S3 endpoint can
+              # transiently fail ("no such host") via cluster CoreDNS —
+              # rclone's own built-in retries (3x) fire back-to-back within
+              # under a second, too fast for a transient resolver hiccup to
+              # clear. This loop spaces retries out over up to ~30s.
+              retry() {
+                for i in 1 2 3 4 5 6 7 8 9 10; do
+                  if "$@"; then
+                    return 0
+                  fi
+                  echo "Command failed (attempt $i/10), retrying in 3s: $*"
+                  sleep 3
+                done
+                return 1
+              }
+              {{- range .Values.mount.subfolders }}
+              retry rclone deletefile "havendocs:{{ $.Values.s3.bucket }}/{{ . }}" || true
+              retry rclone mkdir "havendocs:{{ $.Values.s3.bucket }}/{{ . }}"
+              {{- end }}
       containers:
         - name: rclone
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -32,9 +97,9 @@ spec:
             - name: RCLONE_CONFIG_HAVENDOCS_REGION
               value: {{ .Values.s3.region | quote }}
             - name: RCLONE_CONFIG_HAVENDOCS_ACCESS_KEY_ID
-              value: {{ .Values.s3.accessKeyId | quote }}
+              value: {{ .Values.env.HETZNER_S3_ACCESS_KEY | quote }}
             - name: RCLONE_CONFIG_HAVENDOCS_SECRET_ACCESS_KEY
-              value: {{ .Values.s3.secretAccessKey | quote }}
+              value: {{ .Values.env.HETZNER_S3_SECRET_KEY | quote }}
           command: ["rclone"]
           args:
             - mount

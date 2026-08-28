@@ -59,7 +59,7 @@ resource "hcloud_firewall" "hearth" {
       direction       = "out"
       protocol        = rule.value.proto
       port            = rule.value.port != null ? (length(rule.value.port) == 1 ? tostring(rule.value.port[0]) : "${rule.value.port[0]}-${rule.value.port[length(rule.value.port) - 1]}") : null
-      destination_ips = ["0.0.0.0/0", "::/0"]
+      destination_ips = rule.value.to != null ? [rule.value.to] : ["0.0.0.0/0", "::/0"]
     }
   }
 }

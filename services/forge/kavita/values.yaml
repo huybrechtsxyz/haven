@@ -23,7 +23,7 @@ persistence:
 # library files live. Kavita only needs read access — it never renames or
 # reorganizes what it finds.
 library:
-  hostPath: /mnt/haven-docs/games
+  hostPath: /mnt/haven-docs/books
 
 service:
   port: 5000

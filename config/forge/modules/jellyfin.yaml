@@ -43,47 +43,107 @@ spec:
       type: ClusterIP
       port: 8096
 
-    # TODO: no cert-manager / ClusterIssuer exists on Forge yet (Traefik was
-    # just re-enabled in forge-init.yml, nothing issues TLS certs yet) — tls
-    # is deliberately left empty until that's built. Ingress works over plain
-    # HTTP through Traefik until then.
+    # cert-manager is proven working end-to-end (Immich's photos-tls +
+    # Jellyfin's media-tls certificates both issued successfully via
+    # letsencrypt-staging first, then switched to letsencrypt-prod once
+    # each was verified Ready=True — same staging-first pattern as Immich,
+    # see config/forge/modules/immich.yaml). Switched to prod here 2026-08-28
+    # after confirming media-tls issued successfully via staging.
     ingress:
       enabled: true
       className: traefik
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
       hosts:
-        - host: jellyfin.huybrechts.xyz
+        - host: media.huybrechts.xyz
           paths:
             - path: /
               pathType: ImplementationSpecific
-      tls: []
+      tls:
+        - hosts:
+            - media.huybrechts.xyz
+          secretName: media-tls
 
     jellyfin:
       env:
         - name: JELLYFIN_PublishedServerUrl
-          value: https://jellyfin.huybrechts.xyz
+          value: https://media.huybrechts.xyz
 
-  # SSO setup (K0lin/jellyfin-plugin-sso — see below for why this fork).
-  # Not yet automated end-to-end — two manual/scripted steps remain:
+    # =========================================================================
+    # SSO plugin auto-install (K0lin/jellyfin-plugin-sso — see file-level
+    # comment below for why this fork). Idempotent initContainer: downloads
+    # the plugin's manifest, grabs the latest release zip, and unpacks it into
+    # the "config" PVC's plugins/ dir — skipped entirely once already present,
+    # so it's a no-op on every restart/redeploy after the first. This removes
+    # the "install the plugin" manual step entirely; only the one-time
+    # Authentik-provider REGISTRATION step still needs a human-created API
+    # key (see file-level comment below — no way around Jellyfin's lack of a
+    # headless first-run bootstrap).
+    # Caveat: always installs the LATEST plugin release — if a future Jellyfin
+    # server upgrade needs an older/newer plugin build for ABI compatibility,
+    # this may need pinning to a specific manifest version entry instead of
+    # `.[0].versions[0]`.
+    # =========================================================================
+    extraInitContainers:
+      - name: install-sso-plugin
+        image: alpine:3.20
+        command: ["sh", "-c"]
+        args:
+          - |
+            set -e
+            PLUGIN_DIR=/config/plugins/SSO-Auth
+            if [ -d "$PLUGIN_DIR" ]; then
+              echo "SSO plugin already installed at $PLUGIN_DIR, skipping."
+              exit 0
+            fi
+            apk add --no-cache curl unzip jq
+            MANIFEST_URL="https://raw.githubusercontent.com/k0lin/jellyfin-plugin-sso/manifest-release/manifest.json"
+            DOWNLOAD_URL=$(curl -fsSL "$MANIFEST_URL" | jq -r '.[0].versions[0].sourceUrl')
+            mkdir -p "$PLUGIN_DIR"
+            curl -fsSL "$DOWNLOAD_URL" -o /tmp/plugin.zip
+            unzip -o /tmp/plugin.zip -d "$PLUGIN_DIR"
+            echo "SSO plugin installed to $PLUGIN_DIR"
+        volumeMounts:
+          - name: config
+            mountPath: /config
+
+  # SSO setup (K0lin/jellyfin-plugin-sso — the original 9p4/jellyfin-plugin-sso
+  # was archived 2026-05-12; K0lin's fork is an active, transparent
+  # continuation of the same code/config/API shape, used here instead).
   #
-  # 1. Install the plugin (one-time, per Jellyfin instance):
-  #    Dashboard → Plugins → Repositories → add
-  #      https://raw.githubusercontent.com/k0lin/jellyfin-plugin-sso/manifest-release/manifest.json
-  #    then Catalog → install "SSO Authentication" → restart Jellyfin.
-  #    (Note: the original 9p4/jellyfin-plugin-sso was archived 2026-05-12 —
-  #    K0lin's fork is an active, transparent continuation of the same code,
-  #    same config/API shape, used here instead.)
+  # Fully automated end-to-end except for ONE unavoidable one-time manual
+  # step — Jellyfin has no headless bootstrap, so an admin API key can only
+  # be minted via the web UI after the first-run setup wizard:
   #
-  # 2. Register the Authentik provider (needs a Jellyfin admin API key —
-  #    Dashboard → API Keys — which itself needs the one-time first-run admin
-  #    setup done via the web UI first; Jellyfin has no headless bootstrap):
+  #   1. Complete Jellyfin's first-run setup wizard once (already done).
+  #   2. Dashboard -> API Keys -> create a key, then:
+  #      strata secret put JELLYFIN_API_KEY --value "<key>" -f config/environment.yaml
+  #
+  # Everything else is automated:
+  #   - Plugin install: idempotent initContainer above (extraInitContainers).
+  #   - Authentik-side OAuth2 provider/application + the custom "groups" scope
+  #     property mapping RBAC needs (see providers.md#authentik in
+  #     K0lin/jellyfin-plugin-sso): deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2
+  #     (mapping-group-membership, attached to provider-jellyfin's property_mappings).
+  #   - Jellyfin-side OIDC provider registration: an idempotent step in
+  #     .github/workflows/deploy-forge-deploy.yml (runs after every Helm
+  #     deploy; POSTs to /sso/OID/Add/authentik using JELLYFIN_API_KEY +
+  #     JELLYFIN_SSO_CLIENT_SECRET — safe to re-run, Add always overwrites):
   #      curl -X POST -H "Content-Type: application/json" \
   #        -d '{
   #              "oidEndpoint": "https://auth.huybrechts.xyz/application/o/jellyfin/",
   #              "oidClientId": "jellyfin",
   #              "oidSecret": "<JELLYFIN_SSO_CLIENT_SECRET>",
   #              "enabled": true,
-  #              "enableAuthorization": false
+  #              "enableAuthorization": true,
+  #              "roleClaim": "groups",
+  #              "oidScopes": ["groups"],
+  #              "adminRoles": ["admins"],
+  #              "roles": ["admins", "parents", "members"],
+  #              "schemeOverride": "https"
   #            }' \
-  #        "https://jellyfin.huybrechts.xyz/sso/OID/Add/authentik?api_key=<JELLYFIN_API_KEY>"
-  #    The Authentik-side OAuth2 provider/application is already automated —
-  #    see deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2.
+  #        "https://media.huybrechts.xyz/sso/OID/Add/authentik?api_key=<JELLYFIN_API_KEY>"
+  #    schemeOverride is required: Traefik terminates TLS and forwards plain
+  #    HTTP to the pod, so the plugin's own scheme detection would otherwise
+  #    build an http:// redirect_uri and fail Authentik's strict redirect_uri
+  #    match against the registered https:// one ("Redirect URI Error").

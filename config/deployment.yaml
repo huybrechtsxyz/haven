@@ -73,5 +73,6 @@ spec:
         - NEXTCLOUD_ADMIN_PASSWORD
         - NEXTCLOUD_DB_PASSWORD
         - NEXTCLOUD_REDIS_PASSWORD
+        - NEXTCLOUD_SSO_CLIENT_SECRET
       depends_on: infrastructure_forge
       on_failure: stop

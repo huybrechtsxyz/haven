@@ -38,10 +38,20 @@ spec:
         containers:
           main:
             image:
-              # TODO: pin to a real Immich app release compatible with chart
-              # 0.13.1 before first deploy — check
-              # https://github.com/immich-app/immich-charts/releases/tag/immich-0.13.1
-              tag: "v2.x.x"
+              # v3.0.0 -> v3.1.0 -> reverted to v3.0.0 -> back to v3.1.0 (2026-08-28).
+              # This is NOT optional anymore: the earlier v3.1.0 attempt ran its
+              # database migrations against immich-postgres before that deploy
+              # was killed/reverted (helm's --atomic rollback does not undo
+              # migrations the app itself already applied at startup). Reverting
+              # the image tag alone left the DB on the v3.1.0 migration schema
+              # while the code was back on v3.0.0, which refuses to start
+              # ("corrupted migrations: previously executed migration
+              # 1782500000000-RestoreLivePhotoStillVisibility is missing") —
+              # confirmed via a real crash-loop. Rolling forward again is the
+              # only safe fix (rolling the DB itself back would need manual
+              # migration-table surgery). Do not revert this to v3.0.0 again
+              # without also handling the DB migration state.
+              tag: "v3.1.0"
             env:
               DB_HOSTNAME: immich-postgres
               DB_USERNAME: immich
@@ -59,6 +69,13 @@ spec:
     # Bundled cache — kept enabled, but swapped to plain redis (per design
     # decision) instead of the chart's default valkey image. Ephemeral cache
     # only, no persistence needed.
+    # NOTE: the chart's default probes (inherited from bjw-s common-library's
+    # valkey preset) run `valkey-cli ping`, which doesn't exist in the plain
+    # redis:7-alpine image — this caused the startup probe to fail forever
+    # ("sh: valkey-cli: not found"), crash-looping this pod and, in turn,
+    # immich-server (which couldn't reach Redis). Overridden below to use
+    # `redis-cli` instead, keeping the same delay/period/failure thresholds
+    # as the chart's original valkey-cli probes.
     valkey:
       enabled: true
       controllers:
@@ -68,6 +85,36 @@ spec:
               image:
                 repository: redis
                 tag: 7-alpine
+              probes:
+                liveness:
+                  enabled: true
+                  custom: true
+                  spec:
+                    exec:
+                      command: ["sh", "-c", "redis-cli ping | grep PONG"]
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 3
+                readiness:
+                  enabled: true
+                  custom: true
+                  spec:
+                    exec:
+                      command: ["sh", "-c", "redis-cli ping | grep PONG"]
+                    initialDelaySeconds: 5
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 3
+                startup:
+                  enabled: true
+                  custom: true
+                  spec:
+                    exec:
+                      command: ["sh", "-c", "redis-cli ping | grep PONG"]
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 30
       persistence:
         data:
           enabled: true
@@ -75,6 +122,33 @@ spec:
 
     server:
       enabled: true
+      # cert-manager is now installed on Forge (see the `cert-manager` +
+      # `cert-manager-issuers` modules in config/forge/namespaces/system.yaml).
+      # Used the STAGING issuer initially — Let's Encrypt production has
+      # strict rate limits (5 certs/domain/week), so the HTTP-01 flow was
+      # proven end-to-end first (staging certs are untrusted/self-signed by a
+      # non-public CA, browsers warn — confirmed working 2026-08-27, saw
+      # "welcome to immich" with the expected dev-cert warning). Now switched
+      # to `letsencrypt-prod` for a real trusted cert.
+      # NOTE: unlike jellyfin.yaml/kavita.yaml (bjw-s app-template, flat
+      # ingress: {enabled,className,hosts,tls}), the official immich-charts
+      # schema requires ingress to be a MAP of named ingresses — confirmed
+      # via a real `helm upgrade --dry-run` schema validation error.
+      ingress:
+        main:
+          enabled: true
+          className: traefik
+          annotations:
+            cert-manager.io/cluster-issuer: letsencrypt-prod
+          hosts:
+            - host: photos.huybrechts.xyz
+              paths:
+                - path: /
+                  pathType: ImplementationSpecific
+          tls:
+            - hosts:
+                - photos.huybrechts.xyz
+              secretName: photos-tls
 
     machine-learning:
       enabled: true

@@ -71,7 +71,7 @@ Complete list of what goes in GitHub Secrets vs Infisical Cloud.
 | `VAULTWARDEN_SSO_CLIENT_SECRET`  | Secret            | Secret used for Vaultwarden SSO                                                                                                                                                                                     |
 |                                  |                   |                                                                                                                                                                                                                     |
 | **Healthcheck**                  |                   |                                                                                                                                                                                                                     |
-| `HEALTHCHECK_PING_BACKUP`        | URL               | Backup ping URL for Healthcheck                                                                                                                                                                                     |
+| `HEALTHCHECK_PING_HEARTH`        | URL               | Hearth backup ping URL for Healthcheck                                                                                                                                                                              |
 
 ### Generating Secrets
 
@@ -184,7 +184,7 @@ Three buckets are provisioned by the `ansible-s3/forge-s3.yml` playbook using th
 
 - `haven-photos` — Immich external photo library
 - `haven-media` — media overflow (large binary assets)
-- `haven-docs` — family documents (games/manuals, general archive) — organized/browsed via Nextcloud, Kavita, Paperless-ngx
+- `haven-docs` — family documents (books/PDFs/EPUBs, manuals, general archive) — organized/browsed via Nextcloud, Kavita, Paperless-ngx
 
 This is another externally-created value, so push it the same way — `--value`, no `generate:` spec:
 
@@ -203,7 +203,7 @@ strata secret put HETZNER_S3_SECRET_KEY --value "<secret-access-key>" -f config/
 
 1. [healthchecks.io](https://healthchecks.io) → New Check → name it `haven-backup`
 2. Set the period to match the backup schedule (e.g. 24h) with a grace period (e.g. 1h)
-3. Copy the **Ping URL** → store in Bitwarden and Infisical as `HEALTHCHECK_PING_BACKUP`
+3. Copy the **Ping URL** → store in Bitwarden and Infisical as `HEALTHCHECK_PING_HEARTH`
 
 ### Automated Secrets Generation
 

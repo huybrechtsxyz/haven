@@ -37,3 +37,129 @@
         line: "{{ hearth_private_ip }} auth.huybrechts.xyz"
         state: present
       when: hearth_private_ip is defined
+
+    # Portainer's Edge Agent tunnel (live-connect: console access, live
+    # logs/stats) also needs to stay on the private network rather than
+    # dialling back out through the public internet — same rationale as
+    # Authentik above. The edge key baked into the agent always points at
+    # "portainer.huybrechts.xyz", so overriding its DNS resolution here is
+    # the only way to redirect it without regenerating the Edge environment.
+    - name: Point portainer.huybrechts.xyz at Hearth's private IP (LAN routing)
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: "\\s+portainer\\.huybrechts\\.xyz$"
+        line: "{{ hearth_private_ip }} portainer.huybrechts.xyz"
+        state: present
+      when: hearth_private_ip is defined
+
+    # =========================================================================
+    # IMPORTANT: the node-level /etc/hosts edits above only affect processes
+    # running directly on the Forge VM (kubectl, ssh sessions, etc). They do
+    # NOT propagate into Kubernetes PODS — kubelet manages each pod's own
+    # /etc/hosts independently, and pod DNS resolution goes through CoreDNS,
+    # never consulting the node's /etc/hosts. The Portainer Edge Agent (and
+    # any future in-cluster workload needing this same LAN routing, e.g.
+    # Immich's OIDC calls to auth.huybrechts.xyz) needs the Kubernetes-native
+    # equivalent: hostAliases on the pod spec itself.
+    #
+    # The Edge Agent's Deployment comes from Portainer's own install script
+    # (not a Helm chart we template), so it's patched after the fact here
+    # rather than set via values at install time. kubectl patch is itself
+    # idempotent — safe to re-run every time this playbook runs.
+    # =========================================================================
+
+    - name: Check if Portainer Edge Agent deployment exists
+      ansible.builtin.command:
+        cmd: kubectl get deployment portainer-agent -n portainer
+      register: portainer_agent_present
+      failed_when: false
+      changed_when: false
+      when: hearth_private_ip is defined
+
+    - name: Patch Portainer Edge Agent with hostAliases (private-network DNS routing)
+      ansible.builtin.command:
+        cmd: >
+          kubectl patch deployment portainer-agent -n portainer --type=merge -p
+          '{"spec":{"template":{"spec":{"hostAliases":[{"ip":"{{ hearth_private_ip }}","hostnames":["portainer.huybrechts.xyz"]}]}}}}'
+      when: hearth_private_ip is defined and portainer_agent_present.rc == 0
+      changed_when: true
+
+    # =========================================================================
+    # Immich folder-integrity marker recovery — see
+    # https://docs.immich.app/administration/system-integrity#folder-checks.
+    # Immich creates a hidden `.immich` marker in each of its 6 storage
+    # subfolders on first successful startup, then verifies all of them exist
+    # on every subsequent boot (protects against writing to an accidentally
+    # empty/detached mount). immich-server has never actually completed a
+    # full startup on this cluster yet (every attempt this session crashed
+    # for a different reason first) — so the subfolders themselves don't
+    # exist yet either, not just the markers. Immich's own docs list manually
+    # creating `.immich` as the sanctioned recovery for a missing marker; we
+    # also need the parent folder to exist first, since Immich itself would
+    # normally create both together on its first successful boot.
+    # Both tasks are naturally idempotent — safe to leave here permanently.
+    # =========================================================================
+
+    - name: Ensure Immich storage subfolders exist
+      ansible.builtin.file:
+        path: /mnt/storagebox/immich/{{ item }}
+        state: directory
+        mode: "0755"
+      loop:
+        - upload
+        - library
+        - thumbs
+        - "encoded-video"
+        - profile
+        - backups
+
+    - name: Recreate any missing Immich folder-integrity markers
+      ansible.builtin.command:
+        cmd: touch /mnt/storagebox/immich/{{ item }}/.immich
+        creates: /mnt/storagebox/immich/{{ item }}/.immich
+      loop:
+        - upload
+        - library
+        - thumbs
+        - "encoded-video"
+        - profile
+        - backups
+
+    # =========================================================================
+    # Jellyfin media hostPath — unlike Immich's own PV (type: DirectoryOrCreate,
+    # so k8s creates it automatically), the jellyfin-helm chart hardcodes
+    # `type: Directory` for its hostPath media volume (see
+    # jellyfin/jellyfin-helm templates/deployment.yaml), which REQUIRES the
+    # path to already exist — kubelet refuses to auto-create it and fails
+    # with "hostPath type check failed: ... is not a directory" if missing.
+    # =========================================================================
+
+    - name: Ensure Jellyfin media hostPath directory exists
+      ansible.builtin.file:
+        path: /mnt/storagebox/media
+        state: directory
+        mode: "0755"
+
+    # Top-level library subfolders — plain SMB/CIFS mkdir (unlike the S3/FUSE
+    # rclone-mount below), so a normal Ansible file task works fine here.
+    # Add each as its own library in Jellyfin's UI (Dashboard → Libraries →
+    # Add Media Library) with the matching content type (Movies/Shows/Music).
+    - name: Ensure Jellyfin media library subfolders exist
+      ansible.builtin.file:
+        path: /mnt/storagebox/media/{{ item }}
+        state: directory
+        mode: "0755"
+      loop:
+        - movies
+        - shows
+        - music
+
+    # Kavita library subfolder ("books") — NOT provisioned here. Confirmed
+    # (2026-08-28, real CI run) that a plain host-level mkdir on /mnt/haven-docs
+    # (an rclone FUSE mount over S3) fails with the same raw EIO kubelet hit —
+    # this is an rclone/S3-backend limitation, not a kubelet-bind-mount quirk,
+    # so no Ansible/host-level task can work around it. Fixed properly at the
+    # source instead: rclone-mount's own chart now runs `rclone mkdir` (a real
+    # S3 API call, not a FUSE mkdir) via an initContainer — see
+    # services/forge/rclone-mount/templates/deployment.yaml + values.yaml's
+    # mount.subfolders list.

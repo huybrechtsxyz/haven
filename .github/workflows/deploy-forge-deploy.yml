@@ -135,6 +135,28 @@ jobs:
             -o StrictHostKeyChecking=no -o ExitOnForwardFailure=yes \
             -i ~/.ssh/haven_ed25519 root@${{ steps.ssh.outputs.server_ip }}
 
+      # =========================================================================
+      # Pre-flight safety net — clear any Helm release stuck in a 'pending-*'
+      # state (install/upgrade/rollback) before deploying. This happens when a
+      # previous `helm upgrade --wait --atomic --timeout Nm` gets killed rather
+      # than exiting cleanly (e.g. a bad image tag causing ImagePullBackOff,
+      # --wait blocking until the timeout, then the process being force-killed
+      # instead of rolling back) — Helm then refuses to touch that release
+      # until it's cleared. Not specific to any one app; runs every deploy.
+      # =========================================================================
+      - name: Clear any stuck Helm releases (pending-*)
+        if: ${{ inputs.dry_run != true }}
+        env:
+          KUBECONFIG: /tmp/forge-kubeconfig.yaml
+        run: |
+          helm list --all-namespaces --pending -o json | jq -c '.[]' | while read -r release; do
+            name=$(echo "$release" | jq -r '.name')
+            namespace=$(echo "$release" | jq -r '.namespace')
+            status=$(echo "$release" | jq -r '.status')
+            echo "Found stuck release '$name' in namespace '$namespace' (status: $status) — uninstalling."
+            helm uninstall "$name" -n "$namespace"
+          done
+
       - name: Deploy Forge Helm apps
         if: ${{ inputs.dry_run != true }}
         env:
@@ -147,6 +169,122 @@ jobs:
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
           strata deploy run --file $DEPLOYMENT_FILE --scope apps --stage applications_forge --force
+
+      # =========================================================================
+      # Jellyfin SSO — (re-)register the Authentik OIDC provider with the
+      # K0lin/jellyfin-plugin-sso plugin. Idempotent (the plugin's /Add
+      # endpoint always overwrites), safe to run on every deploy. Requires
+      # JELLYFIN_API_KEY to already exist in Infisical (one-time manual step —
+      # see config/forge/modules/jellyfin.yaml's file-level comment; Jellyfin
+      # has no headless first-run bootstrap, so this key can only be minted
+      # via the web UI). Skips silently (does not fail the deploy) if the key
+      # isn't set yet, so this can land before that one-time step is done.
+      # Retries briefly since the ingress/cert may need a moment right after
+      # a fresh Jellyfin rollout.
+      #
+      # schemeOverride: "https" is required — Traefik terminates TLS and
+      # forwards plain HTTP to the Jellyfin pod, so the plugin's own
+      # request-scheme detection builds an http:// redirect_uri, which fails
+      # Authentik's strict redirect_uri match against the https:// one
+      # registered in the blueprint ("Redirect URI Error"). Confirmed via
+      # K0lin/jellyfin-plugin-sso's own docs: schemeOverride exists
+      # specifically for this reverse-proxy scenario.
+      # =========================================================================
+      - name: Register Jellyfin SSO provider with Authentik
+        if: ${{ inputs.dry_run != true }}
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
+        run: |
+          set +e
+          VALUES=$(strata values get JELLYFIN_API_KEY JELLYFIN_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          set -e
+          JELLYFIN_API_KEY=$(echo "$VALUES" | jq -r '.data.results.JELLYFIN_API_KEY // empty')
+          JELLYFIN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.JELLYFIN_SSO_CLIENT_SECRET // empty')
+
+          if [ -z "$JELLYFIN_API_KEY" ]; then
+            echo "JELLYFIN_API_KEY not set yet in Infisical — skipping Jellyfin SSO registration (one-time manual step still pending, see config/forge/modules/jellyfin.yaml)."
+            exit 0
+          fi
+
+          PAYLOAD=$(jq -n \
+            --arg secret "$JELLYFIN_SSO_SECRET" \
+            '{
+              oidEndpoint: "https://auth.huybrechts.xyz/application/o/jellyfin/",
+              oidClientId: "jellyfin",
+              oidSecret: $secret,
+              enabled: true,
+              enableAuthorization: true,
+              roleClaim: "groups",
+              oidScopes: ["groups"],
+              adminRoles: ["admins"],
+              roles: ["admins", "parents", "members"],
+              schemeOverride: "https"
+            }')
+
+          for i in 1 2 3 4 5; do
+            set +e
+            HTTP=$(curl -s -o /tmp/sso_add.json -w "%{http_code}" -X POST \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" \
+              "https://media.huybrechts.xyz/sso/OID/Add/authentik?api_key=$JELLYFIN_API_KEY")
+            CURL_STATUS=$?
+            set -e
+            if [ $CURL_STATUS -eq 0 ] && [ "$HTTP" -lt 400 ]; then
+              echo "Jellyfin SSO provider registered successfully (HTTP $HTTP)."
+              exit 0
+            fi
+            echo "Attempt $i failed (curl exit $CURL_STATUS, HTTP ${HTTP:-n/a}), retrying in 10s..."
+            cat /tmp/sso_add.json 2>/dev/null || true
+            sleep 10
+          done
+          echo "::warning::Failed to register Jellyfin SSO provider after 5 attempts — not failing the deploy, check manually."
+
+      # =========================================================================
+      # Diagnostics on failure — the deploy step above uses `helm --wait
+      # --atomic --timeout`, which on failure is force-killed by strata's
+      # subprocess wrapper rather than exiting cleanly, so its own stderr
+      # rarely contains the real Kubernetes-level reason (ImagePullBackOff,
+      # CrashLoopBackOff, unbound PVC, etc.). Dump live cluster state here so
+      # failures are actually diagnosable from the workflow log.
+      # =========================================================================
+      - name: Dump pod diagnostics on failure
+        if: ${{ failure() && inputs.dry_run != true }}
+        env:
+          KUBECONFIG: /tmp/forge-kubeconfig.yaml
+        run: |
+          for ns in system immich media documents; do
+            echo "::group::Pods in namespace: $ns"
+            kubectl get pods -n "$ns" -o wide 2>/dev/null || true
+            echo "::endgroup::"
+          done
+          echo "::group::Describe + logs for crashing/unready containers"
+          kubectl get pods -A -o json 2>/dev/null \
+            | jq -r '
+                .items[]
+                | select(
+                    (.status.containerStatuses // [])
+                    | any(
+                        .restartCount > 0
+                        or (.state.waiting != null)
+                        or ((.state.terminated.reason // "") as $r | ($r != "" and $r != "Completed"))
+                      )
+                  )
+                | "\(.metadata.namespace)/\(.metadata.name)"
+              ' \
+            | while read -r pod; do
+                ns="${pod%%/*}"; name="${pod##*/}"
+                echo "--- describe $ns/$name ---"
+                kubectl describe pod "$name" -n "$ns" || true
+                echo "--- logs $ns/$name (current) ---"
+                kubectl logs "$name" -n "$ns" --all-containers --tail=200 || true
+                echo "--- logs $ns/$name (previous, if crashed) ---"
+                kubectl logs "$name" -n "$ns" --all-containers --previous --tail=200 2>/dev/null || true
+                echo "--- recent events ($ns) ---"
+                kubectl get events -n "$ns" --sort-by='.lastTimestamp' 2>/dev/null | tail -n 20 || true
+              done
+          echo "::endgroup::"
 
       - name: Close SSH tunnel to k3s API
         if: ${{ always() }}

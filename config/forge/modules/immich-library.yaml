@@ -3,7 +3,7 @@ kind: module
 meta:
   name: immich-library
   annotations:
-    description: Static PV/PVC for Immich's photo/video library, backed by the Storage Box NFS mount
+    description: Static PV/PVC for Immich's photo/video library, backed by the Storage Box SMB mount
   labels:
     version: "1.0.0"
   tags: [haven, forge, immich, storage]

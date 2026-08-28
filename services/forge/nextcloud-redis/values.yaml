@@ -2,8 +2,12 @@ image:
   repository: redis
   tag: 7-alpine
 
-# Set via ${NEXTCLOUD_REDIS_PASSWORD} substitution token — never a literal value here.
-password: ""
+# Credentials MUST live under a literal `env:` dict — strata's Helm
+# secret substitution only resolves `${TOKEN}` placeholders found inside a
+# dict node keyed literally "env". Set via ${NEXTCLOUD_REDIS_PASSWORD}
+# substitution token — never a literal value here.
+env:
+  NEXTCLOUD_REDIS_PASSWORD: ""
 
 service:
   port: 6379

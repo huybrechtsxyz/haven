@@ -46,6 +46,15 @@
 #       -e storagebox_host=<uXXXXXX-subN.your-storagebox.de> \
 #       -e storagebox_subaccount=<uXXXXXX-subN> \
 #       -e storagebox_password=<storagebox-password>
+#
+#   Portainer Edge Agent (Kubernetes) — after creating the "Forge" environment
+#   in Portainer (Environments > Add environment > Kubernetes > Edge Agent):
+#     ansible-playbook forge-init.yml \
+#       --private-key ~/.ssh/haven_ed25519 \
+#       -e forge_host=<public_ip> \
+#       -e configure_portainer_agent=true \
+#       -e portainer_edge_id=<edge-id> \
+#       -e portainer_edge_key=<edge-key>
 # =============================================================================
 
 - name: Forge — one-time initialisation
@@ -148,6 +157,87 @@
       retries: 30
       delay: 10
       changed_when: false
+
+    # This server was originally provisioned when this playbook still passed
+    # `--disable traefik` to the k3s installer (a stale assumption, carried
+    # over from an older archive, that Caddy-on-Hearth would proxy to Forge
+    # instead). That flag was later removed above, but the "Install k3s" task
+    # is gated on the binary not already existing, so an already-provisioned
+    # server never picks up exec-arg changes on its own. Catch up here,
+    # independently of that gate: re-running k3s's official install script
+    # rewrites /etc/systemd/system/k3s.service with the current exec args and
+    # is safe/idempotent to re-run — once Traefik is actually present this
+    # whole block is a no-op on every future run.
+    - name: Check if Traefik is deployed
+      ansible.builtin.command:
+        cmd: kubectl get deployment traefik -n kube-system
+      register: traefik_check
+      failed_when: false
+      changed_when: false
+
+    - name: Re-run k3s install to enable Traefik (was disabled when this server was first provisioned)
+      ansible.builtin.shell:
+        cmd: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --write-kubeconfig-mode=644" sh -
+        executable: /bin/bash
+      when: traefik_check.rc != 0
+      changed_when: true
+
+    - name: Restart k3s to apply the corrected exec args
+      ansible.builtin.systemd:
+        name: k3s
+        state: restarted
+      when: traefik_check.rc != 0
+
+    - name: Wait for k3s node to be Ready again after restart
+      ansible.builtin.command:
+        cmd: kubectl get node --no-headers
+      register: k3s_node_status_after_traefik_fix
+      until: "'Ready' in k3s_node_status_after_traefik_fix.stdout"
+      retries: 30
+      delay: 10
+      changed_when: false
+      when: traefik_check.rc != 0
+
+    - name: Wait for Traefik deployment to come up
+      ansible.builtin.command:
+        cmd: kubectl get deployment traefik -n kube-system
+      register: traefik_wait
+      until: traefik_wait.rc == 0
+      retries: 30
+      delay: 10
+      changed_when: false
+      when: traefik_check.rc != 0
+
+    # =========================================================================
+    # Portainer Edge Agent — registers Forge's k3s cluster as a Kubernetes
+    # environment in the existing Hearth Portainer instance. Edge Agent mode:
+    # the agent polls OUT to Portainer over HTTPS, so no inbound port/firewall
+    # rule is needed on Forge (matches its default-deny-inbound firewall
+    # model already used for BorgBackup/SMB). Edge ID/key come from
+    # Portainer's own "Add environment > Kubernetes > Edge Agent" wizard —
+    # a one-time registration credential, not something Ansible generates.
+    # =========================================================================
+
+    - name: Check if Portainer Edge Agent is already installed
+      ansible.builtin.command:
+        cmd: kubectl get deployment portainer-agent -n portainer
+      register: portainer_agent_check
+      failed_when: false
+      changed_when: false
+      when: configure_portainer_agent | bool
+
+    - name: Install Portainer Edge Agent (Kubernetes)
+      ansible.builtin.shell:
+        cmd: >
+          curl -sfL https://downloads.portainer.io/ee2-39/portainer-edge-agent-setup.sh |
+          bash -s -- "{{ portainer_edge_id }}" "{{ portainer_edge_key }}" "1" "" ""
+        executable: /bin/bash
+      when: >
+        configure_portainer_agent | bool and
+        portainer_edge_id | default('') | length > 0 and
+        portainer_edge_key | default('') | length > 0 and
+        portainer_agent_check.rc != 0
+      changed_when: true
 
     # =========================================================================
     # haven service user

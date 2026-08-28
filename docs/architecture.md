@@ -29,7 +29,7 @@ haven (workspace)
 │
 ├── forge (VPS — k3s)                      ← Workload: Immich, Jellyfin, Gatus, apps
 │   ├── Immich         — photo library     → photos.{domain}
-│   ├── Jellyfin       — media streaming   → jellyfin.{domain} (TBD)
+│   ├── Jellyfin       — media streaming   → media.{domain} (TBD)
 │   ├── Gatus          — health dashboard  → status.{domain}
 │   ├── Apps           — home-grown        → custom subdomains
 │   └── (possible) Kavita + Paperless-ngx  — TTRPG/PDF library + in-content full-text search (noted, not yet built)
@@ -41,7 +41,7 @@ haven (workspace)
 ├── object storage (S3, eu-central)        ← Immich originals + media overflow
 │   ├── haven-photos   — Immich library
 │   ├── haven-media    — media overflow
-│   └── haven-docs     — family documents (games/manuals, general archive)
+│   └── haven-docs     — family documents (books/PDFs/EPUBs, manuals, general archive)
 │
 └── cloud services (free tier)             ← Bootstrap + secrets + state
     ├── Bitwarden Cloud  — deployment credentials (API keys, SSH keys)
@@ -204,7 +204,7 @@ graph TB
 | app.infisical.com    | Infisical Cloud | ☁️ Cloud    | Infisical account         | Application secrets management (cloud-hosted)  |
 | app.terraform.io     | Terraform Cloud | ☁️ Cloud    | Terraform account         | Remote state backend (cloud-hosted)            |
 | `photos.{domain}`    | Immich          | Forge      | Authentik OIDC            | Photo library, face recognition, shared albums |
-| `jellyfin.{domain}`  | Jellyfin        | Forge      | Authentik OIDC (optional) | Media streaming                                |
+| `media.{domain}`     | Jellyfin        | Forge      | Authentik OIDC (optional) | Media streaming                                |
 | `status.{domain}`    | Gatus           | Forge      | N/A (read-only)           | Health dashboard for all services              |
 
 ---
@@ -232,7 +232,7 @@ Tier 2 — Daily offsite sync (rclone, ~03:00 UTC)
 - Three dedicated S3-compatible buckets:
   - `haven-photos` — Immich external library (originals + derivatives); S3 is natively supported by Immich and survives cluster destruction
   - `haven-media` — overflow for large binary assets if Storage Box capacity is exhausted
-  - `haven-docs` — family documents (games/manuals, general archive) — organized/browsed via Nextcloud, Kavita, Paperless-ngx
+  - `haven-docs` — family documents (books/PDFs/EPUBs, manuals, general archive) — organized/browsed via Nextcloud, Kavita, Paperless-ngx
 - Jellyfin media library is stored on the **Hetzner Storage Box (BX11)** via NFS mount — fixed cost, Hetzner-internal low-latency network, no per-GB egress, and already covered by the tier-2 sync
 - Provider separation: primary on Hetzner (Storage Box + S3), offsite copy on Infomaniak (Swiss jurisdiction)
 

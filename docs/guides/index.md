@@ -66,14 +66,15 @@ Haven uses **independent GitHub Actions workflows** for independent scheduling a
 
 ## Deployment Phases
 
-| Phase              | Guide                                  | Contents                                                  |
-| ------------------ | -------------------------------------- | --------------------------------------------------------- |
-| **Prerequisites**  | [prerequisites.md](prerequisites.md)   | Accounts, MFA, tools — complete before deploying anything |
-| **Domains**        | [domains.md](domains.md)               | Domain registration, DNS records, email setup             |
-| **Setup**          | [setup.md](setup.md)                   | Initial setup of cloud services, secrets, and credentials |
-| **Infrastructure** | [infrastructure.md](infrastructure.md) | Terraform + S3 buckets + SSH keys + DNS                   |
-| **Haven Hearth**   | [hearth.md](hearth.md)                 | Core VPS: Caddy, Authentik, Vaultwarden                   |
-| **Haven Forge**    | [forge.md](forge.md)                   | Workload VPS: k3s, Traefik, per-app namespaces            |
+| Phase              | Guide                                  | Contents                                                            |
+| ------------------ | -------------------------------------- | ------------------------------------------------------------------- |
+| **Prerequisites**  | [prerequisites.md](prerequisites.md)   | Accounts, MFA, tools — complete before deploying anything           |
+| **Domains**        | [domains.md](domains.md)               | Domain registration, DNS records, email setup                       |
+| **Setup**          | [setup.md](setup.md)                   | Initial setup of cloud services, secrets, and credentials           |
+| **Infrastructure** | [infrastructure.md](infrastructure.md) | Terraform + S3 buckets + SSH keys + DNS                             |
+| **Haven Hearth**   | [hearth.md](hearth.md)                 | Core VPS: Caddy, Authentik, Vaultwarden                             |
+| **Haven Forge**    | [forge.md](forge.md)                   | Workload VPS: k3s, Traefik, per-app namespaces                      |
+| **Onboarding**     | [onboarding.md](onboarding.md)         | Give a family member access — accounts, groups, per-app first login |
 
 Per-app guides (Immich, Jellyfin, and future self-hosted apps) live under [docs/services/](../services/) — linked from [forge.md](forge.md#what-runs-where).
 

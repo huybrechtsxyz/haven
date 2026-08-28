@@ -49,6 +49,7 @@ variable "firewall_config" {
         proto     = optional(string)
         port      = optional(list(number))
         from      = optional(string)
+        to        = optional(string)
         interface = optional(string)
         comment   = optional(string, "")
       }))

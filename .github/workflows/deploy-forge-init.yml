@@ -35,6 +35,10 @@ on:
         description: "Mount Storage Box SMB share at /mnt/storagebox (media library) — Hetzner Storage Box subaccounts don't support NFS"
         type: boolean
         default: false
+      configure_portainer_agent:
+        description: "Install the Portainer Edge Agent (Kubernetes) — requires the 'Forge' environment to already exist in Portainer's Environments UI"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -121,7 +125,7 @@ jobs:
       # Init (one-time server initialisation)
       # ------------------------------------------------------------------
       - name: Write Ansible vars file for forge init
-        if: ${{ (inputs.configure_borg == true || inputs.configure_smb == true) && inputs.dry_run != true }}
+        if: ${{ (inputs.configure_borg == true || inputs.configure_smb == true || inputs.configure_portainer_agent == true) && inputs.dry_run != true }}
         env:
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
@@ -129,24 +133,26 @@ jobs:
         run: |
           : > /tmp/init_vars.yml
 
-          # storagebox_host/subaccount/password are needed for BOTH BorgBackup
-          # (SSH) and the SMB media-library mount — fetched once regardless of
-          # which flag(s) triggered this step.
-          set +e
-          VALUES=$(strata values get STORAGEBOX_FORGE_PASSWORD -f $DEPLOYMENT_FILE --output json)
-          STATUS=$?
-          set -e
-          if [ $STATUS -ne 0 ]; then
-            echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
-            echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
-            exit $STATUS
-          fi
-          STORAGEBOX_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.STORAGEBOX_FORGE_PASSWORD')
-          cat >> /tmp/init_vars.yml << VARSEOF
+          if [ "${{ inputs.configure_borg }}" = "true" ] || [ "${{ inputs.configure_smb }}" = "true" ]; then
+            # storagebox_host/subaccount/password are needed for BOTH BorgBackup
+            # (SSH) and the SMB media-library mount — fetched once regardless of
+            # which of those two flags triggered this step.
+            set +e
+            VALUES=$(strata values get STORAGEBOX_FORGE_PASSWORD -f $DEPLOYMENT_FILE --output json)
+            STATUS=$?
+            set -e
+            if [ $STATUS -ne 0 ]; then
+              echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
+              echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+              exit $STATUS
+            fi
+            STORAGEBOX_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.STORAGEBOX_FORGE_PASSWORD')
+            cat >> /tmp/init_vars.yml << VARSEOF
           storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
           storagebox_subaccount: "${{ vars.STORAGEBOX_SUBACCOUNT_FORGE }}"
           storagebox_password: "$STORAGEBOX_PASSWORD"
           VARSEOF
+          fi
 
           if [ "${{ inputs.configure_borg }}" = "true" ]; then
             set +e
@@ -165,11 +171,39 @@ jobs:
           VARSEOF
           fi
 
+          if [ "${{ inputs.configure_portainer_agent }}" = "true" ]; then
+            set +e
+            EDGE_ID_VALUES=$(strata values get PORTAINER_EDGE_ID -f $DEPLOYMENT_FILE --output json)
+            STATUS=$?
+            set -e
+            if [ $STATUS -ne 0 ]; then
+              echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
+              echo "$EDGE_ID_VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+              exit $STATUS
+            fi
+            set +e
+            EDGE_KEY_VALUES=$(strata values get PORTAINER_EDGE_KEY -f $DEPLOYMENT_FILE --output json)
+            STATUS=$?
+            set -e
+            if [ $STATUS -ne 0 ]; then
+              echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
+              echo "$EDGE_KEY_VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+              exit $STATUS
+            fi
+            EDGE_ID=$(echo "$EDGE_ID_VALUES" | jq -r '.data.results.PORTAINER_EDGE_ID')
+            EDGE_KEY=$(echo "$EDGE_KEY_VALUES" | jq -r '.data.results.PORTAINER_EDGE_KEY')
+            cat >> /tmp/init_vars.yml << VARSEOF
+          configure_portainer_agent: true
+          portainer_edge_id: "$EDGE_ID"
+          portainer_edge_key: "$EDGE_KEY"
+          VARSEOF
+          fi
+
       - name: Run forge-init playbook
         if: ${{ inputs.dry_run != true }}
         working-directory: deploy/ansible-forge
         run: |
-          if [ "${{ inputs.configure_borg }}" = "true" ] || [ "${{ inputs.configure_smb }}" = "true" ]; then
+          if [ "${{ inputs.configure_borg }}" = "true" ] || [ "${{ inputs.configure_smb }}" = "true" ] || [ "${{ inputs.configure_portainer_agent }}" = "true" ]; then
             EXTRA_ARGS="-e @/tmp/init_vars.yml"
           else
             EXTRA_ARGS="-e configure_borg=false"
