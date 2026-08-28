@@ -55,9 +55,9 @@ spec:
             - name: RCLONE_CONFIG_HAVENDOCS_REGION
               value: {{ .Values.s3.region | quote }}
             - name: RCLONE_CONFIG_HAVENDOCS_ACCESS_KEY_ID
-              value: {{ .Values.s3.accessKeyId | quote }}
+              value: {{ .Values.env.HETZNER_S3_ACCESS_KEY | quote }}
             - name: RCLONE_CONFIG_HAVENDOCS_SECRET_ACCESS_KEY
-              value: {{ .Values.s3.secretAccessKey | quote }}
+              value: {{ .Values.env.HETZNER_S3_SECRET_KEY | quote }}
           command: ["sh", "-c"]
           args:
             - |
@@ -97,9 +97,9 @@ spec:
             - name: RCLONE_CONFIG_HAVENDOCS_REGION
               value: {{ .Values.s3.region | quote }}
             - name: RCLONE_CONFIG_HAVENDOCS_ACCESS_KEY_ID
-              value: {{ .Values.s3.accessKeyId | quote }}
+              value: {{ .Values.env.HETZNER_S3_ACCESS_KEY | quote }}
             - name: RCLONE_CONFIG_HAVENDOCS_SECRET_ACCESS_KEY
-              value: {{ .Values.s3.secretAccessKey | quote }}
+              value: {{ .Values.env.HETZNER_S3_SECRET_KEY | quote }}
           command: ["rclone"]
           args:
             - mount

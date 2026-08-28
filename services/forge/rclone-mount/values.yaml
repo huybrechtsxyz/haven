@@ -8,9 +8,18 @@ s3:
   bucket: haven-docs
   endpoint: https://eu-central.your-objectstorage.com
   region: eu-central
+
+# Credentials MUST live under a literal `env:` dict (not nested under `s3:`
+# above) — strata's Helm deployer only substitutes `${TOKEN}` placeholders
+# found inside a dict node keyed literally "env" (see helm_deployer.py's
+# `_find_env_tokens`); anything else passes through unresolved. Confirmed
+# the hard way (2026-08-28, real CI run): with these under `s3:`, the
+# deployed pod had the literal string "${HETZNER_S3_ACCESS_KEY}" as its env
+# var value instead of the real secret.
+env:
   # Real values injected by strata at deploy time — never written here.
-  accessKeyId: ""
-  secretAccessKey: ""
+  HETZNER_S3_ACCESS_KEY: ""
+  HETZNER_S3_SECRET_KEY: ""
 
 mount:
   # Path on the Forge HOST (not just inside the pod) where the bucket becomes
