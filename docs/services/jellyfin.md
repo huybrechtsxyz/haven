@@ -37,38 +37,30 @@ Jellyfin has no native OIDC support. SSO requires a third-party plugin.
 
 > **Plugin choice note:** the well-known `9p4/jellyfin-plugin-sso` was **archived by its owner on 2026-05-12**. This setup uses **[K0lin/jellyfin-plugin-sso](https://github.com/K0lin/jellyfin-plugin-sso)** instead — an active, transparent continuation of the same code ("forked from the creator's code, with the intention of continuing to maintain it"), same config/API shape, commits as recent as days old.
 
-The Authentik side is **already automated** — `deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2` creates the OAuth2 Provider + Application for Jellyfin (client ID `jellyfin`, `members` group policy) every time `deploy-hearth-config.yml` runs, using the `JELLYFIN_SSO_CLIENT_SECRET` Infisical secret. Uses `issuer_mode: per_provider` (not `global`) — `global` mode's issuer claim is just the bare domain, which breaks strict OIDC issuer validation against the app-specific discovery path; this was discovered and fixed on Immich first (see [immich.md](./immich.md#single-sign-on-authentik)), applied here proactively before Jellyfin's SSO is tested for the first time.
+The Authentik side is **fully automated** — `deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2` creates the OAuth2 Provider + Application for Jellyfin (client ID `jellyfin`, `members` group policy) every time `deploy-hearth-config.yml` runs, using the `JELLYFIN_SSO_CLIENT_SECRET` Infisical secret. Uses `issuer_mode: per_provider` (not `global`) — `global` mode's issuer claim is just the bare domain, which breaks strict OIDC issuer validation against the app-specific discovery path; this was discovered and fixed on Immich first (see [immich.md](./immich.md#single-sign-on-authentik)). It also includes a custom `groups` scope + property mapping (`mapping-group-membership`) per [K0lin/jellyfin-plugin-sso's providers.md#authentik](https://github.com/K0lin/jellyfin-plugin-sso/blob/main/providers.md#authentik), so the plugin's RBAC (`roleClaim: groups`) can map Authentik's `admins` group to Jellyfin admin access and `members`/`parents` to normal access.
 
-The Jellyfin side needs two manual/scripted steps — Jellyfin has no headless bootstrap, so these can't be fully automated yet:
+The Jellyfin side is **also automated**, aside from one unavoidable one-time step (Jellyfin has no headless bootstrap):
 
-1. **Install the plugin** (one-time, per Jellyfin instance): Dashboard → Plugins → Repositories → add
+1. **Plugin install** — an idempotent `extraInitContainers` entry in `config/forge/modules/jellyfin.yaml` downloads the latest [K0lin/jellyfin-plugin-sso](https://github.com/K0lin/jellyfin-plugin-sso) release from its manifest and unpacks it into the `config` PVC's `plugins/` dir on every pod start; skips entirely once already installed (no-op on every future restart/redeploy).
+
+2. **Provider registration** — `.github/workflows/deploy-forge-deploy.yml` POSTs to `/sso/OID/Add/authentik` after every Helm deploy, using `JELLYFIN_API_KEY` + `JELLYFIN_SSO_CLIENT_SECRET` from Infisical. Idempotent (`Add` always overwrites) and retries briefly for ingress/cert readiness. Skips silently (doesn't fail the deploy) if `JELLYFIN_API_KEY` isn't set yet.
+
+3. **One-time manual step**: `JELLYFIN_API_KEY` can only be minted via the web UI (Dashboard → API Keys), which itself requires the first-run admin setup wizard to have been completed once via the web UI. Once you have a key:
+   ```powershell
+   strata secret put JELLYFIN_API_KEY --value "<key>" -f config/environment.yaml
    ```
-   https://raw.githubusercontent.com/k0lin/jellyfin-plugin-sso/manifest-release/manifest.json
-   ```
-   then Catalog → install **SSO Authentication** → restart Jellyfin.
+   After that, every future deploy registers/updates the SSO provider automatically — no further manual steps.
 
-2. **Register the Authentik provider** — needs a Jellyfin admin API key (Dashboard → API Keys, itself requires the one-time first-run admin setup via the web UI first):
-   ```bash
-   curl -X POST -H "Content-Type: application/json" \
-     -d '{
-           "oidEndpoint": "https://auth.huybrechts.xyz/application/o/jellyfin/",
-           "oidClientId": "jellyfin",
-           "oidSecret": "<JELLYFIN_SSO_CLIENT_SECRET>",
-           "enabled": true,
-           "enableAuthorization": false
-         }' \
-     "https://media.huybrechts.xyz/sso/OID/Add/authentik?api_key=<JELLYFIN_API_KEY>"
-   ```
-
-See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugin-sso) for the login-button snippet to add under Dashboard → General → Branding → Login disclaimer.
+See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugin-sso) for the login-button snippet to add under Dashboard → General → Branding → Login disclaimer (still a manual, cosmetic, one-time step).
 
 ---
 
 ## Secrets
 
-| Secret                       | Store     | Used by                                                                                         |
-| ---------------------------- | --------- | ----------------------------------------------------------------------------------------------- |
-| `JELLYFIN_SSO_CLIENT_SECRET` | Infisical | Authentik's Jellyfin OAuth2 provider (automated) + the plugin's `oidSecret` (manual step above) |
+| Secret                       | Store     | Used by                                                                                                          |
+| ---------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------ |
+| `JELLYFIN_SSO_CLIENT_SECRET` | Infisical | Authentik's Jellyfin OAuth2 provider + the plugin's `oidSecret` (both automated)                                  |
+| `JELLYFIN_API_KEY`           | Infisical | Authenticates the automated SSO-provider-registration step in `deploy-forge-deploy.yml` — literal value, set manually once (Jellyfin has no API to generate its own key headlessly) |
 
 ---
 
@@ -83,6 +75,6 @@ See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugi
 
 ## Still open
 
-- `media` namespace just activated in `config/stack/workspace.yaml` — not yet confirmed deployed/healthy on the live cluster
-- TLS cert not yet confirmed issued (staging first, same as Immich) — switch to `letsencrypt-prod` once `kubectl describe certificate jellyfin-tls -n media` shows `Ready: True`
-- SSO plugin install + provider registration are manual/scripted, not yet automated end-to-end
+- TLS cert: switch `cert-manager.io/cluster-issuer` from `letsencrypt-staging` to `letsencrypt-prod` once `kubectl describe certificate jellyfin-tls -n media` shows `Ready: True` (same staging-first pattern as Immich)
+- `JELLYFIN_API_KEY` must be created once via the Jellyfin web UI and stored in Infisical before the automated SSO-provider-registration step in `deploy-forge-deploy.yml` will actually do anything (it skips silently until then)
+- Login-button HTML snippet (Dashboard → General → Branding) is still a manual, cosmetic, one-time step
