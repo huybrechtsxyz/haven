@@ -18,6 +18,44 @@ spec:
     spec:
       # Single-node cluster — pin to avoid the mount "moving" to a node
       # without the corresponding hostPath consumers.
+      initContainers:
+        # ---------------------------------------------------------------
+        # Pre-create app-expected subfolders (e.g. Kavita's "books") via a
+        # REAL `rclone mkdir` call straight against the S3 API — NOT a
+        # POSIX mkdir(2) through the FUSE mount. Confirmed (2026-08-28, real
+        # CI run): a bare filesystem mkdir on this mount fails with a raw
+        # EIO for any "directory" that doesn't already exist as an object in
+        # the bucket, regardless of whether kubelet, a pod, or a plain SSH
+        # shell issues it — an rclone/S3-backend limitation, not a
+        # kubelet-bind-mount quirk. `rclone mkdir` writes the zero-byte
+        # directory-marker object directly via the S3 API and sidesteps
+        # this entirely. No FUSE device / privileged mode needed for this —
+        # it's a plain API call, unlike the main `mount` container below.
+        # Idempotent: rclone mkdir on an already-existing "directory" is a
+        # silent no-op.
+        # ---------------------------------------------------------------
+        - name: ensure-subfolders
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          env:
+            - name: RCLONE_CONFIG_HAVENDOCS_TYPE
+              value: s3
+            - name: RCLONE_CONFIG_HAVENDOCS_PROVIDER
+              value: Other
+            - name: RCLONE_CONFIG_HAVENDOCS_ENDPOINT
+              value: {{ .Values.s3.endpoint | quote }}
+            - name: RCLONE_CONFIG_HAVENDOCS_REGION
+              value: {{ .Values.s3.region | quote }}
+            - name: RCLONE_CONFIG_HAVENDOCS_ACCESS_KEY_ID
+              value: {{ .Values.s3.accessKeyId | quote }}
+            - name: RCLONE_CONFIG_HAVENDOCS_SECRET_ACCESS_KEY
+              value: {{ .Values.s3.secretAccessKey | quote }}
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              {{- range .Values.mount.subfolders }}
+              rclone mkdir "havendocs:{{ $.Values.s3.bucket }}/{{ . }}"
+              {{- end }}
       containers:
         - name: rclone
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

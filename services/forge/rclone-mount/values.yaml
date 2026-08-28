@@ -24,3 +24,16 @@ mount:
   # independent S3 clients.
   vfsCacheMode: writes
   dirCacheTime: 30s
+  # Subfolders any consuming app expects to already exist in the bucket
+  # (e.g. Kavita's "books" library). Created via a real `rclone mkdir` call
+  # against the S3 API directly (initContainer, see templates/deployment.yaml)
+  # — NOT a plain filesystem mkdir through the FUSE mount. Confirmed
+  # (2026-08-28, real CI run): a bare POSIX mkdir(2) on this FUSE mount fails
+  # with a raw EIO for a brand-new "directory" that doesn't exist in the S3
+  # bucket yet, regardless of whether it's kubelet, a pod, or a plain SSH
+  # shell issuing it — this is an rclone/S3-backend limitation, not a
+  # kubelet-bind-mount quirk. `rclone mkdir` talks to the S3 API directly
+  # (writes the zero-byte directory-marker object) and sidesteps this
+  # entirely.
+  subfolders:
+    - books

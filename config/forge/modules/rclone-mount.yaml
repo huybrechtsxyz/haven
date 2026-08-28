@@ -32,3 +32,9 @@ spec:
       hostPath: /mnt/haven-docs
       vfsCacheMode: writes
       dirCacheTime: 30s
+      # Pre-created via rclone mkdir (direct S3 API call, not a FUSE mkdir)
+      # by this chart's initContainer — see services/forge/rclone-mount's
+      # values.yaml/deployment.yaml for the full explanation. Add new
+      # entries here as future apps need their own subfolder.
+      subfolders:
+        - books
