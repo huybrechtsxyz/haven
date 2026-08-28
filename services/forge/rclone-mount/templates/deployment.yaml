@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}
+  name: { { .Release.Name } }
   labels:
-    app: {{ .Release.Name }}
+    app: { { .Release.Name } }
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: {{ .Release.Name }}
+      app: { { .Release.Name } }
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}
+        app: { { .Release.Name } }
     spec:
       # Single-node cluster — pin to avoid the mount "moving" to a node
       # without the corresponding hostPath consumers.
@@ -42,13 +42,13 @@ spec:
             - name: RCLONE_CONFIG_HAVENDOCS_PROVIDER
               value: Other
             - name: RCLONE_CONFIG_HAVENDOCS_ENDPOINT
-              value: {{ .Values.s3.endpoint | quote }}
+              value: { { .Values.s3.endpoint | quote } }
             - name: RCLONE_CONFIG_HAVENDOCS_REGION
-              value: {{ .Values.s3.region | quote }}
+              value: { { .Values.s3.region | quote } }
             - name: RCLONE_CONFIG_HAVENDOCS_ACCESS_KEY_ID
-              value: {{ .Values.s3.accessKeyId | quote }}
+              value: { { .Values.s3.accessKeyId | quote } }
             - name: RCLONE_CONFIG_HAVENDOCS_SECRET_ACCESS_KEY
-              value: {{ .Values.s3.secretAccessKey | quote }}
+              value: { { .Values.s3.secretAccessKey | quote } }
           command: ["sh", "-c"]
           args:
             - |
@@ -66,13 +66,13 @@ spec:
             - name: RCLONE_CONFIG_HAVENDOCS_PROVIDER
               value: Other
             - name: RCLONE_CONFIG_HAVENDOCS_ENDPOINT
-              value: {{ .Values.s3.endpoint | quote }}
+              value: { { .Values.s3.endpoint | quote } }
             - name: RCLONE_CONFIG_HAVENDOCS_REGION
-              value: {{ .Values.s3.region | quote }}
+              value: { { .Values.s3.region | quote } }
             - name: RCLONE_CONFIG_HAVENDOCS_ACCESS_KEY_ID
-              value: {{ .Values.s3.accessKeyId | quote }}
+              value: { { .Values.s3.accessKeyId | quote } }
             - name: RCLONE_CONFIG_HAVENDOCS_SECRET_ACCESS_KEY
-              value: {{ .Values.s3.secretAccessKey | quote }}
+              value: { { .Values.s3.secretAccessKey | quote } }
           command: ["rclone"]
           args:
             - mount
@@ -107,5 +107,5 @@ spec:
             type: CharDevice
         - name: mountpoint
           hostPath:
-            path: {{ .Values.mount.hostPath }}
+            path: { { .Values.mount.hostPath } }
             type: DirectoryOrCreate

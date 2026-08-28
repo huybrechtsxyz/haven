@@ -149,4 +149,3 @@
     # S3 API call, not a FUSE mkdir) via an initContainer — see
     # services/forge/rclone-mount/templates/deployment.yaml + values.yaml's
     # mount.subfolders list.
-
