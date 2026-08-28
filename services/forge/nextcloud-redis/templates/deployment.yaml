@@ -1,32 +1,49 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}
+  name: { { .Release.Name } }
   labels:
-    app: {{ .Release.Name }}
+    app: { { .Release.Name } }
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ .Release.Name }}
+      app: { { .Release.Name } }
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}
+        app: { { .Release.Name } }
     spec:
       containers:
         - name: redis
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          args: ["redis-server", "--requirepass", "{{ .Values.env.NEXTCLOUD_REDIS_PASSWORD }}"]
+          args:
+            [
+              "redis-server",
+              "--requirepass",
+              "{{ .Values.env.NEXTCLOUD_REDIS_PASSWORD }}",
+            ]
           ports:
             - containerPort: 6379
           readinessProbe:
             exec:
-              command: ["redis-cli", "-a", "{{ .Values.env.NEXTCLOUD_REDIS_PASSWORD }}", "ping"]
+              command:
+                [
+                  "redis-cli",
+                  "-a",
+                  "{{ .Values.env.NEXTCLOUD_REDIS_PASSWORD }}",
+                  "ping",
+                ]
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             exec:
-              command: ["redis-cli", "-a", "{{ .Values.env.NEXTCLOUD_REDIS_PASSWORD }}", "ping"]
+              command:
+                [
+                  "redis-cli",
+                  "-a",
+                  "{{ .Values.env.NEXTCLOUD_REDIS_PASSWORD }}",
+                  "ping",
+                ]
             initialDelaySeconds: 10
             periodSeconds: 20
