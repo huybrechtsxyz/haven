@@ -38,9 +38,20 @@ spec:
         containers:
           main:
             image:
-              # Confirmed against chart 0.13.1's own Chart.yaml (appVersion)
-              # and default values.yaml — this IS the compatible app release.
-              tag: "v3.0.0"
+              # v3.0.0 -> v3.1.0 -> reverted to v3.0.0 -> back to v3.1.0 (2026-08-28).
+              # This is NOT optional anymore: the earlier v3.1.0 attempt ran its
+              # database migrations against immich-postgres before that deploy
+              # was killed/reverted (helm's --atomic rollback does not undo
+              # migrations the app itself already applied at startup). Reverting
+              # the image tag alone left the DB on the v3.1.0 migration schema
+              # while the code was back on v3.0.0, which refuses to start
+              # ("corrupted migrations: previously executed migration
+              # 1782500000000-RestoreLivePhotoStillVisibility is missing") —
+              # confirmed via a real crash-loop. Rolling forward again is the
+              # only safe fix (rolling the DB itself back would need manual
+              # migration-table surgery). Do not revert this to v3.0.0 again
+              # without also handling the DB migration state.
+              tag: "v3.1.0"
             env:
               DB_HOSTNAME: immich-postgres
               DB_USERNAME: immich
