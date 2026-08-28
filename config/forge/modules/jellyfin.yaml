@@ -43,19 +43,17 @@ spec:
       type: ClusterIP
       port: 8096
 
-    # cert-manager is now proven working end-to-end (Immich's photos-tls
-    # certificate issued successfully via letsencrypt-staging, then switched
-    # to letsencrypt-prod once verified — see config/forge/modules/immich.yaml).
-    # Using STAGING here first for the same reason: a brand-new hostname
-    # still needs its own HTTP-01 challenge to succeed at least once before
-    # trusting production (rate-limited to 5 certs/domain/week). Once
-    # `kubectl describe certificate jellyfin-tls -n media` shows Ready=True,
-    # switch cert-manager.io/cluster-issuer below to letsencrypt-prod.
+    # cert-manager is proven working end-to-end (Immich's photos-tls +
+    # Jellyfin's media-tls certificates both issued successfully via
+    # letsencrypt-staging first, then switched to letsencrypt-prod once
+    # each was verified Ready=True — same staging-first pattern as Immich,
+    # see config/forge/modules/immich.yaml). Switched to prod here 2026-08-28
+    # after confirming media-tls issued successfully via staging.
     ingress:
       enabled: true
       className: traefik
       annotations:
-        cert-manager.io/cluster-issuer: letsencrypt-staging
+        cert-manager.io/cluster-issuer: letsencrypt-prod
       hosts:
         - host: media.huybrechts.xyz
           paths:

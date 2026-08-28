@@ -17,7 +17,7 @@ Jellyfin runs on **Forge** (Hetzner CPX41, k3s), in its own `media` Kubernetes n
 | Chart     | `jellyfin` from the official repo, `https://jellyfin.github.io/jellyfin-helm`                                                                      |
 | Version   | `3.2.0` (`image.tag` intentionally left unset — auto-matches the chart's own appVersion)                                                           |
 | Namespace | `media` (Kubernetes), module file `config/forge/modules/jellyfin.yaml`                                                                             |
-| Ingress   | Traefik (`className: traefik`), host `media.{domain}`, TLS via cert-manager (`letsencrypt-staging` initially, see [Immich's pattern](./immich.md)) |
+| Ingress   | Traefik (`className: traefik`), host `media.{domain}`, TLS via cert-manager (`letsencrypt-prod`, switched from `letsencrypt-staging` 2026-08-28 once verified issuing) |
 
 ---
 
@@ -57,9 +57,9 @@ See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugi
 
 ## Secrets
 
-| Secret                       | Store     | Used by                                                                                                          |
-| ---------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------ |
-| `JELLYFIN_SSO_CLIENT_SECRET` | Infisical | Authentik's Jellyfin OAuth2 provider + the plugin's `oidSecret` (both automated)                                  |
+| Secret                       | Store     | Used by                                                                                                                                                                             |
+| ---------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JELLYFIN_SSO_CLIENT_SECRET` | Infisical | Authentik's Jellyfin OAuth2 provider + the plugin's `oidSecret` (both automated)                                                                                                    |
 | `JELLYFIN_API_KEY`           | Infisical | Authenticates the automated SSO-provider-registration step in `deploy-forge-deploy.yml` — literal value, set manually once (Jellyfin has no API to generate its own key headlessly) |
 
 ---
@@ -75,6 +75,5 @@ See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugi
 
 ## Still open
 
-- TLS cert: switch `cert-manager.io/cluster-issuer` from `letsencrypt-staging` to `letsencrypt-prod` once `kubectl describe certificate jellyfin-tls -n media` shows `Ready: True` (same staging-first pattern as Immich)
 - `JELLYFIN_API_KEY` must be created once via the Jellyfin web UI and stored in Infisical before the automated SSO-provider-registration step in `deploy-forge-deploy.yml` will actually do anything (it skips silently until then)
 - Login-button HTML snippet (Dashboard → General → Branding) is still a manual, cosmetic, one-time step

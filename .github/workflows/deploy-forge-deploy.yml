@@ -215,19 +215,22 @@ jobs:
             }')
 
           for i in 1 2 3 4 5; do
+            set +e
             HTTP=$(curl -s -o /tmp/sso_add.json -w "%{http_code}" -X POST \
               -H "Content-Type: application/json" \
               -d "$PAYLOAD" \
               "https://media.huybrechts.xyz/sso/OID/Add/authentik?api_key=$JELLYFIN_API_KEY")
-            if [ "$HTTP" -lt 400 ]; then
+            CURL_STATUS=$?
+            set -e
+            if [ $CURL_STATUS -eq 0 ] && [ "$HTTP" -lt 400 ]; then
               echo "Jellyfin SSO provider registered successfully (HTTP $HTTP)."
               exit 0
             fi
-            echo "Attempt $i failed (HTTP $HTTP), retrying in 10s..."
-            cat /tmp/sso_add.json || true
+            echo "Attempt $i failed (curl exit $CURL_STATUS, HTTP ${HTTP:-n/a}), retrying in 10s..."
+            cat /tmp/sso_add.json 2>/dev/null || true
             sleep 10
           done
-          echo "::warning::Failed to register Jellyfin SSO provider after 5 attempts (last HTTP $HTTP) — not failing the deploy, check manually."
+          echo "::warning::Failed to register Jellyfin SSO provider after 5 attempts — not failing the deploy, check manually."
 
       # =========================================================================
       # Diagnostics on failure — the deploy step above uses `helm --wait
