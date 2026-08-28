@@ -38,11 +38,11 @@ Jellyfin runs on **Forge** (Hetzner CPX41, k3s), in its own `media` Kubernetes n
 
 ## Storage
 
-| Volume               | Type                                | Notes                                                                                                                                                                                                                                         |
-| -------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `persistence.config` | PVC, `local-path`, 5Gi              | Jellyfin's own metadata/database — local disk, not backed up to Storage Box yet                                                                                                                                                               |
-| `persistence.media`  | `hostPath`, `/mnt/storagebox/media` | The actual media library. Reuses the *same* Storage Box SMB/CIFS mount `forge-init.yml` already sets up on the host — deliberately **not** a second, independent in-pod mount (avoids duplicate auth/mount overhead for a single-node cluster)      |
-| `persistence.cache`  | disabled (default)                  | Transcode cache — left disabled; Jellyfin uses software transcoding only (no GPU), so this isn't performance-critical yet                                                                                                                     |
+| Volume               | Type                                | Notes                                                                                                                                                                                                                                          |
+| -------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `persistence.config` | PVC, `local-path`, 5Gi              | Jellyfin's own metadata/database — local disk, not backed up to Storage Box yet                                                                                                                                                                |
+| `persistence.media`  | `hostPath`, `/mnt/storagebox/media` | The actual media library. Reuses the *same* Storage Box SMB/CIFS mount `forge-init.yml` already sets up on the host — deliberately **not** a second, independent in-pod mount (avoids duplicate auth/mount overhead for a single-node cluster) |
+| `persistence.cache`  | disabled (default)                  | Transcode cache — left disabled; Jellyfin uses software transcoding only (no GPU), so this isn't performance-critical yet                                                                                                                      |
 
 ---
 
