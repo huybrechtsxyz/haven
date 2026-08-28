@@ -22,11 +22,11 @@ Authentik provides single sign-on for Vaultwarden, Immich, Jellyfin, and Nextclo
 3. Set an initial password, or send an enrollment email (requires SMTP — see [infomaniak.md](../services/infomaniak.md) for the SMTP relay setup).
 4. **Assign to a group** — Admin Interface → Directory → Users → select the user → **Groups** tab → Add to group:
 
-   | Group     | Who                    | App access                                             |
-   | --------- | ---------------------- | ------------------------------------------------------- |
-   | `admins`  | Technical administrator | All applications                                        |
+   | Group     | Who                     | App access                                                         |
+   | --------- | ----------------------- | ------------------------------------------------------------------ |
+   | `admins`  | Technical administrator | All applications                                                   |
    | `parents` | Parents                 | All family applications (Vaultwarden, Immich, Jellyfin, Nextcloud) |
-   | `members` | Everyone else (kids)    | Shared applications (Vaultwarden, Immich, Jellyfin, Nextcloud) |
+   | `members` | Everyone else (kids)    | Shared applications (Vaultwarden, Immich, Jellyfin, Nextcloud)     |
 
    > ⚠️ **This step is required.** Skipping it causes SSO logins to fail with "Permission denied — Policy binding returned result False" — the user authenticates successfully but isn't authorised for any application.
 
