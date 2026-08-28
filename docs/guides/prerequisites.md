@@ -10,17 +10,17 @@
 
 Create accounts in this order. Enable MFA immediately after each signup. Store credentials in **Bitwarden cloud**.
 
-| Service         | URL                              | Setup guide                                         | Notes                                   |
-| --------------- | -------------------------------- | --------------------------------------------------- | --------------------------------------- |
-| Bitwarden       | <https://bitwarden.com>          | [bitwarden.md](./services/bitwarden.md)             | Bootstrap vault — create this first     |
-| INWX            | <https://www.inwx.de>            | [inwx.md](./services/inwx.md)                       | Domain registrar + DNS                  |
-| GitHub          | <https://github.com>             | [github.md](./services/github.md)                   | Source code + CI/CD pipelines           |
-| Hetzner         | <https://console.hetzner.cloud>  | [hetzner.md](./services/hetzner.md)                 | VPS provisioning + Storage Box          |
-| Infisical Cloud | <https://app.infisical.com>      | [infisical.md](./services/infisical.md)             | Runtime application secrets             |
-| Terraform Cloud | <https://app.terraform.io>       | [terraform.md](./services/terraform.md)             | Remote state backend                    |
-| Infomaniak      | <https://manager.infomaniak.com> | [infomaniak.md](./services/infomaniak.md)           | Email, kDrive, kSuite for family        |
-| Healthchecks.io | <https://healthchecks.io>        | [healthchecks-io.md](./services/healthchecks-io.md) | BorgBackup dead-man's switch            |
-| UptimeRobot     | <https://uptimerobot.com>        | [uptimerobot.md](./services/uptimerobot.md)         | Public endpoint availability monitoring |
+| Service         | URL                              | Setup guide                                          | Notes                                   |
+| --------------- | -------------------------------- | ---------------------------------------------------- | --------------------------------------- |
+| Bitwarden       | <https://bitwarden.com>          | [bitwarden.md](../services/bitwarden.md)             | Bootstrap vault — create this first     |
+| INWX            | <https://www.inwx.de>            | [inwx.md](../services/inwx.md)                       | Domain registrar + DNS                  |
+| GitHub          | <https://github.com>             | [github.md](../services/github.md)                   | Source code + CI/CD pipelines           |
+| Hetzner         | <https://console.hetzner.cloud>  | [hetzner.md](../services/hetzner.md)                 | VPS provisioning + Storage Box          |
+| Infisical Cloud | <https://app.infisical.com>      | [infisical.md](../services/infisical.md)             | Runtime application secrets             |
+| Terraform Cloud | <https://app.terraform.io>       | [terraform.md](../services/terraform.md)             | Remote state backend                    |
+| Infomaniak      | <https://manager.infomaniak.com> | [infomaniak.md](../services/infomaniak.md)           | Email, kDrive, kSuite for family        |
+| Healthchecks.io | <https://healthchecks.io>        | [healthchecks-io.md](../services/healthchecks-io.md) | BorgBackup dead-man's switch            |
+| UptimeRobot     | <https://uptimerobot.com>        | [uptimerobot.md](../services/uptimerobot.md)         | Public endpoint availability monitoring |
 
 ---
 
@@ -69,25 +69,13 @@ Haven uses a **two-vault strategy** — family credentials and admin credentials
 
 > **ACTION:** Create accounts for each of these services, then store the credentials securely in Bitwarden. For each service, follow the linked guide for detailed setup instructions.
 
-You will need accounts for the following services. Create them in the recommended order, since some credentials are needed for later steps.
-
-| Service         | URL                              | Link                                    | Notes                                             |
-| --------------- | -------------------------------- | --------------------------------------- | ------------------------------------------------- |
-| Bitwarden       | <https://bitwarden.com>          | [click](../services/bitwarden.md)       | To store the break-the-glass credentials          |
-| GitHub          | <https://github.com>             | [click](../services/github.md)          | To manage source code and CI/CD pipelines         |
-| Infisical Cloud | <https://app.infisical.com>      | [click](../services/infisical.md)       | To manage runtime application secrets             |
-| INWX            | <https://www.inwx.de>            | [click](../services/inwx.md)            | To manage DNS records                             |
-| Hetzner         | <https://console.hetzner.cloud>  | [click](../services/hetzner.md)         | To provision and manage VPS instances and storage |
-| Terraform Cloud | <https://app.terraform.io>       | [click](../services/terraform.md)       | To manage infrastructure state                    |
-| Healthchecks.io | <https://healthchecks.io>        | [click](../services/healthchecks-io.md) | To monitor service uptime                         |
-| UptimeRobot     | <https://uptimerobot.com>        | [click](../services/uptimerobot.md)     | To monitor service uptime                         |
-| Infomaniak      | <https://manager.infomaniak.com> | [click](../services/infomaniak.md)      | To manage email and other services                |
+You will need accounts for the following services. Create them in the recommended order, since some credentials are needed for later steps, see the table in [Step 1 — Required Accounts](#step-1--required-accounts) above for the full list and setup guide links.
 
 > **Note** Secure storage of credentials is critical. Use Vaultwarden or another password manager to store all account credentials, API keys, and secrets. Avoid hardcoding sensitive information in code or configuration files. If needed store them temporarily in a secure notes section while setting up, then move to the password manager. From this point forward, we will assume all credentials are stored securely.
 
 ### Required Bitwarden Account
 
-See [bitwarden.md](../services//bitwarden.md#bitwarden-setup) for detailed instructions on setting up your Bitwarden account and organizing your vault for the haven platform. In summary:
+See [bitwarden.md](../services/bitwarden.md#bitwarden-setup) for detailed instructions on setting up your Bitwarden account and organizing your vault for the haven platform. In summary:
 
 1. Create a Bitwarden account if you don't have one.
 2. Create a new vault or folder named "Haven" to store all related credentials and secrets.
@@ -127,7 +115,7 @@ See [hetzner.md](../services//hetzner.md#initial-setup) for detailed instruction
 
 ### Required Terraform Cloud Account
 
-Strata's [Terraform](../terraform#initial-setup) provisioning uses Terraform Cloud as the remote state backend.
+Strata's [Terraform](../services/terraform.md#initial-setup) provisioning uses Terraform Cloud as the remote state backend.
 
 1. Sign up at <https://app.terraform.io/signup>
 2. Create organization (e.g., `{org-name}`)

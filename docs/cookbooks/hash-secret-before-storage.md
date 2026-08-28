@@ -2,13 +2,13 @@
 
 > Works today with existing `strata secret` commands — no strata changes needed.
 
-[← Back to Guide](./index.md)
+[← Back to Guide](../index.rst)
 
 ## Problem
 
 Some backends expect a **pre-hashed** value rather than plaintext. Vaultwarden's `ADMIN_TOKEN` is the motivating case: Vaultwarden hashes the token itself (Argon2id) and expects the **hash** in its environment, but a human still needs the **raw** plaintext to actually log in to the admin panel.
 
-If you don't want to wait for the `post_generate` hook (see [setup.md → Automated Secrets Generation](./setup.md#automated-secrets-generation)), this two-key workflow works right now with the existing `strata secret` commands.
+If you don't want to wait for the `post_generate` hook (see [setup.md → Automated Secrets Generation](../guides/setup.md#automated-secrets-generation)), this two-key workflow works right now with the existing `strata secret` commands.
 
 ## Prerequisites
 
@@ -93,4 +93,4 @@ $hashLine = ($raw | docker run --rm -i vaultwarden/server /vaultwarden hash --pr
 | Raw value handling      | Printed via `--unmask`, lives in a shell variable    | Printed to console once during generation                                          |
 | Use case                | Interim workaround, or backends without hook support | Steady-state, once available                                                       |
 
-See [setup.md → Secrets for Vaultwarden](./setup.md#secrets-for-vaultwarden) for the automated flow.
+See [setup.md → Secrets for Vaultwarden](../guides/setup.md#secrets-for-vaultwarden) for the automated flow.

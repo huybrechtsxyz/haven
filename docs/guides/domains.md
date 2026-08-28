@@ -53,6 +53,17 @@ Add these DNS records at INWX (Domains → `{base-domain}` → DNS Records):
 
 **Mail records:** Configure MX, SPF, and DKIM once Infomaniak kSuite is provisioned. See [guide.md](./guide.md) for setup details.
 
+## DNS Records for Forge
+
+Add these DNS records at INWX (Domains → `{base-domain}` → DNS Records). Unlike the base-domain records above, these point to the **Forge** VPS, not Hearth — Traefik (on Forge) terminates TLS for these, not Caddy:
+
+| Type | Name                   | Priority | Value        | TTL  | Notes                        |
+| ---- | ---------------------- | -------- | ------------ | ---- | ---------------------------- |
+| A    | `photos.{base-domain}` |          | `<forge-ip>` | 3600 | Immich (photo/video library) |
+| A    | `media.{base-domain}`  |          | `<forge-ip>` | 3600 | Jellyfin (media streaming)   |
+| A    | `docs.{base-domain}`   |          | `<forge-ip>` | 3600 | Nextcloud (document archive) |
+| A    | `books.{base-domain}`  |          | `<forge-ip>` | 3600 | Kavita (books/PDFs/EPUBs)    |
+
 ## DNSSEC — Critical Warning
 
 > ⚠️ **Never enable DNSSEC at INWX for your base domain.**
