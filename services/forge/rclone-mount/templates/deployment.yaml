@@ -31,8 +31,17 @@ spec:
         # directory-marker object directly via the S3 API and sidesteps
         # this entirely. No FUSE device / privileged mode needed for this —
         # it's a plain API call, unlike the main `mount` container below.
-        # Idempotent: rclone mkdir on an already-existing "directory" is a
-        # silent no-op.
+        #
+        # `rclone deletefile` runs FIRST for each folder (errors ignored):
+        # the earlier failed EIO mkdir attempts (kubelet's + Ansible's, both
+        # since removed) apparently managed a partial write before failing,
+        # leaving a stray zero-byte FILE object at the exact key (no
+        # trailing slash) instead of a proper directory marker. `rclone
+        # mkdir` correctly refuses to turn a file into a directory
+        # ("Failed to create file system for ...: is a file not a
+        # directory") — deleting any such stray object first makes this
+        # self-healing without needing manual S3 console access.
+        # Both steps are idempotent — safe to leave here permanently.
         # ---------------------------------------------------------------
         - name: ensure-subfolders
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -54,6 +63,7 @@ spec:
             - |
               set -e
               {{- range .Values.mount.subfolders }}
+              rclone deletefile "havendocs:{{ $.Values.s3.bucket }}/{{ . }}" || true
               rclone mkdir "havendocs:{{ $.Values.s3.bucket }}/{{ . }}"
               {{- end }}
       containers:
