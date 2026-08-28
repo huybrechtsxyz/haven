@@ -6,7 +6,11 @@
 
 Jellyfin runs on **Forge** (Hetzner CPX41, k3s), in its own `media` Kubernetes namespace — separate from Immich's `immich` namespace and any future self-hosted-app namespaces, so apps can be added/changed independently without colliding. See [Forge](../guides/forge.md) for the node-level overview.
 
-**Prerequisites:** `deploy-forge-init.yml` must have run successfully at least once (k3s + Traefik installed, Storage Box NFS mounted at `/mnt/storagebox`), and a DNS A record for `media.{domain}` must point directly at Forge's public IP (Forge terminates its own ingress — see [Forge's design decision](../guides/forge.md#design-decision--forge-terminates-its-own-ingress)).
+**Prerequisites:**
+- `deploy-forge-init.yml` (`31 - Forge - Init`) must have run successfully at least once — installs k3s + Traefik, and (with `configure_smb: true`) mounts the Storage Box media library over SMB/CIFS at `/mnt/storagebox` (Hetzner Storage Box subaccounts don't support NFS — see [Forge](../guides/forge.md)).
+- The `system` namespace (`cert-manager` + `cert-manager-issuers`) must already be deployed — Jellyfin's ingress relies on its `letsencrypt-staging`/`letsencrypt-prod` `ClusterIssuer`s existing first.
+- A DNS A record for `media.{domain}` must point directly at Forge's public IP (Forge terminates its own ingress — see [Forge's design decision](../guides/forge.md#design-decision--forge-terminates-its-own-ingress)).
+- `deploy-forge-config.yml` (`32 - Forge - Config`, LAN routing to Hearth's Authentik) is **not** required for Jellyfin's SSO to work — confirmed 2026-08-28: the plugin's server-side token exchange resolves `auth.{domain}` via public DNS just fine (an extra network hop, not a blocker). It's a networking optimization only, not a hard dependency for this app.
 
 ---
 
@@ -21,12 +25,23 @@ Jellyfin runs on **Forge** (Hetzner CPX41, k3s), in its own `media` Kubernetes n
 
 ---
 
+## Deployment process (in order)
+
+1. Confirm prerequisites above are satisfied (Forge init done, `system` namespace's cert-manager deployed, DNS record exists).
+2. Ensure `media` is uncommented in `config/stack/workspace.yaml`'s `spec.namespaces` list (and its `hetzner_forge` topology `namespaces:` sub-list, kept in lockstep) — already done.
+3. Run **`33 - Forge - Deploy`** (`strata deploy run --scope apps --stage applications_forge`). This deploys the Helm chart, the ingress (TLS via cert-manager), and — after the Helm deploy succeeds — attempts the automated SSO provider registration step (skips silently if `JELLYFIN_API_KEY` isn't set yet).
+4. **New hostname TLS pattern**: leave the ingress annotation on `letsencrypt-staging` for the very first deploy of a brand-new hostname, confirm `kubectl describe certificate -n media` shows `Ready: True`, then switch to `letsencrypt-prod` and redeploy (already done for `media.{domain}` — see [What gets deployed](#what-gets-deployed) above).
+5. Complete the **one-time manual step** (API key creation, see [SSO](#sso--authentik-oidc-via-k0linjellyfin-plugin-sso) below) — every deploy after that automatically (re-)registers the SSO provider.
+6. Verify with the [checklist](#verification-checklist) below.
+
+---
+
 ## Storage
 
 | Volume               | Type                                | Notes                                                                                                                                                                                                                                         |
 | -------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `persistence.config` | PVC, `local-path`, 5Gi              | Jellyfin's own metadata/database — local disk, not backed up to Storage Box yet                                                                                                                                                               |
-| `persistence.media`  | `hostPath`, `/mnt/storagebox/media` | The actual media library. Reuses the *same* Storage Box NFS mount `forge-init.yml` already sets up on the host — deliberately **not** a second, independent in-pod NFS mount (avoids duplicate auth/mount overhead for a single-node cluster) |
+| `persistence.media`  | `hostPath`, `/mnt/storagebox/media` | The actual media library. Reuses the *same* Storage Box SMB/CIFS mount `forge-init.yml` already sets up on the host — deliberately **not** a second, independent in-pod mount (avoids duplicate auth/mount overhead for a single-node cluster)      |
 | `persistence.cache`  | disabled (default)                  | Transcode cache — left disabled; Jellyfin uses software transcoding only (no GPU), so this isn't performance-critical yet                                                                                                                     |
 
 ---

@@ -26,6 +26,8 @@ Both VPS's share a private Hetzner network (`deploy/terraform/main.tf`'s `hcloud
 
 Application-level traffic wasn't — Forge apps authenticating against Hearth's Authentik (OIDC) would resolve `auth.{domain}` via public DNS → Hearth's *public* IP → out over the internet and back, despite both servers sitting on the same private network. `deploy-forge-config.yml` now fixes this: it queries the Hetzner API for Hearth's private IP and passes it to `forge-config.yml`, which adds a static `/etc/hosts` entry mapping `auth.{domain}` → Hearth's private IP. The hostname stays the same, so TLS SNI / certificate validation against Caddy's real cert is unaffected — only DNS resolution changes.
 
+**Not a hard SSO dependency, confirmed 2026-08-28**: this `/etc/hosts` override only affects processes running directly on the Forge VM (kubectl, ssh, systemd units) — it does **not** propagate into Kubernetes pods (kubelet manages each pod's own `/etc/hosts` independently; see the Portainer Edge Agent section below for the `hostAliases` workaround that specific pod needed). Immich's and Jellyfin's own server-side OIDC calls to `auth.{domain}` run **inside pods**, so they resolve via public DNS regardless of whether `deploy-forge-config.yml` has run — confirmed working end-to-end for both. Running `32 - Forge - Config` is a networking optimization (keeps traffic on the private network) for VM-level processes, not a prerequisite for any app's SSO to function.
+
 ---
 
 ## What runs where
@@ -107,9 +109,11 @@ Runs `forge-config.yml` — currently: LAN-routes Forge → Hearth's Authentik v
 
 Runs `strata deploy run --scope apps --stage applications_forge` — tunnels to the k3s API over SSH (fetches the node's own kubeconfig, no public LB needed) and deploys whichever namespaces are currently active in `config/stack/workspace.yaml`.
 
-> ✅ Verified end-to-end in production (2026-08-27) — first real Helm deployment succeeded, deploying `rclone-mount` into the `system` namespace on the live cluster. Note: `deploy-forge-config.yml` is not a hard prerequisite for namespaces with no Authentik/SSO dependency (like `system`) — it only matters once SSO-enabled apps (Immich, Nextcloud) are activated.
+> ✅ Verified end-to-end in production (2026-08-27) — first real Helm deployment succeeded, deploying `rclone-mount` into the `system` namespace on the live cluster. `deploy-forge-config.yml` is not a prerequisite for this or any other namespace's deploy — see the LAN-routing design decision above.
 >
 > ✅ `immich` namespace also verified end-to-end in production (2026-08-27) — Immich server, machine learning, Postgres (vectorchord), and cache all deployed successfully via `strata deploy run --scope apps --stage applications_forge`.
+>
+> ✅ `media` (Jellyfin) namespace verified end-to-end in production (2026-08-28), **including SSO login working via Authentik** — all bugs hit along the way (hostPath directory pre-creation, TLS cert trust, `issuer_mode`, redirect URI scheme mismatch) are resolved. See [services/jellyfin.md](../services/jellyfin.md#sso--authentik-oidc-via-k0linjellyfin-plugin-sso).
 
 ---
 
@@ -139,6 +143,6 @@ Per-app secrets (e.g. `IMMICH_DB_PASSWORD`, `JELLYFIN_SSO_CLIENT_SECRET`) are do
 
 ## Still open
 
-- `system` (`rclone-mount`, `cert-manager`, `cert-manager-issuers`), `immich`, and `media` (Jellyfin) namespaces are active in `config/stack/workspace.yaml`; all three verified deployed/running in production (Immich + Jellyfin both healthy, HTTPS working). `documents` is still pruned out, to be activated next.
+- `system` (`rclone-mount`, `cert-manager`, `cert-manager-issuers`), `immich`, and `media` (Jellyfin) namespaces are active in `config/stack/workspace.yaml`; all three verified deployed/running in production (Immich + Jellyfin both healthy, HTTPS working, **SSO login confirmed working for both**). `documents` (Nextcloud + Kavita) is still pruned out — proactively fixed with the same SSO/TLS/reverse-proxy-trust lessons learned from Immich/Jellyfin before its first deploy (see [services/nextcloud.md](../services/nextcloud.md)), but not yet exercised for real.
 - **Root cause found + fixed (2026-08-27): Traefik was never actually installed on this server.** An earlier `--disable traefik` flag in `forge-init.yml`'s k3s install command was removed at some point, but since that task is gated on the binary not already existing, the already-provisioned server never picked up the change. `forge-init.yml` now has a self-contained catch-up task (checks for the `traefik` deployment, re-runs k3s's install script + restarts the service if missing) — confirmed fixed after a real re-run.
 - **Portainer Edge Agent tunnel gotcha (2026-08-27, fixed): Kubernetes pods do not inherit the node's `/etc/hosts`.** The LAN-routing trick (override `/etc/hosts` to keep traffic on the private network, same pattern as Authentik) only works for processes on the VM itself — the Portainer Edge Agent pod needed a `kubectl patch ... hostAliases` instead, now automated in `forge-config.yml`. The same gap likely applies to any future in-cluster workload needing this pattern (e.g. Immich's own OIDC calls to `auth.{domain}`, if/when SSO is wired up) — not yet hit in practice, flagged for when it is.
