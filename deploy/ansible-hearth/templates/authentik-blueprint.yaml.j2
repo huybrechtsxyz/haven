@@ -127,6 +127,27 @@ entries:
       expression: "return {'email_verified': True}"
 
   # ---------------------------------------------------------------------------
+  # Custom scope mapping — expose group membership for RBAC-capable OIDC clients
+  # ---------------------------------------------------------------------------
+  # Per K0lin/jellyfin-plugin-sso's own docs (providers.md#authentik), Authentik
+  # doesn't include group membership in the standard OIDC scopes — a custom
+  # "groups" scope + property mapping is required so the plugin can read
+  # RoleClaim: groups and auto-assign admin/user access from group membership
+  # (admins group -> AdminRoles, members/parents -> Roles) instead of a flat
+  # enableAuthorization: false (which would grant every SSO login full access).
+
+  - model: authentik_providers_oauth2.scopemapping
+    state: present
+    identifiers:
+      name: haven-group-membership
+    id: mapping-group-membership
+    attrs:
+      name: haven-group-membership
+      scope_name: groups
+      description: Exposes the user's Authentik group names for RBAC-capable OIDC clients (e.g. Jellyfin)
+      expression: "return [group.name for group in user.ak_groups.all()]"
+
+  # ---------------------------------------------------------------------------
   # Vaultwarden — OAuth2/OIDC Provider + Application
   # ---------------------------------------------------------------------------
 
@@ -266,6 +287,7 @@ entries:
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !KeyOf mapping-group-membership
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
       sub_mode: hashed_user_id
       # per_provider, not global — global mode's issuer claim is just the bare

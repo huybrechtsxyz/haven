@@ -91,8 +91,15 @@ spec:
   #              "oidClientId": "jellyfin",
   #              "oidSecret": "<JELLYFIN_SSO_CLIENT_SECRET>",
   #              "enabled": true,
-  #              "enableAuthorization": false
+  #              "enableAuthorization": true,
+  #              "roleClaim": "groups",
+  #              "oidScopes": ["groups"],
+  #              "adminRoles": ["admins"],
+  #              "roles": ["admins", "parents", "members"]
   #            }' \
   #        "https://media.huybrechts.xyz/sso/OID/Add/authentik?api_key=<JELLYFIN_API_KEY>"
-  #    The Authentik-side OAuth2 provider/application is already automated —
-  #    see deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2.
+  #    The Authentik-side OAuth2 provider/application (including the custom
+  #    "groups" scope + property mapping RBAC needs — see
+  #    providers.md#authentik in K0lin/jellyfin-plugin-sso — is fully
+  #    automated already: deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2
+  #    (mapping-group-membership, attached to provider-jellyfin's property_mappings).
