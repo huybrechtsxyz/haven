@@ -44,12 +44,6 @@
     # Authentik above. The edge key baked into the agent always points at
     # "portainer.huybrechts.xyz", so overriding its DNS resolution here is
     # the only way to redirect it without regenerating the Edge environment.
-    # Portainer's Edge Agent tunnel (live-connect: console access, live
-    # logs/stats) also needs to stay on the private network rather than
-    # dialling back out through the public internet — same rationale as
-    # Authentik above. The edge key baked into the agent always points at
-    # "portainer.huybrechts.xyz", so overriding its DNS resolution here is
-    # the only way to redirect it without regenerating the Edge environment.
     - name: Point portainer.huybrechts.xyz at Hearth's private IP (LAN routing)
       ansible.builtin.lineinfile:
         path: /etc/hosts
@@ -89,3 +83,33 @@
           '{"spec":{"template":{"spec":{"hostAliases":[{"ip":"{{ hearth_private_ip }}","hostnames":["portainer.huybrechts.xyz"]}]}}}}'
       when: hearth_private_ip is defined and portainer_agent_present.rc == 0
       changed_when: true
+
+    # =========================================================================
+    # Immich folder-integrity marker recovery — see
+    # https://docs.immich.app/administration/system-integrity#folder-checks.
+    # Immich creates a hidden `.immich` marker in each of its 6 storage
+    # subfolders on first successful startup, then verifies all of them exist
+    # on every subsequent boot (protects against writing to an accidentally
+    # empty/detached mount). Several `helm upgrade --atomic` deploys this
+    # session got killed mid-startup (returncode=-9, hit the runner's own
+    # timeout) — plausible that immich-server was interrupted while creating
+    # these markers, leaving some folders without one
+    # ("ENOENT: .../encoded-video/.immich"), which then permanently
+    # crash-loops the server since it refuses to start with a suspected-bad
+    # mount. Immich's own docs list this exact scenario as the documented,
+    # sanctioned recovery: manually `touch .immich` in the affected folder(s).
+    # `creates:` makes this a true no-op once each marker already exists —
+    # safe to leave here permanently rather than a one-off manual step.
+    # =========================================================================
+
+    - name: Recreate any missing Immich folder-integrity markers
+      ansible.builtin.command:
+        cmd: touch /mnt/storagebox/immich/{{ item }}/.immich
+        creates: /mnt/storagebox/immich/{{ item }}/.immich
+      loop:
+        - upload
+        - library
+        - thumbs
+        - "encoded-video"
+        - profile
+        - backups
