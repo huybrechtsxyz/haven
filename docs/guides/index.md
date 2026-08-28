@@ -74,6 +74,7 @@ Haven uses **independent GitHub Actions workflows** for independent scheduling a
 | **Infrastructure** | [infrastructure.md](infrastructure.md) | Terraform + S3 buckets + SSH keys + DNS                   |
 | **Haven Hearth**   | [hearth.md](hearth.md)                 | Core VPS: Caddy, Authentik, Vaultwarden                   |
 | **Haven Forge**    | [forge.md](forge.md)                   | Workload VPS: k3s, Traefik, per-app namespaces            |
+| **Onboarding**     | [onboarding.md](onboarding.md)          | Give a family member access — accounts, groups, per-app first login |
 
 Per-app guides (Immich, Jellyfin, and future self-hosted apps) live under [docs/services/](../services/) — linked from [forge.md](forge.md#what-runs-where).
 
