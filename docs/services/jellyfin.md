@@ -12,11 +12,11 @@ Jellyfin runs on **Forge** (Hetzner CPX41, k3s), in its own `media` Kubernetes n
 
 ## What gets deployed
 
-| Item      | Value                                                                                                                                              |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Chart     | `jellyfin` from the official repo, `https://jellyfin.github.io/jellyfin-helm`                                                                      |
-| Version   | `3.2.0` (`image.tag` intentionally left unset — auto-matches the chart's own appVersion)                                                           |
-| Namespace | `media` (Kubernetes), module file `config/forge/modules/jellyfin.yaml`                                                                             |
+| Item      | Value                                                                                                                                                                  |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chart     | `jellyfin` from the official repo, `https://jellyfin.github.io/jellyfin-helm`                                                                                          |
+| Version   | `3.2.0` (`image.tag` intentionally left unset — auto-matches the chart's own appVersion)                                                                               |
+| Namespace | `media` (Kubernetes), module file `config/forge/modules/jellyfin.yaml`                                                                                                 |
 | Ingress   | Traefik (`className: traefik`), host `media.{domain}`, TLS via cert-manager (`letsencrypt-prod`, switched from `letsencrypt-staging` 2026-08-28 once verified issuing) |
 
 ---
@@ -43,7 +43,7 @@ The Jellyfin side is **also automated**, aside from one unavoidable one-time ste
 
 1. **Plugin install** — an idempotent `extraInitContainers` entry in `config/forge/modules/jellyfin.yaml` downloads the latest [K0lin/jellyfin-plugin-sso](https://github.com/K0lin/jellyfin-plugin-sso) release from its manifest and unpacks it into the `config` PVC's `plugins/` dir on every pod start; skips entirely once already installed (no-op on every future restart/redeploy).
 
-2. **Provider registration** — `.github/workflows/deploy-forge-deploy.yml` POSTs to `/sso/OID/Add/authentik` after every Helm deploy, using `JELLYFIN_API_KEY` + `JELLYFIN_SSO_CLIENT_SECRET` from Infisical. Idempotent (`Add` always overwrites) and retries briefly for ingress/cert readiness. Skips silently (doesn't fail the deploy) if `JELLYFIN_API_KEY` isn't set yet.
+2. **Provider registration** — `.github/workflows/deploy-forge-deploy.yml` POSTs to `/sso/OID/Add/authentik` after every Helm deploy, using `JELLYFIN_API_KEY` + `JELLYFIN_SSO_CLIENT_SECRET` from Infisical. Idempotent (`Add` always overwrites) and retries briefly for ingress/cert readiness. Skips silently (doesn't fail the deploy) if `JELLYFIN_API_KEY` isn't set yet. Includes `schemeOverride: "https"` — Traefik terminates TLS and forwards plain HTTP to the pod, so without this the plugin builds an `http://` redirect_uri and Authentik rejects it with a "Redirect URI Error" (strict match against the registered `https://` one).
 
 3. **One-time manual step**: `JELLYFIN_API_KEY` can only be minted via the web UI (Dashboard → API Keys), which itself requires the first-run admin setup wizard to have been completed once via the web UI. Once you have a key:
    ```powershell

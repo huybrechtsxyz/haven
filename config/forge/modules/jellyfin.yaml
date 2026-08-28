@@ -139,6 +139,11 @@ spec:
   #              "roleClaim": "groups",
   #              "oidScopes": ["groups"],
   #              "adminRoles": ["admins"],
-  #              "roles": ["admins", "parents", "members"]
+  #              "roles": ["admins", "parents", "members"],
+  #              "schemeOverride": "https"
   #            }' \
   #        "https://media.huybrechts.xyz/sso/OID/Add/authentik?api_key=<JELLYFIN_API_KEY>"
+  #    schemeOverride is required: Traefik terminates TLS and forwards plain
+  #    HTTP to the pod, so the plugin's own scheme detection would otherwise
+  #    build an http:// redirect_uri and fail Authentik's strict redirect_uri
+  #    match against the registered https:// one ("Redirect URI Error").

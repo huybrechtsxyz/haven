@@ -181,6 +181,14 @@ jobs:
       # isn't set yet, so this can land before that one-time step is done.
       # Retries briefly since the ingress/cert may need a moment right after
       # a fresh Jellyfin rollout.
+      #
+      # schemeOverride: "https" is required — Traefik terminates TLS and
+      # forwards plain HTTP to the Jellyfin pod, so the plugin's own
+      # request-scheme detection builds an http:// redirect_uri, which fails
+      # Authentik's strict redirect_uri match against the https:// one
+      # registered in the blueprint ("Redirect URI Error"). Confirmed via
+      # K0lin/jellyfin-plugin-sso's own docs: schemeOverride exists
+      # specifically for this reverse-proxy scenario.
       # =========================================================================
       - name: Register Jellyfin SSO provider with Authentik
         if: ${{ inputs.dry_run != true }}
@@ -211,7 +219,8 @@ jobs:
               roleClaim: "groups",
               oidScopes: ["groups"],
               adminRoles: ["admins"],
-              roles: ["admins", "parents", "members"]
+              roles: ["admins", "parents", "members"],
+              schemeOverride: "https"
             }')
 
           for i in 1 2 3 4 5; do
