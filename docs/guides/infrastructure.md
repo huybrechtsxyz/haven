@@ -24,7 +24,7 @@ The buckets themselves are provisioned automatically by the `deploy-infra.yml` w
 | -------------- | ---------------------------------------------------------------------------------------------------------- |
 | `haven-photos` | Immich external photo library                                                                              |
 | `haven-media`  | Media overflow (large binary assets)                                                                       |
-| `haven-docs`   | Family documents (games/manuals, general archive) — organized/browsed via Nextcloud, Kavita, Paperless-ngx |
+| `haven-docs`   | Family documents (books/PDFs/EPUBs, manuals, general archive) — organized/browsed via Nextcloud, Kavita, Paperless-ngx |
 
 This is idempotent and safe to re-run.
 

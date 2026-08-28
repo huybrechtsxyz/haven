@@ -184,7 +184,7 @@ Three buckets are provisioned by the `ansible-s3/forge-s3.yml` playbook using th
 
 - `haven-photos` — Immich external photo library
 - `haven-media` — media overflow (large binary assets)
-- `haven-docs` — family documents (games/manuals, general archive) — organized/browsed via Nextcloud, Kavita, Paperless-ngx
+- `haven-docs` — family documents (books/PDFs/EPUBs, manuals, general archive) — organized/browsed via Nextcloud, Kavita, Paperless-ngx
 
 This is another externally-created value, so push it the same way — `--value`, no `generate:` spec:
 

@@ -16,4 +16,4 @@ s3_buckets:
   - name: haven-media
     description: "Media overflow — large binary assets if Storage Box capacity is exhausted"
   - name: haven-docs
-    description: "Family documents — games/manuals, general archive, anything organized/browsed via Nextcloud, Kavita, Paperless-ngx"
+    description: "Family documents — books/PDFs/EPUBs, manuals, general archive, anything organized/browsed via Nextcloud, Kavita, Paperless-ngx"

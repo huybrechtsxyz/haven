@@ -41,7 +41,7 @@ haven (workspace)
 ├── object storage (S3, eu-central)        ← Immich originals + media overflow
 │   ├── haven-photos   — Immich library
 │   ├── haven-media    — media overflow
-│   └── haven-docs     — family documents (games/manuals, general archive)
+│   └── haven-docs     — family documents (books/PDFs/EPUBs, manuals, general archive)
 │
 └── cloud services (free tier)             ← Bootstrap + secrets + state
     ├── Bitwarden Cloud  — deployment credentials (API keys, SSH keys)
@@ -232,7 +232,7 @@ Tier 2 — Daily offsite sync (rclone, ~03:00 UTC)
 - Three dedicated S3-compatible buckets:
   - `haven-photos` — Immich external library (originals + derivatives); S3 is natively supported by Immich and survives cluster destruction
   - `haven-media` — overflow for large binary assets if Storage Box capacity is exhausted
-  - `haven-docs` — family documents (games/manuals, general archive) — organized/browsed via Nextcloud, Kavita, Paperless-ngx
+  - `haven-docs` — family documents (books/PDFs/EPUBs, manuals, general archive) — organized/browsed via Nextcloud, Kavita, Paperless-ngx
 - Jellyfin media library is stored on the **Hetzner Storage Box (BX11)** via NFS mount — fixed cost, Hetzner-internal low-latency network, no per-GB egress, and already covered by the tier-2 sync
 - Provider separation: primary on Hetzner (Storage Box + S3), offsite copy on Infomaniak (Swiss jurisdiction)
 

@@ -67,7 +67,7 @@ Neither Kavita nor most self-hosted document apps have a native S3 backend — t
 Instead, `rclone-mount` (`config/forge/modules/rclone-mount.yaml`, `system` namespace) is the single canonical bridge: a privileged pod runs `rclone mount` (FUSE) against the `haven-docs` bucket, publishing it as a real directory tree at `/mnt/haven-docs` on the Forge **host** (not just inside its own pod — `mountPropagation: Bidirectional` makes it visible node-wide). Every consuming app then hostPath-mounts a subpath of that same tree:
 
 - **Nextcloud** → `/mnt/haven-docs` (its External Storage root, once configured — see [services/nextcloud.md](../services/nextcloud.md))
-- **Kavita** → `/mnt/haven-docs/games` (read-only)
+- **Kavita** → `/mnt/haven-docs/books` (read-only)
 
 **Caching trade-off (accepted by design):** `rclone mount` uses `--vfs-cache-mode=writes`, so there's a tunable window where one app's write might not be instantly visible to another. Not real-time shared state, but far tighter than two independent S3 clients — and simple enough for a family server.
 

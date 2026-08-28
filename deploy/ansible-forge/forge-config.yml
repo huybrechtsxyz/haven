@@ -139,3 +139,40 @@
         path: /mnt/storagebox/media
         state: directory
         mode: "0755"
+
+    # =========================================================================
+    # Kavita library hostPath — /mnt/haven-docs is an rclone FUSE mount over
+    # S3 (rclone-mount module, system namespace), not a plain filesystem like
+    # Immich's/Jellyfin's Storage Box paths above. Kavita's own hostPath
+    # (type: DirectoryOrCreate) is the FIRST thing that ever asked kubelet to
+    # create a brand-new subfolder ("books") inside this FUSE mount — kubelet
+    # does this from a different pod's mount-namespace bind of the same host
+    # path, and that mkdir failed with a raw EIO (input/output error), not a
+    # normal "not found"/permission error. Root cause not fully confirmed
+    # (suspected: rclone's S3 backend needs its OWN process — the one that
+    # actually owns the FUSE mount — to create a new "directory" (a zero-byte
+    # marker object), and the extra bind-mount hop kubelet does for a
+    # different pod's hostPath doesn't reliably reach it), but the fix is the
+    # same established pattern as Immich/Jellyfin above: provision the path
+    # out-of-band before kubelet ever needs to auto-create it.
+    #
+    # If this task ALSO fails with EIO (i.e. the raw host-level mkdir hits
+    # the same rclone limitation, not just the kubelet bind-mount path), the
+    # fallback is to create it via the rclone-mount pod itself, which owns
+    # the FUSE mount directly:
+    #   kubectl exec -n system deploy/rclone-mount -- mkdir -p /mnt/bucket/books
+    # =========================================================================
+
+    - name: Check haven-docs rclone mount is active
+      ansible.builtin.command:
+        cmd: mountpoint -q /mnt/haven-docs
+      register: haven_docs_mounted
+      failed_when: false
+      changed_when: false
+
+    - name: Ensure Kavita library subfolder exists in haven-docs mount
+      ansible.builtin.file:
+        path: /mnt/haven-docs/books
+        state: directory
+        mode: "0755"
+      when: haven_docs_mounted.rc == 0

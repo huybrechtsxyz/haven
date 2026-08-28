@@ -24,7 +24,7 @@ No official Helm chart exists for Kavita (confirmed via a code search across the
 
 ## Storage — shares `haven-docs` with Nextcloud
 
-Kavita reads from `/mnt/haven-docs/games` (hostPath, **read-only**) — a subpath of the same tree `rclone-mount` (see [forge.md](../guides/forge.md#rclone-mount--shared-filesystem-bridge-for-haven-docs)) publishes from the `haven-docs` S3 bucket. Kavita never renames or reorganizes what it finds — it only indexes/scans — which is exactly why it's safe to share the same files Nextcloud also organizes (unlike Paperless-ngx, which takes ownership of ingested documents and would need its own separate bucket).
+Kavita reads from `/mnt/haven-docs/books` (hostPath, **read-only**) — a subpath of the same tree `rclone-mount` (see [forge.md](../guides/forge.md#rclone-mount--shared-filesystem-bridge-for-haven-docs)) publishes from the `haven-docs` S3 bucket. Kavita never renames or reorganizes what it finds — it only indexes/scans — which is exactly why it's safe to share the same files Nextcloud also organizes (unlike Paperless-ngx, which takes ownership of ingested documents and would need its own separate bucket).
 
 Kavita's own config/database is separate, local-disk storage (`persistence.config`, `local-path` PVC, 5Gi) — not part of the shared tree.
 
@@ -39,7 +39,7 @@ Kavita supports OIDC natively per its own project README ("Ability to manage use
 ## Verification checklist
 
 - [ ] `http://books.{domain}` — Kavita loads (plain HTTP until TLS is wired up)
-- [ ] Library scan picks up files under `/mnt/haven-docs/games`
+- [ ] Library scan picks up files under `/mnt/haven-docs/books`
 - [ ] Confirm the actual current LinuxServer.io image tag before first deploy
 - [ ] Authentik SSO wired up (once prioritized)
 
