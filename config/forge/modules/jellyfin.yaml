@@ -43,19 +43,28 @@ spec:
       type: ClusterIP
       port: 8096
 
-    # TODO: no cert-manager / ClusterIssuer exists on Forge yet (Traefik was
-    # just re-enabled in forge-init.yml, nothing issues TLS certs yet) — tls
-    # is deliberately left empty until that's built. Ingress works over plain
-    # HTTP through Traefik until then.
+    # cert-manager is now proven working end-to-end (Immich's photos-tls
+    # certificate issued successfully via letsencrypt-staging, then switched
+    # to letsencrypt-prod once verified — see config/forge/modules/immich.yaml).
+    # Using STAGING here first for the same reason: a brand-new hostname
+    # still needs its own HTTP-01 challenge to succeed at least once before
+    # trusting production (rate-limited to 5 certs/domain/week). Once
+    # `kubectl describe certificate jellyfin-tls -n media` shows Ready=True,
+    # switch cert-manager.io/cluster-issuer below to letsencrypt-prod.
     ingress:
       enabled: true
       className: traefik
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-staging
       hosts:
         - host: jellyfin.huybrechts.xyz
           paths:
             - path: /
               pathType: ImplementationSpecific
-      tls: []
+      tls:
+        - hosts:
+            - jellyfin.huybrechts.xyz
+          secretName: jellyfin-tls
 
     jellyfin:
       env:

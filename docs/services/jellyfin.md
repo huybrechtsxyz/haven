@@ -17,7 +17,7 @@ Jellyfin runs on **Forge** (Hetzner CPX41, k3s), in its own `media` Kubernetes n
 | Chart     | `jellyfin` from the official repo, `https://jellyfin.github.io/jellyfin-helm`            |
 | Version   | `3.2.0` (`image.tag` intentionally left unset — auto-matches the chart's own appVersion) |
 | Namespace | `media` (Kubernetes), module file `config/forge/modules/jellyfin.yaml`                   |
-| Ingress   | Traefik (`className: traefik`), host `jellyfin.{domain}`, no TLS yet                     |
+| Ingress   | Traefik (`className: traefik`), host `jellyfin.{domain}`, TLS via cert-manager (`letsencrypt-staging` initially, see [Immich's pattern](./immich.md)) |
 
 ---
 
@@ -37,7 +37,7 @@ Jellyfin has no native OIDC support. SSO requires a third-party plugin.
 
 > **Plugin choice note:** the well-known `9p4/jellyfin-plugin-sso` was **archived by its owner on 2026-05-12**. This setup uses **[K0lin/jellyfin-plugin-sso](https://github.com/K0lin/jellyfin-plugin-sso)** instead — an active, transparent continuation of the same code ("forked from the creator's code, with the intention of continuing to maintain it"), same config/API shape, commits as recent as days old.
 
-The Authentik side is **already automated** — `deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2` creates the OAuth2 Provider + Application for Jellyfin (client ID `jellyfin`, `members` group policy) every time `deploy-hearth-config.yml` runs, using the `JELLYFIN_SSO_CLIENT_SECRET` Infisical secret.
+The Authentik side is **already automated** — `deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2` creates the OAuth2 Provider + Application for Jellyfin (client ID `jellyfin`, `members` group policy) every time `deploy-hearth-config.yml` runs, using the `JELLYFIN_SSO_CLIENT_SECRET` Infisical secret. Uses `issuer_mode: per_provider` (not `global`) — `global` mode's issuer claim is just the bare domain, which breaks strict OIDC issuer validation against the app-specific discovery path; this was discovered and fixed on Immich first (see [immich.md](./immich.md#single-sign-on-authentik)), applied here proactively before Jellyfin's SSO is tested for the first time.
 
 The Jellyfin side needs two manual/scripted steps — Jellyfin has no headless bootstrap, so these can't be fully automated yet:
 
@@ -74,7 +74,7 @@ See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugi
 
 ## Verification checklist
 
-- [ ] `http://jellyfin.{domain}` — Jellyfin loads (plain HTTP until TLS is wired up)
+- [ ] `https://jellyfin.{domain}` — Jellyfin loads and is reachable from a browser
 - [ ] Media library shows content from `/mnt/storagebox/media`
 - [ ] SSO plugin installed and Authentik provider registered
 - [ ] "Sign in with SSO" login button works end-to-end
@@ -83,6 +83,6 @@ See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugi
 
 ## Still open
 
-- No TLS/cert-manager on Forge yet — Jellyfin is HTTP-only for now
-- `forge-deploy.yml` (the Ansible playbook that actually runs `helm upgrade`) doesn't exist yet — this module validates and builds, but hasn't been deployed to the live cluster
+- `media` namespace just activated in `config/stack/workspace.yaml` — not yet confirmed deployed/healthy on the live cluster
+- TLS cert not yet confirmed issued (staging first, same as Immich) — switch to `letsencrypt-prod` once `kubectl describe certificate jellyfin-tls -n media` shows `Ready: True`
 - SSO plugin install + provider registration are manual/scripted, not yet automated end-to-end

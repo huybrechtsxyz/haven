@@ -268,7 +268,13 @@ entries:
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
       sub_mode: hashed_user_id
-      issuer_mode: global
+      # per_provider, not global — global mode's issuer claim is just the bare
+      # domain (https://auth.huybrechts.xyz/), which doesn't match the
+      # app-specific discovery path (.../application/o/jellyfin/) and breaks
+      # strict OIDC issuer validation. Hit + fixed for real on Immich first
+      # (see config/forge/modules/immich.yaml's comment) — applying the same
+      # fix here proactively before Jellyfin's SSO is tested for the first time.
+      issuer_mode: per_provider
 
   - model: authentik_core.application
     state: present
