@@ -124,3 +124,18 @@
         - "encoded-video"
         - profile
         - backups
+
+    # =========================================================================
+    # Jellyfin media hostPath — unlike Immich's own PV (type: DirectoryOrCreate,
+    # so k8s creates it automatically), the jellyfin-helm chart hardcodes
+    # `type: Directory` for its hostPath media volume (see
+    # jellyfin/jellyfin-helm templates/deployment.yaml), which REQUIRES the
+    # path to already exist — kubelet refuses to auto-create it and fails
+    # with "hostPath type check failed: ... is not a directory" if missing.
+    # =========================================================================
+
+    - name: Ensure Jellyfin media hostPath directory exists
+      ansible.builtin.file:
+        path: /mnt/storagebox/media
+        state: directory
+        mode: "0755"
