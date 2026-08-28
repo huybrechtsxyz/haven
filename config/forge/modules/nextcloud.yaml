@@ -21,6 +21,7 @@ spec:
       - NEXTCLOUD_ADMIN_PASSWORD
       - NEXTCLOUD_DB_PASSWORD
       - NEXTCLOUD_REDIS_PASSWORD
+      - NEXTCLOUD_SSO_CLIENT_SECRET
   # Raw passthrough — same reasoning as immich.yaml/jellyfin.yaml: this
   # chart's top-level keys are fixed by the chart itself, so spec.configuration
   # (no module-name prefixing) is used instead of spec.services.
@@ -33,8 +34,8 @@ spec:
       trustedDomains:
         - drive.huybrechts.xyz
       # Bridges the shared haven-docs mount (rclone-mount, system namespace)
-      # into the pod. External Storage ("Local" type, pointed at this path)
-      # is configured as a follow-up occ command — see docs/services/nextcloud.md.
+      # into the pod. External Storage is configured automatically — see the
+      # post-installation hook below.
       extraVolumes:
         - name: haven-docs
           hostPath:
@@ -43,6 +44,54 @@ spec:
       extraVolumeMounts:
         - name: haven-docs
           mountPath: /mnt/haven-docs
+      # Traefik terminates TLS and forwards plain HTTP to the pod (same
+      # topology as Jellyfin — see that module's schemeOverride comment for
+      # the root-cause writeup). Without telling Nextcloud to trust the
+      # proxy, it generates http:// URLs for OIDC redirects/links and breaks
+      # SSO the same way Jellyfin's did. The chart enables
+      # defaultConfigs["reverse-proxy.config.php"] already (reads these env
+      # vars) — 10.42.0.0/16 is k3s's default pod CIDR (confirmed from live
+      # pod IPs seen in this cluster, e.g. Immich/Jellyfin pods at 10.42.0.x).
+      extraEnv:
+        - name: TRUSTED_PROXIES
+          value: "10.42.0.0/16"
+        - name: OVERWRITEPROTOCOL
+          value: "https"
+        - name: OVERWRITECLIURL
+          value: "https://drive.huybrechts.xyz"
+        # Consumed by the post-installation hook below. Same plaintext-value
+        # substitution pattern already used for NEXTCLOUD_ADMIN_PASSWORD/etc.
+        # in this file — real value injected by strata at deploy time.
+        - name: NEXTCLOUD_SSO_CLIENT_SECRET
+          value: "${NEXTCLOUD_SSO_CLIENT_SECRET}"
+      # =========================================================================
+      # Fully automated SSO + External Storage setup — runs via Nextcloud's
+      # OWN official docker-entrypoint hook mechanism (not a strata/Ansible
+      # invention): scripts placed here execute exactly once, right after the
+      # very first `occ maintenance:install` completes (ref:
+      # https://github.com/nextcloud/docker#auto-configuration-via-hook-folders).
+      # Every subsequent pod start is a no-op (Nextcloud's own entrypoint
+      # skips "installation" entirely once already installed) — no idempotency
+      # guard needed on our end, unlike Jellyfin's initContainer.
+      # Unlike Jellyfin (needs a browser-minted admin API key), Nextcloud's
+      # own `occ` CLI needs no separate bootstrap credential — this makes
+      # Nextcloud's SSO setup the ONE app this session with ZERO manual
+      # steps required at all.
+      # =========================================================================
+      hooks:
+        post-installation: |
+          #!/bin/sh
+          set -e
+          echo "Installing user_oidc app..."
+          occ app:install user_oidc || true
+          echo "Registering Authentik OIDC provider..."
+          occ user_oidc:provider authentik \
+            --clientid=nextcloud \
+            --clientsecret="$NEXTCLOUD_SSO_CLIENT_SECRET" \
+            --discoveryuri=https://auth.huybrechts.xyz/application/o/nextcloud/.well-known/openid-configuration \
+            --group-provisioning=1
+          echo "Configuring External Storage for /mnt/haven-docs..."
+          occ files_external:create "Family Documents" local null::null -c datadir=/mnt/haven-docs
 
     # Deliberately NOT using the chart's bundled Bitnami mariadb/postgresql/redis
     # subcharts (same reasoning as Immich) — own small single-pod services instead.
@@ -79,15 +128,25 @@ spec:
       storageClass: local-path
       size: 8Gi
 
+    # Staging-first cert-manager pattern, same as Immich/Jellyfin — a
+    # brand-new hostname needs its own HTTP-01 challenge to succeed at least
+    # once before trusting production (rate-limited to 5 certs/domain/week).
+    # Once `kubectl describe certificate drive-tls -n documents` shows
+    # Ready=True, switch cluster-issuer below to letsencrypt-prod.
     ingress:
       enabled: true
       className: traefik
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-staging
       hosts:
         - host: drive.huybrechts.xyz
           paths:
             - path: /
               pathType: Prefix
-      tls: []
+      tls:
+        - hosts:
+            - drive.huybrechts.xyz
+          secretName: drive-tls
 
     # Nextcloud needs periodic background jobs (file scan, notifications,
     # etc.) — including picking up files Kavita/other tools write directly
@@ -95,17 +154,3 @@ spec:
     cronjob:
       enabled: true
       type: sidecar
-
-  # TODO — follow-up steps, not yet automated (same category as Jellyfin's SSO
-  # plugin registration):
-  # 1. Install the `user_oidc` app (official Nextcloud app) via occ:
-  #      occ app:install user_oidc
-  #      occ user_oidc:provider authentik --clientid=nextcloud \
-  #        --clientsecret=<NEXTCLOUD_SSO_CLIENT_SECRET> \
-  #        --discoveryuri=https://auth.huybrechts.xyz/application/o/nextcloud/.well-known/openid-configuration \
-  #        --group-provisioning=1
-  #    (RBAC comes from Authentik's groups — admins/parents/members — mapped
-  #    automatically via user_oidc's group provisioning.)
-  # 2. Configure External Storage ("Local" type) pointed at /mnt/haven-docs
-  #    (mounted above) via occ files_external:create, or the admin UI.
-  # See docs/services/nextcloud.md once written.

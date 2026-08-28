@@ -232,6 +232,13 @@ entries:
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
       sub_mode: hashed_user_id
+      # DELIBERATELY left as global, unlike Jellyfin/Nextcloud/Immich — WUD is
+      # CONFIRMED WORKING in production with this setting as-is. Don't change
+      # without testing: WUD's SSO login flow already works end-to-end, so
+      # whatever OIDC client library whats-up-docker uses evidently isn't
+      # doing the strict issuer-vs-discovery-path validation that broke
+      # Jellyfin/Immich under per_provider's absence. Flipping this without a
+      # live re-test risks breaking something that already works.
       issuer_mode: global
 
   - model: authentik_core.application
@@ -325,10 +332,11 @@ entries:
   # Nextcloud — OAuth2/OIDC Provider + Application
   # ---------------------------------------------------------------------------
   # Runs on Forge (k3s), not Hearth — same reasoning as Jellyfin's block above.
-  # RBAC comes from the "groups" claim (this provider's scope mappings already
-  # include the openid/email/profile scopes needed) — Nextcloud's user_oidc
-  # app maps Authentik groups to Nextcloud groups automatically via its own
-  # --group-provisioning=1 setting (see config/forge/modules/nextcloud.yaml).
+  # RBAC comes from the "groups" claim (mapping-group-membership, same custom
+  # scope mapping used by Jellyfin — attached to property_mappings below) —
+  # Nextcloud's user_oidc app maps Authentik groups to Nextcloud groups
+  # automatically via its own --group-provisioning=1 setting (see
+  # config/forge/modules/nextcloud.yaml).
 
   - model: authentik_providers_oauth2.oauth2provider
     state: present
@@ -353,9 +361,14 @@ entries:
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
         - !KeyOf mapping-email-verified
+        - !KeyOf mapping-group-membership
       signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
       sub_mode: hashed_user_id
-      issuer_mode: global
+      # per_provider, not global — same issuer-mismatch reasoning as Jellyfin's
+      # block above (see config/forge/modules/immich.yaml's comment for the
+      # original root-cause writeup). Fixed proactively before Nextcloud's SSO
+      # is tested for the first time.
+      issuer_mode: per_provider
 
   - model: authentik_core.application
     state: present
