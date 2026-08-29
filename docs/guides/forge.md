@@ -102,6 +102,22 @@ Storage Box SMB mounts used by app namespaces:
 
 ---
 
+## Service Configurations
+
+## Immich Setup
+
+See [Immich](../services/immich.md##initial-setup) for detailed setup instructions.
+
+## Jellyfin Setup
+
+See [Jellyfin](../services/jellyfin.md##initial-setup) for detailed setup instructions.
+
+## NextCloud Setup
+
+See [NextCloud](../services/nextcloud.md##initial-setup) for detailed setup instructions.
+
+---
+
 ## Secrets
 
 | Secret                             | Store     | Used by                                                                            |

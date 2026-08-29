@@ -36,6 +36,15 @@ Jellyfin runs on **Forge** (Hetzner CPX41, k3s), in its own `media` Kubernetes n
 
 ---
 
+## Secrets
+
+| Secret                       | Store     | Used by                                                                                                                                                                             |
+| ---------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JELLYFIN_SSO_CLIENT_SECRET` | Infisical | Authentik's Jellyfin OAuth2 provider + the plugin's `oidSecret` (both automated)                                                                                                    |
+| `JELLYFIN_API_KEY`           | Infisical | Authenticates the automated SSO-provider-registration step in `deploy-forge-deploy.yml` — literal value, set manually once (Jellyfin has no API to generate its own key headlessly) |
+
+---
+
 ## Storage
 
 | Volume               | Type                                         | Notes                                                                                                                                                                                                                                                     |
@@ -46,7 +55,9 @@ Jellyfin runs on **Forge** (Hetzner CPX41, k3s), in its own `media` Kubernetes n
 
 ---
 
-## SSO — Authentik OIDC via K0lin/jellyfin-plugin-sso
+## Initial Setup
+
+### SSO — Authentik OIDC via K0lin/jellyfin-plugin-sso
 
 Jellyfin has no native OIDC support. SSO requires a third-party plugin.
 
@@ -69,15 +80,6 @@ The Jellyfin side is **also automated**, aside from one unavoidable one-time ste
 See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugin-sso) for the login-button snippet to add under Dashboard → General → Branding → Login disclaimer (still a manual, cosmetic, one-time step).
 
 **MILESTONE (2026-08-28): confirmed working end-to-end in production** — "Sign in with SSO" successfully authenticates via Authentik after the `schemeOverride: "https"` fix above. All three bugs hit along the way (curl TLS trust + `set -e` retry-loop bug, `issuer_mode` mismatch, redirect_uri scheme mismatch) are resolved.
-
----
-
-## Secrets
-
-| Secret                       | Store     | Used by                                                                                                                                                                             |
-| ---------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `JELLYFIN_SSO_CLIENT_SECRET` | Infisical | Authentik's Jellyfin OAuth2 provider + the plugin's `oidSecret` (both automated)                                                                                                    |
-| `JELLYFIN_API_KEY`           | Infisical | Authenticates the automated SSO-provider-registration step in `deploy-forge-deploy.yml` — literal value, set manually once (Jellyfin has no API to generate its own key headlessly) |
 
 ---
 

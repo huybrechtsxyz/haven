@@ -28,17 +28,18 @@ Three Helm modules make up the `immich` namespace, in dependency order:
 
 ---
 
-## Architecture decisions
+## Secrets
 
-| Component       | Choice                                                                                      | Why                                                                                                                                                                                                                                                                                                      |
-| --------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Postgres        | Single pod, official `ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0` image | Has the vectorchord extension pre-installed; no operator (CNPG) or Bitnami subchart needed for one small family server                                                                                                                                                                                   |
-| Redis           | Plain `redis:7-alpine`, swapped into the chart's bundled `valkey:` dependency slot          | Keeps the chart's automatic `REDIS_HOSTNAME` wiring; simplest single-pod cache. **Note:** the chart's default liveness/readiness/startup probes assume `valkey-cli` (not present in plain redis images) — `immich.yaml` overrides these to use `redis-cli` instead, matching the original probe timings. |
-| Library storage | Static `hostPath` PV/PVC at `/mnt/haven-data-media/immich`                                  | Reuses the *same* haven-data Storage Box SMB mount `forge-init.yml` already sets up on the host — no in-pod CIFS CSI driver needed for a single-node cluster                                                                                                                                             |
+| Secret                     | Store     | Used by                                                              |
+| -------------------------- | --------- | -------------------------------------------------------------------- |
+| `IMMICH_DB_PASSWORD`       | Infisical | `immich-postgres`'s `POSTGRES_PASSWORD` + Immich's `DB_PASSWORD`     |
+| `IMMICH_SSO_CLIENT_SECRET` | Infisical | Authentik blueprint's Immich OAuth2 Provider (see SSO section above) |
 
 ---
 
-## Single Sign-On (Authentik)
+## Initial setup
+
+### Single Sign-On (Authentik)
 
 Immich has **native OIDC support** — unlike Jellyfin (needs a third-party plugin), no plugin/extension is needed on the Immich side.
 
@@ -53,14 +54,20 @@ The Immich side is a **one-time manual step** (Immich stores OAuth config in its
 
 ---
 
-## Secrets
 
-| Secret                     | Store     | Used by                                                              |
-| -------------------------- | --------- | -------------------------------------------------------------------- |
-| `IMMICH_DB_PASSWORD`       | Infisical | `immich-postgres`'s `POSTGRES_PASSWORD` + Immich's `DB_PASSWORD`     |
-| `IMMICH_SSO_CLIENT_SECRET` | Infisical | Authentik blueprint's Immich OAuth2 Provider (see SSO section above) |
 
 ---
+
+## Architecture decisions
+
+| Component       | Choice                                                                                      | Why                                                                                                                                                                                                                                                                                                      |
+| --------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Postgres        | Single pod, official `ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0` image | Has the vectorchord extension pre-installed; no operator (CNPG) or Bitnami subchart needed for one small family server                                                                                                                                                                                   |
+| Redis           | Plain `redis:7-alpine`, swapped into the chart's bundled `valkey:` dependency slot          | Keeps the chart's automatic `REDIS_HOSTNAME` wiring; simplest single-pod cache. **Note:** the chart's default liveness/readiness/startup probes assume `valkey-cli` (not present in plain redis images) — `immich.yaml` overrides these to use `redis-cli` instead, matching the original probe timings. |
+| Library storage | Static `hostPath` PV/PVC at `/mnt/haven-data-media/immich`                                  | Reuses the *same* haven-data Storage Box SMB mount `forge-init.yml` already sets up on the host — no in-pod CIFS CSI driver needed for a single-node cluster                                                                                                                                             |
+
+---
+
 
 ## Verification checklist
 
