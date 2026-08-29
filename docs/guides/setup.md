@@ -12,14 +12,17 @@ Generate all secrets once, store every value in Bitwarden, then configure them i
 
 Complete list of what goes in GitHub Secrets vs Infisical Cloud.
 
-**Rule:** GitHub Secrets hold only what is needed to connect to Infisical. Everything else is a secret that lives in Infisical Cloud.
+**Rule:** GitHub Secrets hold only what is needed to connect to Infisical, plus a couple of documented exceptions (see the notes column below) — credentials read directly by a CLI/API call before Infisical is ever involved. Everything else is a secret that lives in Infisical Cloud.
 
 **GitHub Secrets** are Used by GitHub Actions to provision infrastructure and connect to Infisical Cloud. Store the secrets in Bitwarden, then add them to GitHub Secrets.
 
-| GitHub Secret             | Value                          | Notes                                                 |
-| ------------------------- | ------------------------------ | ----------------------------------------------------- |
-| `INFISICAL_CLIENT_ID`     | Machine identity client ID     | Infisical Cloud → Machine Identities → Universal Auth |
-| `INFISICAL_CLIENT_SECRET` | Machine identity client secret | Infisical Cloud → Machine Identities → Universal Auth |  | `TERRAFORM_API_TOKEN` | Terraform Cloud API token | Created in Terraform Cloud → User Settings → Tokens. **Exception to the rule above** — read directly by the `terraform`/`tofu` CLI (`TF_TOKEN_app_terraform_io`) before strata/Infisical is ever involved, so it can't live in Infisical like other secrets. |
+| GitHub Secret             | Value                           | Notes                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `INFISICAL_CLIENT_ID`     | Machine identity client ID      | Infisical Cloud → Machine Identities → Universal Auth                                                                                                                                                                                                                                                                                         |
+| `INFISICAL_CLIENT_SECRET` | Machine identity client secret  | Infisical Cloud → Machine Identities → Universal Auth                                                                                                                                                                                                                                                                                         |
+| `TERRAFORM_API_TOKEN`     | Terraform Cloud API token       | Created in Terraform Cloud → User Settings → Tokens. **Exception to the rule above** — read directly by the `terraform`/`tofu` CLI (`TF_TOKEN_app_terraform_io`) before strata/Infisical is ever involved, so it can't live in Infisical like other secrets.                                                                                  |
+| `HETZNER_API_TOKEN`       | Hetzner Cloud project API token | **Dual-use, unlike the rule above** — also stored in Infisical (used by Terraform via strata's secret resolution), but the `hetzner-ssh-open`/`hetzner-ssh-close` composite actions and `backup-haven.yml` call the Hetzner API directly with plain `curl`, bypassing Infisical entirely. Must be set in **both** places with the same value. |
+
 **GitHub Variables** are non-sensitive values used by GitHub Actions. Store the values in Bitwarden, then add them to GitHub Variables.
 
 | GitHub Variable                | Value                                                           | Notes                                                 |
