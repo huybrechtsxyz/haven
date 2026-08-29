@@ -82,7 +82,8 @@ resource "hcloud_server" "forge" {
     #cloud-config
     runcmd:
       - mkdir -p ${var.resource_config.storage.install_path}/{var/data,var/logs}
-      - mkdir -p /mnt/storagebox
+      - mkdir -p /mnt/haven-data-media
+      - mkdir -p /mnt/haven-data-docs
   EOF
 
   lifecycle {

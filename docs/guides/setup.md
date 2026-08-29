@@ -197,25 +197,6 @@ strata secret put STORAGEBOX_DATA_DOCS_PASSWORD --value "<haven-data-docs-sub-ac
 
 `STORAGEBOX_BACKUP_HOST` (the `haven-backup` box's hostname), `STORAGEBOX_BACKUP_HEARTH_SUB`, `STORAGEBOX_BACKUP_FORGE_SUB`, `STORAGEBOX_DATA_HOST` (the new `haven-data` box's own, different hostname), `STORAGEBOX_DATA_MEDIA_SUB`, and `STORAGEBOX_DATA_DOCS_SUB` are non-secret hostnames/usernames — add them as GitHub Variables (see the table above), not as Infisical secrets or via `strata secret put`.
 
-### Secrets for Hetzner S3 Storage
-
-> **ACTION:** Generate an S3 access key pair in the Hetzner Cloud console. Store the Access Key ID and Secret Access Key in Bitwarden and Infisical Cloud.
-
-See [Hetzner Setup](../services/hetzner.md#create-hetzner-cloud-s3-access-keys) for the full explanation of creating the access key pair and its project-wide scope.
-
-Three buckets are provisioned by the `ansible-s3/forge-s3.yml` playbook using this one key pair:
-
-- `haven-photos` — Immich external photo library
-- `haven-media` — media overflow (large binary assets)
-- `haven-docs` — family documents (books/PDFs/EPUBs, manuals, general archive) — organized/browsed via Nextcloud, Kavita, Paperless-ngx
-
-This is another externally-created value, so push it the same way — `--value`, no `generate:` spec:
-
-```powershell
-strata secret put HETZNER_S3_ACCESS_KEY --value "<access-key-id>" -f config/env-haven-prd.yaml
-strata secret put HETZNER_S3_SECRET_KEY --value "<secret-access-key>" -f config/env-haven-prd.yaml
-```
-
 ### Secrets for Terraform Cloud API Token
 
 > **ACTION:** Generate a Terraform Cloud API token. Store it in Bitwarden and Infisical Cloud.

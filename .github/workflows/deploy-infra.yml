@@ -1,11 +1,11 @@
 # ==============================================================================
-# Workflow: Infrastructure — Terraform + S3 buckets
+# Workflow: Infrastructure — Terraform
 # ==============================================================================
-# Provisions shared infrastructure (VPS, network, firewall, S3 buckets).
+# Provisions shared infrastructure (VPS, network, firewall).
 # No SSH access needed — this is API-only.
 #
 # Run order (full stack from scratch):
-#   1. deploy-infra.yml   (this file — terraform + S3)
+#   1. deploy-infra.yml   (this file — terraform)
 #   2. deploy-hearth-init.yml / deploy-hearth-config.yml / deploy-hearth-deploy.yml
 #      (server init + config + Docker Compose deploy)
 #   3. deploy-forge.yml   (server init + config + k3s deploy)
@@ -28,10 +28,6 @@ on:
         description: "Limit to a specific stage (empty = all)"
         type: string
         required: false
-      run_s3:
-        description: "Create/update S3 buckets (photos, media, archive, docs) — idempotent, safe to re-run"
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -182,24 +178,3 @@ jobs:
             terraform show "$f"
             echo "::endgroup::"
           done
-
-      # ------------------------------------------------------------------
-      # S3 bucket provisioning (run_s3=true)
-      # Creates Hetzner Object Storage buckets — idempotent, no SSH needed.
-      # ------------------------------------------------------------------
-      - name: Install Ansible + boto3 (S3)
-        if: ${{ inputs.run_s3 == true && inputs.dry_run != true }}
-        run: pip install ansible-core boto3 botocore
-
-      - name: Install Ansible collections (S3)
-        if: ${{ inputs.run_s3 == true && inputs.dry_run != true }}
-        working-directory: deploy/ansible-s3
-        run: ansible-galaxy collection install -r requirements.yml -p ./collections
-
-      - name: Run forge-s3 playbook
-        if: ${{ inputs.run_s3 == true && inputs.dry_run != true }}
-        working-directory: deploy/ansible-s3
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.HETZNER_S3_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.HETZNER_S3_SECRET_KEY }}
-        run: ansible-playbook forge-s3.yml
