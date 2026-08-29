@@ -86,12 +86,6 @@ spec:
         type: urlsafe
         length: 48
 
-    # Infrastructure — Terraform Cloud
-    - key: TERRAFORM_API_TOKEN
-      store: infisical
-      value: TERRAFORM_API_TOKEN
-      description: Terraform Cloud API token
-
     # Infrastructure — Healthchecks.io
     - key: HEALTHCHECK_PING_HEARTH
       store: infisical
