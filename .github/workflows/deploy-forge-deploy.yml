@@ -168,7 +168,7 @@ jobs:
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
-          strata deploy run --file $DEPLOYMENT_FILE --scope apps --stage applications_forge --force
+          strata deploy run --file $DEPLOYMENT_FILE --scope apps --stage applications_forge --force --verbose
 
       # =========================================================================
       # Jellyfin SSO — (re-)register the Authentik OIDC provider with the
@@ -240,6 +240,87 @@ jobs:
             sleep 10
           done
           echo "::warning::Failed to register Jellyfin SSO provider after 5 attempts — not failing the deploy, check manually."
+
+      # =========================================================================
+      # Nextcloud SSO — hostAliases patch + occ user_oidc provider
+      # registration. The official nextcloud/nextcloud chart has NO
+      # hostAliases support in its Deployment template (confirmed against
+      # the chart's templates/deployment.yaml — unlike Portainer's Edge
+      # Agent, there's no values.yaml field to set it at install time), so
+      # the pod can't resolve auth.huybrechts.xyz to Hearth's private IP and
+      # instead hairpins out through the public internet — which silently
+      # fails/times out from inside the k3s pod network. This broke the
+      # docker-entrypoint post-installation hook's one-shot
+      # `occ user_oidc:provider authentik ...` call (occ app:install
+      # user_oidc likely succeeded, but the provider registration against
+      # the unreachable discovery URI did not), leaving Nextcloud's OIDC
+      # provider list empty even though the Authentik-side OAuth2
+      # Provider/Application already existed.
+      #
+      # Fixed the same way as the Portainer Edge Agent: patch hostAliases
+      # onto the Deployment after the fact (idempotent kubectl patch), then
+      # (re-)run the occ commands directly via kubectl exec — this also
+      # covers any future redeploy, since the post-installation hook never
+      # fires again once Nextcloud considers itself already installed.
+      # =========================================================================
+      - name: Get Hearth private IP (LAN routing for Forge → Authentik)
+        id: hearth_ip
+        if: ${{ inputs.dry_run != true }}
+        env:
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          ip=$(curl -sf \
+            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+            "https://api.hetzner.cloud/v1/servers?name=haven-platform-hearth" \
+            | jq -r '.servers[0].private_net[0].ip // empty')
+          if [ -z "$ip" ]; then
+            echo "::error::Hearth private IP not found. Run deploy-infra.yml first."
+            exit 1
+          fi
+          echo "ip=$ip" >> "$GITHUB_OUTPUT"
+
+      - name: Register Nextcloud SSO provider with Authentik
+        if: ${{ inputs.dry_run != true }}
+        env:
+          KUBECONFIG: /tmp/forge-kubeconfig.yaml
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
+        run: |
+          set +e
+          kubectl patch deployment nextcloud -n documents --type=merge -p \
+            '{"spec":{"template":{"spec":{"hostAliases":[{"ip":"${{ steps.hearth_ip.outputs.ip }}","hostnames":["auth.huybrechts.xyz"]}]}}}}'
+          set -e
+
+          VALUES=$(strata values get NEXTCLOUD_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          NEXTCLOUD_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.NEXTCLOUD_SSO_CLIENT_SECRET // empty')
+          if [ -z "$NEXTCLOUD_SSO_SECRET" ]; then
+            echo "::warning::NEXTCLOUD_SSO_CLIENT_SECRET not resolvable — skipping Nextcloud SSO registration."
+            exit 0
+          fi
+
+          kubectl rollout status deployment/nextcloud -n documents --timeout=180s
+
+          for i in 1 2 3 4 5; do
+            set +e
+            kubectl exec -n documents deploy/nextcloud -c nextcloud -- \
+              php occ app:install user_oidc
+            kubectl exec -n documents deploy/nextcloud -c nextcloud -- \
+              php occ user_oidc:provider authentik \
+                --clientid=nextcloud \
+                --clientsecret="$NEXTCLOUD_SSO_SECRET" \
+                --discoveryuri=https://auth.huybrechts.xyz/application/o/nextcloud/.well-known/openid-configuration \
+                --group-provisioning=1
+            RC=$?
+            set -e
+            if [ $RC -eq 0 ]; then
+              echo "Nextcloud SSO provider registered successfully."
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "::warning::Failed to register Nextcloud SSO provider after 5 attempts — not failing the deploy, check manually."
 
       # =========================================================================
       # Diagnostics on failure — the deploy step above uses `helm --wait

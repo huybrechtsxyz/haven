@@ -54,10 +54,6 @@ The Immich side is a **one-time manual step** (Immich stores OAuth config in its
 
 ---
 
-
-
----
-
 ## Architecture decisions
 
 | Component       | Choice                                                                                      | Why                                                                                                                                                                                                                                                                                                      |
@@ -68,18 +64,3 @@ The Immich side is a **one-time manual step** (Immich stores OAuth config in its
 
 ---
 
-
-## Verification checklist
-
-- [x] `strata build run`/`strata deploy run --scope apps --stage applications_forge` complete successfully
-- [x] `immich-postgres`, `immich-valkey`, `immich-machine-learning`, `immich-server` pods all reach `Ready` on the live cluster
-- [x] `https://photos.huybrechts.xyz` — Immich loads and is reachable from a browser (TLS via cert-manager + `letsencrypt-prod`)
-- [ ] Photo/video library reads/writes to `/mnt/haven-data-media/immich`
-- [ ] OAuth login via Authentik configured in Immich's Admin Settings and tested end-to-end
-
----
-
-## Still open
-
-- Immich-side OAuth toggle (Admin Settings → OAuth) not yet configured — Authentik-side provider/application exists, but the login flow hasn't been exercised end-to-end yet
-- Photo/video library storage-box read/write not yet verified

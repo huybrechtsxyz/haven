@@ -156,13 +156,13 @@ spec:
     # Staging-first cert-manager pattern, same as Immich/Jellyfin — a
     # brand-new hostname needs its own HTTP-01 challenge to succeed at least
     # once before trusting production (rate-limited to 5 certs/domain/week).
-    # Once `kubectl describe certificate docs-tls -n documents` shows
-    # Ready=True, switch cluster-issuer below to letsencrypt-prod.
+    # docs-tls confirmed Ready=True via letsencrypt-staging — switched to
+    # letsencrypt-prod for a real trusted cert (2026-08-29).
     ingress:
       enabled: true
       className: traefik
       annotations:
-        cert-manager.io/cluster-issuer: letsencrypt-staging
+        cert-manager.io/cluster-issuer: letsencrypt-prod
       hosts:
         - host: docs.huybrechts.xyz
           paths:
