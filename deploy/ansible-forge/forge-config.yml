@@ -53,6 +53,31 @@
       when: hearth_private_ip is defined
 
     # =========================================================================
+    # ONE-TIME (2026-08-29): reset immich-library PV/PVC — statically-bound
+    # hostPath PersistentVolume created before the two-Storage-Box split with
+    # spec.hostPath.path=/mnt/storagebox/immich. Kubernetes forbids changing
+    # spec.persistentVolumeSource on an existing PV (immutable after
+    # creation), so `helm upgrade` for the immich-library release now fails:
+    # "PersistentVolume \"immich-library\" is invalid: spec.persistentvolumesource:
+    # Forbidden: spec.persistentvolumesource is immutable after creation".
+    # No data is lost by deleting these objects — the actual photo library
+    # lives on the haven-data Storage Box itself (reclaimPolicy: Retain, and
+    # it's just a hostPath reference into the SMB mount, not the data store).
+    # The next `33 - Forge - Deploy` run's helm upgrade recreates both
+    # cleanly with the correct /mnt/haven-data-media/immich path.
+    # ⚠️ REMOVE THIS TASK once the next redeploy is confirmed clean — this
+    # must NOT run on every routine forge-config.yml execution.
+    # =========================================================================
+    - name: "ONE-TIME: delete immich-library PVC + PV (stale hostPath from pre-split storagebox mount)"
+      ansible.builtin.command:
+        cmd: "kubectl delete {{ item }} --ignore-not-found=true"
+      loop:
+        - pvc/immich-library -n immich
+        - pv/immich-library
+      register: immich_library_reset
+      changed_when: "'deleted' in immich_library_reset.stdout"
+
+    # =========================================================================
     # IMPORTANT: the node-level /etc/hosts edits above only affect processes
     # running directly on the Forge VM (kubectl, ssh sessions, etc). They do
     # NOT propagate into Kubernetes PODS — kubelet manages each pod's own
