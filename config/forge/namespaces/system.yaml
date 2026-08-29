@@ -3,7 +3,7 @@ kind: namespace
 meta:
   name: system
   annotations:
-    description: Cross-cutting infrastructure add-ons for Forge (k3s) — not tied to any one app layer. rclone's S3 mount, cert-manager + its ClusterIssuers live here; Portainer's Kubernetes agent will join once ready.
+    description: Cross-cutting infrastructure add-ons for Forge (k3s) — not tied to any one app layer. cert-manager + its ClusterIssuers live here, plus Portainer's Kubernetes Edge Agent.
   labels:
     version: "1.0.0"
   tags: [haven, forge, k3s, system]
@@ -22,6 +22,9 @@ spec:
     - name: cert-manager-issuers
       description: Let's Encrypt ClusterIssuers (staging + production), HTTP-01 via Traefik
       file: config/forge/modules/cert-manager-issuers.yaml
-    - name: rclone-mount
-      description: Mounts haven-docs (S3) onto the Forge host filesystem for Nextcloud + Kavita to share
-      file: config/forge/modules/rclone-mount.yaml
+    # rclone-mount (haven-docs S3 bucket bridge) removed 2026-08-29 — the
+    # haven-docs bucket has been deleted from Hetzner. Nextcloud/Kavita's
+    # shared documents storage is migrating to the haven-data Storage Box's
+    # docs sub-account (SMB), mounted directly on the Forge host by
+    # forge-init.yml instead of via an in-cluster FUSE mount. That migration
+    # is not yet wired up — see docs/guides/forge.md's Development notes.

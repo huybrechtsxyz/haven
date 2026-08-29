@@ -25,11 +25,11 @@ spec:
       config:
         storageClass: local-path
         size: 5Gi
-    # Same shared haven-docs tree as Nextcloud (mounted by the rclone-mount
-    # module in the system namespace) — Kavita only reads, never
-    # renames/reorganizes, so it's safe to share.
+    # Same haven-data Storage Box docs sub-account tree as Nextcloud, SMB-
+    # mounted on the host at /mnt/haven-data-docs — Kavita only reads, never
+    # renames/reorganizes, so sharing the same tree as Nextcloud is safe.
     library:
-      hostPath: /mnt/haven-docs/books
+      hostPath: /mnt/haven-data-docs/books
     service:
       port: 5000
     ingress:

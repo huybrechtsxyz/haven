@@ -138,7 +138,7 @@ jobs:
             # (SSH) and the SMB media-library mount — fetched once regardless of
             # which of those two flags triggered this step.
             set +e
-            VALUES=$(strata values get STORAGEBOX_FORGE_PASSWORD -f $DEPLOYMENT_FILE --output json)
+            VALUES=$(strata values get STORAGEBOX_BACKUP_FORGE_PASSWORD -f $DEPLOYMENT_FILE --output json)
             STATUS=$?
             set -e
             if [ $STATUS -ne 0 ]; then
@@ -146,10 +146,10 @@ jobs:
               echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
               exit $STATUS
             fi
-            STORAGEBOX_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.STORAGEBOX_FORGE_PASSWORD')
+            STORAGEBOX_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.STORAGEBOX_BACKUP_FORGE_PASSWORD')
             cat >> /tmp/init_vars.yml << VARSEOF
-          storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
-          storagebox_subaccount: "${{ vars.STORAGEBOX_SUBACCOUNT_FORGE }}"
+          storagebox_host: "${{ vars.STORAGEBOX_BACKUP_HOST }}"
+          storagebox_subaccount: "${{ vars.STORAGEBOX_BACKUP_FORGE_SUB }}"
           storagebox_password: "$STORAGEBOX_PASSWORD"
           VARSEOF
           fi

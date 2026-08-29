@@ -33,24 +33,27 @@ spec:
       generate:
         type: urlsafe
         length: 32
-    - key: HETZNER_S3_ACCESS_KEY
-      store: infisical
-      value: HETZNER_S3_ACCESS_KEY
-      description: Hetzner Object Storage access key ID (project-level, all buckets)
-    - key: HETZNER_S3_SECRET_KEY
-      store: infisical
-      value: HETZNER_S3_SECRET_KEY
-      description: Hetzner Object Storage secret access key (project-level, all buckets)
 
     # Infrastructure — Hetzner Storage Box
-    - key: STORAGEBOX_HEARTH_PASSWORD
+    # Two physical Storage Boxes: `haven-backup` (BorgBackup repos only, one
+    # sub-account per VM) and `haven-data` (live app data, sub-accounts split
+    # by content type — media for Immich/Jellyfin, docs for Nextcloud/Kavita).
+    - key: STORAGEBOX_BACKUP_HEARTH_PASSWORD
       store: infisical
-      value: STORAGEBOX_HEARTH_PASSWORD
-      description: Storage Box sub-account password for Hearth backups
-    - key: STORAGEBOX_FORGE_PASSWORD
+      value: STORAGEBOX_BACKUP_HEARTH_PASSWORD
+      description: haven-backup Storage Box sub-account password for Hearth's BorgBackup repo
+    - key: STORAGEBOX_BACKUP_FORGE_PASSWORD
       store: infisical
-      value: STORAGEBOX_FORGE_PASSWORD
-      description: Storage Box sub-account password for Forge backups
+      value: STORAGEBOX_BACKUP_FORGE_PASSWORD
+      description: haven-backup Storage Box sub-account password for Forge's BorgBackup repo
+    - key: STORAGEBOX_DATA_MEDIA_PASSWORD
+      store: infisical
+      value: STORAGEBOX_DATA_MEDIA_PASSWORD
+      description: haven-data Storage Box sub-account password for the media share (Immich + Jellyfin), SMB-mounted on Forge
+    - key: STORAGEBOX_DATA_DOCS_PASSWORD
+      store: infisical
+      value: STORAGEBOX_DATA_DOCS_PASSWORD
+      description: haven-data Storage Box sub-account password for the docs share (Nextcloud + Kavita), SMB-mounted on Forge
 
     # Infrastructure — Portainer Kubernetes Edge Agent (Forge)
     # Edge ID/key come from Portainer's own "Add environment > Kubernetes >

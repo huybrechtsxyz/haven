@@ -136,8 +136,8 @@ jobs:
           IMMICH_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.IMMICH_SSO_CLIENT_SECRET')
           cat > /tmp/config_vars.yml << VARSEOF
           borg_passphrase: "$BORG_PASSPHRASE"
-          storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
-          storagebox_subaccount: "${{ vars.STORAGEBOX_SUBACCOUNT_HEARTH }}"
+          storagebox_host: "${{ vars.STORAGEBOX_BACKUP_HOST }}"
+          storagebox_subaccount: "${{ vars.STORAGEBOX_BACKUP_HEARTH_SUB }}"
           healthcheck_ping_url: "$HEALTHCHECK_URL"
           vaultwarden_sso_client_secret: "$VAULTWARDEN_SSO_SECRET"
           wud_sso_client_secret: "$WUD_SSO_SECRET"

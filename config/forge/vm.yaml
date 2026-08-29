@@ -24,5 +24,7 @@ spec:
         path: /var/lib/rancher/k3s
       - name: data
         path: /opt/haven/var/data
-      - name: media
-        path: /mnt/storagebox
+      - name: data-media
+        path: /mnt/haven-data-media
+      - name: data-docs
+        path: /mnt/haven-data-docs

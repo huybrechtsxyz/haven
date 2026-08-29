@@ -41,13 +41,13 @@ spec:
     - name: hearth
       file: config/hearth/namespace.yaml
     - name: system
-      file: config/forge/namespaces/system.yaml # 1st — rclone-mount (documents' shared storage depends on it)
+      file: config/forge/namespaces/system.yaml # 1st — cert-manager (other namespaces' ingresses depend on its ClusterIssuers)
     - name: immich
       file: config/forge/namespaces/immich.yaml # 2nd — self-contained, no shared-storage dependency
     - name: media
       file: config/forge/namespaces/media.yaml # 3rd — self-contained, no shared-storage dependency
     - name: documents
-      file: config/forge/namespaces/documents.yaml # 4th — needs 'system' (rclone-mount) deployed first
+      file: config/forge/namespaces/documents.yaml # 4th — blocked on the haven-data Storage Box docs SMB mount migration (see docs/guides/forge.md)
 
   topology:
     - name: hetzner_hearth
@@ -84,8 +84,10 @@ spec:
           type: local
         - name: data
           type: local
-        - name: media
-          type: local # SMB mount managed by Ansible (Hetzner Storage Box)
+        - name: data-media
+          type: local # SMB mount managed by Ansible — haven-data Storage Box, media sub-account (Immich + Jellyfin)
+        - name: data-docs
+          type: local # SMB mount managed by Ansible — haven-data Storage Box, docs sub-account (Nextcloud + Kavita)
       components:
         - resource: haven_vm_hetzner_forge
 

@@ -3,7 +3,7 @@ kind: module
 meta:
   name: nextcloud
   annotations:
-    description: Nextcloud — family document archive/browsing layer, External Storage over the shared haven-docs S3 bucket (not the live sync drive — that's Infomaniak kDrive)
+    description: Nextcloud — family document archive/browsing layer, External Storage over the shared documents mount (migrating from the deleted haven-docs S3 bucket to the haven-data Storage Box's docs sub-account — not the live sync drive, that's Infomaniak kDrive)
   labels:
     version: "1.0.0"
   tags: [haven, forge, documents, nextcloud, docs]
@@ -41,17 +41,17 @@ spec:
         passwordKey: nextcloud-password
       trustedDomains:
         - docs.huybrechts.xyz
-      # Bridges the shared haven-docs mount (rclone-mount, system namespace)
-      # into the pod. External Storage is configured automatically — see the
-      # post-installation hook below.
+      # Bridges the haven-data Storage Box's docs sub-account (SMB-mounted on
+      # the host at /mnt/haven-data-docs) into the pod. External Storage is
+      # configured automatically — see the post-installation hook below.
       extraVolumes:
-        - name: haven-docs
+        - name: haven-data-docs
           hostPath:
-            path: /mnt/haven-docs
+            path: /mnt/haven-data-docs
             type: DirectoryOrCreate
       extraVolumeMounts:
-        - name: haven-docs
-          mountPath: /mnt/haven-docs
+        - name: haven-data-docs
+          mountPath: /mnt/haven-data-docs
       # Traefik terminates TLS and forwards plain HTTP to the pod (same
       # topology as Jellyfin — see that module's schemeOverride comment for
       # the root-cause writeup). Without telling Nextcloud to trust the
@@ -104,8 +104,8 @@ spec:
             --clientsecret="$NEXTCLOUD_SSO_CLIENT_SECRET" \
             --discoveryuri=https://auth.huybrechts.xyz/application/o/nextcloud/.well-known/openid-configuration \
             --group-provisioning=1
-          echo "Configuring External Storage for /mnt/haven-docs..."
-          occ files_external:create "Family Documents" local null::null -c datadir=/mnt/haven-docs
+          echo "Configuring External Storage for /mnt/haven-data-docs..."
+          occ files_external:create "Family Documents" local null::null -c datadir=/mnt/haven-data-docs
 
     # Deliberately NOT using the chart's bundled Bitnami mariadb/postgresql/redis
     # subcharts (same reasoning as Immich) — own small single-pod services instead.

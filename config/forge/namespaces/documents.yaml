@@ -3,7 +3,7 @@ kind: namespace
 meta:
   name: documents
   annotations:
-    description: Family document/reference library (k3s on Forge) — Kavita now; Nextcloud (family document archive/browsing layer, External Storage over the same haven-docs bucket) to follow.
+    description: Family document/reference library (k3s on Forge) — Kavita (PDF/TTRPG library) + Nextcloud (document archive/browsing layer), both reading from the haven-data Storage Box's docs sub-account (SMB, /mnt/haven-data-docs). Config-level mount paths are finalized; the Ansible/Terraform layer that provisions the actual SMB mount is not yet updated — see docs/guides/forge.md.
   labels:
     version: "1.0.0"
   tags: [haven, forge, documents, k3s, family]
@@ -22,5 +22,5 @@ spec:
       description: Redis for Nextcloud memory caching + file locking
       file: config/forge/modules/nextcloud-redis.yaml
     - name: nextcloud
-      description: Family document archive/browsing layer, External Storage over haven-docs
+      description: Family document archive/browsing layer, External Storage over the haven-data Storage Box docs sub-account (/mnt/haven-data-docs)
       file: config/forge/modules/nextcloud.yaml

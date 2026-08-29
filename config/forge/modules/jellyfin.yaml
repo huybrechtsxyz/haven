@@ -28,14 +28,14 @@ spec:
         enabled: true
         storageClass: local-path
         size: 5Gi
-      # Media library — read-only, backed by the SAME Storage Box NFS mount
-      # forge-init.yml already sets up on the host at /mnt/storagebox (same
-      # hostPath approach as the immich-library module, not a separate
-      # in-pod NFS mount — avoids a second independent NFS auth/mount path).
+      # Media library — read-only, backed by the haven-data Storage Box's
+      # media sub-account, SMB-mounted on the host at /mnt/haven-data-media
+      # (same hostPath approach as the immich-library module, not a separate
+      # in-pod SMB mount — avoids a second independent SMB auth/mount path).
       media:
         enabled: true
         type: hostPath
-        hostPath: /mnt/storagebox/media
+        hostPath: /mnt/haven-data-media/jellyfin
       cache:
         enabled: false
 

@@ -15,5 +15,5 @@ spec:
   kubernetes_namespace: immich
   configuration:
     storage:
-      hostPath: /mnt/storagebox/immich
+      hostPath: /mnt/haven-data-media/immich
       size: 500Gi

@@ -120,7 +120,7 @@ jobs:
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
           set +e
-          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH STORAGEBOX_HEARTH_PASSWORD -f $DEPLOYMENT_FILE --output json)
+          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH STORAGEBOX_BACKUP_HEARTH_PASSWORD -f $DEPLOYMENT_FILE --output json)
           STATUS=$?
           set -e
           if [ $STATUS -ne 0 ]; then
@@ -129,11 +129,11 @@ jobs:
             exit $STATUS
           fi
           BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_HEARTH')
-          STORAGEBOX_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.STORAGEBOX_HEARTH_PASSWORD')
+          STORAGEBOX_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.STORAGEBOX_BACKUP_HEARTH_PASSWORD')
           cat > /tmp/init_vars.yml << VARSEOF
           configure_borg: true
-          storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
-          storagebox_subaccount: "${{ vars.STORAGEBOX_SUBACCOUNT_HEARTH }}"
+          storagebox_host: "${{ vars.STORAGEBOX_BACKUP_HOST }}"
+          storagebox_subaccount: "${{ vars.STORAGEBOX_BACKUP_HEARTH_SUB }}"
           borg_passphrase: "$BORG_PASSPHRASE"
           storagebox_password: "$STORAGEBOX_PASSWORD"
           VARSEOF
