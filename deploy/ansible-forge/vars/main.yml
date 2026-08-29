@@ -16,15 +16,26 @@ haven_install_path: /opt/haven
 haven_timezone: Europe/Brussels
 
 # =============================================================================
-# BorgBackup
+# BorgBackup — haven-backup Storage Box, forge-backup sub-account
 # =============================================================================
 # Set to true only after the borg SSH key has been authorised on the Storage
 # Box sub-account (forge-init Step 2) and the repo has been initialised.
 configure_borg: false
 
-# Storage Box connection details — passed via --extra-vars at run time.
-storagebox_host: ""
-storagebox_subaccount: forge-backup
+# haven-backup Storage Box connection details — passed via --extra-vars at
+# run time. Password is never declared here — always via -e.
+storagebox_backup_host: ""
+storagebox_backup_subaccount: forge-backup
+
+# =============================================================================
+# Storage Box SMB mounts — haven-data Storage Box (media + docs sub-accounts)
+# =============================================================================
+# A DIFFERENT physical Storage Box from haven-backup above — live app data,
+# not backups. Each mount (media, docs) is independently enabled by whether
+# its own password is provided via --extra-vars at run time.
+storagebox_data_host: ""
+storagebox_data_media_subaccount: media
+storagebox_data_docs_subaccount: docs
 
 # =============================================================================
 # Portainer Kubernetes Edge Agent

@@ -5,9 +5,9 @@
 # Traefik enabled — Forge terminates its own TLS via cert-manager, independent
 # of Hearth's Caddy, so Forge apps can be added/changed freely without ever
 # touching Hearth), creates the haven service user, optionally mounts the
-# Storage Box SMB share (media library — subaccounts don't support NFS),
-# hardens SSH, and generates the BorgBackup SSH key pair. Idempotent (safe to
-# re-run) but normally only needed once per server — routine changes will go
+# haven-data Storage Box's SMB shares (media + docs libraries — subaccounts
+# don't support NFS), hardens SSH, and generates the BorgBackup SSH key pair.
+# Idempotent (safe to re-run) but normally only needed once per server — routine changes will go
 # through forge-config.yml / forge-deploy.yml once those exist (see
 # deploy-forge.yml).
 #
@@ -32,7 +32,7 @@ on:
         type: boolean
         default: false
       configure_smb:
-        description: "Mount Storage Box SMB share at /mnt/storagebox (media library) — Hetzner Storage Box subaccounts don't support NFS"
+        description: "Mount haven-data Storage Box SMB shares (media at /mnt/haven-data-media, docs at /mnt/haven-data-docs) — Hetzner Storage Box subaccounts don't support NFS"
         type: boolean
         default: false
       configure_portainer_agent:
@@ -133,10 +133,7 @@ jobs:
         run: |
           : > /tmp/init_vars.yml
 
-          if [ "${{ inputs.configure_borg }}" = "true" ] || [ "${{ inputs.configure_smb }}" = "true" ]; then
-            # storagebox_host/subaccount/password are needed for BOTH BorgBackup
-            # (SSH) and the SMB media-library mount — fetched once regardless of
-            # which of those two flags triggered this step.
+          if [ "${{ inputs.configure_borg }}" = "true" ]; then
             set +e
             VALUES=$(strata values get STORAGEBOX_BACKUP_FORGE_PASSWORD -f $DEPLOYMENT_FILE --output json)
             STATUS=$?
@@ -146,11 +143,35 @@ jobs:
               echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
               exit $STATUS
             fi
-            STORAGEBOX_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.STORAGEBOX_BACKUP_FORGE_PASSWORD')
+            STORAGEBOX_BACKUP_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.STORAGEBOX_BACKUP_FORGE_PASSWORD')
             cat >> /tmp/init_vars.yml << VARSEOF
-          storagebox_host: "${{ vars.STORAGEBOX_BACKUP_HOST }}"
-          storagebox_subaccount: "${{ vars.STORAGEBOX_BACKUP_FORGE_SUB }}"
-          storagebox_password: "$STORAGEBOX_PASSWORD"
+          storagebox_backup_host: "${{ vars.STORAGEBOX_BACKUP_HOST }}"
+          storagebox_backup_subaccount: "${{ vars.STORAGEBOX_BACKUP_FORGE_SUB }}"
+          storagebox_backup_password: "$STORAGEBOX_BACKUP_PASSWORD"
+          VARSEOF
+          fi
+
+          if [ "${{ inputs.configure_smb }}" = "true" ]; then
+            # media + docs sub-accounts live on the SAME haven-data Storage Box
+            # but have independent passwords — fetched together since both
+            # mounts are gated by the one configure_smb flag.
+            set +e
+            SMB_VALUES=$(strata values get STORAGEBOX_DATA_MEDIA_PASSWORD STORAGEBOX_DATA_DOCS_PASSWORD -f $DEPLOYMENT_FILE --output json)
+            STATUS=$?
+            set -e
+            if [ $STATUS -ne 0 ]; then
+              echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
+              echo "$SMB_VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+              exit $STATUS
+            fi
+            STORAGEBOX_DATA_MEDIA_PASSWORD=$(echo "$SMB_VALUES" | jq -r '.data.results.STORAGEBOX_DATA_MEDIA_PASSWORD')
+            STORAGEBOX_DATA_DOCS_PASSWORD=$(echo "$SMB_VALUES" | jq -r '.data.results.STORAGEBOX_DATA_DOCS_PASSWORD')
+            cat >> /tmp/init_vars.yml << VARSEOF
+          storagebox_data_host: "${{ vars.STORAGEBOX_DATA_HOST }}"
+          storagebox_data_media_subaccount: "${{ vars.STORAGEBOX_DATA_MEDIA_SUB }}"
+          storagebox_data_media_password: "$STORAGEBOX_DATA_MEDIA_PASSWORD"
+          storagebox_data_docs_subaccount: "${{ vars.STORAGEBOX_DATA_DOCS_SUB }}"
+          storagebox_data_docs_password: "$STORAGEBOX_DATA_DOCS_PASSWORD"
           VARSEOF
           fi
 

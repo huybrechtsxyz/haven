@@ -16,36 +16,39 @@
 #
 #   Manually:
 #     a) Temporarily add your public IP to the Hetzner firewall via the console
-#        (Security → Firewalls → haven-platform-fw-forge → Add rule: TCP 22 from <your-ip>)
+#        (Security -> Firewalls -> haven-platform-fw-forge -> Add rule: TCP 22 from <your-ip>)
 #        and remove it after the playbook completes.
 #     b) Run from within the Hetzner private network (e.g. via Hearth).
-#     c) Use Tailscale (future — see hosting-design.md § Future considerations).
+#     c) Use Tailscale (future - see hosting-design.md paragraph Future considerations).
 #
 # Install collections first (once):
 #   ansible-galaxy collection install -r requirements.yml -p ./collections
 #
 # Run (two-step for BorgBackup):
 #
-#   Step 1 — full init, borg key generation only (no borg repo init):
+#   Step 1 - full init, borg key generation only (no borg repo init):
 #     ansible-playbook forge-init.yml \
 #       --private-key ~/.ssh/haven_ed25519 \
 #       -e forge_host=<public_ip>
 #
-#   Step 2 — after authorising the borg key on Storage Box in Hetzner Robot:
+#   Step 2 - after authorising the borg key on the haven-backup Storage Box
+#   sub-account in Hetzner Robot:
 #     ansible-playbook forge-init.yml \
 #       --private-key ~/.ssh/haven_ed25519 \
 #       -e forge_host=<public_ip> \
 #       -e configure_borg=true \
-#       -e storagebox_host=<uXXXXXX.your-storagebox.de> \
-#       -e storagebox_password=<storagebox-password> \
+#       -e storagebox_backup_host=<uXXXXXX.your-storagebox.de> \
+#       -e storagebox_backup_password=<storagebox-password> \
 #       -e borg_passphrase=<strong-passphrase>
 #
-#   SMB mount (Storage Box media share) — subaccounts don't support NFS, only
-#   SMB/CIFS + SSH. Pass at runtime alongside Step 2 (share name = subaccount
-#   username itself, e.g. host u604953-sub2.your-storagebox.de, share u604953-sub2):
-#       -e storagebox_host=<uXXXXXX-subN.your-storagebox.de> \
-#       -e storagebox_subaccount=<uXXXXXX-subN> \
-#       -e storagebox_password=<storagebox-password>
+#   SMB mounts (haven-data Storage Box, media + docs sub-accounts) -
+#   subaccounts don't support NFS, only SMB/CIFS + SSH. Pass at runtime
+#   (share name = subaccount username itself, e.g. host u604953-sub2.your-storagebox.de,
+#   share u604953-sub2). Each mount is independently enabled by whether its
+#   own password is provided:
+#       -e storagebox_data_host=<uXXXXXX.your-storagebox.de> \
+#       -e storagebox_data_media_password=<media-subaccount-password> \
+#       -e storagebox_data_docs_password=<docs-subaccount-password>
 #
 #   Portainer Edge Agent (Kubernetes) — after creating the "Forge" environment
 #   in Portainer (Environments > Add environment > Kubernetes > Edge Agent):
@@ -94,7 +97,7 @@
           - ncdu
           - fail2ban
           - jq
-          - cifs-utils # required for Storage Box SMB mount (subaccounts don't support NFS)
+          - cifs-utils # required for Storage Box SMB mounts (subaccounts don't support NFS)
           - open-iscsi # required for k3s iSCSI storage support
         state: present
 
@@ -282,58 +285,88 @@
         group: "{{ haven_group }}"
         mode: "0700"
 
-    # Lazy-unmount any stale/broken mount left at this path from a previous
-    # failed attempt (e.g. an NFS mount that timed out mid-registration). The
-    # kernel keeps a dead mount entry that makes even a plain stat()/mkdir on
-    # this path fail with "[Errno 112] Host is down" until it's cleared — seen
-    # on this exact path after the earlier NFS attempt (subaccounts don't
-    # support NFS, see below). "-l" detaches immediately without needing the
-    # remote host reachable; ignore errors since it's a no-op when nothing is
-    # actually mounted.
-    - name: Force-unmount any stale Storage Box mount
+    # Lazy-unmount any stale/broken mounts left at these paths from a
+    # previous failed attempt (e.g. an NFS mount that timed out
+    # mid-registration). The kernel keeps a dead mount entry that makes even
+    # a plain stat()/mkdir on the path fail with "[Errno 112] Host is down"
+    # until it's cleared — seen on this exact path after an earlier NFS
+    # attempt (subaccounts don't support NFS, see below). "-l" detaches
+    # immediately without needing the remote host reachable; ignore errors
+    # since it's a no-op when nothing is actually mounted.
+    - name: Force-unmount any stale haven-data Storage Box mounts
       ansible.builtin.command:
-        cmd: umount -l /mnt/storagebox
+        cmd: umount -l {{ item }}
+      loop:
+        - /mnt/haven-data-media
+        - /mnt/haven-data-docs
       register: force_unmount
       changed_when: force_unmount.rc == 0
       failed_when: false
 
-    - name: Create Storage Box mount point
+    - name: Create haven-data Storage Box mount points
       ansible.builtin.file:
-        path: /mnt/storagebox
+        path: "{{ item }}"
         state: directory
         owner: root
         group: root
         mode: "0755"
+      loop:
+        - /mnt/haven-data-media
+        - /mnt/haven-data-docs
 
     # =========================================================================
-    # Storage Box SMB mount (media library)
+    # Storage Box SMB mounts (haven-data — media + docs sub-accounts)
     # =========================================================================
     # Hetzner Storage Box subaccounts don't support NFS at all (NFS is only
     # available on the top-level Storage Box, and even then it's IP-allowlisted
     # rather than password-based). SMB/CIFS is what subaccounts actually offer.
     # Share name equals the subaccount username itself (confirmed via Hetzner
     # Robot's own connection details, e.g. \\u604953-sub2.your-storagebox.de\u604953-sub2).
+    # Two independent shares on the SAME haven-data box — media (Immich +
+    # Jellyfin) and docs (Nextcloud + Kavita) — each mounted only when its own
+    # password is provided.
 
-    - name: Write SMB credentials file
+    - name: Write SMB credentials file (media share)
       ansible.builtin.copy:
-        dest: "{{ haven_install_path }}/.smbcredentials"
+        dest: "{{ haven_install_path }}/.smbcredentials-media"
         owner: root
         group: root
         mode: "0600"
         content: |
-          username={{ storagebox_subaccount }}
-          password={{ storagebox_password | default('') }}
-      when: storagebox_password | default('') | length > 0
+          username={{ storagebox_data_media_subaccount }}
+          password={{ storagebox_data_media_password | default('') }}
+      when: storagebox_data_media_password | default('') | length > 0
       no_log: true
 
     - name: Mount Storage Box SMB share (media library)
       ansible.posix.mount:
-        path: /mnt/storagebox
-        src: "//{{ storagebox_host }}/{{ storagebox_subaccount }}"
+        path: /mnt/haven-data-media
+        src: "//{{ storagebox_data_host }}/{{ storagebox_data_media_subaccount }}"
         fstype: cifs
-        opts: "credentials={{ haven_install_path }}/.smbcredentials,uid=0,gid=0,_netdev,noatime,vers=3.0"
+        opts: "credentials={{ haven_install_path }}/.smbcredentials-media,uid=0,gid=0,_netdev,noatime,vers=3.0"
         state: mounted
-      when: storagebox_password | default('') | length > 0
+      when: storagebox_data_media_password | default('') | length > 0
+
+    - name: Write SMB credentials file (docs share)
+      ansible.builtin.copy:
+        dest: "{{ haven_install_path }}/.smbcredentials-docs"
+        owner: root
+        group: root
+        mode: "0600"
+        content: |
+          username={{ storagebox_data_docs_subaccount }}
+          password={{ storagebox_data_docs_password | default('') }}
+      when: storagebox_data_docs_password | default('') | length > 0
+      no_log: true
+
+    - name: Mount Storage Box SMB share (docs library)
+      ansible.posix.mount:
+        path: /mnt/haven-data-docs
+        src: "//{{ storagebox_data_host }}/{{ storagebox_data_docs_subaccount }}"
+        fstype: cifs
+        opts: "credentials={{ haven_install_path }}/.smbcredentials-docs,uid=0,gid=0,_netdev,noatime,vers=3.0"
+        state: mounted
+      when: storagebox_data_docs_password | default('') | length > 0
 
     # =========================================================================
     # SSH hardening
@@ -361,7 +394,7 @@
       notify: Restart sshd
 
     # =========================================================================
-    # BorgBackup SSH key
+    # BorgBackup SSH key (haven-backup Storage Box, forge-backup sub-account)
     # =========================================================================
     # Step 1: generate the key (always runs).
     # Step 2: user adds the printed public key to the Storage Box sub-account
@@ -386,12 +419,12 @@
           {{ borg_key.public_key }}
 
           The key will be uploaded automatically if configure_borg=true
-          and storagebox_password is provided. Otherwise, upload manually:
+          and storagebox_backup_password is provided. Otherwise, upload manually:
 
             cat /opt/haven/.ssh/borg_ed25519.pub | \
-              ssh -p23 {{ storagebox_subaccount }}@{{ storagebox_host }} install-ssh-key
+              ssh -p23 {{ storagebox_backup_subaccount }}@{{ storagebox_backup_host }} install-ssh-key
           ============================================================
-      when: storagebox_host is defined and storagebox_subaccount is defined
+      when: storagebox_backup_host is defined and storagebox_backup_subaccount is defined
 
     # =========================================================================
     # BorgBackup repository init (Step 2 — only when configure_borg=true)
@@ -401,12 +434,12 @@
       ansible.builtin.shell:
         cmd: |
           cat {{ haven_install_path }}/.ssh/borg_ed25519.pub | \
-            sshpass -p "{{ storagebox_password }}" ssh -p 23 \
+            sshpass -p "{{ storagebox_backup_password }}" ssh -p 23 \
             -o StrictHostKeyChecking=no \
-            {{ storagebox_subaccount }}@{{ storagebox_host }} \
+            {{ storagebox_backup_subaccount }}@{{ storagebox_backup_host }} \
             install-ssh-key
         executable: /bin/bash
-      when: configure_borg | bool and storagebox_password | default('') | length > 0
+      when: configure_borg | bool and storagebox_backup_password | default('') | length > 0
       register: ssh_key_upload
       changed_when: true
       failed_when: false
@@ -420,17 +453,17 @@
           Stdout: {{ ssh_key_upload.stdout | default('no output') }}
 
           Verify:
-          1. HETZNER_STORAGEBOX_PASSWORD secret is correct
-          2. Sub-account username is correct: {{ storagebox_subaccount }}
-          3. Storage Box hostname is correct: {{ storagebox_host }}
+          1. The Storage Box password is correct
+          2. Sub-account username is correct: {{ storagebox_backup_subaccount }}
+          3. Storage Box hostname is correct: {{ storagebox_backup_host }}
           4. External reachability is enabled on the Storage Box
-      when: configure_borg | bool and storagebox_password | default('') | length > 0 and ssh_key_upload.rc != 0
+      when: configure_borg | bool and storagebox_backup_password | default('') | length > 0 and ssh_key_upload.rc != 0
 
     - name: Scan Storage Box host key
       ansible.builtin.shell:
         cmd: |
-          if ! grep -q '{{ storagebox_host }}' {{ haven_install_path }}/.ssh/known_hosts 2>/dev/null; then
-            ssh-keyscan -t ed25519 -p 23 {{ storagebox_host }} >> {{ haven_install_path }}/.ssh/known_hosts
+          if ! grep -q '{{ storagebox_backup_host }}' {{ haven_install_path }}/.ssh/known_hosts 2>/dev/null; then
+            ssh-keyscan -t ed25519 -p 23 {{ storagebox_backup_host }} >> {{ haven_install_path }}/.ssh/known_hosts
             echo "CHANGED"
           fi
           chown {{ haven_user }}:{{ haven_group }} {{ haven_install_path }}/.ssh/known_hosts
@@ -439,9 +472,12 @@
       changed_when: "'CHANGED' in keyscan_result.stdout"
       when: configure_borg | bool
 
+    # Pipelining must be disabled for become_user tasks — Ansible's pipelining
+    # sends module code over stdin through the become mechanism, which can break
+    # when switching to a non-root user (UNREACHABLE error).
     - name: Test SSH connectivity to Storage Box (port 23)
       ansible.builtin.command:
-        cmd: ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o BatchMode=yes {{ storagebox_subaccount }}@{{ storagebox_host }} ls
+        cmd: ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o BatchMode=yes {{ storagebox_backup_subaccount }}@{{ storagebox_backup_host }} ls
       become: true
       become_user: "{{ haven_user }}"
       vars:
@@ -456,8 +492,8 @@
       ansible.builtin.fail:
         msg: |
           Cannot reach Storage Box via SSH on port 23.
-          Host: {{ storagebox_host }}
-          User: {{ storagebox_subaccount }}
+          Host: {{ storagebox_backup_host }}
+          User: {{ storagebox_backup_subaccount }}
           Return code: {{ ssh_test.rc }}
           Stderr: {{ ssh_test.stderr | default('') }}
 
@@ -470,7 +506,7 @@
 
     - name: Check if BorgBackup repo already exists
       ansible.builtin.command:
-        cmd: borg info "{{ storagebox_subaccount }}@{{ storagebox_host }}:./forge"
+        cmd: borg info "{{ storagebox_backup_subaccount }}@{{ storagebox_backup_host }}:./forge"
       environment:
         BORG_PASSPHRASE: "{{ borg_passphrase | default('') }}"
         BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes -o ConnectTimeout=30"
@@ -485,7 +521,7 @@
 
     - name: Initialise BorgBackup repository (repokey-blake2 encryption)
       ansible.builtin.command:
-        cmd: borg init --encryption=repokey-blake2 "{{ storagebox_subaccount }}@{{ storagebox_host }}:./forge"
+        cmd: borg init --encryption=repokey-blake2 "{{ storagebox_backup_subaccount }}@{{ storagebox_backup_host }}:./forge"
       environment:
         BORG_PASSPHRASE: "{{ borg_passphrase | default('') }}"
         BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes -o ConnectTimeout=30"
@@ -505,7 +541,7 @@
 
     - name: Export and display BorgBackup repokey (store this in Vaultwarden!)
       ansible.builtin.command:
-        cmd: borg key export "{{ storagebox_subaccount }}@{{ storagebox_host }}:./forge" -
+        cmd: borg key export "{{ storagebox_backup_subaccount }}@{{ storagebox_backup_host }}:./forge" -
       environment:
         BORG_PASSPHRASE: "{{ borg_passphrase | default('') }}"
         BORG_RSH: "ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes -o ConnectTimeout=30"

@@ -102,7 +102,7 @@
 
     - name: Ensure Immich storage subfolders exist
       ansible.builtin.file:
-        path: /mnt/storagebox/immich/{{ item }}
+        path: /mnt/haven-data-media/immich/{{ item }}
         state: directory
         mode: "0755"
       loop:
@@ -115,8 +115,8 @@
 
     - name: Recreate any missing Immich folder-integrity markers
       ansible.builtin.command:
-        cmd: touch /mnt/storagebox/immich/{{ item }}/.immich
-        creates: /mnt/storagebox/immich/{{ item }}/.immich
+        cmd: touch /mnt/haven-data-media/immich/{{ item }}/.immich
+        creates: /mnt/haven-data-media/immich/{{ item }}/.immich
       loop:
         - upload
         - library
@@ -136,17 +136,17 @@
 
     - name: Ensure Jellyfin media hostPath directory exists
       ansible.builtin.file:
-        path: /mnt/storagebox/media
+        path: /mnt/haven-data-media/jellyfin
         state: directory
         mode: "0755"
 
-    # Top-level library subfolders — plain SMB/CIFS mkdir (unlike the S3/FUSE
-    # rclone-mount below), so a normal Ansible file task works fine here.
-    # Add each as its own library in Jellyfin's UI (Dashboard → Libraries →
-    # Add Media Library) with the matching content type (Movies/Shows/Music).
+    # Top-level library subfolders — plain SMB/CIFS mkdir, so a normal
+    # Ansible file task works fine here. Add each as its own library in
+    # Jellyfin's UI (Dashboard → Libraries → Add Media Library) with the
+    # matching content type (Movies/Shows/Music).
     - name: Ensure Jellyfin media library subfolders exist
       ansible.builtin.file:
-        path: /mnt/storagebox/media/{{ item }}
+        path: /mnt/haven-data-media/jellyfin/{{ item }}
         state: directory
         mode: "0755"
       loop:
@@ -154,12 +154,16 @@
         - shows
         - music
 
-    # Kavita library subfolder ("books") — NOT provisioned here. Confirmed
-    # (2026-08-28, real CI run) that a plain host-level mkdir on /mnt/haven-docs
-    # (an rclone FUSE mount over S3) fails with the same raw EIO kubelet hit —
-    # this is an rclone/S3-backend limitation, not a kubelet-bind-mount quirk,
-    # so no Ansible/host-level task can work around it. Fixed properly at the
-    # source instead: rclone-mount's own chart now runs `rclone mkdir` (a real
-    # S3 API call, not a FUSE mkdir) via an initContainer — see
-    # services/forge/rclone-mount/templates/deployment.yaml + values.yaml's
-    # mount.subfolders list.
+    # =========================================================================
+    # Documents storage (Nextcloud + Kavita) — haven-data Storage Box, docs
+    # sub-account, SMB-mounted at /mnt/haven-data-docs. Unlike the old
+    # rclone-mount/S3 setup (removed 2026-08-29 — the haven-docs bucket was
+    # deleted), plain SMB/CIFS supports a normal Ansible mkdir directly, no
+    # in-cluster initContainer workaround needed.
+    # =========================================================================
+
+    - name: Ensure Kavita library subfolder exists
+      ansible.builtin.file:
+        path: /mnt/haven-data-docs/books
+        state: directory
+        mode: "0755"
