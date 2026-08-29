@@ -24,10 +24,6 @@ on:
         description: "Dry run (plan only, no apply)"
         type: boolean
         default: false
-      stage:
-        description: "Limit to a specific stage (empty = all)"
-        type: string
-        required: false
 
 permissions:
   contents: read
@@ -154,9 +150,6 @@ jobs:
           ARGS="--file $DEPLOYMENT_FILE --force --scope infra"
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
-          fi
-          if [ -n "${{ inputs.stage }}" ]; then
-            ARGS="$ARGS --stage ${{ inputs.stage }}"
           fi
           strata deploy run $ARGS
 

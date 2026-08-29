@@ -67,6 +67,15 @@ resource "hcloud_firewall" "forge" {
 # k3s is installed via Ansible after provisioning.
 # lifecycle.prevent_destroy  — production node; accidental destroy would lose k3s state.
 # lifecycle.ignore_changes   — server_type ignored after creation (resize without destroy).
+#   user_data is ALSO ignored — the hcloud provider treats user_data as a
+#   force-replacement attribute (cloud-init only runs on first boot, so
+#   Terraform can't apply a changed value in place). Editing the mkdir list
+#   below is safe for documentation/new-server bootstrap purposes, but has NO
+#   effect on an already-provisioned server — ongoing directory management for
+#   a live server is Ansible's job (forge-init.yml/forge-config.yml), which is
+#   idempotent and re-runnable. Without this ignore, ANY edit to user_data
+#   plans to destroy+recreate this production node (caught once already by
+#   prevent_destroy — 2026-08-29).
 
 resource "hcloud_server" "forge" {
   name        = "${replace(var.workspace_name, "_", "-")}-forge"
@@ -88,7 +97,7 @@ resource "hcloud_server" "forge" {
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = [server_type]
+    ignore_changes  = [server_type, user_data]
   }
 }
 
