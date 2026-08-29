@@ -65,9 +65,34 @@
     # it's just a hostPath reference into the SMB mount, not the data store).
     # The next `33 - Forge - Deploy` run's helm upgrade recreates both
     # cleanly with the correct /mnt/haven-data-media/immich path.
-    # ⚠️ REMOVE THIS TASK once the next redeploy is confirmed clean — this
-    # must NOT run on every routine forge-config.yml execution.
+    #
+    # First attempt at this hung for 9 minutes and then failed with an
+    # "unreachable"/SSH transport error — root cause was the immich-server
+    # Deployment's running pod still mounting the immich-library PVC, so the
+    # PVC's kubernetes.io/pvc-protection finalizer blocked kubectl delete
+    # indefinitely (it waits for the mounting pod to go away, it does not
+    # time out on its own). Deleting the Deployment first and waiting for its
+    # pod(s) to actually terminate releases the mount so the PVC/PV delete
+    # below completes immediately instead of hanging.
+    # ⚠️ REMOVE THIS TASK (all three below) once the next redeploy is
+    # confirmed clean — this must NOT run on every routine forge-config.yml
+    # execution.
     # =========================================================================
+    - name: "ONE-TIME: delete immich-server Deployment (releases the library PVC mount)"
+      ansible.builtin.command:
+        cmd: kubectl delete deployment/immich-server -n immich --ignore-not-found=true
+      register: immich_server_delete
+      changed_when: "'deleted' in immich_server_delete.stdout"
+
+    - name: "ONE-TIME: wait for immich-server pod(s) to terminate"
+      ansible.builtin.shell:
+        cmd: kubectl get pods -n immich --no-headers 2>/dev/null | grep -c '^immich-server-' || true
+      register: immich_server_pod_count
+      until: immich_server_pod_count.stdout | trim == "0"
+      retries: 30
+      delay: 10
+      changed_when: false
+
     - name: "ONE-TIME: delete immich-library PVC + PV (stale hostPath from pre-split storagebox mount)"
       ansible.builtin.command:
         cmd: "kubectl delete {{ item }} --ignore-not-found=true"
