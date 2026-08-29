@@ -39,8 +39,8 @@ haven (workspace)
 │   └── sub2: Forge backup (encrypted, daily)
 │
 ├── storage box — haven-data (1 TB, separate product) ← All live app data (SMB mounts)
-│   ├── media sub-account: Immich + Jellyfin
-│   └── docs sub-account: Nextcloud + Kavita
+│   ├── media sub-account: Immich
+│   └── docs sub-account: Nextcloud + Kavita + Jellyfin
 │
 ├── object storage (S3, eu-central)        ← available if a future app needs a native S3 API; not used today
 │
@@ -105,8 +105,8 @@ graph TB
     end
 
     subgraph StorageData["💾 Hetzner Storage Box — haven-data (1 TB) 🇩🇪"]
-        ImmichFiles["Immich + Jellyfin<br/>media sub-account (SMB)"]
-        DocFiles["Nextcloud + Kavita<br/>docs sub-account (SMB)"]
+        ImmichFiles["Immich<br/>media sub-account (SMB)"]
+        DocFiles["Nextcloud + Kavita + Jellyfin<br/>docs sub-account (SMB)"]
     end
 
     subgraph DNS["🌐 INWX — Germany 🇩🇪"]
@@ -228,8 +228,8 @@ Tier 1 — Daily BorgBackup (Hetzner-internal, fast)
                                                      (sub1: Hearth, sub2: Forge — encrypted Borg repos)
 
 Always-on primary storage (SMB mount, not a backup — the live data itself)
-  Immich + Jellyfin (media sub-account)      ──┐
-  Nextcloud + Kavita (docs sub-account)      ──┘──► haven-data Storage Box (1 TB, separate product)
+  Immich (media sub-account)                 ──┐
+  Nextcloud + Kavita + Jellyfin (docs sub-account) ──┘──► haven-data Storage Box (1 TB, separate product)
 
 Tier 2 — Daily offsite sync (rclone, ~03:00 UTC)
   haven-backup Storage Box (all contents)    ──┐

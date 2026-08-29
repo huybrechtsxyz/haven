@@ -13,7 +13,7 @@ Hetzner Cloud is the VPS hosting provider for haven. You will need to create a p
 Two separate Storage Box products, each with its own sub-accounts, passwords, and hostname — should already be set up and stored in Bitwarden/Infisical Cloud:
 
 - **`haven-backup`** — BorgBackup repos only (`sub1` = Hearth, `sub2` = Forge)
-- **`haven-data`** — live app data (`sub1` = media, for Immich + Jellyfin; `sub2` = docs, for Nextcloud + Kavita)
+- **`haven-data`** — live app data (`sub1` = media, for Immich; `sub2` = docs, for Nextcloud + Kavita + Jellyfin)
 
 See [Secrets for Hetzner Storagebox](./setup.md#secrets-for-hetzner-storagebox).  
 See [Hetzner Setup](../services/hetzner.md#create-a-hetzner-cloud-storagebox) if you still need to create either box.

@@ -48,6 +48,16 @@ The official Docker image supports **fully automated initial admin setup** via e
 
 ---
 
+## Adding media for Jellyfin and books for Kavita
+
+Jellyfin's media library (`/mnt/haven-data-docs/media`) and Kavita's books library (`/mnt/haven-data-docs/books`) both live in this same docs sub-account tree — Jellyfin's moved here from the media sub-account on 2026-08-29 (a free move, since Jellyfin had zero live data at the time; the media sub-account is now Immich-only), while Kavita's `books/` folder has always lived here. Named generically "media/" (not "jellyfin/") since it's not tied to any one app. No cross-sub-account mounts are needed on Nextcloud's side for either — both are just subfolders of the tree it already mounts.
+
+Two dedicated External Storage entries, **"Media"** and **"Books"**, are configured the same way as "Family Documents" above (`occ files_external:create "Media" local null::null -c datadir=/mnt/haven-data-docs/media` / `occ files_external:create "Books" local null::null -c datadir=/mnt/haven-data-docs/books`) — both in the post-installation hook (fresh installs) and idempotently on every deploy via `.github/workflows/deploy-forge-deploy.yml`'s "Configure Nextcloud External Storage shortcuts" step (needed since Nextcloud was already installed before these were added, and the hook only fires once, on a genuinely fresh install). "Books" was added 2026-08-29 alongside "Media" — previously Kavita's folder had no dedicated shortcut, only reachable by digging into "Family Documents".
+
+**Why this exists**: neither Jellyfin nor Kavita has an upload feature of its own — files must land directly on disk. Rather than have family members map an SMB network drive by hand (not realistic for kids on iPad), they can instead use the official **Nextcloud app** (already SSO-logged-in) to upload straight into the "Media" or "Books" folder — matching subfolder structure to whatever libraries Jellyfin has configured (e.g. `movies/`, `shows/`, `music/`) for "Media". Files land exactly where each app's own library scan looks; they pick new files up on their next scan (or a manual scan trigger from each app's own dashboard). See [jellyfin.md](./jellyfin.md#adding-media) and [kavita.md](./kavita.md#first-login) for the family-facing instructions.
+
+---
+
 ## SSO + RBAC — Authentik via `user_oidc`
 
 The Authentik side is **fully automated** — `deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2` creates the OAuth2 Provider + Application for Nextcloud (client ID `nextcloud`, `members` group policy) every time `deploy-hearth-config.yml` runs, using the `NEXTCLOUD_SSO_CLIENT_SECRET` Infisical secret. Uses `issuer_mode: per_provider` and includes the custom `groups` scope mapping (`mapping-group-membership`, shared with Jellyfin's provider) so `user_oidc`'s `--group-provisioning=1` can map Authentik's `admins`/`parents`/`members` groups into Nextcloud groups automatically.

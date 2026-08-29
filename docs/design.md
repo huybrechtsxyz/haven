@@ -114,7 +114,7 @@ This means a full redeploy from scratch requires only a Bitwarden Cloud login, a
 **Storage Box for all app data** (not S3, not local volumes) — split across **two separate Storage Box products** so backups and live media/documents can each scale to their own cheapest-fitting tier independently:
 
 - **`haven-backup`** (1 TB) — Hearth + Forge BorgBackup repos only (`sub1`/`sub2`)
-- **`haven-data`** (1 TB, separate product) — all live app data, split into two sub-accounts by data type: `media` (Immich + Jellyfin) and `docs` (Nextcloud + Kavita, since they already share one documents tree)
+- **`haven-data`** (1 TB, separate product) — all live app data, split into two sub-accounts: `media` (Immich only) and `docs` (Nextcloud + Kavita + Jellyfin, since they share one tree — Jellyfin moved here 2026-08-29, see jellyfin.md)
 
 This split exists because:
 

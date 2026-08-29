@@ -322,9 +322,9 @@
     # rather than password-based). SMB/CIFS is what subaccounts actually offer.
     # Share name equals the subaccount username itself (confirmed via Hetzner
     # Robot's own connection details, e.g. \\u604953-sub2.your-storagebox.de\u604953-sub2).
-    # Two independent shares on the SAME haven-data box — media (Immich +
-    # Jellyfin) and docs (Nextcloud + Kavita) — each mounted only when its own
-    # password is provided.
+    # Two independent shares on the SAME haven-data box — media (Immich
+    # only) and docs (Nextcloud + Kavita + Jellyfin) — each mounted only
+    # when its own password is provided.
 
     - name: Write SMB credentials file (media share)
       ansible.builtin.copy:

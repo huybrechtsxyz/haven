@@ -29,13 +29,20 @@ spec:
         storageClass: local-path
         size: 5Gi
       # Media library — read-only, backed by the haven-data Storage Box's
-      # media sub-account, SMB-mounted on the host at /mnt/haven-data-media
-      # (same hostPath approach as the immich-library module, not a separate
-      # in-pod SMB mount — avoids a second independent SMB auth/mount path).
+      # DOCS sub-account (moved 2026-08-29 from the media sub-account —
+      # Jellyfin had zero live data at the time, so this was a free move),
+      # SMB-mounted on the host at /mnt/haven-data-docs (same hostPath
+      # approach as the immich-library module, not a separate in-pod SMB
+      # mount — avoids a second independent SMB auth/mount path). Living in
+      # the same tree Nextcloud already mounts lets family members upload
+      # media via Nextcloud's own iOS/iPadOS app straight into this folder
+      # (see nextcloud.yaml's "Media" External Storage entry). Folder named
+      # generically "media/" (not "jellyfin/") since it's not tied to any
+      # one app.
       media:
         enabled: true
         type: hostPath
-        hostPath: /mnt/haven-data-media/jellyfin
+        hostPath: /mnt/haven-data-docs/media
       cache:
         enabled: false
 

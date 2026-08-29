@@ -30,8 +30,8 @@ haven (workspace)
 │   └── sub2: Forge backup (encrypted, daily)
 │
 ├── storage box — haven-data (1 TB, separate)    ← All live app data (SMB mounts)
-│   ├── media sub-account: Immich + Jellyfin
-│   └── docs sub-account: Nextcloud + Kavita
+│   ├── media sub-account: Immich
+│   └── docs sub-account: Nextcloud + Kavita + Jellyfin
 │
 ├── object storage (S3, eu-central, 3 buckets)   ← Currently unused
 │

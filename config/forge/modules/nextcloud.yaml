@@ -44,6 +44,12 @@ spec:
       # Bridges the haven-data Storage Box's docs sub-account (SMB-mounted on
       # the host at /mnt/haven-data-docs) into the pod. External Storage is
       # configured automatically — see the post-installation hook below.
+      # Also holds Jellyfin's media folder (/mnt/haven-data-docs/media —
+      # moved here from the media sub-account 2026-08-29, see
+      # jellyfin.yaml's persistence.media comment; named generically
+      # "media/" not "jellyfin/" since it's not tied to any one app) — no
+      # second cross-sub-account mount needed, it's just another subfolder
+      # of this same tree.
       extraVolumes:
         - name: haven-data-docs
           hostPath:
@@ -91,6 +97,15 @@ spec:
       # own `occ` CLI needs no separate bootstrap credential — this makes
       # Nextcloud's SSO setup the ONE app this session with ZERO manual
       # steps required at all.
+      #
+      # NOTE: this only fires for a genuinely fresh install. The "Media"
+      # and "Books" External Storage entries added 2026-08-29 were added
+      # AFTER Nextcloud's first install already happened in production, so
+      # this hook alone won't create them retroactively — see the
+      # idempotent "Configure Nextcloud External Storage shortcuts" step in
+      # .github/workflows/deploy-forge-deploy.yml, which does (and will keep
+      # applying it on every future fresh install too, redundantly but
+      # harmlessly, since it checks-before-creating).
       # =========================================================================
       hooks:
         post-installation: |
@@ -106,6 +121,10 @@ spec:
             --group-provisioning=1
           echo "Configuring External Storage for /mnt/haven-data-docs..."
           occ files_external:create "Family Documents" local null::null -c datadir=/mnt/haven-data-docs
+          echo "Configuring External Storage for /mnt/haven-data-docs/media..."
+          occ files_external:create "Media" local null::null -c datadir=/mnt/haven-data-docs/media
+          echo "Configuring External Storage for /mnt/haven-data-docs/books..."
+          occ files_external:create "Books" local null::null -c datadir=/mnt/haven-data-docs/books
 
     # Deliberately NOT using the chart's bundled Bitnami mariadb/postgresql/redis
     # subcharts (same reasoning as Immich) — own small single-pod services instead.

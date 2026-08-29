@@ -182,11 +182,21 @@
     # jellyfin/jellyfin-helm templates/deployment.yaml), which REQUIRES the
     # path to already exist — kubelet refuses to auto-create it and fails
     # with "hostPath type check failed: ... is not a directory" if missing.
+    #
+    # Moved from the media sub-account to the docs sub-account (2026-08-29)
+    # — Jellyfin had zero live data at the time, so this was a free move.
+    # Rationale: Jellyfin's folder now lives inside the SAME SMB mount
+    # Nextcloud already has (/mnt/haven-data-docs), letting family members
+    # upload media straight into Jellyfin's library via Nextcloud's own
+    # iOS/iPadOS app (see nextcloud.yaml's "Media" External Storage entry)
+    # without a second cross-sub-account mount. The media sub-account is
+    # now Immich-only. Folder named generically "media/" (not "jellyfin/")
+    # since it's not tied to any one app.
     # =========================================================================
 
     - name: Ensure Jellyfin media hostPath directory exists
       ansible.builtin.file:
-        path: /mnt/haven-data-media/jellyfin
+        path: /mnt/haven-data-docs/media
         state: directory
         mode: "0755"
 
@@ -196,7 +206,7 @@
     # matching content type (Movies/Shows/Music).
     - name: Ensure Jellyfin media library subfolders exist
       ansible.builtin.file:
-        path: /mnt/haven-data-media/jellyfin/{{ item }}
+        path: /mnt/haven-data-docs/media/{{ item }}
         state: directory
         mode: "0755"
       loop:
@@ -205,11 +215,11 @@
         - music
 
     # =========================================================================
-    # Documents storage (Nextcloud + Kavita) — haven-data Storage Box, docs
-    # sub-account, SMB-mounted at /mnt/haven-data-docs. Unlike the old
-    # rclone-mount/S3 setup (removed 2026-08-29 — the haven-docs bucket was
-    # deleted), plain SMB/CIFS supports a normal Ansible mkdir directly, no
-    # in-cluster initContainer workaround needed.
+    # Documents storage (Nextcloud + Kavita + Jellyfin) — haven-data Storage
+    # Box, docs sub-account, SMB-mounted at /mnt/haven-data-docs. Unlike the
+    # old rclone-mount/S3 setup (removed 2026-08-29 — the haven-docs bucket
+    # was deleted), plain SMB/CIFS supports a normal Ansible mkdir directly,
+    # no in-cluster initContainer workaround needed.
     # =========================================================================
 
     - name: Ensure Kavita library subfolder exists

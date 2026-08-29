@@ -323,6 +323,64 @@ jobs:
           echo "::warning::Failed to register Nextcloud SSO provider after 5 attempts — not failing the deploy, check manually."
 
       # =========================================================================
+      # Nextcloud External Storage — "Media" and "Books" upload folders.
+      #
+      # Jellyfin's media library lives at /mnt/haven-data-docs/media —
+      # moved into the SAME docs sub-account Nextcloud already mounts
+      # (2026-08-29, back when Jellyfin had zero live data, so a free move —
+      # see jellyfin.yaml's persistence.media comment). Named generically
+      # "media/" (not "jellyfin/") since it's not tied to any one app.
+      # Kavita's books/ folder has always lived in this same tree too, but
+      # previously had no dedicated shortcut — only reachable by digging
+      # into "Family Documents". Added a "Books" shortcut alongside "Media"
+      # for consistency (2026-08-29). No second cross-sub-account
+      # extraVolume needed on Nextcloud's side for either — both are just
+      # subfolders of the tree it already has. Nextcloud's post-installation
+      # hook runs `occ files_external:create ...` for both — but that hook
+      # only fires on a genuinely fresh install, and Nextcloud was already
+      # installed before these were added. So this step idempotently
+      # (re-)applies both External Storage mounts on every deploy: checks
+      # `occ files_external:list` first, only creates if missing. Purpose:
+      # family members can upload media/books via Nextcloud's own
+      # iOS/iPadOS app straight into these folders — a far better UX for
+      # kids than mapping an SMB network drive by hand — and files land
+      # exactly where Jellyfin's/Kavita's own library scans already look.
+      # =========================================================================
+      - name: Configure Nextcloud External Storage shortcuts
+        if: ${{ inputs.dry_run != true }}
+        env:
+          KUBECONFIG: /tmp/forge-kubeconfig.yaml
+        run: |
+          set +e
+          kubectl rollout status deployment/nextcloud -n documents --timeout=180s
+          set -e
+
+          for entry in "Media:/mnt/haven-data-docs/media" "Books:/mnt/haven-data-docs/books"; do
+            NAME="${entry%%:*}"
+            PATH_="${entry#*:}"
+
+            set +e
+            EXISTS=$(kubectl exec -n documents deploy/nextcloud -c nextcloud -- \
+              php occ files_external:list --output=json 2>/dev/null | grep -c "\"$NAME\"")
+
+            if [ "$EXISTS" -gt 0 ]; then
+              echo "Nextcloud External Storage \"$NAME\" already exists — skipping."
+              set -e
+              continue
+            fi
+
+            kubectl exec -n documents deploy/nextcloud -c nextcloud -- \
+              php occ files_external:create "$NAME" local null::null -c datadir="$PATH_"
+            RC=$?
+            set -e
+            if [ $RC -eq 0 ]; then
+              echo "Nextcloud External Storage \"$NAME\" created successfully."
+            else
+              echo "::warning::Failed to create Nextcloud External Storage \"$NAME\" — not failing the deploy, check manually."
+            fi
+          done
+
+      # =========================================================================
       # Kavita SSO — native OpenIdConnectSettings in appsettings.json.
       #
       # Kavita has no admin-UI OIDC toggle, no plugin, and no REST API for

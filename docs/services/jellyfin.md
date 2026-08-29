@@ -7,7 +7,7 @@
 Jellyfin runs on **Forge** (Hetzner CPX41, k3s), in its own `media` Kubernetes namespace — separate from Immich's `immich` namespace and any future self-hosted-app namespaces, so apps can be added/changed independently without colliding. See [Forge](../guides/forge.md) for the node-level overview.
 
 **Prerequisites:**
-- `deploy-forge-init.yml` (`31 - Forge - Init`) must have run successfully at least once — installs k3s + Traefik, and (with `configure_smb: true`) mounts the haven-data Storage Box's media sub-account over SMB/CIFS at `/mnt/haven-data-media` (Hetzner Storage Box subaccounts don't support NFS — see [Forge](../guides/forge.md)).
+- `deploy-forge-init.yml` (`31 - Forge - Init`) must have run successfully at least once — installs k3s + Traefik, and (with `configure_smb: true`) mounts the haven-data Storage Box's **docs** sub-account over SMB/CIFS at `/mnt/haven-data-docs` (Hetzner Storage Box subaccounts don't support NFS — see [Forge](../guides/forge.md)). Jellyfin's media folder lives under this same mount (`/mnt/haven-data-docs/media`) — moved here from the media sub-account on 2026-08-29, back when Jellyfin had zero live data, so the move was free; named generically "media/" (not "jellyfin/") since it's not tied to any one app. See [Storage](#storage) below.
 - The `system` namespace (`cert-manager` + `cert-manager-issuers`) must already be deployed — Jellyfin's ingress relies on its `letsencrypt-staging`/`letsencrypt-prod` `ClusterIssuer`s existing first.
 - A DNS A record for `media.{domain}` must point directly at Forge's public IP (Forge terminates its own ingress — see [Forge's design decision](../guides/forge.md#design-decision--forge-terminates-its-own-ingress)).
 - `deploy-forge-config.yml` (`32 - Forge - Config`, LAN routing to Hearth's Authentik) is **not** required for Jellyfin's SSO to work — confirmed 2026-08-28: the plugin's server-side token exchange resolves `auth.{domain}` via public DNS just fine (an extra network hop, not a blocker). It's a networking optimization only, not a hard dependency for this app.
@@ -47,11 +47,25 @@ Jellyfin runs on **Forge** (Hetzner CPX41, k3s), in its own `media` Kubernetes n
 
 ## Storage
 
-| Volume               | Type                                         | Notes                                                                                                                                                                                                                                                     |
-| -------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `persistence.config` | PVC, `local-path`, 5Gi                       | Jellyfin's own metadata/database — local disk, not backed up to Storage Box yet                                                                                                                                                                           |
-| `persistence.media`  | `hostPath`, `/mnt/haven-data-media/jellyfin` | The actual media library. Reuses the *same* haven-data Storage Box SMB/CIFS mount `forge-init.yml` already sets up on the host — deliberately **not** a second, independent in-pod mount (avoids duplicate auth/mount overhead for a single-node cluster) |
-| `persistence.cache`  | disabled (default)                           | Transcode cache — left disabled; Jellyfin uses software transcoding only (no GPU), so this isn't performance-critical yet                                                                                                                                 |
+| Volume               | Type                                     | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `persistence.config` | PVC, `local-path`, 5Gi                   | Jellyfin's own metadata/database — local disk, not backed up to Storage Box yet                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `persistence.media`  | `hostPath`, `/mnt/haven-data-docs/media` | The actual media library. Lives in the haven-data Storage Box's **docs** sub-account (moved here 2026-08-29 from the media sub-account, which is now Immich-only — free move since Jellyfin had zero live data at the time; named generically "media/" not "jellyfin/" since it's not tied to any one app). Sharing this tree with Nextcloud lets family members upload media via Nextcloud's own iOS/iPadOS app straight into Jellyfin's library — see [Adding media](#adding-media) below — without a second cross-sub-account mount. |
+| `persistence.cache`  | disabled (default)                       | Transcode cache — left disabled; Jellyfin uses software transcoding only (no GPU), so this isn't performance-critical yet                                                                                                                                                                                                                                                                                                                                                                                                               |
+
+---
+
+## Adding media
+
+Jellyfin has no upload feature in its own web UI — it only scans whatever's already on disk. The recommended way to add files, especially for family members on iPad who shouldn't need to map an SMB network drive by hand:
+
+1. Open the **Nextcloud** app (iOS/iPadOS, or the web UI) — already SSO-logged-in via Authentik.
+2. Find the **"Media"** folder — an External Storage mount Nextcloud exposes straight into `/mnt/haven-data-docs/media` (see `config/forge/modules/nextcloud.yaml`, and [nextcloud.md](./nextcloud.md#adding-media-for-jellyfin-and-books-for-kavita)).
+3. Upload/organize files into subfolders matching Jellyfin's configured libraries (e.g. `movies/`, `shows/`, `music/` — pre-created by `deploy-forge-config.yml`).
+4. Files land directly on the same Storage Box path Jellyfin scans — no copy/sync step, no intermediate staging. They stay exactly where uploaded; Jellyfin never moves/renames/reorganizes files during a scan.
+5. Trigger a scan from Jellyfin's Dashboard → Libraries → "Scan All Libraries" (or wait for the next scheduled scan).
+
+Admins who prefer a direct route can still mount the `docs` sub-account as an SMB network drive (same credentials `forge-init.yml` uses) instead of going through Nextcloud.
 
 ---
 
@@ -86,7 +100,7 @@ See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugi
 ## Verification checklist
 
 - [x] `https://media.{domain}` — Jellyfin loads and is reachable from a browser
-- [x] Media library shows content from `/mnt/haven-data-media/jellyfin`
+- [x] Media library shows content from `/mnt/haven-data-docs/media`
 - [x] SSO plugin installed and Authentik provider registered
 - [x] "Sign in with SSO" login button works end-to-end (confirmed 2026-08-28)
 

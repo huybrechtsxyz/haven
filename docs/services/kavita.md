@@ -51,7 +51,11 @@ Kavita has no pre-seeded admin account (unlike Nextcloud's `NEXTCLOUD_ADMIN_PASS
 2. Since no users exist yet, Kavita shows its first-run setup screen instead of a login form — create the initial admin account there (username + password of your choice).
 3. That account is granted the admin role automatically (first registered user only — every subsequent signup is a normal user unless promoted).
 4. From **Settings → Users**, invite/create accounts for other family members if you want more than one local account, or rely on SSO (see below) once it's configured.
-5. From **Settings → Libraries**, confirm a library exists pointing at `/library` (mapped from `/mnt/haven-data-docs/books` — see [Storage](#storage--shares-the-haven-data-docs-mount-with-nextcloud) above) and that a scan has picked up content.
+5. From **Settings → Libraries**, confirm a library exists pointing at `/library` (mapped from `/mnt/haven-data-docs/books` — see [Storage](#storage--shares-the-haven-data-docs-mount-with-nextcloud) above) and that a scan has picked up content. `/config` is Kavita's own database/settings storage — not a library path, don't pick it in the folder browser.
+
+### Adding books
+
+Kavita has no upload feature of its own, same as Jellyfin — files must land directly on `/mnt/haven-data-docs/books`. The easiest way: open the **Nextcloud** app (iOS/iPadOS or web, already SSO-logged-in) and use the **"Books"** folder — an External Storage mount Nextcloud exposes straight into this same path (see [nextcloud.md](./nextcloud.md#adding-media-for-jellyfin-and-books-for-kavita)). Files land exactly where Kavita's own library scan looks — trigger one from Kavita's Dashboard, or wait for its scheduled scan.
 
 ---
 

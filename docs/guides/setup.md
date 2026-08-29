@@ -33,8 +33,8 @@ Complete list of what goes in GitHub Secrets vs Infisical Cloud.
 | `STORAGEBOX_BACKUP_HEARTH_SUB` | Sub-account username (e.g. `u604953-sub1`)                      | Hearth's backup-only sub-account                      |
 | `STORAGEBOX_BACKUP_FORGE_SUB`  | Sub-account username (e.g. `u604953-sub2`)                      | Forge's backup-only sub-account                       |
 | `STORAGEBOX_DATA_HOST`         | `haven-data` box hostname (e.g. `u659230.your-storagebox.de`)   | Storage box for data only                             |
-| `STORAGEBOX_DATA_MEDIA_SUB`    | Sub-account username (e.g. `u659230-sub1`)                      | Immich + Jellyfin                                     |
-| `STORAGEBOX_DATA_DOCS_SUB`     | Sub-account username (e.g. `u659230-sub2`)                      | Nextcloud + Kavita                                    |
+| `STORAGEBOX_DATA_MEDIA_SUB`    | Sub-account username (e.g. `u659230-sub1`)                      | Immich                                                |
+| `STORAGEBOX_DATA_DOCS_SUB`     | Sub-account username (e.g. `u659230-sub2`)                      | Nextcloud + Kavita + Jellyfin                         |
 
 
 **Infisical Secrets** are secrets stored in Infisical Cloud. All secrets are fetched at runtime via machine identity (Universal Auth). Store every value in Bitwarden as a backup.
@@ -55,8 +55,8 @@ Complete list of what goes in GitHub Secrets vs Infisical Cloud.
 | `STORAGEBOX_BACKUP_FORGE_PASSWORD`                                   | Password          | Forge's backup-only sub-account password (unchanged — previously also served live data; that responsibility now moves to the new `haven-data` box below, so this sub-account goes back to backup-only, matching its `/forge-backup/` base dir) |
 |                                                                      |                   |                                                                                                                                                                                                                                                |
 | **Storagebox — live data (`haven-data` box, new, separate product)** |                   |                                                                                                                                                                                                                                                |
-| `STORAGEBOX_DATA_MEDIA_PASSWORD`                                     | Password          | Sub-account for Immich + Jellyfin (photo/video + media streaming)                                                                                                                                                                              |
-| `STORAGEBOX_DATA_DOCS_PASSWORD`                                      | Password          | Sub-account for Nextcloud + Kavita (shared documents tree)                                                                                                                                                                                     |
+| `STORAGEBOX_DATA_MEDIA_PASSWORD`                                     | Password          | Sub-account for Immich (photo library)                                                                                                                                                                                                         |
+| `STORAGEBOX_DATA_DOCS_PASSWORD`                                      | Password          | Sub-account for Nextcloud + Kavita + Jellyfin (shared documents/media tree — Jellyfin moved here 2026-08-29, see jellyfin.md)                                                                                                                  |
 |                                                                      |                   |                                                                                                                                                                                                                                                |
 | **Borg backup**                                                      |                   |                                                                                                                                                                                                                                                |
 | `BORG_PASSPHRASE_HEARTH`                                             | Passphrase        | `token_urlsafe(48)` — Used to encrypt/decrypt Borg backup archives                                                                                                                                                                             |
@@ -165,8 +165,8 @@ Get-Content ~/.ssh/haven_ed25519 -Raw
 >
 > **Box 2 — `haven-data`** (new, separate product, 1 TB box): dedicated to Immich/Jellyfin/Nextcloud/Kavita's live data. Two sub-accounts are used, grouped by data type rather than one-per-app — Nextcloud and Kavita already share the same underlying documents tree, so they share a sub-account too:
 >
-> - **`sub1`** — media sub-account — Immich + Jellyfin
-> - **`sub2`** — docs sub-account — Nextcloud + Kavita
+> - **`sub1`** — media sub-account — Immich
+> - **`sub2`** — docs sub-account — Nextcloud + Kavita + Jellyfin
 >
 > Both sub-accounts are created. This split exists because Storage Box billing is per-box/fixed-tier, and backups vs. live media/documents have very different growth curves — see [architecture.md](../architecture.md) for the full reasoning.
 
