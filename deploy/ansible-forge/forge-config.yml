@@ -53,28 +53,6 @@
       when: hearth_private_ip is defined
 
     # =========================================================================
-    # ONE-TIME (2026-08-29): reset immich-postgres — corrupted migration state
-    # after a killed v3.1.0->v3.0.0->v3.1.0 rollback attempt (see
-    # config/forge/modules/immich.yaml's comment for the full history). No
-    # photo data needs preserving (confirmed with user) — wiping the database
-    # outright is simpler/safer than migration-table surgery, and eliminates
-    # the whole bug class since a brand-new DB has no migration history to
-    # conflict with. Bypasses Helm entirely (kubectl delete only) — the next
-    # `33 - Forge - Deploy` run's helm upgrade recreates the Deployment + PVC
-    # cleanly since Helm creates whatever's missing from its rendered manifest.
-    # ⚠️ REMOVE THIS TASK once the next redeploy is confirmed clean — this
-    # must NOT run on every routine forge-config.yml execution.
-    # =========================================================================
-    - name: "ONE-TIME: delete immich-postgres Deployment + PVC (corrupted migration reset)"
-      ansible.builtin.command:
-        cmd: kubectl delete {{ item }} -n immich --ignore-not-found=true
-      loop:
-        - deployment/immich-postgres
-        - pvc/immich-postgres
-      register: immich_postgres_reset
-      changed_when: "'deleted' in immich_postgres_reset.stdout"
-
-    # =========================================================================
     # IMPORTANT: the node-level /etc/hosts edits above only affect processes
     # running directly on the Forge VM (kubectl, ssh sessions, etc). They do
     # NOT propagate into Kubernetes PODS — kubelet manages each pod's own

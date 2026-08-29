@@ -504,33 +504,6 @@
           4. Hetzner Cloud Firewall → Outbound TCP port 23: ALLOWED
       when: configure_borg | bool and ssh_test.rc == 255
 
-    # =========================================================================
-    # ONE-TIME (2026-08-29): list forge-backup Storage Box contents. Before
-    # the two-Storage-Box split, this sub-account's generic storagebox_*
-    # var set was ALSO used for the SMB media-library mount (see the Ansible
-    # layer rewrite in forge-init.yml/vars/main.yml), so it likely has stray
-    # live-app-data folders (immich/, media/) sitting alongside the real
-    # BorgBackup repo. This task is read-only — it only lists what's there
-    # so the next cleanup step targets the right paths, not a guess.
-    # ⚠️ REMOVE THIS TASK (and the one below) once the listing has been
-    # reviewed and any stray data has been cleaned up.
-    # =========================================================================
-    - name: "ONE-TIME: list forge-backup Storage Box contents"
-      ansible.builtin.command:
-        cmd: ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o BatchMode=yes {{ storagebox_backup_subaccount }}@{{ storagebox_backup_host }} "ls -la"
-      become: true
-      become_user: "{{ haven_user }}"
-      vars:
-        ansible_ssh_pipelining: false
-      register: backup_listing
-      changed_when: false
-      when: configure_borg | bool
-
-    - name: "ONE-TIME: show forge-backup Storage Box contents"
-      ansible.builtin.debug:
-        msg: "{{ backup_listing.stdout_lines }}"
-      when: configure_borg | bool
-
     - name: Check if BorgBackup repo already exists
       ansible.builtin.command:
         cmd: borg info "{{ storagebox_backup_subaccount }}@{{ storagebox_backup_host }}:./forge"
