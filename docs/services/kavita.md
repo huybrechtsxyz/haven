@@ -59,7 +59,7 @@ Kavita has no pre-seeded admin account (unlike Nextcloud's `NEXTCLOUD_ADMIN_PASS
 
 Unlike Jellyfin (needs a third-party plugin + a UI-minted API key) or Nextcloud (needs the `user_oidc` app + an `occ` command), Kavita has **native OIDC support built into its ASP.NET Core backend** (`Kavita.Common.Configuration.OidcSettings` — a plain `Authority`/`ClientId`/`Secret`/`CustomScopes` block). There's no admin-UI toggle and no REST API for it — Kavita reads this block once, at process startup, from `config/appsettings.json` on its own config PVC.
 
-**Fully automated, zero manual steps**, once `KAVITA_SSO_CLIENT_SECRET` exists in Infisical (it's a value we generate ourselves — see `config/environment.yaml` — not something that has to come from Kavita's own UI):
+**Automated on the Authentik + appsettings.json side**, once `KAVITA_SSO_CLIENT_SECRET` exists in Infisical (it's a value we generate ourselves — see `config/environment.yaml` — not something that has to come from Kavita's own UI). **One manual one-time step is still required** (see below) — the "zero manual steps" framing this section originally used was wrong; correcting it here.
 
 1. **Authentik side**: `deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2` creates the OAuth2 Provider + Application for Kavita (client ID `kavita`, `members` group policy, `issuer_mode: per_provider` — same strict-issuer fix already applied to Jellyfin/Nextcloud/Immich) every time `deploy-hearth-config.yml` runs.
 2. **Kavita side**: `.github/workflows/deploy-forge-deploy.yml` copies `/config/appsettings.json` out of the running pod after every Helm deploy, merges in the `OpenIdConnectSettings` block (`kubectl cp` + `jq`, run on the GitHub Actions runner — not inside the container, since the LinuxServer.io image isn't guaranteed to have `jq`), copies it back, and only restarts the pod (`kubectl rollout restart`) if the file actually changed — because Kavita only reads this file once at startup, a plain file edit with no restart wouldn't take effect. Skips silently if `KAVITA_SSO_CLIENT_SECRET` isn't resolvable yet.
@@ -69,7 +69,26 @@ Unlike Jellyfin (needs a third-party plugin + a UI-minted API key) or Nextcloud 
 
 If Kavita's own hostname/ingress ever changes, re-verify this the same way: attempt a login, capture the failing `redirect_uri=` query param from the browser URL bar, and make sure it still matches the blueprint's registered value exactly (`matching_mode: strict`).
 
+### One-time manual step — enable account provisioning
+
+Getting past the redirect_uri check isn't the whole story — the first real login attempt then failed with **"no matching account found"**. Root cause: Kavita has a **second, database-backed OIDC settings block** (`ServerSettingDto.OidcConfig`, configured through Kavita's own admin UI — Settings → OIDC — not through `appsettings.json`), separate from the `Authority`/`ClientId`/`Secret` block we automate. Per `Kavita.Services/OidcService.cs`'s `LoginOrCreate` flow: a login only succeeds if there's a matching local user by OIDC ID, by exact email match (against an account with no `OidcId` set yet), or if `OidcConfig.ProvisionAccounts` is enabled (allows auto-creating a new local account from the SSO login). This setting defaults to off and nothing in the CI automation touches it, since it's a runtime admin preference, not infrastructure config.
+
+**Fix applied**: logged into Kavita locally (the first-run admin account) → **Settings → OIDC** → enabled **Provision Accounts** → confirmed the **Authority / Client ID / Secret** fields shown there match what's patched into `appsettings.json` (`https://auth.huybrechts.xyz/application/o/kavita/`, `kavita`, the `KAVITA_SSO_CLIENT_SECRET` value) → retried login.
+
+This is a genuinely manual, one-time step (no stable Kavita AuthKey exists yet to script it via `POST /api/Settings`, the way Jellyfin's API key automates its own registration) — same category of exception as Jellyfin's one unavoidable manual step, just a different shape (a settings toggle instead of an API key).
+
+**Also required in the same Settings → OIDC screen — Default Roles / Default Libraries**: enabling `ProvisionAccounts` alone isn't enough. `OidcConfigDto.DefaultRoles` and `DefaultLibraries` both default to an **empty list** (confirmed directly in Kavita's source, `Kavita.Models/DTOs/Settings/OidcConfigDto.cs`), and `SetDefaults()` only assigns them when `SyncUserSettings` is off (the default). Leaving `Default Roles` empty means a newly auto-provisioned account gets **zero roles — including no `Login` role** — which Kavita's own `AccountController.Login` treats identically to an admin-disabled account (`"your account has been disabled"` / `"not authorized to see this view"`). Fix:
+- Set **Default Roles** to at least `Login` (plus `Download`/`Bookmark`/`Change Password` for a normal family member, or `Admin` if this account should be a full admin).
+- Set **Default Libraries** to whichever library the account should see (e.g. the Books library) — otherwise it can log in but sees nothing.
+- Any account that already got auto-created *before* these defaults were set needs its roles/libraries fixed manually, once, via **Settings → Users** — setting the defaults only affects future provisioning, not retroactively.
+
 > **Design note**: [authentik.md](./authentik.md#authentication-strategy) originally scoped Kavita as local-credentials-only ("single-user reader, no family access needed"). This SSO wiring supersedes that — update that table if/when SSO login is confirmed working end-to-end.
+
+### Password login fallback — SSO-only isn't role-scoped
+
+Kavita has an `OidcConfig.DisablePasswordAuthentication` flag (confirmed in `AccountController.Login`), but it's a **global** switch — enabling it blocks password-based login for *every* account, admin included, with no per-role exception. The only bypass when it's on is logging in via an **Auth Key** instead of a password (`Settings → Manage Auth Keys`).
+
+In practice this repo doesn't need that toggle: SSO-auto-provisioned accounts are created with **no password set at all** (`userManager.CreateAsync(user)`, no password argument), so family members created through SSO already can't fall back to a password unless someone manually sets one for them. The original local admin account (from [First login](#first-login)) keeps its normal password as the recovery path if Authentik is ever down. If you do want the blunt global lock later, create an Auth Key for the admin account first — otherwise there's no recovery path left if Authentik goes down.
 
 ---
 
@@ -80,6 +99,7 @@ If Kavita's own hostname/ingress ever changes, re-verify this the same way: atte
 - [ ] Library scan picks up files under `/mnt/haven-data-docs/books`
 - [ ] Confirm the actual current LinuxServer.io image tag before first deploy
 - [ ] First-run admin account created (see [First login](#first-login))
+- [ ] `Provision Accounts` enabled under Kavita's Settings → OIDC, with **Default Roles** including `Login` and **Default Libraries** set (see [SSO's one-time manual step](#one-time-manual-step--enable-account-provisioning))
 - [ ] Authentik SSO provider registered and "Sign in with SSO" (or equivalent) works end-to-end
 
 ---
@@ -89,3 +109,4 @@ If Kavita's own hostname/ingress ever changes, re-verify this the same way: atte
 - TLS is on `letsencrypt-staging` pending a live `Ready: True` confirmation — switch to `letsencrypt-prod` once verified (see [TLS](#tls--cert-manager) above)
 - Image tag needs a live-source verification pass (LinuxServer.io's docs site and the Kavita wiki both failed to render via automated fetch when this module was authored — used well-established general knowledge instead of a live-verified source)
 - SSO redirect_uri is now `https://` (confirmed correct 2026-08-29, see [SSO](#sso--authentik-oidc-native)) — pending a follow-up login test after redeploying `22 - Hearth - Config` with the fixed blueprint, to confirm the "Redirect URI Error" is actually resolved
+- `Provision Accounts` is a manual, per-instance admin-UI toggle (Settings → OIDC) — not automated by CI. If Kavita's config PVC is ever recreated from scratch, this must be re-enabled manually before SSO logins work again. **Default Roles and Default Libraries must be set in the same screen** — leaving them empty silently creates roleless/library-less accounts that look "disabled" (see [SSO's one-time manual step](#one-time-manual-step--enable-account-provisioning)).
