@@ -323,6 +323,68 @@ jobs:
           echo "::warning::Failed to register Nextcloud SSO provider after 5 attempts — not failing the deploy, check manually."
 
       # =========================================================================
+      # Kavita SSO — native OpenIdConnectSettings in appsettings.json.
+      #
+      # Kavita has no admin-UI OIDC toggle, no plugin, and no REST API for
+      # this — Kavita.Common.Configuration.OidcSettings reads a plain
+      # Authority/ClientId/Secret/CustomScopes block straight out of
+      # config/appsettings.json on the pod's config PVC, once, at process
+      # startup (Kavita.Server.Extensions.IdentityServiceExtensions). So
+      # unlike Jellyfin (needs a UI-minted API key) or Nextcloud (needs an
+      # occ command), this is patched by copying the file out of the running
+      # pod, merging in the OIDC block with jq (on the runner, not inside
+      # the container — the LinuxServer.io image isn't guaranteed to have
+      # jq), copying it back, and only restarting the pod if the file
+      # actually changed (avoids an unnecessary restart on every deploy).
+      # Skips silently if KAVITA_SSO_CLIENT_SECRET isn't set yet.
+      # =========================================================================
+      - name: Register Kavita SSO provider (native appsettings.json)
+        if: ${{ inputs.dry_run != true }}
+        env:
+          KUBECONFIG: /tmp/forge-kubeconfig.yaml
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
+        run: |
+          set +e
+          VALUES=$(strata values get KAVITA_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          set -e
+          KAVITA_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.KAVITA_SSO_CLIENT_SECRET // empty')
+          if [ -z "$KAVITA_SSO_SECRET" ]; then
+            echo "::warning::KAVITA_SSO_CLIENT_SECRET not resolvable — skipping Kavita SSO registration."
+            exit 0
+          fi
+
+          kubectl rollout status deployment/kavita -n documents --timeout=180s
+
+          POD=$(kubectl get pod -n documents -l app=kavita -o jsonpath='{.items[0].metadata.name}')
+          if [ -z "$POD" ]; then
+            echo "::warning::No Kavita pod found — skipping Kavita SSO registration."
+            exit 0
+          fi
+
+          kubectl cp -n documents "$POD:/config/appsettings.json" /tmp/kavita-appsettings-before.json
+          cp /tmp/kavita-appsettings-before.json /tmp/kavita-appsettings-after.json
+
+          jq --arg secret "$KAVITA_SSO_SECRET" \
+            '.OpenIdConnectSettings = {
+              Authority: "https://auth.huybrechts.xyz/application/o/kavita/",
+              ClientId: "kavita",
+              Secret: $secret,
+              CustomScopes: []
+            }' /tmp/kavita-appsettings-before.json > /tmp/kavita-appsettings-after.json
+
+          if diff -q /tmp/kavita-appsettings-before.json /tmp/kavita-appsettings-after.json > /dev/null; then
+            echo "Kavita OIDC settings already up to date — no restart needed."
+            exit 0
+          fi
+
+          kubectl cp -n documents /tmp/kavita-appsettings-after.json "$POD:/config/appsettings.json"
+          kubectl rollout restart deployment/kavita -n documents
+          kubectl rollout status deployment/kavita -n documents --timeout=180s
+          echo "Kavita OIDC settings updated and pod restarted."
+
+      # =========================================================================
       # Diagnostics on failure — the deploy step above uses `helm --wait
       # --atomic --timeout`, which on failure is force-killed by strata's
       # subprocess wrapper rather than exiting cleanly, so its own stderr

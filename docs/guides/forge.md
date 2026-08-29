@@ -104,17 +104,21 @@ Storage Box SMB mounts used by app namespaces:
 
 ## Service Configurations
 
-## Immich Setup
+### Immich Setup
 
 See [Immich](../services/immich.md##initial-setup) for detailed setup instructions.
 
-## Jellyfin Setup
+### Jellyfin Setup
 
 See [Jellyfin](../services/jellyfin.md##initial-setup) for detailed setup instructions.
 
-## NextCloud Setup
+### NextCloud Setup
 
 See [NextCloud](../services/nextcloud.md##initial-setup) for detailed setup instructions.
+
+### Kavita Setup
+
+See [Kavita](../services/kavita.md##initial-setup) for detailed setup instructions.
 
 ---
 

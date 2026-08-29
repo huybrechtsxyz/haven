@@ -43,11 +43,11 @@ The blueprint creates groups and policies automatically. User accounts are **not
 
 Then assign each user to a group:
 
-| User / role              | Group     | Access                              |
-| ------------------------ | --------- | ----------------------------------- |
-| Tech admin (`akadmin`)   | `admins`  | All apps                            |
-| Adult family members     | `parents` | All family apps                     |
-| Other family members     | `members` | Shared apps (e.g. Vaultwarden)      |
+| User / role            | Group     | Access                         |
+| ---------------------- | --------- | ------------------------------ |
+| Tech admin (`akadmin`) | `admins`  | All apps                       |
+| Adult family members   | `parents` | All family apps                |
+| Other family members   | `members` | Shared apps (e.g. Vaultwarden) |
 
 1. Admin Interface → Directory → Groups → select group → Users tab → Add existing user
 
@@ -59,11 +59,11 @@ Then assign each user to a group:
 
 The blueprint creates three groups and a corresponding group-membership policy for each:
 
-| Group     | Policy                  | Who belongs            |
-| --------- | ----------------------- | ---------------------- |
-| `admins`  | `policy-group-admins`   | Tech admin             |
-| `parents` | `policy-group-parents`  | Adult family members   |
-| `members` | `policy-group-members`  | Everyone (kids, etc.)  |
+| Group     | Policy                 | Who belongs           |
+| --------- | ---------------------- | --------------------- |
+| `admins`  | `policy-group-admins`  | Tech admin            |
+| `parents` | `policy-group-parents` | Adult family members  |
+| `members` | `policy-group-members` | Everyone (kids, etc.) |
 
 Application access is gated by binding the appropriate policy to each application:
 
@@ -83,11 +83,11 @@ MFA is configured by the blueprint — the `default-authentication-mfa-validatio
 
 The behaviour when a user has no MFA device configured is set by `authentik_mfa_not_configured_action` in `deploy/ansible-hearth/vars/main.yml`:
 
-| Value       | Behaviour                                        |
-| ----------- | ------------------------------------------------ |
-| `configure` | Redirect user to enroll MFA at login (default)   |
-| `deny`      | Block login until an admin configures MFA        |
-| `skip`      | Allow login without MFA (not recommended)        |
+| Value       | Behaviour                                      |
+| ----------- | ---------------------------------------------- |
+| `configure` | Redirect user to enroll MFA at login (default) |
+| `deny`      | Block login until an admin configures MFA      |
+| `skip`      | Allow login without MFA (not recommended)      |
 
 Verify after deploy: Admin Interface → Flows & Stages → Flows → `default-authentication-flow` → Stage Bindings → should show `10` identification → `20` password → `30` mfa-validation.
 
@@ -97,15 +97,15 @@ Verify after deploy: Admin Interface → Flows & Stages → Flows → `default-a
 
 Not all services use Authentik SSO. SSO creates a dependency — if Authentik is down, SSO-protected services become inaccessible. The rule is:
 
-| Service         | Auth method                  | Reason                                                    |
-| --------------- | ---------------------------- | --------------------------------------------------------- |
-| **Vaultwarden** | Authentik SSO (OIDC)         | Family-facing — ease of access for all users              |
-| **WUD**         | Authentik SSO (OIDC)         | Admin tool, already working and low-friction              |
-| **Immich**      | Authentik SSO (OIDC)         | Family photo library — family members need access         |
-| **Jellyfin**    | Authentik SSO (OIDC, plugin) | Family media — family members need access                 |
-| **Nextcloud**   | Authentik SSO (OIDC)         | Family file sync — family members need access             |
-| **Kavita**      | Local credentials            | Single-user reader, no family access needed               |
-| **Portainer**   | Local credentials + TOTP MFA | Admin tool — must stay accessible if Authentik is down    |
+| Service         | Auth method                  | Reason                                                                    |
+| --------------- | ---------------------------- | ------------------------------------------------------------------------- |
+| **Vaultwarden** | Authentik SSO (OIDC)         | Family-facing — ease of access for all users                              |
+| **WUD**         | Authentik SSO (OIDC)         | Admin tool, already working and low-friction                              |
+| **Immich**      | Authentik SSO (OIDC)         | Family photo library — family members need access                         |
+| **Jellyfin**    | Authentik SSO (OIDC, plugin) | Family media — family members need access                                 |
+| **Nextcloud**   | Authentik SSO (OIDC)         | Family file sync — family members need access                             |
+| **Kavita**      | Authentik SSO (OIDC, native) | Family document/TTRPG library — now wired up alongside Nextcloud/Jellyfin |
+| **Portainer**   | Local credentials + TOTP MFA | Admin tool — must stay accessible if Authentik is down                    |
 
 > ⚠️ **Do not configure SSO for Portainer.** If Authentik fails, Portainer is your recovery tool.
 
@@ -115,13 +115,14 @@ Not all services use Authentik SSO. SSO creates a dependency — if Authentik is
 
 Full SSO configuration details live in each service's own doc. This table summarises the integration approach.
 
-| App         | `issuer_mode`      | Auth method            | Secret in Infisical                | Doc                              |
-| ----------- | ------------------ | ---------------------- | ---------------------------------- | -------------------------------- |
-| Vaultwarden | `per_provider`     | OIDC                   | `VAULTWARDEN_SSO_CLIENT_SECRET`    | [vaultwarden.md](vaultwarden.md) |
-| WUD         | `global`           | OIDC                   | `WUD_SSO_CLIENT_SECRET`            | [wud.md](wud.md)                 |
-| Immich      | `per_provider`     | OIDC (native)          | `IMMICH_OAUTH_CLIENT_SECRET`       | [immich.md](immich.md)           |
-| Jellyfin    | `per_provider`     | OIDC (plugin)          | `JELLYFIN_SSO_CLIENT_SECRET`       | [jellyfin.md](jellyfin.md)       |
-| Nextcloud   | `per_provider`     | OIDC (`user_oidc`)     | `NEXTCLOUD_SSO_CLIENT_SECRET`      | [nextcloud.md](nextcloud.md)     |
+| App         | `issuer_mode`  | Auth method        | Secret in Infisical             | Doc                              |
+| ----------- | -------------- | ------------------ | ------------------------------- | -------------------------------- |
+| Vaultwarden | `per_provider` | OIDC               | `VAULTWARDEN_SSO_CLIENT_SECRET` | [vaultwarden.md](vaultwarden.md) |
+| WUD         | `global`       | OIDC               | `WUD_SSO_CLIENT_SECRET`         | [wud.md](wud.md)                 |
+| Immich      | `per_provider` | OIDC (native)      | `IMMICH_OAUTH_CLIENT_SECRET`    | [immich.md](immich.md)           |
+| Jellyfin    | `per_provider` | OIDC (plugin)      | `JELLYFIN_SSO_CLIENT_SECRET`    | [jellyfin.md](jellyfin.md)       |
+| Nextcloud   | `per_provider` | OIDC (`user_oidc`) | `NEXTCLOUD_SSO_CLIENT_SECRET`   | [nextcloud.md](nextcloud.md)     |
+| Kavita      | `per_provider` | OIDC (native)      | `KAVITA_SSO_CLIENT_SECRET`      | [kavita.md](kavita.md)           |
 
 **`issuer_mode` guidance:**
 - Use `per_provider` for every app. Authentik does not expose a global `/.well-known/openid-configuration` endpoint; per-app discovery URLs (`https://auth.huybrechts.xyz/application/o/<slug>/`) always work.
@@ -179,7 +180,7 @@ Register the client ID and secret on the application's side. This step varies by
 
 | Area           | Resources                                                             | Purpose                                                     |
 | -------------- | --------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Branding       | `authentik-default` brand for `auth.huybrechts.xyz`                  | Haven-branded login page                                    |
+| Branding       | `authentik-default` brand for `auth.huybrechts.xyz`                   | Haven-branded login page                                    |
 | MFA            | `default-authentication-mfa-validation` stage + flow binding          | Enforces MFA enrollment                                     |
 | Groups         | `admins`, `parents`, `members`                                        | Family access model                                         |
 | Policies       | `policy-group-admins`, `policy-group-parents`, `policy-group-members` | Per-group application gating                                |

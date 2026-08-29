@@ -219,3 +219,12 @@ spec:
       generate:
         type: urlsafe
         length: 48
+
+    # Application secrets — Kavita (Forge)
+    - key: KAVITA_SSO_CLIENT_SECRET
+      store: infisical
+      value: KAVITA_SSO_CLIENT_SECRET
+      description: OIDC client secret for Kavita SSO via Authentik (native OpenIdConnectSettings in appsettings.json)
+      generate:
+        type: urlsafe
+        length: 48

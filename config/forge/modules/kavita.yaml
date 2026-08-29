@@ -32,12 +32,33 @@ spec:
       hostPath: /mnt/haven-data-docs/books
     service:
       port: 5000
+    # Staging-first cert-manager pattern, same as Immich/Jellyfin/Nextcloud —
+    # books.huybrechts.xyz has never had a cert issued before, so it needs its
+    # own HTTP-01 challenge to succeed at least once via letsencrypt-staging
+    # before switching to letsencrypt-prod (rate-limited to 5 certs/domain/week).
+    # Once `kubectl describe certificate books-tls -n documents` shows
+    # Ready: True, switch cluster-issuer below to letsencrypt-prod.
+    #
+    # NOTE: unlike Nextcloud (TRUSTED_PROXIES/OVERWRITEPROTOCOL env vars) or
+    # Jellyfin (schemeOverride plugin setting), Kavita's own ASP.NET Core
+    # ForwardedHeaders handling only accepts individual trusted proxy IPs
+    # (Kavita.Server.Startup's "KnownProxies" config section), not a CIDR
+    # range — and Traefik's in-cluster pod IP isn't static. So even with TLS
+    # live here, Kavita's own OIDC redirect_uri may still report http://
+    # until/unless that's addressed upstream. Do NOT flip the Authentik
+    # blueprint's Kavita redirect_uri to https:// until this is verified live
+    # (see docs/services/kavita.md's SSO section).
     ingress:
       enabled: true
       className: traefik
       host: books.huybrechts.xyz
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-staging
+      tls:
+        - hosts:
+            - books.huybrechts.xyz
+          secretName: books-tls
 
-  # TODO: Kavita supports OIDC natively (per its own README), but the exact
-  # settings/UI flow weren't verified when this module was authored — wire up
-  # Authentik SSO as a follow-up, same category of manual first-boot step as
-  # Jellyfin's plugin registration (see docs/services/jellyfin.md).
+  # SSO: Kavita's native OIDC settings are patched into appsettings.json by
+  # deploy-forge-deploy.yml after every Helm deploy (not part of this Helm
+  # values block) — see docs/services/kavita.md's SSO section.

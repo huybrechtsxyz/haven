@@ -213,7 +213,7 @@ graph TB
 | `photos.{domain}`    | Immich          | Forge      | Authentik OIDC                                               | Photo library, face recognition, shared albums |
 | `media.{domain}`     | Jellyfin        | Forge      | Authentik OIDC                                               | Media streaming                                |
 | `docs.{domain}`      | Nextcloud       | Forge      | Authentik OIDC                                               | Document archive/browsing layer                |
-| `books.{domain}`     | Kavita          | Forge      | Local (Kavita's own auth)                                    | EPUB/PDF library                               |
+| `books.{domain}`     | Kavita          | Forge      | Authentik OIDC (native)                                      | EPUB/PDF library                               |
 
 ---
 

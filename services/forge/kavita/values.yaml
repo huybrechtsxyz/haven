@@ -32,3 +32,5 @@ ingress:
   enabled: true
   className: traefik
   host: books.huybrechts.xyz
+  annotations: {}
+  tls: []
