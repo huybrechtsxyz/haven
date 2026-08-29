@@ -6,7 +6,7 @@
 
 Kavita runs on **Forge** (Hetzner CPX41, k3s), in the shared `documents` Kubernetes namespace alongside Nextcloud. See [Forge](../guides/forge.md) for the node-level overview and [Nextcloud](./nextcloud.md) for the sibling app it shares files with.
 
-**Prerequisites:** `deploy-forge-init.yml` must have run successfully at least once, `rclone-mount` (system namespace) must be running so `/mnt/haven-docs` exists on the host, and a DNS A record for `books.{domain}` must point directly at Forge's public IP (Forge terminates its own ingress — see [Forge's design decision](../guides/forge.md#design-decision--forge-terminates-its-own-ingress)).
+**Prerequisites:** `deploy-forge-init.yml` must have run successfully at least once with `configure_smb: true`, so the haven-data Storage Box's docs sub-account is SMB-mounted at `/mnt/haven-data-docs` on the host, and a DNS A record for `books.{domain}` must point directly at Forge's public IP (Forge terminates its own ingress — see [Forge's design decision](../guides/forge.md#design-decision--forge-terminates-its-own-ingress)).
 
 ---
 
@@ -22,9 +22,9 @@ No official Helm chart exists for Kavita (confirmed via a code search across the
 
 ---
 
-## Storage — shares `haven-docs` with Nextcloud
+## Storage — shares the haven-data docs mount with Nextcloud
 
-Kavita reads from `/mnt/haven-docs/books` (hostPath, **read-only**) — a subpath of the same tree `rclone-mount` (see [forge.md](../guides/forge.md#rclone-mount--shared-filesystem-bridge-for-haven-docs)) publishes from the `haven-docs` S3 bucket. Kavita never renames or reorganizes what it finds — it only indexes/scans — which is exactly why it's safe to share the same files Nextcloud also organizes (unlike Paperless-ngx, which takes ownership of ingested documents and would need its own separate bucket).
+Kavita reads from `/mnt/haven-data-docs/books` (hostPath, **read-only**) — a subpath of the same haven-data Storage Box docs sub-account SMB mount (see [Forge](../guides/forge.md)) that Nextcloud's External Storage also points at. Kavita never renames or reorganizes what it finds — it only indexes/scans — which is exactly why it's safe to share the same files Nextcloud also organizes (unlike Paperless-ngx, which takes ownership of ingested documents and would need its own separate storage).
 
 Kavita's own config/database is separate, local-disk storage (`persistence.config`, `local-path` PVC, 5Gi) — not part of the shared tree.
 
@@ -39,7 +39,7 @@ Kavita supports OIDC natively per its own project README ("Ability to manage use
 ## Verification checklist
 
 - [ ] `http://books.{domain}` — Kavita loads (plain HTTP until TLS is wired up)
-- [ ] Library scan picks up files under `/mnt/haven-docs/books`
+- [ ] Library scan picks up files under `/mnt/haven-data-docs/books`
 - [ ] Confirm the actual current LinuxServer.io image tag before first deploy
 - [ ] Authentik SSO wired up (once prioritized)
 

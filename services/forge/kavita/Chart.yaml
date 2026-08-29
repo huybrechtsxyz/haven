@@ -1,8 +1,8 @@
 apiVersion: v2
 name: kavita
 description: >
-  Kavita — PDF/EPUB/comic library server. Reads from the shared haven-docs
-  mount (see rclone-mount in the system namespace) so the same files are also
+  Kavita — PDF/EPUB/comic library server. Reads from the haven-data Storage
+  Box's docs sub-account SMB mount so the same files are also
   visible/organized in Nextcloud.
 type: application
 version: "1.0.0"

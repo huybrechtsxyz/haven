@@ -19,11 +19,11 @@ persistence:
     storageClass: local-path
     size: 5Gi
 
-# Path on the shared haven-docs mount (see rclone-mount) where the actual
-# library files live. Kavita only needs read access — it never renames or
-# reorganizes what it finds.
+# Path on the haven-data Storage Box's docs sub-account SMB mount where the
+# actual library files live. Kavita only needs read access — it never
+# renames or reorganizes what it finds.
 library:
-  hostPath: /mnt/haven-docs/books
+  hostPath: /mnt/haven-data-docs/books
 
 service:
   port: 5000

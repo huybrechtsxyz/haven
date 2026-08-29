@@ -6,7 +6,7 @@
 
 Nextcloud runs on **Forge** (Hetzner CPX41, k3s), in the shared `documents` Kubernetes namespace alongside Kavita. See [Forge](../guides/forge.md) for the node-level overview and [Kavita](./kavita.md) for the sibling app it shares files with.
 
-**Prerequisites:** `deploy-forge-init.yml` must have run successfully at least once, `rclone-mount` (system namespace) must be running so `/mnt/haven-docs` exists on the host, and a DNS A record for `docs.{domain}` must point directly at Forge's public IP (Forge terminates its own ingress — see [Forge's design decision](../guides/forge.md#design-decision--forge-terminates-its-own-ingress)).
+**Prerequisites:** `deploy-forge-init.yml` must have run successfully at least once with `configure_smb: true`, so the haven-data Storage Box's docs sub-account is SMB-mounted at `/mnt/haven-data-docs` on the host, and a DNS A record for `docs.{domain}` must point directly at Forge's public IP (Forge terminates its own ingress — see [Forge's design decision](../guides/forge.md#design-decision--forge-terminates-its-own-ingress)).
 
 ---
 
@@ -14,16 +14,16 @@ Nextcloud runs on **Forge** (Hetzner CPX41, k3s), in the shared `documents` Kube
 
 The goal is replacing Google Drive for daily family use — non-techie-friendly (desktop sync clients, mobile apps, familiar folder UI), RBAC, and OIDC via Authentik. Nextcloud is the strongest fit for all three. But it also needs to satisfy one more constraint: **other apps (Kavita now, Paperless-ngx later) must be able to read the exact same files.**
 
-Nextcloud can back onto S3 two very different ways:
+Nextcloud can store files two very different ways:
 
-| Mode                                                     | What happens in S3                                                     | Other apps can read it?              |
+| Mode                                                     | What happens on disk                                                   | Other apps can read it?              |
 | -------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------ |
-| **Primary storage** (Nextcloud owns the object store)    | Files stored as opaque, internally-numbered blobs (`urn:oid:12345...`) | ❌ No — meaningless without Nextcloud |
-| **External Storage** (Nextcloud mounts existing storage) | Real folder paths and filenames                                        | ✅ Yes                                |
+| **Primary storage** (Nextcloud owns the store)           | Files stored as opaque, internally-numbered blobs (`urn:oid:12345...`) | ❌ No — meaningless without Nextcloud |
+| **External Storage** (Nextcloud mounts an existing path) | Real folder paths and filenames                                        | ✅ Yes                                |
 
-**External Storage is the one used here** — it also avoids the "iTunes problem" (an app silently renaming/reorganizing your files into its own internal format). The trade-off: Nextcloud's own version-history UI is less reliable over External Storage than Primary Storage — acceptable here because kDrive (Infomaniak) already handles active/collaborative/versioned work; Nextcloud's role is the *settled* layer (organize, browse, share what's done), not live collaboration.
+**External Storage (the `local` backend) is the one used here** — it also avoids the "iTunes problem" (an app silently renaming/reorganizing your files into its own internal format). The trade-off: Nextcloud's own version-history UI is less reliable over External Storage than Primary Storage — acceptable here because kDrive (Infomaniak) already handles active/collaborative/versioned work; Nextcloud's role is the *settled* layer (organize, browse, share what's done), not live collaboration.
 
-Nextcloud doesn't talk to S3 directly, either — see [rclone-mount](../guides/forge.md#rclone-mount--shared-filesystem-bridge-for-haven-docs) for why (avoiding two independent S3 clients disagreeing about directory state). Nextcloud, Kavita, and any future app all read/write the *same* real filesystem path.
+The mounted path (`/mnt/haven-data-docs`) is a plain SMB/CIFS share from the haven-data Storage Box's docs sub-account, mounted once on the Forge **host** by `forge-init.yml` and bind-mounted into both the Nextcloud and Kavita pods. Nextcloud has no idea it's backed by Storage Box at all — from its perspective it's just a local folder. Because it's a real shared filesystem (not two independent S3 clients), Nextcloud and Kavita simply read/write the same real files with no risk of disagreeing about directory state.
 
 ---
 
@@ -44,7 +44,7 @@ The official Docker image supports **fully automated initial admin setup** via e
 
 ## Storage
 
-`/mnt/haven-docs` (the same host path `rclone-mount` publishes) is mounted into the Nextcloud pod via the chart's own `extraVolumes`/`extraVolumeMounts` support (its README's own documented example is literally "connecting a legacy NFS volume... configured in External Storage" — exactly this use case). Nextcloud's own primary data directory (`persistence`, `local-path` PVC, 8Gi) is separate, small, local-disk storage — unrelated to the shared tree.
+`/mnt/haven-data-docs` (the haven-data Storage Box's docs sub-account, SMB-mounted on the Forge host by `forge-init.yml`) is mounted into the Nextcloud pod via the chart's own `extraVolumes`/`extraVolumeMounts` support (its README's own documented example is literally "connecting a legacy NFS volume... configured in External Storage" — same pattern, different protocol). Nextcloud's own primary data directory (`persistence`, `local-path` PVC, 8Gi) is separate, small, local-disk storage — unrelated to the shared tree.
 
 ---
 
@@ -63,7 +63,7 @@ occ user_oidc:provider authentik \
   --clientsecret="$NEXTCLOUD_SSO_CLIENT_SECRET" \
   --discoveryuri=https://auth.huybrechts.xyz/application/o/nextcloud/.well-known/openid-configuration \
   --group-provisioning=1
-occ files_external:create "Family Documents" local null::null -c datadir=/mnt/haven-docs
+occ files_external:create "Family Documents" local null::null -c datadir=/mnt/haven-data-docs
 ```
 
 `NEXTCLOUD_SSO_CLIENT_SECRET` is exposed to the hook as a plain container env var (`extraEnv`), same plaintext-substitution pattern already used for the admin/DB/Redis passwords in this file.
@@ -89,7 +89,7 @@ occ files_external:create "Family Documents" local null::null -c datadir=/mnt/ha
 - [ ] Admin login works with the auto-configured admin account
 - [ ] `user_oidc` installed and Authentik provider registered automatically — SSO login works
 - [ ] Authentik groups (admins/parents/members) map correctly into Nextcloud groups
-- [ ] External Storage mount shows `/mnt/haven-docs` contents, real filenames/paths preserved
+- [ ] External Storage mount shows `/mnt/haven-data-docs` contents, real filenames/paths preserved
 - [ ] Desktop sync client / mobile app can connect
 
 ---
@@ -97,5 +97,5 @@ occ files_external:create "Family Documents" local null::null -c datadir=/mnt/ha
 ## Still open
 
 - TLS cert: switch `cert-manager.io/cluster-issuer` from `letsencrypt-staging` to `letsencrypt-prod` once `kubectl describe certificate docs-tls -n documents` shows `Ready: True` (same staging-first pattern as Immich/Jellyfin)
-- `documents` namespace is still pruned out of `config/stack/workspace.yaml` — Nextcloud hasn't been deployed to the live cluster yet, so none of the automation above has been exercised for real
+- `documents` namespace is active in `config/stack/workspace.yaml` and the haven-data docs SMB mount is now wired in `forge-init.yml`/`forge-config.yml`, but this namespace hasn't been deployed to the live cluster yet — none of the automation above has been exercised for real
 - Paperless-ngx (separate bucket, ingest-then-own workflow) not started — different use case, doesn't share this tree

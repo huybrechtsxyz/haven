@@ -1,7 +1,8 @@
 # Defaults — override via the strata module's spec.configuration (see
 # config/forge/modules/immich-library.yaml).
 storage:
-  # Subdirectory under the Storage Box NFS mount point (/mnt/storagebox)
-  # dedicated to Immich's library. Created by forge-init.yml/forge-deploy.yml.
-  hostPath: /mnt/storagebox/immich
+  # Subdirectory under the haven-data Storage Box's media sub-account SMB
+  # mount point (/mnt/haven-data-media), dedicated to Immich's library.
+  # Created by forge-init.yml/forge-config.yml.
+  hostPath: /mnt/haven-data-media/immich
   size: 500Gi
