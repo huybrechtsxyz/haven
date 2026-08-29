@@ -410,13 +410,17 @@ entries:
   # this is fully automated with zero manual steps once
   # KAVITA_SSO_CLIENT_SECRET exists in Infisical.
   #
-  # redirect_uris uses http:// (not https://) because Kavita has no
-  # TLS/cert-manager on its ingress yet (see docs/services/kavita.md's
-  # "Still open") — Traefik forwards plain HTTP to the pod, so Kavita's own
-  # ASP.NET Core OIDC handler legitimately builds an http:// redirect_uri
-  # matching what it's actually served over. Must be switched to https://
-  # here (and re-verified) once Kavita gets a cert-manager issuer, the same
-  # order-of-operations already followed for Jellyfin/Immich/Nextcloud.
+  # redirect_uris uses https:// — CONFIRMED LIVE (2026-08-29) via an actual
+  # failed authorize request: Kavita's own ASP.NET Core OIDC handler sends
+  # redirect_uri=https://books.huybrechts.xyz/signin-oidc even though Traefik
+  # terminates TLS and forwards plain HTTP to the pod. So — unlike Jellyfin's
+  # plugin, which needed an explicit schemeOverride to force https — Kavita's
+  # forwarded-headers scheme detection is evidently already trusting Traefik
+  # here (exact mechanism not fully diagnosed — possibly a k3s-specific
+  # network path — but the live behavior is what matters). This was
+  # initially registered as http:// (before Kavita's ingress had TLS) and
+  # broke the very first login attempt with Authentik's "Redirect URI Error"
+  # once TLS went live — fixed here to match reality.
 
   - model: authentik_providers_oauth2.oauth2provider
     state: present
@@ -432,7 +436,7 @@ entries:
       client_secret: "{{ kavita_sso_client_secret }}"
       redirect_uris:
         - matching_mode: strict
-          url: "http://books.huybrechts.xyz/signin-oidc"
+          url: "https://books.huybrechts.xyz/signin-oidc"
       grant_types:
         - authorization_code
         - refresh_token
@@ -457,7 +461,7 @@ entries:
       name: Kavita
       slug: kavita
       provider: !KeyOf provider-kavita
-      meta_launch_url: http://books.huybrechts.xyz
+      meta_launch_url: https://books.huybrechts.xyz
       meta_icon: https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/png/kavita.png
 
   - model: authentik_policies.policybinding

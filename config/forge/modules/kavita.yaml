@@ -39,15 +39,13 @@ spec:
     # Once `kubectl describe certificate books-tls -n documents` shows
     # Ready: True, switch cluster-issuer below to letsencrypt-prod.
     #
-    # NOTE: unlike Nextcloud (TRUSTED_PROXIES/OVERWRITEPROTOCOL env vars) or
-    # Jellyfin (schemeOverride plugin setting), Kavita's own ASP.NET Core
-    # ForwardedHeaders handling only accepts individual trusted proxy IPs
-    # (Kavita.Server.Startup's "KnownProxies" config section), not a CIDR
-    # range — and Traefik's in-cluster pod IP isn't static. So even with TLS
-    # live here, Kavita's own OIDC redirect_uri may still report http://
-    # until/unless that's addressed upstream. Do NOT flip the Authentik
-    # blueprint's Kavita redirect_uri to https:// until this is verified live
-    # (see docs/services/kavita.md's SSO section).
+    # NOTE: confirmed live (2026-08-29) that Kavita's own ASP.NET Core OIDC
+    # handler sends redirect_uri=https://books.huybrechts.xyz/signin-oidc
+    # even though Traefik terminates TLS and forwards plain HTTP to the pod
+    # — the opposite of what was originally assumed here (that it would
+    # need a Jellyfin-style schemeOverride to avoid staying on http://).
+    # The Authentik blueprint's Kavita redirect_uri is https:// to match.
+    # See docs/services/kavita.md's SSO section for the full writeup.
     ingress:
       enabled: true
       className: traefik
