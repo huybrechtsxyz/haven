@@ -368,12 +368,22 @@
     # only r-x). Kavita only reads from this same tree (read-only), so making
     # it world-writable doesn't introduce a new write path for it. Acceptable
     # for a private, credential-gated SMB share not exposed to the internet.
+    # `nounix` is REQUIRED alongside file_mode/dir_mode — Hetzner Storage
+    # Box's CIFS server negotiates the "Unix Extensions" capability, which
+    # makes the SERVER's stored mode/owner authoritative and silently
+    # ignores the client's file_mode/dir_mode hints entirely (confirmed
+    # 2026-08-30: adding file_mode/dir_mode alone had zero effect — `ls -la`
+    # still showed the original 0755 from when the directories were first
+    # created). `nounix` disables Unix Extensions client-side, falling back
+    # to standard SMB semantics where file_mode/dir_mode/uid/gid become the
+    # sole source of truth for permissions, regardless of what's stored
+    # server-side.
     - name: Mount Storage Box SMB share (docs library)
       ansible.posix.mount:
         path: /mnt/haven-data-docs
         src: "//{{ storagebox_data_host }}/{{ storagebox_data_docs_subaccount }}"
         fstype: cifs
-        opts: "credentials={{ haven_install_path }}/.smbcredentials-docs,uid=0,gid=0,file_mode=0777,dir_mode=0777,_netdev,noatime,vers=3.0"
+        opts: "credentials={{ haven_install_path }}/.smbcredentials-docs,uid=0,gid=0,file_mode=0777,dir_mode=0777,nounix,_netdev,noatime,vers=3.0"
         state: mounted
       when: storagebox_data_docs_password | default('') | length > 0
 

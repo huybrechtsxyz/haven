@@ -369,8 +369,16 @@ jobs:
             PATH_="${entry#*:}"
 
             set +e
+            # NOTE: `occ files_external:list --output=json` escapes the
+            # mount_point's leading slash as "\/Haven" — a naive
+            # `grep -c "\"$NAME\""` NEVER matches that, so EXISTS was always 0
+            # and this step silently duplicated every mount on every deploy
+            # (confirmed 2026-08-30 — found 6 entries registered for 3
+            # intended mounts). Use jq for an exact mount_point match instead.
             EXISTS=$(kubectl exec -n documents deploy/nextcloud -c nextcloud -- \
-              php occ files_external:list --output=json 2>/dev/null | grep -c "\"$NAME\"")
+              php occ files_external:list --output=json 2>/dev/null | \
+              jq -r --arg mp "/$NAME" '[.[] | select(.mount_point == $mp)] | length' 2>/dev/null)
+            EXISTS="${EXISTS:-0}"
 
             if [ "$EXISTS" -gt 0 ]; then
               echo "Nextcloud External Storage \"$NAME\" already exists — skipping."
