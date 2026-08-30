@@ -359,12 +359,21 @@
       when: storagebox_data_docs_password | default('') | length > 0
       no_log: true
 
+    # file_mode/dir_mode=0777 — needed because this share is bind-mounted into
+    # multiple pods that write as DIFFERENT non-root users (Nextcloud's Apache
+    # workers run as www-data uid 33, confirmed 2026-08-30 via `ps aux` after
+    # uploads failed with "Operation blocked by access control" — root:root
+    # 0755 from the default uid=0,gid=0 mount let root read/write fine but
+    # blocked www-data, which falls into the "other" permission bits with
+    # only r-x). Kavita only reads from this same tree (read-only), so making
+    # it world-writable doesn't introduce a new write path for it. Acceptable
+    # for a private, credential-gated SMB share not exposed to the internet.
     - name: Mount Storage Box SMB share (docs library)
       ansible.posix.mount:
         path: /mnt/haven-data-docs
         src: "//{{ storagebox_data_host }}/{{ storagebox_data_docs_subaccount }}"
         fstype: cifs
-        opts: "credentials={{ haven_install_path }}/.smbcredentials-docs,uid=0,gid=0,_netdev,noatime,vers=3.0"
+        opts: "credentials={{ haven_install_path }}/.smbcredentials-docs,uid=0,gid=0,file_mode=0777,dir_mode=0777,_netdev,noatime,vers=3.0"
         state: mounted
       when: storagebox_data_docs_password | default('') | length > 0
 
