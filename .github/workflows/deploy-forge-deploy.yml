@@ -323,7 +323,15 @@ jobs:
           echo "::warning::Failed to register Nextcloud SSO provider after 5 attempts — not failing the deploy, check manually."
 
       # =========================================================================
-      # Nextcloud External Storage — "Media" and "Books" upload folders.
+      # Nextcloud External Storage — "Haven", "Media", and "Books" folders.
+      #
+      # "Haven" is the root of the whole docs sub-account tree
+      # (/mnt/haven-data-docs), mirroring the family's previous Google Drive
+      # layout (Archive, Documents, Games, Projects, Shared, Software,
+      # Templates, Uploading, Family/<person> — Photos deliberately
+      # excluded, that's Immich's own sub-account/app). Renamed from the
+      # original "Family Documents" (2026-08-30) before that name was ever
+      # actually registered in production — no migration needed.
       #
       # Jellyfin's media library lives at /mnt/haven-data-docs/media —
       # moved into the SAME docs sub-account Nextcloud already mounts
@@ -332,14 +340,15 @@ jobs:
       # "media/" (not "jellyfin/") since it's not tied to any one app.
       # Kavita's books/ folder has always lived in this same tree too, but
       # previously had no dedicated shortcut — only reachable by digging
-      # into "Family Documents". Added a "Books" shortcut alongside "Media"
+      # into "Haven". Added a "Books" shortcut alongside "Media"
       # for consistency (2026-08-29). No second cross-sub-account
-      # extraVolume needed on Nextcloud's side for either — both are just
-      # subfolders of the tree it already has. Nextcloud's post-installation
-      # hook runs `occ files_external:create ...` for both — but that hook
-      # only fires on a genuinely fresh install, and Nextcloud was already
-      # installed before these were added. So this step idempotently
-      # (re-)applies both External Storage mounts on every deploy: checks
+      # extraVolume needed on Nextcloud's side for any of these — all are
+      # just subfolders (or the root) of the tree it already has. Nextcloud's
+      # post-installation hook runs `occ files_external:create ...` for all
+      # three — but that hook only fires on a genuinely fresh install, and
+      # Nextcloud was already installed before "Media"/"Books" (and the
+      # "Haven" rename) were added. So this step idempotently
+      # (re-)applies all three External Storage mounts on every deploy: checks
       # `occ files_external:list` first, only creates if missing. Purpose:
       # family members can upload media/books via Nextcloud's own
       # iOS/iPadOS app straight into these folders — a far better UX for
@@ -355,7 +364,7 @@ jobs:
           kubectl rollout status deployment/nextcloud -n documents --timeout=180s
           set -e
 
-          for entry in "Media:/mnt/haven-data-docs/media" "Books:/mnt/haven-data-docs/books"; do
+          for entry in "Haven:/mnt/haven-data-docs" "Media:/mnt/haven-data-docs/media" "Books:/mnt/haven-data-docs/books"; do
             NAME="${entry%%:*}"
             PATH_="${entry#*:}"
 

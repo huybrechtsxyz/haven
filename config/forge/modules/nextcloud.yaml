@@ -99,8 +99,9 @@ spec:
       # steps required at all.
       #
       # NOTE: this only fires for a genuinely fresh install. The "Media"
-      # and "Books" External Storage entries added 2026-08-29 were added
-      # AFTER Nextcloud's first install already happened in production, so
+      # and "Books" External Storage entries (and the "Haven" rename from
+      # the original "Family Documents", 2026-08-30) were added AFTER
+      # Nextcloud's first install already happened in production, so
       # this hook alone won't create them retroactively — see the
       # idempotent "Configure Nextcloud External Storage shortcuts" step in
       # .github/workflows/deploy-forge-deploy.yml, which does (and will keep
@@ -120,7 +121,7 @@ spec:
             --discoveryuri=https://auth.huybrechts.xyz/application/o/nextcloud/.well-known/openid-configuration \
             --group-provisioning=1
           echo "Configuring External Storage for /mnt/haven-data-docs..."
-          occ files_external:create "Family Documents" local null::null -c datadir=/mnt/haven-data-docs
+          occ files_external:create "Haven" local null::null -c datadir=/mnt/haven-data-docs
           echo "Configuring External Storage for /mnt/haven-data-docs/media..."
           occ files_external:create "Media" local null::null -c datadir=/mnt/haven-data-docs/media
           echo "Configuring External Storage for /mnt/haven-data-docs/books..."

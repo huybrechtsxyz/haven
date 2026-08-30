@@ -48,11 +48,15 @@ The official Docker image supports **fully automated initial admin setup** via e
 
 ---
 
+## Folder structure — mirroring the family's previous Google Drive
+
+`/mnt/haven-data-docs` mirrors the family's previous Google Drive layout as top-level subfolders: `archive/`, `books/`, `documents/`, `family/` (per-person subfolders), `games/`, `media/`, `projects/`, `shared/`, `software/`, `templates/`, `uploading/`. **Photos is deliberately excluded** — that's Immich's own sub-account/app, not part of this docs tree. Folder creation lives in `deploy/ansible-forge/forge-config.yml` (host-level, plain SMB/CIFS mkdir — same pattern as Jellyfin's/Kavita's own subfolder tasks).
+
 ## Adding media for Jellyfin and books for Kavita
 
 Jellyfin's media library (`/mnt/haven-data-docs/media`) and Kavita's books library (`/mnt/haven-data-docs/books`) both live in this same docs sub-account tree — Jellyfin's moved here from the media sub-account on 2026-08-29 (a free move, since Jellyfin had zero live data at the time; the media sub-account is now Immich-only), while Kavita's `books/` folder has always lived here. Named generically "media/" (not "jellyfin/") since it's not tied to any one app. No cross-sub-account mounts are needed on Nextcloud's side for either — both are just subfolders of the tree it already mounts.
 
-Two dedicated External Storage entries, **"Media"** and **"Books"**, are configured the same way as "Family Documents" above (`occ files_external:create "Media" local null::null -c datadir=/mnt/haven-data-docs/media` / `occ files_external:create "Books" local null::null -c datadir=/mnt/haven-data-docs/books`) — both in the post-installation hook (fresh installs) and idempotently on every deploy via `.github/workflows/deploy-forge-deploy.yml`'s "Configure Nextcloud External Storage shortcuts" step (needed since Nextcloud was already installed before these were added, and the hook only fires once, on a genuinely fresh install). "Books" was added 2026-08-29 alongside "Media" — previously Kavita's folder had no dedicated shortcut, only reachable by digging into "Family Documents".
+Three External Storage entries are configured: **"Haven"** (the whole tree, root of `/mnt/haven-data-docs`) plus dedicated **"Media"** and **"Books"** shortcuts (`occ files_external:create "Haven" local null::null -c datadir=/mnt/haven-data-docs` / `... "Media" ... -c datadir=/mnt/haven-data-docs/media` / `... "Books" ... -c datadir=/mnt/haven-data-docs/books`) — all three in the post-installation hook (fresh installs) and idempotently on every deploy via `.github/workflows/deploy-forge-deploy.yml`'s "Configure Nextcloud External Storage shortcuts" step (needed since Nextcloud was already installed before "Media"/"Books" were added, and the hook only fires once, on a genuinely fresh install). "Media"/"Books" overlap with "Haven" on purpose — same content reachable both via the dedicated shortcut and by browsing into "Haven" directly. Renamed from the original "Family Documents" (2026-08-30) before that name was ever actually registered in production, so no migration was needed.
 
 **Why this exists**: neither Jellyfin nor Kavita has an upload feature of its own — files must land directly on disk. Rather than have family members map an SMB network drive by hand (not realistic for kids on iPad), they can instead use the official **Nextcloud app** (already SSO-logged-in) to upload straight into the "Media" or "Books" folder — matching subfolder structure to whatever libraries Jellyfin has configured (e.g. `movies/`, `shows/`, `music/`) for "Media". Files land exactly where each app's own library scan looks; they pick new files up on their next scan (or a manual scan trigger from each app's own dashboard). See [jellyfin.md](./jellyfin.md#adding-media) and [kavita.md](./kavita.md#first-login) for the family-facing instructions.
 
@@ -73,7 +77,7 @@ occ user_oidc:provider authentik \
   --clientsecret="$NEXTCLOUD_SSO_CLIENT_SECRET" \
   --discoveryuri=https://auth.huybrechts.xyz/application/o/nextcloud/.well-known/openid-configuration \
   --group-provisioning=1
-occ files_external:create "Family Documents" local null::null -c datadir=/mnt/haven-data-docs
+occ files_external:create "Haven" local null::null -c datadir=/mnt/haven-data-docs
 ```
 
 `NEXTCLOUD_SSO_CLIENT_SECRET` is exposed to the hook as a plain container env var (`extraEnv`), same plaintext-substitution pattern already used for the admin/DB/Redis passwords in this file.

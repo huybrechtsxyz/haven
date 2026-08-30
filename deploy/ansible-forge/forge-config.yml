@@ -227,3 +227,25 @@
         path: /mnt/haven-data-docs/books
         state: directory
         mode: "0755"
+
+    # Remaining top-level folders mirroring the family's previous Google
+    # Drive layout (Photos deliberately excluded — that's Immich's own
+    # sub-account/app, not part of this docs tree). These are plain
+    # general-purpose folders with no dedicated app reading them, unlike
+    # media/ (Jellyfin) and books/ (Kavita) above — just browsable via
+    # Nextcloud's "Haven" External Storage root.
+    - name: Ensure remaining Haven top-level folders exist
+      ansible.builtin.file:
+        path: /mnt/haven-data-docs/{{ item }}
+        state: directory
+        mode: "0755"
+      loop:
+        - archive
+        - documents
+        - games
+        - projects
+        - shared
+        - software
+        - templates
+        - uploading
+        - family
