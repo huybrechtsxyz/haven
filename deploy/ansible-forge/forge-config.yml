@@ -228,6 +228,24 @@
         state: directory
         mode: "0755"
 
+    # Each subfolder maps to a separate Kavita library (Comics, Manga,
+    # General, Fiction) added via Kavita's own Settings → Libraries UI —
+    # no API key automation exists yet for library creation (see
+    # kavita.md's "no stable Kavita AuthKey" note, same category of
+    # exception as the OIDC Provision Accounts toggle). "General" replaces
+    # the earlier "non-fiction" naming — catch-all for everything not
+    # already split into its own library.
+    - name: Ensure Kavita per-library subfolders exist
+      ansible.builtin.file:
+        path: /mnt/haven-data-docs/books/{{ item }}
+        state: directory
+        mode: "0755"
+      loop:
+        - comics
+        - manga
+        - general
+        - fiction
+
     # Remaining top-level folders mirroring the family's previous Google
     # Drive layout (Photos deliberately excluded — that's Immich's own
     # sub-account/app, not part of this docs tree). These are plain
