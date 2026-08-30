@@ -24,3 +24,4 @@
 - **Wave 1 status:** No services deployed yet — Hetzner provisioning is Wave 1 Phase 1.2
 
 ## Learnings
+- 2026-08-30: deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2 keeps Portainer unmanaged in live Authentik blueprint logic; document the existing manual dashboard app with a commented declarative example instead of adding active resources.

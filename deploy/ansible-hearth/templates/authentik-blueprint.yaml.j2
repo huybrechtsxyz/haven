@@ -8,9 +8,35 @@
 # deploy time. Blueprints are idempotent — re-running updates existing
 # resources in place.
 #
-# Known gap: Portainer has no OIDC provider/application block here yet — it
-# still uses local username/password auth. See docs/guides/hearth.md's
-# "Known gaps" table.
+# Portainer already exists manually in the Authentik dashboard as a
+# dashboard-only application (currently without an icon), so there is no need
+# to add an ACTIVE managed block here right now.
+#
+# If Portainer is later made declarative for dashboard visibility only, the
+# managed block would look like this:
+#
+# - model: authentik_core.application
+#   state: present
+#   identifiers:
+#     slug: portainer
+#   attrs:
+#     name: Portainer
+#     slug: portainer
+#     meta_launch_url: https://portainer.huybrechts.xyz
+#     meta_icon: https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/png/portainer.png
+#
+# - model: authentik_policies.policybinding
+#   state: present
+#   identifiers:
+#     target: !Find [authentik_core.application, [slug, portainer]]
+#     order: 0
+#   attrs:
+#     target: !Find [authentik_core.application, [slug, portainer]]
+#     policy: !KeyOf policy-group-admins
+#     order: 0
+#     enabled: true
+#     negate: false
+#     timeout: 30
 # =============================================================================
 
 version: 1
