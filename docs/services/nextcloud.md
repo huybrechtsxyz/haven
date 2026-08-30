@@ -99,17 +99,17 @@ occ files_external:create "Haven" local null::null -c datadir=/mnt/haven-data-do
 
 ## Verification checklist
 
-- [ ] `https://docs.{domain}` — Nextcloud loads and is reachable from a browser
-- [ ] Admin login works with the auto-configured admin account
-- [ ] `user_oidc` installed and Authentik provider registered automatically — SSO login works
-- [ ] Authentik groups (admins/parents/members) map correctly into Nextcloud groups
-- [ ] External Storage mount shows `/mnt/haven-data-docs` contents, real filenames/paths preserved
+- [x] `https://docs.{domain}` — Nextcloud loads and is reachable from a browser
+- [x] Admin login works with the auto-configured admin account
+- [x] `user_oidc` installed and Authentik provider registered automatically — SSO login works
+- [x] Authentik groups (admins/parents/members) map correctly into Nextcloud groups
+- [x] External Storage mounts ("Haven", "Media", "Books") show `/mnt/haven-data-docs` contents, real filenames/paths preserved — confirmed 2026-08-30
+- [x] Non-admin write access confirmed (`www-data` can create folders/files, not just root) — confirmed 2026-08-30, see [Forge](../guides/forge.md#development-notes) for the `nounix` CIFS gotcha that blocked this initially
+- [x] End-to-end family upload path confirmed: file uploaded via Nextcloud web UI → landed on Storage Box → picked up by Kavita's library scan (2026-08-30)
 - [ ] Desktop sync client / mobile app can connect
 
 ---
 
 ## Still open
 
-- TLS cert: switch `cert-manager.io/cluster-issuer` from `letsencrypt-staging` to `letsencrypt-prod` once `kubectl describe certificate docs-tls -n documents` shows `Ready: True` (same staging-first pattern as Immich/Jellyfin)
-- `documents` namespace is active in `config/stack/workspace.yaml` and the haven-data docs SMB mount is now wired in `forge-init.yml`/`forge-config.yml`, but this namespace hasn't been deployed to the live cluster yet — none of the automation above has been exercised for real
 - Paperless-ngx (separate bucket, ingest-then-own workflow) not started — different use case, doesn't share this tree
