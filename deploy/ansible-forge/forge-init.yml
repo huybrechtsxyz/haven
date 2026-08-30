@@ -387,6 +387,42 @@
         state: mounted
       when: storagebox_data_docs_password | default('') | length > 0
 
+    # Verification-only — no `changed`/idempotency concerns, purely informational.
+    # Added 2026-08-30 because nobody has direct SSH access to Forge outside
+    # this CI job (only the runner's temporary SSH firewall rule + private
+    # key can reach it), so the only way to see the ACTUAL negotiated mount
+    # type/options and real permission bits is to print them in this job's
+    # own log. Confirms whether the docs share is really `cifs` (not a local
+    # ext4 placeholder left over from a run where configure_smb was false)
+    # and whether file_mode/dir_mode/nounix actually took effect.
+    - name: Verify docs share mount type and options
+      ansible.builtin.command:
+        cmd: findmnt --raw --output SOURCE,TARGET,FSTYPE,OPTIONS /mnt/haven-data-docs
+      register: docs_mount_check
+      changed_when: false
+      failed_when: false
+      when: storagebox_data_docs_password | default('') | length > 0
+
+    - name: Show docs share mount details
+      ansible.builtin.debug:
+        msg: "{{ docs_mount_check.stdout_lines | default(['(mount check skipped or produced no output)']) }}"
+      when: storagebox_data_docs_password | default('') | length > 0
+
+    - name: Verify docs share permission bits (media/books subfolders)
+      ansible.builtin.stat:
+        path: "/mnt/haven-data-docs/{{ item }}"
+      register: docs_subfolder_stat
+      loop:
+        - media
+        - books
+      when: storagebox_data_docs_password | default('') | length > 0
+
+    - name: Show docs share permission bits
+      ansible.builtin.debug:
+        msg: "{{ item.item }}: mode={{ item.stat.mode | default('unknown') }} exists={{ item.stat.exists | default(false) }}"
+      loop: "{{ docs_subfolder_stat.results | default([]) }}"
+      when: storagebox_data_docs_password | default('') | length > 0
+
     # =========================================================================
     # SSH hardening
     # =========================================================================
