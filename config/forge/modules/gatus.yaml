@@ -36,14 +36,14 @@ spec:
       storageClassName: local-path
 
     # Staging-first cert-manager pattern, same as every other Forge app —
-    # status.huybrechts.xyz has never had a cert issued before, needs its
-    # own HTTP-01 challenge to succeed at least once via letsencrypt-staging
-    # before switching to letsencrypt-prod (rate-limited to 5 certs/domain/week).
+    # status.huybrechts.xyz's HTTP-01 challenge succeeded via
+    # letsencrypt-staging (confirmed 2026-08-31) — switched to
+    # letsencrypt-prod for a real trusted cert, now that the flow is proven.
     ingress:
       enabled: true
       ingressClassName: traefik
       annotations:
-        cert-manager.io/cluster-issuer: letsencrypt-staging
+        cert-manager.io/cluster-issuer: letsencrypt-prod
       hosts:
         - status.huybrechts.xyz
       tls:
