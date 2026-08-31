@@ -154,6 +154,15 @@ spec:
         type: urlsafe
         length: 48
 
+    # Application secrets — Gatus
+    - key: GATUS_SSO_CLIENT_SECRET
+      store: infisical
+      value: GATUS_SSO_CLIENT_SECRET
+      description: OIDC client secret for Gatus SSO via Authentik
+      generate:
+        type: urlsafe
+        length: 48
+
     # Application secrets — Jellyfin (Forge)
     - key: JELLYFIN_SSO_CLIENT_SECRET
       store: infisical

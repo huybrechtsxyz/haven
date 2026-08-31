@@ -1,0 +1,141 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: gatus
+  annotations:
+    description: Gatus — health/status dashboard for every family service (Immich, Jellyfin, Nextcloud, Kavita, Authentik, Vaultwarden, WUD, Portainer). Members-only, no public access — real OIDC login via Authentik.
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, system, monitoring, gatus]
+spec:
+  type: helm
+  source:
+    # Official chart (twin/helm-charts, classic HTTP repo).
+    chart_repository: https://twin.github.io/helm-charts
+    chart_name: gatus
+    chart_version: "1.0.0"
+  kubernetes_namespace: system
+  references:
+    secrets:
+      - GATUS_SSO_CLIENT_SECRET
+  configuration:
+    # Secret substitution requires a literal top-level `env:` dict (strata's
+    # Helm secret substitution only resolves ${TOKEN} inside a node keyed
+    # literally "env" — see nextcloud-secrets.yaml's module comment for the
+    # full writeup of this constraint). Gatus's own chart already ships a
+    # flat top-level `env: {}` field, so no local chart / secretKeyRef
+    # workaround is needed here, unlike Nextcloud's third-party chart.
+    env:
+      GATUS_OIDC_CLIENT_SECRET: "${GATUS_SSO_CLIENT_SECRET}"
+
+    # Small persistent volume so uptime/history survives pod restarts —
+    # otherwise Gatus defaults to in-memory storage (lost on every restart).
+    persistence:
+      enabled: true
+      size: 200Mi
+      storageClassName: local-path
+
+    # Staging-first cert-manager pattern, same as every other Forge app —
+    # status.huybrechts.xyz has never had a cert issued before, needs its
+    # own HTTP-01 challenge to succeed at least once via letsencrypt-staging
+    # before switching to letsencrypt-prod (rate-limited to 5 certs/domain/week).
+    ingress:
+      enabled: true
+      ingressClassName: traefik
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-staging
+      hosts:
+        - status.huybrechts.xyz
+      tls:
+        - secretName: status-tls
+          hosts:
+            - status.huybrechts.xyz
+
+    # Gatus's own config.yaml content — passed through verbatim by the chart.
+    config:
+      storage:
+        type: sqlite
+        path: /data/data.db
+
+      ui:
+        title: Haven Status
+        header: Haven
+        dashboard-heading: Haven Health Dashboard
+        dashboard-subheading: Live status of every family service
+        default-sort-by: group
+
+      # Members-only OIDC login — Gatus has native OIDC support
+      # (unlike a forward-auth proxy setup). Authentik's own
+      # policy-group-members binding on the Gatus Application (see
+      # authentik-blueprint.yaml.j2) enforces real access control at the
+      # authorization step, not just dashboard visibility — same
+      # enforcement mechanism already confirmed working for every other
+      # app in this repo.
+      security:
+        oidc:
+          issuer-url: https://auth.huybrechts.xyz/application/o/gatus/
+          redirect-url: https://status.huybrechts.xyz/authorization-code/callback
+          client-id: gatus
+          # Gatus's OWN runtime env-var substitution (documented:
+          # "you can use environment variables directly in the
+          # configuration file") reads this from the pod's actual
+          # environment — populated by the `env:` block above via
+          # strata's Helm secret substitution. Two separate substitution
+          # passes composing correctly: strata resolves ${GATUS_SSO_CLIENT_SECRET}
+          # into a real pod env var at deploy time; Gatus resolves
+          # ${GATUS_OIDC_CLIENT_SECRET} from that same env var at its own
+          # process startup.
+          client-secret: "${GATUS_OIDC_CLIENT_SECRET}"
+          scopes: ["openid", "email", "profile"]
+
+      # Basic reachability checks for every currently-deployed family app.
+      # Grouped by node (hearth/forge) for the dashboard's group view.
+      endpoints:
+        - name: Authentik
+          group: hearth
+          url: "https://auth.huybrechts.xyz"
+          interval: 60s
+          conditions:
+            - "[STATUS] == 200"
+        - name: Vaultwarden
+          group: hearth
+          url: "https://vault.huybrechts.xyz"
+          interval: 60s
+          conditions:
+            - "[STATUS] == 200"
+        - name: WUD
+          group: hearth
+          url: "https://wud.huybrechts.xyz"
+          interval: 5m
+          conditions:
+            - "[STATUS] == 200"
+        - name: Portainer
+          group: hearth
+          url: "https://portainer.huybrechts.xyz"
+          interval: 5m
+          conditions:
+            - "[STATUS] == 200"
+        - name: Immich
+          group: forge
+          url: "https://photos.huybrechts.xyz"
+          interval: 60s
+          conditions:
+            - "[STATUS] == 200"
+        - name: Jellyfin
+          group: forge
+          url: "https://media.huybrechts.xyz"
+          interval: 60s
+          conditions:
+            - "[STATUS] == 200"
+        - name: Nextcloud
+          group: forge
+          url: "https://docs.huybrechts.xyz"
+          interval: 60s
+          conditions:
+            - "[STATUS] == 200"
+        - name: Kavita
+          group: forge
+          url: "https://books.huybrechts.xyz"
+          interval: 60s
+          conditions:
+            - "[STATUS] == 200"

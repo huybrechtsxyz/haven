@@ -22,6 +22,9 @@ spec:
     - name: cert-manager-issuers
       description: Let's Encrypt ClusterIssuers (staging + production), HTTP-01 via Traefik
       file: config/forge/modules/cert-manager-issuers.yaml
+    - name: gatus
+      description: Health/status dashboard for every family service — members-only, real OIDC login via Authentik
+      file: config/forge/modules/gatus.yaml
     # rclone-mount (haven-docs S3 bucket bridge) removed 2026-08-29 — the
     # haven-docs bucket has been deleted from Hetzner. Nextcloud/Kavita's
     # shared documents storage is migrating to the haven-data Storage Box's
