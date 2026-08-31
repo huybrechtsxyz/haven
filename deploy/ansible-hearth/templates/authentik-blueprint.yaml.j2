@@ -579,6 +579,110 @@ entries:
       timeout: 30
 
   # ---------------------------------------------------------------------------
+  # Infomaniak kSuite — dashboard launcher links (Mail, Calendar, kDrive,
+  # Contacts). These are deliberately NOT SSO-backed — no `provider:` field,
+  # same "link-only Application" pattern Authentik itself supports natively.
+  # kSuite has its own separate Infomaniak login; these just give family
+  # members one-click access tiles from the Authentik dashboard rather than
+  # a real authentication integration. Icons sourced directly from
+  # Infomaniak's own public web-components CDN (real assets, not the
+  # prettiest available — swap via Authentik's UI icon upload later if
+  # nicer icons are found).
+  # ---------------------------------------------------------------------------
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: infomaniak-mail
+    attrs:
+      name: Mail
+      slug: infomaniak-mail
+      meta_launch_url: https://ksuite.infomaniak.com/2019363/mail/0
+      meta_icon: https://web-components.storage.infomaniak.com/current/a345802b92b6ec4d3bc061aa9c726a4f8ea9c944/module-header-title/assets/project-icons/mail.svg
+
+  - model: authentik_policies.policybinding
+    state: present
+    identifiers:
+      target: !Find [authentik_core.application, [slug, infomaniak-mail]]
+      order: 0
+    attrs:
+      target: !Find [authentik_core.application, [slug, infomaniak-mail]]
+      policy: !KeyOf policy-group-members
+      order: 0
+      enabled: true
+      negate: false
+      timeout: 30
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: infomaniak-calendar
+    attrs:
+      name: Calendar
+      slug: infomaniak-calendar
+      meta_launch_url: "https://ksuite.infomaniak.com/2019363/calendar?view=week"
+      meta_icon: https://web-components.storage.infomaniak.com/current/a345802b92b6ec4d3bc061aa9c726a4f8ea9c944/module-header-title/assets/project-icons/calendar.svg
+
+  - model: authentik_policies.policybinding
+    state: present
+    identifiers:
+      target: !Find [authentik_core.application, [slug, infomaniak-calendar]]
+      order: 0
+    attrs:
+      target: !Find [authentik_core.application, [slug, infomaniak-calendar]]
+      policy: !KeyOf policy-group-members
+      order: 0
+      enabled: true
+      negate: false
+      timeout: 30
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: infomaniak-kdrive
+    attrs:
+      name: kDrive
+      slug: infomaniak-kdrive
+      meta_launch_url: https://ksuite.infomaniak.com/2019363/kdrive
+      meta_icon: https://web-components.storage.infomaniak.com/current/a345802b92b6ec4d3bc061aa9c726a4f8ea9c944/module-header-title/assets/project-icons/kdrive.svg
+
+  - model: authentik_policies.policybinding
+    state: present
+    identifiers:
+      target: !Find [authentik_core.application, [slug, infomaniak-kdrive]]
+      order: 0
+    attrs:
+      target: !Find [authentik_core.application, [slug, infomaniak-kdrive]]
+      policy: !KeyOf policy-group-members
+      order: 0
+      enabled: true
+      negate: false
+      timeout: 30
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: infomaniak-contacts
+    attrs:
+      name: Contacts
+      slug: infomaniak-contacts
+      meta_launch_url: https://ksuite.infomaniak.com/2019363/contacts
+      meta_icon: https://web-components.storage.infomaniak.com/current/a345802b92b6ec4d3bc061aa9c726a4f8ea9c944/module-header-title/assets/project-icons/contacts.svg
+
+  - model: authentik_policies.policybinding
+    state: present
+    identifiers:
+      target: !Find [authentik_core.application, [slug, infomaniak-contacts]]
+      order: 0
+    attrs:
+      target: !Find [authentik_core.application, [slug, infomaniak-contacts]]
+      policy: !KeyOf policy-group-members
+      order: 0
+      enabled: true
+      negate: false
+      timeout: 30
+
+  # ---------------------------------------------------------------------------
   # Branding
   # ---------------------------------------------------------------------------
 
