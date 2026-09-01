@@ -267,3 +267,90 @@
         - templates
         - uploading
         - family
+
+    # =========================================================================
+    # BorgBackup — backup script + cron (only when configure_borg=true)
+    # =========================================================================
+    # Requires that forge-init.yml has already been run with configure_borg=true
+    # to generate the SSH key and initialise the Borg repo on the Storage Box.
+
+    # backup.sh.j2 shells out to both of these: sqlite3 for the online
+    # .backup of k3s's SQLite/kine datastore, jq for enumerating local-path
+    # PVs. Neither is guaranteed present from forge-init.yml's package list,
+    # and a missing binary would silently degrade the datastore/PVC steps to
+    # warnings rather than failing the run.
+    - name: Ensure backup tooling packages are present
+      ansible.builtin.apt:
+        name:
+          - borgbackup
+          - sqlite3
+          - jq
+        state: present
+      when: configure_borg | bool
+
+    - name: Ensure scripts directory exists
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/scripts"
+        state: directory
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0755"
+      when: configure_borg | bool
+
+    # Staging area the backup script materialises Postgres dumps, the k3s
+    # datastore snapshot, and PVC tars into before handing them to borg.
+    # 0700/root-owned: these hold full database contents and the cluster CA,
+    # so they must not be world-readable while they briefly exist on disk.
+    - name: Ensure backup staging directory exists
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/var/backup/forge"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      when: configure_borg | bool
+
+    - name: Deploy Forge backup script from template
+      ansible.builtin.template:
+        src: templates/backup.sh.j2
+        dest: "{{ haven_install_path }}/scripts/backup.sh"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0750"
+      when: configure_borg | bool
+
+    - name: Write BorgBackup passphrase to protected file
+      ansible.builtin.copy:
+        content: "{{ borg_passphrase }}"
+        dest: "{{ haven_install_path }}/.borg_passphrase"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0400"
+      when: configure_borg | bool
+      no_log: true # contains borg_passphrase
+
+    # 02:30 rather than 02:00 so Forge's run doesn't contend with Hearth's on
+    # the same Storage Box, and 03:00's rclone-to-kDrive sync still picks up
+    # both nights' archives.
+    - name: Install BorgBackup cron job (daily at 02:30 UTC)
+      ansible.builtin.cron:
+        name: "haven-borg-backup-forge"
+        user: "root"
+        minute: "30"
+        hour: "2"
+        job: >-
+          {{ haven_install_path }}/scripts/backup.sh
+          >> /var/log/haven-backup-forge.log 2>&1
+        state: present
+      when: configure_borg | bool
+
+    - name: Ensure backup log file exists and is owned by haven user
+      ansible.builtin.file:
+        path: /var/log/haven-backup-forge.log
+        state: touch
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0640"
+        modification_time: preserve
+        access_time: preserve
+      when: configure_borg | bool

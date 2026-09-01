@@ -1,0 +1,43 @@
+# =============================================================================
+# Haven Hearth — mbsync (isync) configuration for kSuite email backup
+# Managed by Ansible (hearth-config.yml) — do not edit manually.
+#
+# One IMAPAccount/IMAPStore/MaildirStore/Channel block per family mailbox.
+# mbsync mirrors each mailbox to a local Maildir INCREMENTALLY (only new/
+# changed messages are transferred after the first run) — this is what makes
+# a daily cron affordable, unlike a full re-export every time.
+#
+# The resulting Maildir trees are picked up by Hearth's own BorgBackup run
+# (backup.sh.j2 includes {{ haven_install_path }}/var/backup/ksuite when
+# configure_ksuite_backup is enabled) — Borg's own daily archives are what
+# provide point-in-time history here, not this config. mbsync only needs to
+# maintain one current mirror; the versioning happens one layer up.
+# =============================================================================
+
+{% for mailbox in ksuite_mailboxes %}
+IMAPAccount {{ mailbox.name }}
+Host {{ ksuite_imap_host | default('mail.infomaniak.com') }}
+User {{ mailbox.email }}
+PassCmd "cat {{ haven_install_path }}/.ksuite_secret_{{ mailbox.name }}"
+SSLType IMAPS
+CertificateFile /etc/ssl/certs/ca-certificates.crt
+
+IMAPStore {{ mailbox.name }}-remote
+Account {{ mailbox.name }}
+
+MaildirStore {{ mailbox.name }}-local
+Path {{ haven_install_path }}/var/backup/ksuite/mail/{{ mailbox.name }}/
+Inbox {{ haven_install_path }}/var/backup/ksuite/mail/{{ mailbox.name }}/INBOX
+SubFolders Verbatim
+
+Channel {{ mailbox.name }}
+Master :{{ mailbox.name }}-remote:
+Slave :{{ mailbox.name }}-local:
+Patterns *
+Create Slave
+# Backup mirror, not a two-way sync tool — never let a local change (or a
+# local deletion) propagate back and delete something on the real mailbox.
+Expunge None
+SyncState *
+
+{% endfor %}

@@ -91,6 +91,42 @@ spec:
       store: infisical
       value: HEALTHCHECK_PING_HEARTH
       description: Healthchecks.io ping URL for Hearth backup monitoring
+    - key: HEALTHCHECK_PING_FORGE
+      store: infisical
+      value: HEALTHCHECK_PING_FORGE
+      description: Healthchecks.io ping URL for Forge backup monitoring
+    - key: HEALTHCHECK_PING_KSUITE
+      store: infisical
+      value: HEALTHCHECK_PING_KSUITE
+      description: Healthchecks.io ping URL for kSuite backup monitoring (mbsync + vdirsyncer)
+
+    # Infrastructure — kSuite backup (email + calendar/contacts mirror)
+    # One Infomaniak "app password" per family mailbox (Manager → Security →
+    # App Passwords — same pattern as Authentik's SMTP credential, see
+    # infomaniak.md), used for IMAP (mbsync) + CalDAV/CardDAV (vdirsyncer).
+    # Placeholder names below match the family mailbox list already used
+    # elsewhere in this repo (infomaniak.md) — replace with real family
+    # member identifiers when actually provisioning.
+    - key: KSUITE_BACKUP_VINCENT
+      store: infisical
+      value: KSUITE_BACKUP_VINCENT
+      description: Infomaniak app password for vincent@ mailbox — kSuite backup (mbsync + vdirsyncer)
+    - key: KSUITE_BACKUP_SPOUSE
+      store: infisical
+      value: KSUITE_BACKUP_SPOUSE
+      description: Infomaniak app password for spouse@ mailbox — kSuite backup (mbsync + vdirsyncer)
+    - key: KSUITE_BACKUP_CHILD1
+      store: infisical
+      value: KSUITE_BACKUP_CHILD1
+      description: Infomaniak app password for child1@ mailbox — kSuite backup (mbsync + vdirsyncer)
+    - key: KSUITE_BACKUP_CHILD2
+      store: infisical
+      value: KSUITE_BACKUP_CHILD2
+      description: Infomaniak app password for child2@ mailbox — kSuite backup (mbsync + vdirsyncer)
+    - key: KSUITE_BACKUP_CHILD3
+      store: infisical
+      value: KSUITE_BACKUP_CHILD3
+      description: Infomaniak app password for child3@ mailbox — kSuite backup (mbsync + vdirsyncer)
 
     # Application secrets — Authentik
     - key: AUTHENTIK_SECRET_KEY

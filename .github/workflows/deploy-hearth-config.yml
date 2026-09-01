@@ -26,6 +26,10 @@ on:
         description: "Deploy/refresh the BorgBackup script, cron job, and passphrase file (leave true once Borg has been initialised via deploy-hearth-init.yml)"
         type: boolean
         default: true
+      configure_ksuite_backup:
+        description: "Deploy/refresh the kSuite email+calendar+contacts backup (mbsync + vdirsyncer) — requires KSUITE_BACKUP_* app passwords to already be in Infisical"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -119,7 +123,7 @@ jobs:
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
           set +e
-          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_HEARTH VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET JELLYFIN_SSO_CLIENT_SECRET NEXTCLOUD_SSO_CLIENT_SECRET IMMICH_SSO_CLIENT_SECRET KAVITA_SSO_CLIENT_SECRET GATUS_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_HEARTH VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET JELLYFIN_SSO_CLIENT_SECRET NEXTCLOUD_SSO_CLIENT_SECRET IMMICH_SSO_CLIENT_SECRET KAVITA_SSO_CLIENT_SECRET GATUS_SSO_CLIENT_SECRET HEALTHCHECK_PING_KSUITE KSUITE_BACKUP_VINCENT KSUITE_BACKUP_SPOUSE KSUITE_BACKUP_CHILD1 KSUITE_BACKUP_CHILD2 KSUITE_BACKUP_CHILD3 -f $DEPLOYMENT_FILE --output json)
           STATUS=$?
           set -e
           if [ $STATUS -ne 0 ]; then
@@ -136,6 +140,12 @@ jobs:
           IMMICH_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.IMMICH_SSO_CLIENT_SECRET')
           KAVITA_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.KAVITA_SSO_CLIENT_SECRET')
           GATUS_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.GATUS_SSO_CLIENT_SECRET')
+          KSUITE_HEALTHCHECK_URL=$(echo "$VALUES" | jq -r '.data.results.HEALTHCHECK_PING_KSUITE // empty')
+          KSUITE_VINCENT=$(echo "$VALUES" | jq -r '.data.results.KSUITE_BACKUP_VINCENT // empty')
+          KSUITE_SPOUSE=$(echo "$VALUES" | jq -r '.data.results.KSUITE_BACKUP_SPOUSE // empty')
+          KSUITE_CHILD1=$(echo "$VALUES" | jq -r '.data.results.KSUITE_BACKUP_CHILD1 // empty')
+          KSUITE_CHILD2=$(echo "$VALUES" | jq -r '.data.results.KSUITE_BACKUP_CHILD2 // empty')
+          KSUITE_CHILD3=$(echo "$VALUES" | jq -r '.data.results.KSUITE_BACKUP_CHILD3 // empty')
           cat > /tmp/config_vars.yml << VARSEOF
           borg_passphrase: "$BORG_PASSPHRASE"
           storagebox_host: "${{ vars.STORAGEBOX_BACKUP_HOST }}"
@@ -148,6 +158,23 @@ jobs:
           immich_sso_client_secret: "$IMMICH_SSO_SECRET"
           kavita_sso_client_secret: "$KAVITA_SSO_SECRET"
           gatus_sso_client_secret: "$GATUS_SSO_SECRET"
+          healthcheck_ping_url_ksuite: "$KSUITE_HEALTHCHECK_URL"
+          ksuite_mailboxes:
+            - name: vincent
+              email: vincent@huybrechts.xyz
+              password: "$KSUITE_VINCENT"
+            - name: spouse
+              email: spouse@huybrechts.xyz
+              password: "$KSUITE_SPOUSE"
+            - name: child1
+              email: child1@huybrechts.xyz
+              password: "$KSUITE_CHILD1"
+            - name: child2
+              email: child2@huybrechts.xyz
+              password: "$KSUITE_CHILD2"
+            - name: child3
+              email: child3@huybrechts.xyz
+              password: "$KSUITE_CHILD3"
           VARSEOF
 
       - name: Run hearth-config playbook
@@ -158,6 +185,7 @@ jobs:
             -i "${{ steps.ssh.outputs.server_ip }}," \
             --private-key ~/.ssh/haven_ed25519 \
             -e configure_borg=${{ inputs.configure_borg }} \
+            -e configure_ksuite_backup=${{ inputs.configure_ksuite_backup }} \
             -e @/tmp/config_vars.yml
 
       - name: Clean up config vars file

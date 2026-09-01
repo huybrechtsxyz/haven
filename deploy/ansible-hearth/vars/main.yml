@@ -43,6 +43,43 @@ borg_keep_monthly: 6
 healthcheck_ping_url: ""
 
 # =============================================================================
+# kSuite Backup — email (mbsync) + calendar/contacts (vdirsyncer)
+# =============================================================================
+# Set to true once app passwords for every mailbox below are stored in
+# Infisical. Uses mature, standards-based tools (isync/mbsync + vdirsyncer)
+# rather than hand-rolled protocol clients — see hearth-config.yml's kSuite
+# section and the two config templates for the full design rationale.
+configure_ksuite_backup: false
+
+# IMAP host — same host already used for Authentik's SMTP config
+# (see infomaniak.md's SMTP Server Configuration section).
+ksuite_imap_host: mail.infomaniak.com
+
+# CalDAV/CardDAV base URL for RFC 6764 auto-discovery. Verify this against
+# the exact URL shown on a real mailbox's Account Settings → CalDAV/CardDAV
+# configuration page before trusting the cron job — see
+# ksuite-vdirsyncer.conf.j2's file-level comment for the full caveat.
+ksuite_dav_url: "https://mail.infomaniak.com/"
+
+# Healthchecks.io ping URL for kSuite backup monitoring (separate from Borg's).
+# Leave empty to disable. Passed via --extra-vars at run time.
+healthcheck_ping_url_ksuite: ""
+
+# One entry per family mailbox. `password` is an Infomaniak "app password"
+# (Manager → Security → App Passwords — same pattern already used for
+# Authentik's SMTP credential, see infomaniak.md), NOT the account login
+# password. Passed via --extra-vars at run time — never committed here.
+# Example (do not commit real values):
+#   ksuite_mailboxes:
+#     - name: vincent
+#       email: vincent@huybrechts.xyz
+#       password: "{{ KSUITE_BACKUP_VINCENT }}"
+#     - name: spouse
+#       email: spouse@huybrechts.xyz
+#       password: "{{ KSUITE_BACKUP_SPOUSE }}"
+ksuite_mailboxes: []
+
+# =============================================================================
 # Deploy — build artifact location
 # =============================================================================
 # Deployment name — used to locate build artifacts (build/<deployment_name>/hearth/)

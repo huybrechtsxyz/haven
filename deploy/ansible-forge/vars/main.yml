@@ -27,6 +27,15 @@ configure_borg: false
 storagebox_backup_host: ""
 storagebox_backup_subaccount: forge-backup
 
+# Backup retention policy (same as Hearth)
+borg_keep_daily: 7
+borg_keep_weekly: 4
+borg_keep_monthly: 6
+
+# Healthchecks.io ping URL for backup monitoring (dead man's switch).
+# Leave empty to disable. Passed via --extra-vars at run time.
+healthcheck_ping_url: ""
+
 # =============================================================================
 # Storage Box SMB mounts — haven-data Storage Box (media + docs sub-accounts)
 # =============================================================================

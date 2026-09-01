@@ -24,11 +24,17 @@ on:
         description: "Dry run (skip playbook execution)"
         type: boolean
         default: false
+      configure_borg:
+        description: "Install/refresh the BorgBackup script + daily cron (requires forge-init to have initialised the repo)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 env:
+  STRATA_OUTPUT: json
+  DEPLOYMENT_FILE: "config/deployment.yaml"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -82,6 +88,14 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Setup strata
+        if: ${{ inputs.dry_run != true }}
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.3
+        with:
+          strata-version: "==1.8.3"
+        env:
+          UV_INDEX_STRATEGY: unsafe-best-match
+
       - name: Install Ansible
         if: ${{ inputs.dry_run != true }}
         run: pip install ansible-core
@@ -117,6 +131,33 @@ jobs:
         working-directory: deploy/ansible-forge
         run: ansible-galaxy collection install -r requirements.yml -p ./collections
 
+      # Resolved into a file rather than inline -e flags so the passphrase
+      # never lands in the process list / workflow log.
+      - name: Resolve backup secrets
+        if: ${{ inputs.dry_run != true }}
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
+        run: |
+          set +e
+          VALUES=$(strata values get BORG_PASSPHRASE_FORGE HEALTHCHECK_PING_FORGE -f $DEPLOYMENT_FILE --output json)
+          STATUS=$?
+          set -e
+          if [ $STATUS -ne 0 ]; then
+            echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
+            echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+            exit $STATUS
+          fi
+          BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_FORGE')
+          HEALTHCHECK_URL=$(echo "$VALUES" | jq -r '.data.results.HEALTHCHECK_PING_FORGE // empty')
+          cat > /tmp/forge_config_vars.yml << VARSEOF
+          borg_passphrase: "$BORG_PASSPHRASE"
+          storagebox_backup_host: "${{ vars.STORAGEBOX_BACKUP_HOST }}"
+          storagebox_backup_subaccount: "${{ vars.STORAGEBOX_BACKUP_FORGE_SUB }}"
+          healthcheck_ping_url: "$HEALTHCHECK_URL"
+          VARSEOF
+
       - name: Run forge-config playbook
         if: ${{ inputs.dry_run != true }}
         working-directory: deploy/ansible-forge
@@ -124,7 +165,13 @@ jobs:
           ansible-playbook forge-config.yml \
             -i "${{ steps.ssh.outputs.server_ip }}," \
             --private-key ~/.ssh/haven_ed25519 \
-            -e hearth_private_ip=${{ steps.hearth_ip.outputs.ip }}
+            -e hearth_private_ip=${{ steps.hearth_ip.outputs.ip }} \
+            -e configure_borg=${{ inputs.configure_borg }} \
+            -e @/tmp/forge_config_vars.yml
+
+      - name: Clean up config vars file
+        if: ${{ always() && inputs.dry_run != true }}
+        run: rm -f /tmp/forge_config_vars.yml
 
       # ------------------------------------------------------------------
       # Cleanup — always remove temporary SSH rule

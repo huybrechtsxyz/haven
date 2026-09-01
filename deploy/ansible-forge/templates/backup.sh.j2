@@ -1,0 +1,243 @@
+#!/usr/bin/env bash
+# =============================================================================
+# Haven Forge — BorgBackup daily backup script
+# Managed by Ansible (forge-config.yml) — do not edit manually.
+#
+# Backs up, to the haven-backup Storage Box (Forge sub-account, separate from
+# Hearth's):
+#   1. k3s datastore   — SQLite/kine snapshot (or etcd snapshot if embedded
+#                        etcd is ever enabled), plus the node token and TLS
+#                        CA material needed to rebuild the cluster identity.
+#   2. Postgres dumps  — pg_dumpall run INSIDE each DB pod (consistent).
+#   3. local-path PVCs — tarred hostPath dirs for non-database app volumes
+#                        (Jellyfin/Kavita config, Gatus history, ...).
+#
+# NOT covered here (deliberately): Immich's photo library and the shared
+# Nextcloud/Kavita/Jellyfin documents tree. Those live on the haven-data
+# Storage Box via SMB hostPath mounts and are replicated to Infomaniak
+# kDrive by the Tier 2 rclone sync instead.
+# =============================================================================
+set -euo pipefail
+
+# cron runs with a minimal environment: k3s installs its binaries into
+# /usr/local/bin and writes its kubeconfig to /etc/rancher/k3s/k3s.yaml,
+# neither of which a bare cron shell picks up. Without these two exports
+# every kubectl/k3s call below fails with "command not found" / "connection
+# refused", silently degrading the DB + PVC steps to warnings.
+export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+export KUBECONFIG="/etc/rancher/k3s/k3s.yaml"
+
+HEALTHCHECK_URL="{{ healthcheck_ping_url | default('') }}"
+
+# Signal start to healthchecks.io (optional)
+if [[ -n "$HEALTHCHECK_URL" ]]; then
+  curl -fsS -m 10 --retry 3 "${HEALTHCHECK_URL}/start" >/dev/null 2>&1 || true
+fi
+
+PASSPHRASE_FILE="{{ haven_install_path }}/.borg_passphrase"
+if [[ ! -f "$PASSPHRASE_FILE" ]]; then
+  echo "ERROR: passphrase file $PASSPHRASE_FILE not found" >&2
+  exit 1
+fi
+
+export BORG_PASSPHRASE
+BORG_PASSPHRASE="$(cat "$PASSPHRASE_FILE")"
+export BORG_RSH="ssh -i {{ haven_install_path }}/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes"
+export BORG_REPO="{{ storagebox_backup_subaccount }}@{{ storagebox_backup_host }}:./forge"
+
+ARCHIVE="forge-$(date --utc +%Y-%m-%dT%H:%M)"
+LOG_PREFIX="[$(date --utc +%Y-%m-%dT%H:%M:%SZ)] haven-backup-forge"
+
+# Staging area for everything this script materialises before handing it to
+# borg. Deliberately NOT /tmp — these files contain full database contents
+# and app secrets, so they live under the 0700 haven tree instead of a
+# world-readable directory.
+STAGE_DIR="{{ haven_install_path }}/var/backup/forge"
+DATASTORE_DIR="$STAGE_DIR/datastore"
+PG_DUMP_DIR="$STAGE_DIR/postgres"
+PVC_DATA_DIR="$STAGE_DIR/pvc"
+K3S_SERVER_DIR="/var/lib/rancher/k3s/server"
+
+echo "$LOG_PREFIX — starting archive $ARCHIVE"
+
+# Recreate the staging tree from scratch each run so a previously-failed run
+# can't leave a stale dump behind that silently gets archived again as if it
+# were current.
+rm -rf "${STAGE_DIR:?}"
+mkdir -p "$DATASTORE_DIR" "$PG_DUMP_DIR" "$PVC_DATA_DIR"
+chmod -R 0700 "$STAGE_DIR"
+
+PV_LIST="$(mktemp)"
+
+# Single exit path for cleanup: the staging tree holds full database dumps
+# and the cluster CA in plaintext, so it must be removed even if borg (or
+# anything before it) fails — otherwise a failed run leaves that material
+# sitting on the node's disk indefinitely. Also signals Healthchecks.io on
+# failure so the alert fires immediately instead of waiting for the
+# dead-man's switch to time out.
+cleanup() {
+  local rc=$?
+  rm -f "$PV_LIST"
+  rm -rf "${STAGE_DIR:?}"
+  if [[ $rc -ne 0 && -n "$HEALTHCHECK_URL" ]]; then
+    curl -fsS -m 10 --retry 3 "${HEALTHCHECK_URL}/fail" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+
+# =============================================================================
+# 1. k3s datastore snapshot
+# =============================================================================
+# This cluster is installed WITHOUT --cluster-init and without an external
+# datastore, so k3s uses SQLite (via kine), NOT embedded etcd — meaning
+# `k3s etcd-snapshot save` does not apply here and fails with "managed etcd
+# database not in use". Take an online-safe SQLite backup instead (sqlite3's
+# .backup handles a live, actively-written database correctly; a plain `cp`
+# of state.db does not). The etcd branch is kept for the case where this node
+# is ever rebuilt as an etcd-backed server.
+
+if [[ -d "$K3S_SERVER_DIR/db/etcd" ]]; then
+  echo "$LOG_PREFIX — datastore is embedded etcd, taking etcd snapshot"
+  if k3s etcd-snapshot save --dir "$DATASTORE_DIR"; then
+    echo "$LOG_PREFIX — etcd snapshot written to $DATASTORE_DIR"
+  else
+    echo "WARNING: k3s etcd-snapshot save failed" >&2
+  fi
+elif [[ -f "$K3S_SERVER_DIR/db/state.db" ]]; then
+  echo "$LOG_PREFIX — datastore is SQLite (kine), taking online sqlite3 backup"
+  if sqlite3 "$K3S_SERVER_DIR/db/state.db" ".backup '$DATASTORE_DIR/state.db'"; then
+    echo "$LOG_PREFIX — SQLite datastore backed up to $DATASTORE_DIR/state.db"
+  else
+    echo "WARNING: sqlite3 .backup of the k3s datastore failed" >&2
+  fi
+else
+  echo "WARNING: no recognisable k3s datastore under $K3S_SERVER_DIR/db" >&2
+fi
+
+# The node token and the cluster CA material are required to restore a
+# cluster that any existing agent/kubeconfig still trusts — without them a
+# restored datastore is useless. Both are small static files, safe to copy
+# while k3s is running.
+for ITEM in token tls; do
+  if [[ -e "$K3S_SERVER_DIR/$ITEM" ]]; then
+    cp -a "$K3S_SERVER_DIR/$ITEM" "$DATASTORE_DIR/" &&
+      echo "$LOG_PREFIX — captured $K3S_SERVER_DIR/$ITEM" ||
+      echo "WARNING: failed to copy $K3S_SERVER_DIR/$ITEM" >&2
+  else
+    echo "WARNING: $K3S_SERVER_DIR/$ITEM not found, skipping" >&2
+  fi
+done
+
+# =============================================================================
+# 2. PostgreSQL logical dumps (Immich, Nextcloud)
+# =============================================================================
+# A datastore snapshot and PVC tars only capture Kubernetes objects and raw
+# files — a live Postgres data directory copied as plain files is NOT a
+# safe/consistent backup (risk of a torn/corrupt restore). Run pg_dumpall
+# INSIDE each pod for a transactionally-consistent logical dump instead;
+# it's small for a family-sized DB and restorable with a plain `psql < dump`.
+#
+# Format: <namespace>|<deployment>|<postgres-user>
+PG_TARGETS=(
+  "immich|immich-postgres|immich"
+  "documents|nextcloud-postgres|nextcloud"
+)
+
+for TARGET in "${PG_TARGETS[@]}"; do
+  IFS='|' read -r PG_NS PG_DEPLOY PG_USER <<< "$TARGET"
+  DUMP_FILE="$PG_DUMP_DIR/${PG_DEPLOY}.sql"
+  echo "$LOG_PREFIX — dumping $PG_NS/$PG_DEPLOY"
+  if kubectl exec -n "$PG_NS" "deploy/$PG_DEPLOY" -- \
+       pg_dumpall -U "$PG_USER" > "$DUMP_FILE" 2>/dev/null; then
+    chmod 0600 "$DUMP_FILE"
+    echo "$LOG_PREFIX — dumped $PG_NS/$PG_DEPLOY ($(du -h "$DUMP_FILE" | cut -f1))"
+  else
+    # Remove the partial/empty file so a failed dump can never be mistaken
+    # for a good one at restore time.
+    rm -f "$DUMP_FILE"
+    echo "WARNING: pg_dumpall failed for $PG_NS/$PG_DEPLOY" >&2
+  fi
+done
+
+# =============================================================================
+# 3. local-path PVC data (Jellyfin config, Kavita config, Gatus history, ...)
+# =============================================================================
+# Discover every PV backed by the `local-path` StorageClass and tar its
+# on-node directory (local-path-provisioner stores data as plain directories,
+# so no snapshot API is needed on a single-node cluster). Depending on the
+# provisioner version the path is exposed as either spec.hostPath.path or
+# spec.local.path — handle both.
+#
+# The Postgres PVCs are EXCLUDED: they're already captured as consistent
+# logical dumps above, and tarring a live DB's raw data files would only add
+# a torn/inconsistent copy for no benefit. Everything else with local-path
+# storage is plain app config/state, safe to tar directly.
+
+echo "$LOG_PREFIX — discovering local-path PVCs to back up"
+if ! kubectl get pv -o json 2>/dev/null |
+  jq -r '.items[]
+    | select(.spec.storageClassName == "local-path")
+    | select(.spec.claimRef != null)
+    | select(.spec.claimRef.name != "immich-postgres")
+    | select(.spec.claimRef.name != "nextcloud-postgres")
+    | [ .spec.claimRef.namespace,
+        .spec.claimRef.name,
+        (.spec.hostPath.path // .spec.local.path // "") ]
+    | @tsv' > "$PV_LIST"; then
+  echo "WARNING: could not enumerate local-path PVs" >&2
+  : > "$PV_LIST"
+fi
+
+while IFS=$'\t' read -r NAMESPACE PVC_NAME HOST_PATH; do
+  [[ -z "${NAMESPACE:-}" || -z "${PVC_NAME:-}" || -z "${HOST_PATH:-}" ]] && continue
+  if [[ ! -d "$HOST_PATH" ]]; then
+    echo "WARNING: hostPath $HOST_PATH for $NAMESPACE/$PVC_NAME does not exist, skipping" >&2
+    continue
+  fi
+  ARCHIVE_FILE="$PVC_DATA_DIR/${NAMESPACE}_${PVC_NAME}.tar.gz"
+  if tar czf "$ARCHIVE_FILE" -C "$HOST_PATH" .; then
+    chmod 0600 "$ARCHIVE_FILE"
+    echo "$LOG_PREFIX — tarred $NAMESPACE/$PVC_NAME ($HOST_PATH)"
+  else
+    rm -f "$ARCHIVE_FILE"
+    echo "WARNING: failed to tar $NAMESPACE/$PVC_NAME ($HOST_PATH)" >&2
+  fi
+done < "$PV_LIST"
+
+# =============================================================================
+# 4. BorgBackup archive
+# =============================================================================
+
+borg create \
+  --verbose \
+  --filter AME \
+  --list \
+  --stats \
+  --show-rc \
+  --compression lz4 \
+  --exclude-caches \
+  "$BORG_REPO::$ARCHIVE" \
+  /etc/rancher/k3s \
+  "$STAGE_DIR"
+
+echo "$LOG_PREFIX — pruning old archives"
+borg prune \
+  --list \
+  --glob-archives "forge-*" \
+  --show-rc \
+  --keep-daily  {{ borg_keep_daily }} \
+  --keep-weekly {{ borg_keep_weekly }} \
+  --keep-monthly {{ borg_keep_monthly }} \
+  "$BORG_REPO"
+
+echo "$LOG_PREFIX — compacting repository"
+borg compact "$BORG_REPO"
+
+# The staging tree (Postgres dumps, datastore snapshot, PVC tars) is removed
+# by the EXIT trap installed above — on success and on failure alike.
+echo "$LOG_PREFIX — completed successfully"
+
+# Signal success to healthchecks.io
+if [[ -n "$HEALTHCHECK_URL" ]]; then
+  curl -fsS -m 10 --retry 3 "$HEALTHCHECK_URL" >/dev/null 2>&1 || true
+fi

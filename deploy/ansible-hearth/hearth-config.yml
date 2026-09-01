@@ -302,6 +302,126 @@
       when: configure_borg | bool
 
     # =========================================================================
+    # kSuite Backup — email (mbsync) + calendar/contacts (vdirsyncer)
+    # =========================================================================
+    # Uses two mature, purpose-built tools instead of hand-rolled IMAP/CalDAV/
+    # CardDAV protocol clients — mbsync (isync) mirrors email to Maildir,
+    # vdirsyncer mirrors calendars/contacts to local .ics/.vcf files, both via
+    # RFC-standard discovery/auth. Both are one-way, read-only mirrors (never
+    # write back to kSuite) — see the config templates for the full rationale.
+    #
+    # The resulting mirror directories are picked up by Hearth's OWN Borg
+    # backup above (backup.sh.j2 conditionally includes var/backup/ksuite) —
+    # this is what actually gets kSuite data into the same Storage Box +
+    # kDrive pipeline everything else already uses, rather than a parallel
+    # backup mechanism. Point-in-time history comes from Borg's daily
+    # archives, not from anything in this section.
+
+    - name: Ensure kSuite backup packages are present
+      ansible.builtin.apt:
+        name:
+          - isync # provides mbsync
+          - vdirsyncer
+        state: present
+      when: configure_ksuite_backup | default(false) | bool
+
+    - name: Ensure kSuite config + mirror directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0700"
+      loop:
+        - "{{ haven_install_path }}/etc/ksuite"
+        - "{{ haven_install_path }}/var/backup/ksuite"
+      when: configure_ksuite_backup | default(false) | bool
+
+    - name: Write per-mailbox kSuite app-password files
+      ansible.builtin.copy:
+        content: "{{ item.password }}"
+        dest: "{{ haven_install_path }}/.ksuite_secret_{{ item.name }}"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0400"
+      loop: "{{ ksuite_mailboxes }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: configure_ksuite_backup | default(false) | bool
+      no_log: true # contains app passwords
+
+    - name: Deploy mbsync configuration (email)
+      ansible.builtin.template:
+        src: templates/ksuite-mbsync.conf.j2
+        dest: "{{ haven_install_path }}/etc/ksuite/mbsyncrc"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0600"
+      when: configure_ksuite_backup | default(false) | bool
+      no_log: true # renders per-mailbox PassCmd paths, keep consistent with other secret-adjacent templates
+
+    - name: Deploy vdirsyncer configuration (calendar/contacts)
+      ansible.builtin.template:
+        src: templates/ksuite-vdirsyncer.conf.j2
+        dest: "{{ haven_install_path }}/etc/ksuite/vdirsyncer.conf"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0600"
+      when: configure_ksuite_backup | default(false) | bool
+
+    - name: Deploy kSuite backup orchestrator script
+      ansible.builtin.template:
+        src: templates/ksuite-backup.sh.j2
+        dest: "{{ haven_install_path }}/scripts/ksuite-backup.sh"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0750"
+      when: configure_ksuite_backup | default(false) | bool
+
+    # 01:30 UTC — before Hearth's own Borg run at 02:00 UTC, so the same-day
+    # Borg archive picks up the freshly-synced kSuite mirror.
+    - name: Install kSuite backup cron job (daily at 01:30 UTC)
+      ansible.builtin.cron:
+        name: "haven-ksuite-backup"
+        user: "{{ haven_user }}"
+        minute: "30"
+        hour: "1"
+        job: >-
+          HOME={{ haven_install_path }}
+          {{ haven_install_path }}/scripts/ksuite-backup.sh
+          >> /var/log/haven-ksuite-backup.log 2>&1
+        state: "{{ 'present' if (configure_ksuite_backup | default(false) | bool) else 'absent' }}"
+
+    - name: Ensure kSuite backup log file exists and is owned by haven user
+      ansible.builtin.file:
+        path: /var/log/haven-ksuite-backup.log
+        state: touch
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0640"
+        modification_time: preserve
+        access_time: preserve
+
+    - name: "Validate: kSuite backup configuration"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: ksuite_checks
+      loop:
+        - "{{ haven_install_path }}/scripts/ksuite-backup.sh"
+        - "{{ haven_install_path }}/etc/ksuite/mbsyncrc"
+        - "{{ haven_install_path }}/etc/ksuite/vdirsyncer.conf"
+        - "{{ haven_install_path }}/var/backup/ksuite"
+      when: configure_ksuite_backup | default(false) | bool
+
+    - name: "Validate: Show kSuite backup file status"
+      ansible.builtin.debug:
+        msg: "{{ item.item }} — exists={{ item.stat.exists | default(false) }}, mode={{ item.stat.mode | default('?') }}"
+      loop: "{{ ksuite_checks.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: configure_ksuite_backup | default(false) | bool
+
+    # =========================================================================
     # Authentik — SSO Blueprint
     # =========================================================================
     # Deploys the rendered blueprint to the Authentik blueprints directory.

@@ -30,7 +30,7 @@ Run **`31 - Forge - Init`** (`deploy-forge-init.yml`) with the flags below. This
 | `configure_smb`             | `false`       |
 | `configure_portainer_agent` | `false`       |
 
-After this run completes, the BorgBackup SSH public key is printed in the workflow log. Copy it and **authorise it in Hetzner Robot** (Storage Box → SSH Keys) before continuing.
+After this run completes, the BorgBackup SSH public key is printed in the workflow log. Copy it and **authorise it in Hetzner Robot** (Storage Box → SSH Keys) before continuing. Store the key securely in Bitwarden.
 
 **Second run** (after SSH key is authorised — enables Borg, SMB mounts, and optionally the Portainer agent):
 
@@ -51,9 +51,17 @@ Forge's k3s API has no public exposure — the Portainer Kubernetes Edge Agent p
 1. In Portainer (on Hearth): **Environments → Add environment → Kubernetes → Edge Agent**. Name it `forge`.
 2. When asked for a command to generate the Edge ID, use `cat /proc/sys/kernel/random/uuid`.
    Leave the "URL where containers are reachable" field blank — cosmetic only.
-3. Portainer shows an install command with `<EDGE_ID>` and `<EDGE_KEY>`. Save both to Infisical as `PORTAINER_EDGE_ID` and `PORTAINER_EDGE_KEY` — do **not** commit them.
+3. Portainer shows an install command with `<EDGE_ID>` and `<EDGE_KEY>`. Save both to Infisical as `PORTAINER_EDGE_ID` and `PORTAINER_EDGE_KEY` — do **not** commit them. Store securely in Bitwarden.
 4. Re-run **`31 - Forge - Init`** with `configure_portainer_agent: true` (all other flags can stay `false` — the playbook skips already-completed steps).
 5. The environment changes from pending to connected in Portainer's Environments list within a minute.
+
+| Input                       | Value         |
+| --------------------------- | ------------- |
+| `branch`                    | *your branch* |
+| `dry_run`                   | `false`       |
+| `configure_borg`            | `false`       |
+| `configure_smb`             | `false`       |
+| `configure_portainer_agent` | `true`        |
 
 ---
 
@@ -80,6 +88,16 @@ Run **`33 - Forge - Deploy`** (`deploy-forge-deploy.yml`):
 | `dry_run` | `false`       | `true` runs validate + build only, skips the actual Helm deploy (preview) |
 
 This runs `strata deploy run --scope apps --stage applications_forge` — tunnels to the k3s API over SSH and deploys all active namespaces in `config/stack/workspace.yaml`.
+
+
+
+
+
+
+
+
+
+
 
 ---
 
