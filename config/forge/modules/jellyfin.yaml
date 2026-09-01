@@ -21,8 +21,16 @@ spec:
   # chart itself, so spec.configuration (no module-name prefixing) is used
   # instead of spec.services.
   configuration:
-    # image.tag intentionally left unset — the chart defaults to its own
-    # matching appVersion (10.11.8 for chart 3.2.0) when omitted.
+    # image.tag pinned explicitly (chart 3.2.0's default appVersion is
+    # 10.11.8, which is BELOW the targetAbi (10.11.11.0) required by the
+    # SSO-Auth plugin version installed by the initContainer below — Jellyfin
+    # silently disables any plugin whose targetAbi exceeds the running
+    # server version, which is why /sso/OID/Add/... 404'd (confirmed via
+    # pod logs: "Skipping disabled plugin 5.0.0.0 of SSO Authentication").
+    # Pin >= 10.11.11 to keep the plugin loadable; bump alongside future
+    # plugin manifest updates.
+    image:
+      tag: "10.11.11"
     persistence:
       config:
         enabled: true

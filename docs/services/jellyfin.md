@@ -81,7 +81,7 @@ The Authentik side is **fully automated** — `deploy/ansible-hearth/templates/a
 
 The Jellyfin side is **also automated**, aside from one unavoidable one-time step (Jellyfin has no headless bootstrap):
 
-1. **Plugin install** — an idempotent `extraInitContainers` entry in `config/forge/modules/jellyfin.yaml` downloads the latest [K0lin/jellyfin-plugin-sso](https://github.com/K0lin/jellyfin-plugin-sso) release from its manifest and unpacks it into the `config` PVC's `plugins/` dir on every pod start; skips entirely once already installed (no-op on every future restart/redeploy).
+1. **Plugin install** — an idempotent `extraInitContainers` entry in `config/forge/modules/jellyfin.yaml` downloads the latest [K0lin/jellyfin-plugin-sso](https://github.com/K0lin/jellyfin-plugin-sso) release from its manifest and unpacks it into the `config` PVC's `plugins/` dir on every pod start; skips entirely once already installed (no-op on every future restart/redeploy). [Manifest](https://github.com/K0lin/jellyfin-plugin-sso/blob/main/manifest.json)
 
 2. **Provider registration** — `.github/workflows/deploy-forge-deploy.yml` POSTs to `/sso/OID/Add/authentik` after every Helm deploy, using `JELLYFIN_API_KEY` + `JELLYFIN_SSO_CLIENT_SECRET` from Infisical. Idempotent (`Add` always overwrites) and retries briefly for ingress/cert readiness. Skips silently (doesn't fail the deploy) if `JELLYFIN_API_KEY` isn't set yet. Includes `schemeOverride: "https"` — Traefik terminates TLS and forwards plain HTTP to the pod, so without this the plugin builds an `http://` redirect_uri and Authentik rejects it with a "Redirect URI Error" (strict match against the registered `https://` one).
 
