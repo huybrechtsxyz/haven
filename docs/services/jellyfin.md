@@ -16,12 +16,12 @@ Jellyfin runs on **Forge** (Hetzner CPX41, k3s), in its own `media` Kubernetes n
 
 ## What gets deployed
 
-| Item      | Value                                                                                                                                                                  |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Chart     | `jellyfin` from the official repo, `https://jellyfin.github.io/jellyfin-helm`                                                                                          |
-| Version   | `3.2.0` (`image.tag` intentionally left unset — auto-matches the chart's own appVersion)                                                                               |
-| Namespace | `media` (Kubernetes), module file `config/forge/modules/jellyfin.yaml`                                                                                                 |
-| Ingress   | Traefik (`className: traefik`), host `media.{domain}`, TLS via cert-manager (`letsencrypt-prod`, switched from `letsencrypt-staging` 2026-08-28 once verified issuing) |
+| Item      | Value                                                                                                                                                                                                                                                                                                                 |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chart     | `jellyfin` from the official repo, `https://jellyfin.github.io/jellyfin-helm`                                                                                                                                                                                                                                         |
+| Version   | `3.2.0`, `image.tag` pinned to `10.11.11` — the chart's default appVersion (`10.11.8`) is below the SSO plugin's required `targetAbi` (`10.11.11.0`); Jellyfin silently disables any plugin whose `targetAbi` exceeds the running server version (see [SSO](#sso--authentik-oidc-via-k0linjellyfin-plugin-sso) below) |
+| Namespace | `media` (Kubernetes), module file `config/forge/modules/jellyfin.yaml`                                                                                                                                                                                                                                                |
+| Ingress   | Traefik (`className: traefik`), host `media.{domain}`, TLS via cert-manager (`letsencrypt-prod`, switched from `letsencrypt-staging` 2026-08-28 once verified issuing)                                                                                                                                                |
 
 ---
 
@@ -91,9 +91,44 @@ The Jellyfin side is **also automated**, aside from one unavoidable one-time ste
    ```
    After that, every future deploy registers/updates the SSO provider automatically — no further manual steps.
 
-See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugin-sso) for the login-button snippet to add under Dashboard → General → Branding → Login disclaimer (still a manual, cosmetic, one-time step).
+See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugin-sso) for the login-button snippet to add under Dashboard → General → Branding → Login disclaimer (still a manual, cosmetic, one-time step — see [Branding: login button](#branding--login-button) below).
 
 **MILESTONE (2026-08-28): confirmed working end-to-end in production** — "Sign in with SSO" successfully authenticates via Authentik after the `schemeOverride: "https"` fix above. All three bugs hit along the way (curl TLS trust + `set -e` retry-loop bug, `issuer_mode` mismatch, redirect_uri scheme mismatch) are resolved.
+
+**REGRESSION (2026-09-01): SSO silently broken after a routine redeploy** — pod logs showed `Skipping disabled plugin 5.0.0.0 of SSO Authentication`. Root cause: the plugin's `meta.json` requires `targetAbi: 10.11.11.0`, but the chart's default `image.tag` tracked appVersion `10.11.8` — Jellyfin auto-disables any plugin whose `targetAbi` exceeds the running server version, so the plugin's routes (`/sso/OID/Add/...`) never registered (404). Fixed by pinning `image.tag: "10.11.11"` explicitly (see [What gets deployed](#what-gets-deployed) above). This also surfaced a second, unrelated problem: the `JELLYFIN_API_KEY` stored in Infisical no longer matched a valid key in Jellyfin's database (401 on registration) — resolved by wiping the `config` PVC (`kubectl delete pvc jellyfin-config -n media`, then redeploying to recreate it via Helm) and redoing the one-time manual setup from scratch. **Recovery sequence used:**
+1. Run `33 - Forge - Deploy` — recreates the (now-empty) `config` PVC via the Helm chart and reinstalls the SSO plugin via the init container.
+2. Visit `https://media.{domain}` → complete Jellyfin's first-run setup wizard (fresh admin account).
+3. Dashboard → API Keys → generate a new key → `strata secret put JELLYFIN_API_KEY --value "<key>" -f config/environment.yaml`.
+4. Run `33 - Forge - Deploy` again — SSO provider registration now succeeds against the fresh install.
+
+**Confirmed fixed (2026-09-01)**: recovery sequence completed — deploy log shows `Jellyfin SSO provider registered successfully (HTTP 200).`, and after adding the login button (see below) a user successfully signed in via SSO end-to-end. Fully working again post-regression.
+
+### Branding — login button
+
+This is a manual, cosmetic, one-time step stored in Jellyfin's own database (`config` PVC) — lost on any config-PVC reset (see the 2026-09-01 regression above) and must be redone after one.
+
+Dashboard → General → Branding → **"Login disclaimer"**:
+```html
+<form action="https://media.huybrechts.xyz/sso/OID/start/authentik">
+  <button class="raised block emby-button button-submit">
+    Sign in with SSO
+  </button>
+</form>
+```
+
+Dashboard → General → Branding → **"Custom CSS code"**:
+```css
+a.raised.emby-button {
+  padding: 0.9em 1em;
+  color: inherit !important;
+}
+
+.disclaimerContainer {
+  display: block;
+}
+```
+
+Save, then reload the Jellyfin login page — the button appears alongside the normal login form and redirects through Authentik.
 
 ---
 
@@ -101,11 +136,11 @@ See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugi
 
 - [x] `https://media.{domain}` — Jellyfin loads and is reachable from a browser
 - [x] Media library shows content from `/mnt/haven-data-docs/media`
-- [x] SSO plugin installed and Authentik provider registered
-- [x] "Sign in with SSO" login button works end-to-end (confirmed 2026-08-28)
+- [x] SSO plugin installed and Authentik provider registered (re-confirmed 2026-09-01 after the config-PVC reset — HTTP 200)
+- [x] "Sign in with SSO" login button works end-to-end (re-confirmed 2026-09-01 — a user successfully signed in via SSO)
 
 ---
 
 ## Still open
 
-- Login-button HTML snippet (Dashboard → General → Branding) is still a manual, cosmetic, one-time step
+- Login-button HTML snippet (Dashboard → General → Branding, see [Branding: login button](#branding--login-button)) is a manual, cosmetic, one-time step — needs redoing after any config-PVC reset (done and confirmed working again 2026-09-01)
