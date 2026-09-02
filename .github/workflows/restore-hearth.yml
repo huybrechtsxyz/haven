@@ -1,0 +1,209 @@
+# ==============================================================================
+# Workflow: Hearth — Restore (BorgBackup)
+# ==============================================================================
+# On-demand restore of Hearth's Borg archive — for when there's no shell/SSH
+# access available locally and the restore needs to happen through the same
+# GitHub Actions pipeline everything else already uses.
+#
+# Mirrors docs/guides/backup.md's "Option 1: Restore from Borg" procedure —
+# this workflow just runs those same commands remotely instead of requiring
+# a human to SSH in and type them.
+#
+# ⚠️ `restore-latest` and `restore-specific` OVERWRITE live files on Hearth
+# (/opt/haven/etc, /opt/haven/var/data, the kSuite mirror). This is
+# destructive and hard to reverse — the confirm input below requires typing
+# the literal word RESTORE to reduce accidental runs. Always run
+# `list-archives` first to confirm you're extracting the archive you think
+# you are.
+#
+# Prerequisites: deploy-hearth-init.yml must have run at least once (Borg
+# repo initialised) and BORG_PASSPHRASE_HEARTH must already be in Infisical.
+# ==============================================================================
+
+name: 24 - Hearth - Restore
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Confirm branch to run from (must match the branch this workflow runs on)"
+        type: string
+        required: true
+      action:
+        description: "What to do"
+        type: choice
+        options:
+          - list-archives
+          - restore-latest
+          - restore-specific
+        default: list-archives
+      archive_name:
+        description: "Archive name — required only for restore-specific, e.g. hearth-2026-09-01T02:00 (run list-archives first to find one)"
+        type: string
+        required: false
+      restart_services:
+        description: "Run 'docker compose up -d' after restoring (recommended — leave true unless you have a reason not to)"
+        type: boolean
+        default: true
+      confirm:
+        description: "Type RESTORE (all caps) to confirm — required for restore-latest/restore-specific, ignored for list-archives"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  STRATA_OUTPUT: json
+  DEPLOYMENT_FILE: "config/deployment.yaml"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  hearth-restore:
+    name: Restore Hearth
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      # ------------------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # ------------------------------------------------------------------
+      # Safety: block main branch, require typed confirmation for anything
+      # that actually overwrites live data
+      # ------------------------------------------------------------------
+      - name: Block deployment from main branch
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "::error::Running from 'main' is blocked. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" = "main" ]; then
+            echo "::error::Branch input cannot be 'main'. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" != "${{ github.ref_name }}" ]; then
+            echo "::error::Branch input '${{ inputs.branch }}' does not match the running branch '${{ github.ref_name }}'. Re-run from the correct branch."
+            exit 1
+          fi
+
+      - name: Validate restore inputs
+        run: |
+          if [ "${{ inputs.action }}" = "restore-specific" ] && [ -z "${{ inputs.archive_name }}" ]; then
+            echo "::error::archive_name is required when action=restore-specific. Run action=list-archives first to find one."
+            exit 1
+          fi
+          if [ "${{ inputs.action }}" != "list-archives" ] && [ "${{ inputs.confirm }}" != "RESTORE" ]; then
+            echo "::error::This action overwrites live files on Hearth. Type RESTORE (all caps) in the confirm input to proceed."
+            exit 1
+          fi
+
+      # ------------------------------------------------------------------
+      # Network setup — get IP, open SSH on Hearth firewall
+      # ------------------------------------------------------------------
+      - name: Open temporary SSH access
+        id: ssh
+        uses: ./.github/actions/hetzner-ssh-open
+        with:
+          hetzner_api_token: ${{ secrets.HETZNER_API_TOKEN }}
+          server_name: haven-platform-hearth
+          firewall_name: haven-platform-fw-hearth
+
+      # ------------------------------------------------------------------
+      # Resolve the Borg passphrase — Infisical Cloud, NOT Vaultwarden
+      # (Vaultwarden lives on the same Hearth we might be restoring, so it
+      # can't be the source of truth for the key needed to restore it).
+      # ------------------------------------------------------------------
+      - name: Setup strata
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.3
+        with:
+          strata-version: "==1.8.3"
+        env:
+          UV_INDEX_STRATEGY: unsafe-best-match
+
+      - name: Resolve Borg passphrase
+        id: secrets
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
+        run: |
+          set +e
+          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH -f $DEPLOYMENT_FILE --output json)
+          STATUS=$?
+          set -e
+          if [ $STATUS -ne 0 ]; then
+            echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
+            echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+            exit $STATUS
+          fi
+          BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_HEARTH')
+          echo "::add-mask::$BORG_PASSPHRASE"
+          echo "borg_passphrase=$BORG_PASSPHRASE" >> "$GITHUB_OUTPUT"
+
+      - name: Write deploy SSH private key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_PRIVATE_KEY }}" > ~/.ssh/haven_ed25519
+          chmod 600 ~/.ssh/haven_ed25519
+
+      # ------------------------------------------------------------------
+      # Restore actions — each runs the exact same borg command a human
+      # would type per docs/guides/backup.md's Option 1, just remotely
+      # ------------------------------------------------------------------
+      - name: List available Borg archives
+        if: ${{ inputs.action == 'list-archives' }}
+        env:
+          BORG_PASSPHRASE: ${{ steps.secrets.outputs.borg_passphrase }}
+        run: |
+          ssh -i ~/.ssh/haven_ed25519 -o StrictHostKeyChecking=no \
+            root@${{ steps.ssh.outputs.server_ip }} \
+            "export BORG_PASSPHRASE='$BORG_PASSPHRASE'; \
+             export BORG_RSH='ssh -i /opt/haven/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes'; \
+             borg list '${{ vars.STORAGEBOX_BACKUP_HEARTH_SUB }}@${{ vars.STORAGEBOX_BACKUP_HOST }}:./hearth'"
+
+      - name: Restore latest archive
+        if: ${{ inputs.action == 'restore-latest' }}
+        env:
+          BORG_PASSPHRASE: ${{ steps.secrets.outputs.borg_passphrase }}
+        run: |
+          ssh -i ~/.ssh/haven_ed25519 -o StrictHostKeyChecking=no \
+            root@${{ steps.ssh.outputs.server_ip }} \
+            "export BORG_PASSPHRASE='$BORG_PASSPHRASE'; \
+             export BORG_RSH='ssh -i /opt/haven/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes'; \
+             export BORG_REPO='${{ vars.STORAGEBOX_BACKUP_HEARTH_SUB }}@${{ vars.STORAGEBOX_BACKUP_HOST }}:./hearth'; \
+             LATEST=\$(borg list --short \$BORG_REPO | tail -1); \
+             echo \"Restoring archive: \$LATEST\"; \
+             cd / && borg extract --list \$BORG_REPO::\$LATEST"
+
+      - name: Restore specific archive
+        if: ${{ inputs.action == 'restore-specific' }}
+        env:
+          BORG_PASSPHRASE: ${{ steps.secrets.outputs.borg_passphrase }}
+        run: |
+          ssh -i ~/.ssh/haven_ed25519 -o StrictHostKeyChecking=no \
+            root@${{ steps.ssh.outputs.server_ip }} \
+            "export BORG_PASSPHRASE='$BORG_PASSPHRASE'; \
+             export BORG_RSH='ssh -i /opt/haven/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes'; \
+             export BORG_REPO='${{ vars.STORAGEBOX_BACKUP_HEARTH_SUB }}@${{ vars.STORAGEBOX_BACKUP_HOST }}:./hearth'; \
+             cd / && borg extract --list \$BORG_REPO::${{ inputs.archive_name }}"
+
+      - name: Restart Hearth services
+        if: ${{ inputs.action != 'list-archives' && inputs.restart_services == true }}
+        run: |
+          ssh -i ~/.ssh/haven_ed25519 -o StrictHostKeyChecking=no \
+            root@${{ steps.ssh.outputs.server_ip }} \
+            "docker compose --project-name haven -f /opt/haven/etc/docker-compose.yml up -d"
+
+      # ------------------------------------------------------------------
+      # Cleanup — always remove temporary SSH rule
+      # ------------------------------------------------------------------
+      - name: Close temporary SSH access
+        if: ${{ always() }}
+        uses: ./.github/actions/hetzner-ssh-close
+        with:
+          hetzner_api_token: ${{ secrets.HETZNER_API_TOKEN }}
+          firewall_id: ${{ steps.ssh.outputs.firewall_id }}

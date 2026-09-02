@@ -39,7 +39,7 @@ This strategy ensures:
 - Keep 6 monthly archives
 
 **Encryption:**
-- Passphrase stored in Vaultwarden vault
+- Passphrase source of truth: **Infisical Cloud** (`BORG_PASSPHRASE_HEARTH`/`_FORGE`) — a human-readable copy is also kept in Vaultwarden for convenience, but Infisical is what a real restore actually reads from (see [Backup Recovery](#backup-recovery)'s note on why)
 - Algorithm: `repokey-blake2` (Borg's default, requires passphrase for restore)
 - SSH transport: ed25519 key, Borg RSH config in backup script
 
@@ -102,9 +102,11 @@ rclone sync --verbose \
 
 ### Option 1: Restore from Borg (Hearth/Forge system state)
 
-**When to use:** Hearth/Forge VPS hardware failure, accidental config deletion, or rollback to a known-good state
+**When to use:** Hearth VPS hardware failure, accidental config deletion, or rollback to a known-good state
 
-**Prerequisites:** Borg passphrase (in Vaultwarden) + SSH key to Storage Box + Borg CLI
+**Prerequisites:** Borg passphrase (`BORG_PASSPHRASE_HEARTH` in **Infisical Cloud** — the copy in Vaultwarden is a human-readable convenience mirror, not the source of truth) + SSH key to Storage Box + Borg CLI
+
+> **Why Infisical, not Vaultwarden:** Vaultwarden itself runs *on Hearth* — if Hearth is gone, so is Vaultwarden, and you'd need the passphrase to restore Vaultwarden in the first place (a circular dependency). Infisical Cloud is an independent SaaS with no such dependency, which is why it's the real source of truth for this value.
 
 **Steps:**
 
@@ -112,8 +114,8 @@ rclone sync --verbose \
    ```bash
    export BORG_REPO="u604953-sub1@u604953.your-storagebox.de:./hearth"
    export BORG_RSH="ssh -i ~/.ssh/haven_ed25519 -p 23"
-   export BORG_PASSPHRASE="<from Vaultwarden>"
-   
+   export BORG_PASSPHRASE="<strata values get BORG_PASSPHRASE_HEARTH>"
+
    borg list $BORG_REPO
    ```
 
@@ -128,9 +130,11 @@ rclone sync --verbose \
 
 ### Option 1b: Restore Forge Postgres Databases / App Config (Immich, Nextcloud, Jellyfin, Kavita, Gatus)
 
-**When to use:** Forge node loss, corrupted Postgres data, or accidental deletion of a `local-path` PVC (Jellyfin/Kavita config, Gatus history)
+**When to use:** Corrupted Postgres data, or accidental deletion of a `local-path` PVC (Jellyfin/Kavita config, Gatus history), on an *existing, still-running* Forge cluster.
 
-**Prerequisites:** Borg passphrase (in Vaultwarden) + SSH key to Storage Box + Borg CLI + `kubectl` access to the (re-provisioned) cluster
+> For a **totally destroyed** Forge (VPS gone, cluster gone), don't start here — go to [Option 3](#option-3-full-disaster-recovery-all-tiers). Restoring these dumps only makes sense once `strata deploy run` has recreated the namespaces/pods/PVCs to restore *into*.
+
+**Prerequisites:** Borg passphrase (`BORG_PASSPHRASE_FORGE` in **Infisical Cloud**) + SSH key to Storage Box + Borg CLI + `kubectl` access to the (running) cluster
 
 **Steps:**
 
@@ -138,7 +142,7 @@ rclone sync --verbose \
    ```bash
    export BORG_REPO="u604953-sub2@u604953.your-storagebox.de:./forge"
    export BORG_RSH="ssh -i ~/.ssh/haven_ed25519 -p 23"
-   export BORG_PASSPHRASE="<from Vaultwarden>"
+   export BORG_PASSPHRASE="<strata values get BORG_PASSPHRASE_FORGE>"
 
    borg list $BORG_REPO
    borg extract $BORG_REPO::forge-2026-09-01T02:30
@@ -161,13 +165,15 @@ rclone sync --verbose \
    kubectl scale deployment/jellyfin -n media --replicas=1
    ```
 
+> **The k3s datastore snapshot (`opt/haven/var/backup/forge/datastore/`) is NOT part of this procedure on purpose.** It's a fast, same-cluster-corruption recovery shortcut (restore etcd/SQLite in place on the *same* cluster identity), not a mechanism for rebuilding a *different* cluster after total loss — see [Option 3](#option-3-full-disaster-recovery-all-tiers) for why the git-committed Helm/module configs are the real recovery path in that case.
+
 **Restore testing:** Included in the monthly restore drill above — restore each Postgres dump + one PVC tar to a temporary namespace and verify data integrity.
 
 ### Option 2: Restore kSuite Email/Calendar/Contacts
 
 **When to use:** A family member accidentally deleted email/calendar events/contacts past kSuite's own trash retention, or the account itself needs restoring after a compromise
 
-**Prerequisites:** Borg passphrase (in Vaultwarden) + SSH key to Storage Box + Borg CLI
+**Prerequisites:** Borg passphrase (`BORG_PASSPHRASE_HEARTH` in Infisical Cloud) + SSH key to Storage Box + Borg CLI
 
 **Steps:**
 
@@ -191,27 +197,55 @@ rclone sync --verbose \
 
 ### Option 3: Full Disaster Recovery (All Tiers)
 
-**Scenario:** Total loss of both Hearth and Forge, all Storage Boxes destroyed
+**Scenario:** Total loss of both Hearth and Forge — worst case, both Storage Boxes destroyed too.
 
 **Recovery window:** ~4 hours
 
-1. **Provision new Hearth + Forge VPS** via `deploy-infra.yml` + `deploy-hearth-init.yml` + `deploy-forge-init.yml`
-2. **Download backups from kDrive:** Restore both Storage Box directories from kDrive into the new boxes
-3. **Mount Storage Boxes:** Connect the new Hearth/Forge to the new Storage Box infrastructure
-4. **Restore BorgBackup archives:** Extract latest Borg archives into `/opt/haven/`
-5. **Start services:** `docker compose up -d` on Hearth; `strata deploy run` on Forge
-6. **Test:** Verify Authentik login, Vaultwarden unlock, Immich photos visible, Jellyfin libraries scan
+**Why this is actually recoverable:** nothing required below lives *only* on the destroyed VPS. The Borg passphrases are in Infisical Cloud, the Storage Box account credentials are in Infisical Cloud, the SSH keypair used to reach the Storage Box is regenerated fresh by `hearth-init.yml`/`forge-init.yml` and re-authorized against the *existing* Storage Box account automatically, and every Helm/module config Forge needs is committed to this git repo. See design.md's *"Cloud-first bootstrap"* principle.
+
+**Step-by-step:**
+
+1. **Rebuild infrastructure.** Run `deploy-infra.yml` → `deploy-hearth-init.yml` → `deploy-forge-init.yml`. Both `*-init.yml` playbooks generate a fresh Borg SSH keypair and automatically re-authorize it against your existing Storage Box sub-account (using the Storage Box password from Infisical) — you do not need to recover an old private key.
+
+2. **If the Storage Box itself was also destroyed** (not just the VPS): order a replacement box, then `rclone sync` the latest copy back down from kDrive (Tier 2) before continuing — kDrive's 30-day version history is what makes the Storage Box itself disposable.
+
+3. **Restore Hearth** — this is just [Option 1](#option-1-restore-from-borg-hearthforge-system-state) end to end:
+   ```bash
+   export BORG_PASSPHRASE="<strata values get BORG_PASSPHRASE_HEARTH>"
+   borg extract $BORG_REPO::hearth-<latest>
+   docker compose up -d
+   ```
+   This alone restores Authentik, Vaultwarden, and the kSuite email/calendar/contacts mirror.
+
+4. **Restore Forge — recreate first, then restore data, in that order:**
+   ```bash
+   strata deploy run --scope apps --stage applications_forge
+   ```
+   This recreates every namespace, Helm release, Postgres pod, and PVC **fresh from this repo's own committed config** — the actual source of truth for Forge's desired state, not the k3s datastore snapshot. Only *after* this succeeds, follow [Option 1b](#option-1b-restore-forge-postgres-databases--app-config-immich-nextcloud-jellyfin-kavita-gatus) to restore the Postgres dumps and PVC tars into the now-existing (but empty) resources.
+
+5. **Immich's photos and the Nextcloud/Kavita/Jellyfin documents tree need no restore action at all** — that data was never inside a Borg archive. It lives directly on the `haven-data` Storage Box (SMB `hostPath` mount), independent of both VPS's lifecycle; Forge simply re-mounts the same paths once it's back up.
+
+6. **Test:** Verify Authentik login, Vaultwarden unlock, Immich photos visible, Jellyfin library scan, and (if applicable) that the kSuite mirror directory is present under `/opt/haven/var/backup/ksuite/`.
 
 ---
 
 ## Monitoring & Alerts
 
-| Check                  | Tool            | Frequency | Alert                | Escalation                             |
-| ---------------------- | --------------- | --------- | -------------------- | -------------------------------------- |
-| Borg backup completes  | Healthchecks.io | Daily     | 02:00–04:00 UTC      | Email + Slack (if configured)          |
-| rclone kDrive sync     | Healthchecks.io | Daily     | 03:00–09:00 UTC      | Email + Slack (if configured)          |
-| Storage Box capacity   | Manual review   | Monthly   | Alert at 80% full    | Upgrade box tier (5/10/20 TB)          |
-| kDrive version history | Manual review   | Quarterly | Verify 30-day copies | Check kDrive Manager → Files → History |
+Each job below pings a **distinct** Healthchecks.io check (`HEALTHCHECK_PING_KSUITE`, `HEALTHCHECK_PING_HEARTH`, `HEALTHCHECK_PING_FORGE` — see [Secrets & Credentials](#secrets--credentials)). Configure each check in **Cron** schedule mode (not "Simple"), using the exact cron expression below in UTC — this lets Healthchecks.io flag a run that's late *relative to its own schedule*, rather than just "no ping in the last N hours" (which is a much weaker signal for jobs sequenced this tightly, 30 minutes apart).
+
+| Job                    | Trigger     | Cron (UTC)   | Suggested grace period | Why                                                                                                                                                                                                                     |
+| ---------------------- | ----------- | ------------ | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| kSuite backup (Hearth) | On-VPS cron | `30 1 * * *` | 25 min                 | Must finish before Hearth's Borg run at 02:00 UTC so Borg archives a complete mirror, not one mid-sync — a grace period longer than the 30-minute gap to the next job would defeat that ordering guarantee              |
+| Borg backup (Hearth)   | On-VPS cron | `0 2 * * *`  | 60 min                 | Small dataset (Authentik/Vaultwarden/config/kSuite mirror) — generous headroom for `borg compact` as the repo grows, while still catching a genuinely stuck run same-morning                                            |
+| Borg backup (Forge)    | On-VPS cron | `30 2 * * *` | 90 min                 | Does the most work of the three: SQLite datastore backup, two `pg_dumpall`s, dynamic PVC discovery + tar, then `borg create`/`prune`/`compact` — budget more time, especially as Immich/Nextcloud's Postgres data grows |
+
+| Manual/periodic check | Tool          | Frequency | Alert             | Escalation                    |
+| --------------------- | ------------- | --------- | ----------------- | ----------------------------- |
+| Storage Box capacity  | Manual review | Monthly   | Alert at 80% full | Upgrade box tier (5/10/20 TB) |
+
+> **Tier 2 (rclone → kDrive) has no Healthchecks.io check yet — because it has no cron job yet.** See [Limits & Known Issues](#limits--known-issues) below: this is documented as a design intent throughout this file but was never actually implemented. Don't configure a dead-man's switch for it until the job itself exists, or you'll just get permanent false alerts.
+>
+> **The GitHub Actions scheduled workflow that used to also run Hearth's Borg backup (`backup-haven.yml`) has been removed** — it duplicated the on-VPS cron above, running the identical script twice a day via two independent mechanisms. The on-VPS cron + its Healthchecks.io check is now the single source of truth for Hearth's backup.
 
 ---
 

@@ -1,0 +1,246 @@
+# ==============================================================================
+# Workflow: Forge — Restore (Borg archive extraction + data restore)
+# ==============================================================================
+# On-demand restore of Forge's Borg archive and the data within it — for when
+# there's no shell/kubectl access available locally. Mirrors
+# docs/guides/backup.md's "Option 1b: Restore Forge Postgres Databases / App
+# Config" procedure — runs those same commands remotely.
+#
+# ⚠️ `restore-postgres` and `restore-pvc` OVERWRITE live data on Forge
+# (a Postgres database, or an app's config/state PVC). This is destructive
+# and hard to reverse — the confirm input requires typing the literal word
+# RESTORE. Always run `list-archives` first to confirm the archive you're
+# about to extract from.
+#
+# Does NOT attempt to restore the k3s datastore snapshot — see backup.md's
+# note on why that's a same-cluster-corruption shortcut, not a rebuild
+# mechanism. For a totally destroyed Forge, run `strata deploy run` first
+# (recreates namespaces/PVCs/pods from this repo's own config), THEN use
+# this workflow's restore-postgres/restore-pvc actions to restore the data
+# into those freshly-created (empty) resources.
+#
+# Prerequisites: deploy-forge-init.yml must have run at least once (Borg
+# repo initialised) and BORG_PASSPHRASE_FORGE must already be in Infisical.
+# ==============================================================================
+
+name: 34 - Forge - Restore
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Confirm branch to run from (must match the branch this workflow runs on)"
+        type: string
+        required: true
+      action:
+        description: "What to do"
+        type: choice
+        options:
+          - list-archives
+          - restore-postgres
+          - restore-pvc
+        default: list-archives
+      archive_name:
+        description: "Archive name to extract from — required for restore-postgres/restore-pvc, e.g. forge-2026-09-01T02:30 (run list-archives first to find one)"
+        type: string
+        required: false
+      postgres_target:
+        description: "Which database to restore — required for restore-postgres"
+        type: choice
+        options:
+          - immich
+          - nextcloud
+        default: immich
+      pvc_namespace:
+        description: "Namespace of the PVC to restore — required for restore-pvc (e.g. media, documents, system)"
+        type: string
+        required: false
+      pvc_name:
+        description: "PVC name to restore — required for restore-pvc (e.g. jellyfin-config, kavita-config, gatus)"
+        type: string
+        required: false
+      confirm:
+        description: "Type RESTORE (all caps) to confirm — required for restore-postgres/restore-pvc, ignored for list-archives"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  STRATA_OUTPUT: json
+  DEPLOYMENT_FILE: "config/deployment.yaml"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  forge-restore:
+    name: Restore Forge
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      # ------------------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # ------------------------------------------------------------------
+      # Safety: block main branch, require typed confirmation for anything
+      # that actually overwrites live data
+      # ------------------------------------------------------------------
+      - name: Block deployment from main branch
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "::error::Running from 'main' is blocked. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" = "main" ]; then
+            echo "::error::Branch input cannot be 'main'. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" != "${{ github.ref_name }}" ]; then
+            echo "::error::Branch input '${{ inputs.branch }}' does not match the running branch '${{ github.ref_name }}'. Re-run from the correct branch."
+            exit 1
+          fi
+
+      - name: Validate restore inputs
+        run: |
+          if [ "${{ inputs.action }}" != "list-archives" ] && [ -z "${{ inputs.archive_name }}" ]; then
+            echo "::error::archive_name is required for ${{ inputs.action }}. Run action=list-archives first to find one."
+            exit 1
+          fi
+          if [ "${{ inputs.action }}" = "restore-pvc" ] && { [ -z "${{ inputs.pvc_namespace }}" ] || [ -z "${{ inputs.pvc_name }}" ]; }; then
+            echo "::error::pvc_namespace and pvc_name are both required for restore-pvc"
+            exit 1
+          fi
+          if [ "${{ inputs.action }}" != "list-archives" ] && [ "${{ inputs.confirm }}" != "RESTORE" ]; then
+            echo "::error::This action overwrites live data on Forge. Type RESTORE (all caps) in the confirm input to proceed."
+            exit 1
+          fi
+
+      # ------------------------------------------------------------------
+      # Network setup — get IP, open SSH on Forge firewall
+      # ------------------------------------------------------------------
+      - name: Open temporary SSH access
+        id: ssh
+        uses: ./.github/actions/hetzner-ssh-open
+        with:
+          hetzner_api_token: ${{ secrets.HETZNER_API_TOKEN }}
+          server_name: haven-platform-forge
+          firewall_name: haven-platform-fw-forge
+
+      # ------------------------------------------------------------------
+      # Resolve the Borg passphrase — Infisical Cloud
+      # ------------------------------------------------------------------
+      - name: Setup strata
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.3
+        with:
+          strata-version: "==1.8.3"
+        env:
+          UV_INDEX_STRATEGY: unsafe-best-match
+
+      - name: Resolve Borg passphrase
+        id: secrets
+        env:
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
+        run: |
+          set +e
+          VALUES=$(strata values get BORG_PASSPHRASE_FORGE -f $DEPLOYMENT_FILE --output json)
+          STATUS=$?
+          set -e
+          if [ $STATUS -ne 0 ]; then
+            echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
+            echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+            exit $STATUS
+          fi
+          BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_FORGE')
+          echo "::add-mask::$BORG_PASSPHRASE"
+          echo "borg_passphrase=$BORG_PASSPHRASE" >> "$GITHUB_OUTPUT"
+
+      - name: Write deploy SSH private key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_PRIVATE_KEY }}" > ~/.ssh/haven_ed25519
+          chmod 600 ~/.ssh/haven_ed25519
+
+      # ------------------------------------------------------------------
+      # List archives
+      # ------------------------------------------------------------------
+      - name: List available Borg archives
+        if: ${{ inputs.action == 'list-archives' }}
+        env:
+          BORG_PASSPHRASE: ${{ steps.secrets.outputs.borg_passphrase }}
+        run: |
+          ssh -i ~/.ssh/haven_ed25519 -o StrictHostKeyChecking=no \
+            root@${{ steps.ssh.outputs.server_ip }} \
+            "export BORG_PASSPHRASE='$BORG_PASSPHRASE'; \
+             export BORG_RSH='ssh -i /opt/haven/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes'; \
+             borg list '${{ vars.STORAGEBOX_BACKUP_FORGE_SUB }}@${{ vars.STORAGEBOX_BACKUP_HOST }}:./forge'"
+
+      # ------------------------------------------------------------------
+      # Restore a Postgres database — extract the logical dump, then pipe
+      # it into the running pod via psql (never a raw file copy)
+      # ------------------------------------------------------------------
+      - name: Restore Postgres database
+        if: ${{ inputs.action == 'restore-postgres' }}
+        env:
+          BORG_PASSPHRASE: ${{ steps.secrets.outputs.borg_passphrase }}
+        run: |
+          if [ "${{ inputs.postgres_target }}" = "immich" ]; then
+            NAMESPACE=immich
+            DEPLOY=immich-postgres
+            PGUSER=immich
+          else
+            NAMESPACE=documents
+            DEPLOY=nextcloud-postgres
+            PGUSER=nextcloud
+          fi
+          ssh -i ~/.ssh/haven_ed25519 -o StrictHostKeyChecking=no \
+            root@${{ steps.ssh.outputs.server_ip }} \
+            "export BORG_PASSPHRASE='$BORG_PASSPHRASE'; \
+             export BORG_RSH='ssh -i /opt/haven/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes'; \
+             export BORG_REPO='${{ vars.STORAGEBOX_BACKUP_FORGE_SUB }}@${{ vars.STORAGEBOX_BACKUP_HOST }}:./forge'; \
+             cd / && borg extract --list \$BORG_REPO::${{ inputs.archive_name }} opt/haven/var/backup/forge/postgres/$DEPLOY.sql && \
+             kubectl exec -i -n $NAMESPACE deploy/$DEPLOY -- psql -U $PGUSER < /opt/haven/var/backup/forge/postgres/$DEPLOY.sql && \
+             echo 'Restored '$DEPLOY' into namespace '$NAMESPACE"
+
+      # ------------------------------------------------------------------
+      # Restore a local-path PVC — scale to zero first so nothing is
+      # writing to the volume, untar, scale back up
+      # ------------------------------------------------------------------
+      - name: Restore PVC
+        if: ${{ inputs.action == 'restore-pvc' }}
+        env:
+          BORG_PASSPHRASE: ${{ steps.secrets.outputs.borg_passphrase }}
+        run: |
+          ssh -i ~/.ssh/haven_ed25519 -o StrictHostKeyChecking=no \
+            root@${{ steps.ssh.outputs.server_ip }} \
+            "export BORG_PASSPHRASE='$BORG_PASSPHRASE'; \
+             export BORG_RSH='ssh -i /opt/haven/.ssh/borg_ed25519 -p 23 -o StrictHostKeyChecking=yes'; \
+             export BORG_REPO='${{ vars.STORAGEBOX_BACKUP_FORGE_SUB }}@${{ vars.STORAGEBOX_BACKUP_HOST }}:./forge'; \
+             cd / && borg extract --list \$BORG_REPO::${{ inputs.archive_name }} opt/haven/var/backup/forge/pvc/${{ inputs.pvc_namespace }}_${{ inputs.pvc_name }}.tar.gz && \
+             DEPLOY=\$(kubectl get deployment -n ${{ inputs.pvc_namespace }} -o json | jq -r '.items[] | select(.spec.template.spec.volumes[]?.persistentVolumeClaim.claimName==\"${{ inputs.pvc_name }}\") | .metadata.name' | head -1) && \
+             echo \"Scaling down deployment/\$DEPLOY in ${{ inputs.pvc_namespace }}\" && \
+             kubectl scale deployment/\$DEPLOY -n ${{ inputs.pvc_namespace }} --replicas=0 && \
+             for i in \$(seq 1 30); do \
+               COUNT=\$(kubectl get pods -n ${{ inputs.pvc_namespace }} -o json | jq --arg d \"\$DEPLOY\" '[.items[] | select(.metadata.ownerReferences[]?.name | test(\$d))] | length'); \
+               [ \"\$COUNT\" = \"0\" ] && break; \
+               sleep 5; \
+             done && \
+             HOST_PATH=\$(kubectl get pv -o json | jq -r '.items[] | select(.spec.claimRef.namespace==\"${{ inputs.pvc_namespace }}\" and .spec.claimRef.name==\"${{ inputs.pvc_name }}\") | (.spec.hostPath.path // .spec.local.path)') && \
+             echo \"Restoring into \$HOST_PATH\" && \
+             tar xzf /opt/haven/var/backup/forge/pvc/${{ inputs.pvc_namespace }}_${{ inputs.pvc_name }}.tar.gz -C \"\$HOST_PATH\" && \
+             kubectl scale deployment/\$DEPLOY -n ${{ inputs.pvc_namespace }} --replicas=1"
+
+      # ------------------------------------------------------------------
+      # Cleanup — always remove temporary SSH rule
+      # ------------------------------------------------------------------
+      - name: Close temporary SSH access
+        if: ${{ always() }}
+        uses: ./.github/actions/hetzner-ssh-close
+        with:
+          hetzner_api_token: ${{ secrets.HETZNER_API_TOKEN }}
+          firewall_id: ${{ steps.ssh.outputs.firewall_id }}
