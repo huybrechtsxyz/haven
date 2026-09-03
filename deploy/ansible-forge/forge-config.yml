@@ -245,6 +245,7 @@
         - manga
         - general
         - fiction
+        - games
 
     # Remaining top-level folders mirroring the family's previous Google
     # Drive layout (Photos deliberately excluded — that's Immich's own
