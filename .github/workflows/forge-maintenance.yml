@@ -1,0 +1,130 @@
+# ==============================================================================
+# Workflow: Forge — Maintenance (on-demand operational scripts)
+# ==============================================================================
+# A "pick a script, run it" workflow for the small operational tasks that
+# come up between full deploys — currently focused on Nextcloud's `occ`
+# filecache maintenance, which is needed whenever the shared haven-data-docs
+# tree gets changed outside Nextcloud's own file operations (Ansible-created
+# folders, direct console access, SMB writes from other tools) and Nextcloud's
+# filecache ends up disagreeing with what's actually on disk — e.g. a folder
+# renamed+deleted via the Files UI that still shows up as a ghost entry, or
+# a new External Storage mount (Media/Books) showing empty until scanned.
+#
+# Add new actions to the `action` choice list + a matching step below as new
+# recurring maintenance needs come up — this is meant to grow over time
+# rather than be a one-off script for a single incident.
+#
+# These are all read/rescan/cleanup-orphaned-entries operations — safe by
+# design (no destructive "type RESTORE" confirmation gate needed, unlike
+# restore-forge.yml, which actually overwrites live data).
+# ==============================================================================
+
+name: 35 - Forge - Maintenance
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Confirm branch to run from (must match the branch this workflow runs on)"
+        type: string
+        required: true
+      action:
+        description: "Which maintenance script to run"
+        type: choice
+        options:
+          - nextcloud-files-scan
+          - nextcloud-files-cleanup
+          - nextcloud-files-scan-and-cleanup
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  forge-maintenance:
+    name: Maintain Forge
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      # ------------------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # ------------------------------------------------------------------
+      # Safety: block main branch deployments
+      # ------------------------------------------------------------------
+      - name: Block deployment from main branch
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "::error::Running from 'main' is blocked. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" = "main" ]; then
+            echo "::error::Branch input cannot be 'main'. Use a feature branch."
+            exit 1
+          fi
+          if [ "${{ inputs.branch }}" != "${{ github.ref_name }}" ]; then
+            echo "::error::Branch input '${{ inputs.branch }}' does not match the running branch '${{ github.ref_name }}'. Re-run from the correct branch."
+            exit 1
+          fi
+
+      # ------------------------------------------------------------------
+      # Network setup — get IP, open SSH on Forge firewall
+      # ------------------------------------------------------------------
+      - name: Open temporary SSH access
+        id: ssh
+        uses: ./.github/actions/hetzner-ssh-open
+        with:
+          hetzner_api_token: ${{ secrets.HETZNER_API_TOKEN }}
+          server_name: haven-platform-forge
+          firewall_name: haven-platform-fw-forge
+
+      - name: Write deploy SSH private key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_PRIVATE_KEY }}" > ~/.ssh/haven_ed25519
+          chmod 600 ~/.ssh/haven_ed25519
+
+      # ------------------------------------------------------------------
+      # Nextcloud — files:scan
+      # ------------------------------------------------------------------
+      # Re-reads what's actually on disk right now. Needed after anything
+      # writes into haven-data-docs outside Nextcloud's own upload/API (a
+      # new Ansible-created folder, a fresh External Storage mount, direct
+      # SMB writes) — otherwise Nextcloud has no idea the content exists.
+      - name: Nextcloud — files:scan --all
+        if: ${{ contains(inputs.action, 'scan') }}
+        run: |
+          ssh -i ~/.ssh/haven_ed25519 -o StrictHostKeyChecking=no \
+            root@${{ steps.ssh.outputs.server_ip }} \
+            "kubectl exec -n documents deploy/nextcloud -c nextcloud -- php occ files:scan --all"
+
+      # ------------------------------------------------------------------
+      # Nextcloud — files:cleanup
+      # ------------------------------------------------------------------
+      # Removes filecache entries for files/folders that no longer
+      # physically exist — the fix for a "ghost" file/folder that still
+      # shows in the Files app after being deleted outside Nextcloud's own
+      # delete operation (e.g. renamed + deleted via a console/kubectl exec
+      # directly on the underlying storage instead of through the UI).
+      - name: Nextcloud — files:cleanup
+        if: ${{ contains(inputs.action, 'cleanup') }}
+        run: |
+          ssh -i ~/.ssh/haven_ed25519 -o StrictHostKeyChecking=no \
+            root@${{ steps.ssh.outputs.server_ip }} \
+            "kubectl exec -n documents deploy/nextcloud -c nextcloud -- php occ files:cleanup"
+
+      # ------------------------------------------------------------------
+      # Cleanup — always remove temporary SSH rule
+      # ------------------------------------------------------------------
+      - name: Close temporary SSH access
+        if: ${{ always() }}
+        uses: ./.github/actions/hetzner-ssh-close
+        with:
+          hetzner_api_token: ${{ secrets.HETZNER_API_TOKEN }}
+          firewall_id: ${{ steps.ssh.outputs.firewall_id }}
