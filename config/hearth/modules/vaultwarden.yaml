@@ -18,7 +18,14 @@ spec:
       - VAULTWARDEN_SSO_CLIENT_SECRET
   services:
     - name: vaultwarden
-      image: vaultwarden/server:1.36.0-alpine
+      # Pinned to 1.37.2 (2026-08-22) — 1.36.0 no longer syncs with Bitwarden
+      # clients v2026.8.0+ (iOS app, browser extensions); the 1.37.2 release
+      # notes state this explicitly: "This update is required for support
+      # with clients with version 2026.8.0+". See
+      # https://github.com/dani-garcia/vaultwarden/discussions/7615 for the
+      # full client-compatibility writeup if a future client update breaks
+      # sync again.
+      image: vaultwarden/server:1.37.2-alpine
       restart: unless-stopped
       environment:
         - key: SIGNUPS_ALLOWED
