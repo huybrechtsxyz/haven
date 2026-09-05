@@ -16,6 +16,14 @@ spec:
     secrets:
       - VAULTWARDEN_ADMIN_TOKEN
       - VAULTWARDEN_SSO_CLIENT_SECRET
+      # SMTP — same shared Infomaniak mailbox credentials Authentik's
+      # (currently disabled) SMTP block references, see authentik.yaml.
+      # Reused here, not duplicated, since these are already declared once
+      # in config/environment.yaml and populated in Infisical.
+      - INFOMANIAK_EMAIL__HOST
+      - INFOMANIAK_EMAIL__PORT
+      - INFOMANIAK_EMAIL__USERNAME
+      - INFOMANIAK_EMAIL__PASSWORD
   services:
     - name: vaultwarden
       # Pinned to 1.37.2 (2026-08-22) — 1.36.0 no longer syncs with Bitwarden
@@ -52,6 +60,24 @@ spec:
           value: vaultwarden
         - key: SSO_CLIENT_SECRET
           secret: VAULTWARDEN_SSO_CLIENT_SECRET
+        # SMTP — required for organization invitation emails, password hint
+        # emails, and new-device login notifications. Reuses the same
+        # shared Infomaniak mailbox credentials as Authentik's (currently
+        # disabled) SMTP block — see infomaniak.md's SMTP Server
+        # Configuration section for the source values (mail.infomaniak.com,
+        # port 587, STARTTLS).
+        - key: SMTP_HOST
+          secret: INFOMANIAK_EMAIL__HOST
+        - key: SMTP_PORT
+          secret: INFOMANIAK_EMAIL__PORT
+        - key: SMTP_SECURITY
+          value: starttls
+        - key: SMTP_FROM
+          value: vaultwarden@huybrechts.xyz
+        - key: SMTP_USERNAME
+          secret: INFOMANIAK_EMAIL__USERNAME
+        - key: SMTP_PASSWORD
+          secret: INFOMANIAK_EMAIL__PASSWORD
       mounts:
         - name: data
           type: bind
