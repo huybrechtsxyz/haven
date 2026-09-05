@@ -18,6 +18,13 @@ spec:
   references:
     secrets:
       - GATUS_SSO_CLIENT_SECRET
+      # SMTP — shared Infomaniak mailbox credentials, same secrets Vaultwarden's
+      # SMTP_* env vars reuse (see vaultwarden.yaml). Populated in Infisical
+      # already, just not consumed anywhere until now.
+      - INFOMANIAK_EMAIL__HOST
+      - INFOMANIAK_EMAIL__PORT
+      - INFOMANIAK_EMAIL__USERNAME
+      - INFOMANIAK_EMAIL__PASSWORD
   configuration:
     # Secret substitution requires a literal top-level `env:` dict (strata's
     # Helm secret substitution only resolves ${TOKEN} inside a node keyed
@@ -27,6 +34,10 @@ spec:
     # workaround is needed here, unlike Nextcloud's third-party chart.
     env:
       GATUS_OIDC_CLIENT_SECRET: "${GATUS_SSO_CLIENT_SECRET}"
+      GATUS_SMTP_HOST: "${INFOMANIAK_EMAIL__HOST}"
+      GATUS_SMTP_PORT: "${INFOMANIAK_EMAIL__PORT}"
+      GATUS_SMTP_USERNAME: "${INFOMANIAK_EMAIL__USERNAME}"
+      GATUS_SMTP_PASSWORD: "${INFOMANIAK_EMAIL__PASSWORD}"
 
     # Small persistent volume so uptime/history survives pod restarts —
     # otherwise Gatus defaults to in-memory storage (lost on every restart).
@@ -88,6 +99,26 @@ spec:
           client-secret: "${GATUS_OIDC_CLIENT_SECRET}"
           scopes: ["openid", "email", "profile"]
 
+      # Email alerting — reuses the same shared Infomaniak mailbox as
+      # Vaultwarden/Authentik (see vaultwarden.yaml). Same double-substitution
+      # pattern as the OIDC client-secret above: strata resolves
+      # ${INFOMANIAK_EMAIL__*} into real pod env vars at deploy time; Gatus's
+      # own runtime env-var substitution then reads those from ${GATUS_SMTP_*}.
+      alerting:
+        email:
+          from: gatus@huybrechts.xyz
+          host: "${GATUS_SMTP_HOST}"
+          port: ${GATUS_SMTP_PORT}
+          username: "${GATUS_SMTP_USERNAME}"
+          password: "${GATUS_SMTP_PASSWORD}"
+          to: "admin@huybrechts.xyz"
+          default-alert:
+            enabled: true
+            failure-threshold: 3
+            success-threshold: 2
+            send-on-resolved: true
+            description: "healthcheck failed"
+
       # Basic reachability checks for every currently-deployed family app.
       # Grouped by node (hearth/forge) for the dashboard's group view.
       endpoints:
@@ -97,45 +128,61 @@ spec:
           interval: 60s
           conditions:
             - "[STATUS] == 200"
+          alerts:
+            - type: email
         - name: Vaultwarden
           group: hearth
           url: "https://vault.huybrechts.xyz"
           interval: 60s
           conditions:
             - "[STATUS] == 200"
+          alerts:
+            - type: email
         - name: WUD
           group: hearth
           url: "https://wud.huybrechts.xyz"
           interval: 5m
           conditions:
             - "[STATUS] == 200"
+          alerts:
+            - type: email
         - name: Portainer
           group: hearth
           url: "https://portainer.huybrechts.xyz"
           interval: 5m
           conditions:
             - "[STATUS] == 200"
+          alerts:
+            - type: email
         - name: Immich
           group: forge
           url: "https://photos.huybrechts.xyz"
           interval: 60s
           conditions:
             - "[STATUS] == 200"
+          alerts:
+            - type: email
         - name: Jellyfin
           group: forge
           url: "https://media.huybrechts.xyz"
           interval: 60s
           conditions:
             - "[STATUS] == 200"
+          alerts:
+            - type: email
         - name: Nextcloud
           group: forge
           url: "https://docs.huybrechts.xyz"
           interval: 60s
           conditions:
             - "[STATUS] == 200"
+          alerts:
+            - type: email
         - name: Kavita
           group: forge
           url: "https://books.huybrechts.xyz"
           interval: 60s
           conditions:
             - "[STATUS] == 200"
+          alerts:
+            - type: email

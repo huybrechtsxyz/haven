@@ -84,6 +84,41 @@ spec:
             secretKeyRef:
               name: nextcloud-secrets
               key: sso-client-secret
+        # SMTP -- official Nextcloud image's own autoconfig env vars (read
+        # directly by the docker-entrypoint, no `mail:` chart values block
+        # needed). Reuses the same shared Infomaniak mailbox credentials as
+        # Vaultwarden/Authentik/Gatus -- routed through the nextcloud-secrets
+        # K8s Secret since a plain `extraEnv` list entry isn't reachable by
+        # strata's Helm secret substitution (see NEXTCLOUD_SSO_CLIENT_SECRET
+        # comment above for the same constraint).
+        - name: MAIL_FROM_ADDRESS
+          value: "nextcloud"
+        - name: MAIL_DOMAIN
+          value: "huybrechts.xyz"
+        - name: SMTP_AUTHTYPE
+          value: "LOGIN"
+        - name: SMTP_SECURE
+          value: "tls"
+        - name: SMTP_HOST
+          valueFrom:
+            secretKeyRef:
+              name: nextcloud-secrets
+              key: smtp-host
+        - name: SMTP_PORT
+          valueFrom:
+            secretKeyRef:
+              name: nextcloud-secrets
+              key: smtp-port
+        - name: SMTP_NAME
+          valueFrom:
+            secretKeyRef:
+              name: nextcloud-secrets
+              key: smtp-username
+        - name: SMTP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nextcloud-secrets
+              key: smtp-password
       # =========================================================================
       # Fully automated SSO + External Storage setup — runs via Nextcloud's
       # OWN official docker-entrypoint hook mechanism (not a strata/Ansible

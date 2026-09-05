@@ -59,6 +59,17 @@ Kavita has no upload feature of its own, same as Jellyfin — files must land di
 
 ---
 
+### Email service (manual setup, optional)
+
+Kavita does **not** speak raw SMTP — invite emails, password-reset emails, and email-confirmation use Kavita's own **"Kavita Email"** relay concept, configured via **Settings → Email** in the admin UI (database-stored, no env var / Helm values equivalent, same class of manual-only setting as Immich's notifications above). There are two options:
+
+1. **Do nothing (default):** Kavita falls back to its own project-hosted relay (`https://email.kavitareader.com`) for invite/reset emails. Works out of the box, but email is sent through a third-party service you don't control — acceptable for a low-stakes family library server, but worth knowing.
+2. **Self-host the relay (not currently deployed in this repo):** Kavita's email sending is delegated to a separate companion container (`kizaing/kavita-email`), which is the thing that would actually need the shared `INFOMANIAK_EMAIL__*` SMTP credentials — Kavita itself only ever talks to whichever "Email Service URL" is configured in Settings → Email, never to an SMTP server directly. Deploying this companion service is a separate piece of work (new Helm module/local chart), not just an env var addition, so it's deliberately **not wired up** as part of this SMTP rollout.
+
+Given family members rarely need password resets (SSO via Authentik is the primary login path — see below), option 1 (the default) is left as-is unless self-hosting the relay becomes worth the extra module later.
+
+---
+
 ## SSO — Authentik OIDC (native)
 
 Unlike Jellyfin (needs a third-party plugin + a UI-minted API key) or Nextcloud (needs the `user_oidc` app + an `occ` command), Kavita has **native OIDC support built into its ASP.NET Core backend** (`Kavita.Common.Configuration.OidcSettings` — a plain `Authority`/`ClientId`/`Secret`/`CustomScopes` block). There's no admin-UI toggle and no REST API for it — Kavita reads this block once, at process startup, from `config/appsettings.json` on its own config PVC.

@@ -94,6 +94,29 @@ occ files_external:create "Haven" local null::null -c datadir=/mnt/haven-data-do
 | `NEXTCLOUD_DB_PASSWORD`       | Infisical | `nextcloud-postgres` + Nextcloud's `externalDatabase.password`                                                                  |
 | `NEXTCLOUD_REDIS_PASSWORD`    | Infisical | `nextcloud-redis` + Nextcloud's `externalRedis.password`                                                                        |
 | `NEXTCLOUD_SSO_CLIENT_SECRET` | Infisical | Authentik's Nextcloud OAuth2 provider + the automated `post-installation` hook's `occ user_oidc:provider` call (both automated) |
+| `INFOMANIAK_EMAIL__HOST`      | Infisical | `nextcloud-secrets`' `smtp-host` key → pod env var `SMTP_HOST`                                                                  |
+| `INFOMANIAK_EMAIL__PORT`      | Infisical | `nextcloud-secrets`' `smtp-port` key → pod env var `SMTP_PORT`                                                                  |
+| `INFOMANIAK_EMAIL__USERNAME`  | Infisical | `nextcloud-secrets`' `smtp-username` key → pod env var `SMTP_NAME`                                                              |
+| `INFOMANIAK_EMAIL__PASSWORD`  | Infisical | `nextcloud-secrets`' `smtp-password` key → pod env var `SMTP_PASSWORD`                                                          |
+
+---
+
+### Email (SMTP) — fully automated
+
+Password resets, share notifications, and admin alert emails are wired up via the official Nextcloud image's own autoconfig env vars (read directly by the docker-entrypoint — no `mail:` chart values block needed, since that block has the same strata Helm-secret-substitution gap as `nextcloud.password`/`externalDatabase.password` above). Reuses the same shared Infomaniak mailbox as Vaultwarden/Authentik/Gatus, routed through the `nextcloud-secrets` K8s Secret (`smtp-host`/`smtp-port`/`smtp-username`/`smtp-password` keys) the same way `NEXTCLOUD_SSO_CLIENT_SECRET` already is:
+
+| Env var             | Value                                     |
+| ------------------- | ----------------------------------------- |
+| `MAIL_FROM_ADDRESS` | `nextcloud` (local part)                  |
+| `MAIL_DOMAIN`       | `huybrechts.xyz`                          |
+| `SMTP_AUTHTYPE`     | `LOGIN`                                   |
+| `SMTP_SECURE`       | `tls` (STARTTLS on port 587)              |
+| `SMTP_HOST`         | from `nextcloud-secrets`' `smtp-host`     |
+| `SMTP_PORT`         | from `nextcloud-secrets`' `smtp-port`     |
+| `SMTP_NAME`         | from `nextcloud-secrets`' `smtp-username` |
+| `SMTP_PASSWORD`     | from `nextcloud-secrets`' `smtp-password` |
+
+No manual step required — this takes effect on the next `deploy-forge-deploy.yml` run.
 
 ---
 

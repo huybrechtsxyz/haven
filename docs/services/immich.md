@@ -54,6 +54,32 @@ The Immich side is a **one-time manual step** (Immich stores OAuth config in its
 
 ---
 
+### Email notifications (manual setup, optional)
+
+Immich supports SMTP for its own notification emails (album invites, album updates, welcome emails on new user creation) via **Administration → Settings → Notifications**. Unlike SSO, this has no env var / Helm values equivalent at all — it's stored entirely in Immich's own database, configured only through the admin UI.
+
+Reuses the same shared Infomaniak mailbox as Vaultwarden/Authentik/Gatus/Nextcloud. Retrieve the credentials first:
+
+```powershell
+strata values get INFOMANIAK_EMAIL__HOST INFOMANIAK_EMAIL__PORT INFOMANIAK_EMAIL__USERNAME INFOMANIAK_EMAIL__PASSWORD -f config/environment.yaml --output json
+```
+
+Then in Administration → Settings → Notifications:
+
+1. Toggle **Enable SMTP** on.
+2. **Sender Email:** `immich@huybrechts.xyz` (a from-alias — no separate mailbox needed, auth is done as the shared mailbox below).
+3. **Sender Name:** `Immich` (optional).
+4. **Host:** value of `INFOMANIAK_EMAIL__HOST` (`mail.infomaniak.com`).
+5. **Port:** value of `INFOMANIAK_EMAIL__PORT` (`587`).
+6. **Username:** value of `INFOMANIAK_EMAIL__USERNAME`.
+7. **Password:** value of `INFOMANIAK_EMAIL__PASSWORD`.
+8. Leave **Ignore certificate errors** off.
+9. Click **Send Test Email** to confirm, then **Save**.
+
+This is a one-time step — the setting persists in Immich's Postgres database and survives redeploys (only lost on a full database reset).
+
+---
+
 ## Architecture decisions
 
 | Component       | Choice                                                                                      | Why                                                                                                                                                                                                                                                                                                      |

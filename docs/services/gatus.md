@@ -27,9 +27,13 @@ Gatus runs on **Forge** (Hetzner CPX41, k3s) in the `system` Kubernetes namespac
 
 ## Secrets
 
-| Secret                    | Store     | Used by                                                          |
-| ------------------------- | --------- | ---------------------------------------------------------------- |
-| `GATUS_SSO_CLIENT_SECRET` | Infisical | Pod env var `GATUS_OIDC_CLIENT_SECRET` (Authentik OAuth2 secret) |
+| Secret                       | Store     | Used by                                                          |
+| ---------------------------- | --------- | ---------------------------------------------------------------- |
+| `GATUS_SSO_CLIENT_SECRET`    | Infisical | Pod env var `GATUS_OIDC_CLIENT_SECRET` (Authentik OAuth2 secret) |
+| `INFOMANIAK_EMAIL__HOST`     | Infisical | Pod env var `GATUS_SMTP_HOST` (email alerting SMTP host)         |
+| `INFOMANIAK_EMAIL__PORT`     | Infisical | Pod env var `GATUS_SMTP_PORT` (email alerting SMTP port)         |
+| `INFOMANIAK_EMAIL__USERNAME` | Infisical | Pod env var `GATUS_SMTP_USERNAME` (email alerting SMTP auth)     |
+| `INFOMANIAK_EMAIL__PASSWORD` | Infisical | Pod env var `GATUS_SMTP_PASSWORD` (email alerting SMTP auth)     |
 
 ---
 
@@ -54,6 +58,27 @@ security:
 ```
 
 **Access control:** Authentik's policy-group-members binding (enforced on the Gatus Application in the blueprint) restricts real login access to members of the `members` group — only authenticated `members` group users can log in. Dashboard visibility is not the security boundary; the OIDC auth itself is.
+
+---
+
+### Email alerting (fully automated)
+
+Gatus's built-in `alerting.email` provider is configured — sends an email to `admin@huybrechts.xyz` whenever any monitored endpoint fails 3 consecutive checks, and a resolved notification once it recovers (`send-on-resolved: true`). Every endpoint in the config has `alerts: [{type: email}]` attached.
+
+Reuses the same shared Infomaniak mailbox as Vaultwarden/Authentik — no separate mailbox or app password needed. Same double-substitution pattern as the OIDC client secret above: strata resolves `${INFOMANIAK_EMAIL__*}` into real pod env vars (`GATUS_SMTP_*`) at deploy time, and Gatus's own runtime env-var substitution reads those in `config.alerting.email`:
+
+```yaml
+alerting:
+  email:
+    from: gatus@huybrechts.xyz
+    host: "${GATUS_SMTP_HOST}"
+    port: ${GATUS_SMTP_PORT}
+    username: "${GATUS_SMTP_USERNAME}"
+    password: "${GATUS_SMTP_PASSWORD}"
+    to: "admin@huybrechts.xyz"
+```
+
+No manual step required — this takes effect on the next `deploy-forge-deploy.yml` run. To change the recipient, edit the `to:` value in `config/forge/modules/gatus.yaml`.
 
 ---
 
