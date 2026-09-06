@@ -73,7 +73,7 @@ spec:
         - key: SMTP_SECURITY
           value: starttls
         - key: SMTP_FROM
-          value: vaultwarden@huybrechts.xyz
+          value: admin@huybrechts.xyz
         - key: SMTP_USERNAME
           secret: INFOMANIAK_EMAIL__USERNAME
         - key: SMTP_PASSWORD
