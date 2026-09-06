@@ -134,9 +134,10 @@ jobs:
       # Resolve the Borg passphrase — Infisical Cloud
       # ------------------------------------------------------------------
       - name: Setup strata
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.3
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.9.3
         with:
-          strata-version: "==1.8.3"
+          # See deploy-infra.yml for the full 1.9.3 bump rationale.
+          strata-version: "==1.9.3"
         env:
           UV_INDEX_STRATEGY: unsafe-best-match
 

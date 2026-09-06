@@ -15,11 +15,6 @@ meta:
 spec:
   logging:
     file: config/logging.yaml
-  layering:
-  - name: environment
-    description: Deployment environment
-    pattern: ''
-    required: true
   deployment:
     additional_properties: false
     properties:

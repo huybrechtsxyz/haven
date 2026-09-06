@@ -32,6 +32,7 @@ haven (workspace)
 │   ├── Jellyfin       — media streaming   → media.{domain}
 │   ├── Nextcloud      — document archive  → docs.{domain}
 │   ├── Kavita         — EPUB/PDF library  → books.{domain}
+│   ├── Homarr         — family dashboard  → home.{domain}
 │   └── Apps           — home-grown        → custom subdomains
 │
 ├── storage box — haven-backup (BX11, 1 TB)   ← Hearth + Forge BorgBackup repos only
@@ -91,6 +92,7 @@ graph TB
         Jellyfin[Jellyfin<br/>Media Streaming]
         Nextcloud[Nextcloud<br/>Document Archive]
         Kavita[Kavita<br/>EPUB / PDF Library]
+        Homarr[Homarr<br/>Family Dashboard]
         Apps[Home-grown Apps<br/>Helm]
     end
 
@@ -130,6 +132,7 @@ graph TB
     Authentik -.->|OIDC SSO| Immich
     Authentik -.->|OIDC SSO| Jellyfin
     Authentik -.->|OIDC SSO| Nextcloud
+    Authentik -.->|OIDC SSO| Homarr
     Authentik -.->|OIDC SSO| Apps
     InfisicalCloud -.->|resolved at deploy time by strata| GitHub
 
@@ -166,6 +169,7 @@ graph TB
 | Media streaming    | Jellyfin                        | Hetzner CPX41 VPS (DE 🇩🇪)                                          | Open-source Plex alternative; no account required; OIDC via Authentik; library stored on Storage Box (SMB mount) — fixed cost, unlimited traffic, low latency, sequential reads                                                                                                                                                                    |
 | Document archive   | Nextcloud                       | Hetzner CPX41 VPS (DE 🇩🇪)                                          | Family document archive/browsing layer (not the live sync drive — that's Infomaniak kDrive); OIDC via Authentik; storage on Storage Box (SMB mount), External Storage app configured against the same mount                                                                                                                                        |
 | EPUB/PDF library   | Kavita                          | Hetzner CPX41 VPS (DE 🇩🇪)                                          | Reads the same shared documents tree as Nextcloud (read-only) from the Storage Box (SMB mount)                                                                                                                                                                                                                                                     |
+| Family dashboard   | Homarr                          | Hetzner CPX41 VPS (DE 🇩🇪)                                          | Family-facing landing page linking to every deployed service; real per-user boards — group/permission sync from Authentik (admins/parents/members), unlike Authentik's own shared application launcher                                                                                                                                             |
 | Object storage     | Hetzner S3 (eu-central)         | Hetzner (S3-compatible, eu-central)                               | Three buckets provisioned (`haven-photos`, `haven-media`, `haven-docs`) but **currently unused** — none of the apps above have native S3 API support, so Storage Box (SMB) serves all of them instead; kept in reserve for a future app that genuinely needs the S3 API                                                                            |
 | Passwords          | Vaultwarden                     | Hetzner VPS (DE 🇩🇪)                                                | Bitwarden-compatible; same Firefox extension + iPhone app for family                                                                                                                                                                                                                                                                               |
 | Deploy credentials | Bitwarden Cloud                 | bitwarden.com (☁️ free)                                            | API keys, SSH keys, tokens stored before any infrastructure exists — eliminates bootstrap problem                                                                                                                                                                                                                                                  |
@@ -214,6 +218,7 @@ graph TB
 | `media.{domain}`     | Jellyfin        | Forge      | Authentik OIDC                                               | Media streaming                                |
 | `docs.{domain}`      | Nextcloud       | Forge      | Authentik OIDC                                               | Document archive/browsing layer                |
 | `books.{domain}`     | Kavita          | Forge      | Authentik OIDC (native)                                      | EPUB/PDF library                               |
+| `home.{domain}`      | Homarr          | Forge      | Authentik OIDC                                               | Family dashboard/landing page                  |
 
 ---
 

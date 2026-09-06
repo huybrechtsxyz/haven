@@ -1,0 +1,101 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: homarr
+  annotations:
+    description: Homarr — family-facing dashboard/landing page linking to every deployed haven service. Real per-user boards, groups and permissions synced from Authentik (admins/parents/members), drag-and-drop icon picker (11k+ icons) — unlike Authentik's own application launcher (admin-managed only, shared for everyone), each Homarr user can customize their own board.
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, system, homarr, dashboard]
+spec:
+  type: helm
+  source:
+    # Official chart (homarr-labs/charts). OCI is the maintainers'
+    # recommended install path. strata concatenates chart_repository +
+    # "/" + chart_name — confirmed convention (see immich.yaml/
+    # cert-manager.yaml), so this MUST be the registry parent path only,
+    # not the full chart path (the cert-manager.yaml module comment has
+    # the full writeup of the duplicated-path bug this avoids).
+    chart_repository: oci://ghcr.io/homarr-labs/charts
+    chart_name: homarr
+    chart_version: "2.4.0"
+  kubernetes_namespace: system
+  references:
+    secrets:
+      - HOMARR_SSO_CLIENT_SECRET # not read directly — homarr-secrets.yaml renders the actual K8s Secret this module points at via envSecrets
+      - HOMARR_DB_ENCRYPTION_KEY # same as above
+  configuration:
+    env:
+      TZ: "Europe/Brussels"
+
+      # --- Authentication -----------------------------------------------
+      # "oidc,credentials" (not just "oidc") deliberately keeps local
+      # username/password login available as a bootstrap fallback — Homarr's
+      # first-run onboarding wizard creates the initial admin account via
+      # the credentials provider. Once OIDC login + Authentik-group-based
+      # permissions are confirmed working end-to-end, this can be tightened
+      # to "oidc" only (same staging-then-prod caution as every other app's
+      # cert-manager issuer in this repo — prove it works, then lock it down).
+      AUTH_PROVIDERS: "oidc,credentials"
+
+      # Authentik-specific: keep the trailing slash — Homarr's own docs
+      # explicitly call out Authentik as the one documented exception to
+      # the general "no trailing slash" OIDC issuer rule (every other
+      # provider example in Homarr's docs omits it). Matches this repo's
+      # existing issuer_mode: per_provider format used by every other app.
+      AUTH_OIDC_ISSUER: "https://auth.huybrechts.xyz/application/o/homarr/"
+      AUTH_OIDC_CLIENT_NAME: "Authentik"
+      # Manual login button first (not auto-redirect) until OIDC + the
+      # credentials fallback above are both confirmed working live — flip
+      # to "true" afterwards for the one-click family-landing-page feel.
+      AUTH_OIDC_AUTO_LOGIN: "false"
+      # Default already "openid email profile groups" / "groups" — set
+      # explicitly here for clarity, matches the custom "groups" scope
+      # mapping already shared with Jellyfin/Nextcloud/Kavita
+      # (authentik-blueprint.yaml.j2's mapping-group-membership).
+      AUTH_OIDC_SCOPE_OVERWRITE: "openid email profile groups"
+      AUTH_OIDC_GROUPS_ATTRIBUTE: "groups"
+      # Clean Authentik SSO logout (end-session endpoint), not just a local
+      # Homarr session clear.
+      AUTH_LOGOUT_REDIRECT_URL: "https://auth.huybrechts.xyz/application/o/homarr/end-session/"
+
+    # OIDC client id/secret + DB encryption key are NOT reachable via the
+    # plain `env:` block above — the chart routes them through a referenced
+    # K8s Secret instead (envSecrets.*.existingSecret). See
+    # config/forge/modules/homarr-secrets.yaml, which renders the two
+    # Secrets referenced below with these exact default names/keys.
+    envSecrets:
+      authOidcCredentials:
+        existingSecret: homarr-auth-oidc-secret
+        oidcClientId: oidc-client-id
+        oidcClientSecret: oidc-client-secret
+      dbCredentials:
+        existingSecret: homarr-db-secret
+        dbEncryptionKey: db-encryption-key
+
+    # sqlite (better-sqlite3, the chart's default) persisted to a small PVC
+    # — same pattern as Gatus. No mysql subchart dependency needed at this
+    # scale (single-node family dashboard, not a multi-replica deployment).
+    persistence:
+      homarrDatabase:
+        enabled: true
+        size: 200Mi
+        storageClassName: local-path
+
+    # Staging-first cert-manager pattern, same as every other Forge app on
+    # its first-ever deploy — flip cert-manager.io/cluster-issuer to
+    # letsencrypt-prod once the HTTP-01 challenge for home.huybrechts.xyz
+    # has succeeded once via staging.
+    ingress:
+      enabled: true
+      ingressClassName: traefik
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-staging
+      hosts:
+        - host: home.huybrechts.xyz
+          paths:
+            - path: /
+      tls:
+        - secretName: home-tls
+          hosts:
+            - home.huybrechts.xyz

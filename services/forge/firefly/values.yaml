@@ -1,0 +1,100 @@
+# Defaults — override via the strata module's spec.configuration (see
+# config/forge/modules/firefly.yaml).
+image:
+  repository: fireflyiii/core
+  # TODO: verify current stable tag against https://hub.docker.com/r/fireflyiii/core/tags
+  # before first deploy — could not be confirmed via automated fetch when this
+  # module was authored (same caveat as kavita.yaml's image tag).
+  tag: latest
+
+env:
+  APP_ENV: production
+  APP_URL: https://finance.huybrechts.xyz
+  TZ: Europe/Brussels
+  DEFAULT_LANGUAGE: en_US
+  DEFAULT_LOCALE: equal
+  # k3s pod CIDR — same value already used by Nextcloud/Jellyfin/Immich so
+  # Firefly trusts Traefik as a reverse proxy (X-Forwarded-* headers) and
+  # generates https:// URLs instead of http://.
+  TRUSTED_PROXIES: "10.42.0.0/16"
+  DB_CONNECTION: pgsql
+  DB_HOST: firefly-postgres
+  DB_PORT: "5432"
+  DB_DATABASE: firefly
+  DB_USERNAME: firefly
+  # Set via ${FIREFLY_DB_PASSWORD} substitution token — never a literal value here.
+  DB_PASSWORD: ""
+  # Set via ${FIREFLY_APP_KEY} substitution token — never a literal value here.
+  # Exactly 32 chars, alphanumeric only (Firefly's own docs warn against
+  # special chars like #, < and > in this value).
+  APP_KEY: ""
+  CACHE_DRIVER: file
+  SESSION_DRIVER: file
+  COOKIE_SECURE: "true"
+  COOKIE_SAMESITE: lax
+  # No SMTP wired up yet — deferred, see docs/services/firefly.md "Still Open".
+  MAIL_MAILER: log
+  # SSO: Firefly III has no native OIDC support (confirmed from its own docs —
+  # only 'web' built-in DB auth or 'remote_user_guard', a header-based mode
+  # meant for reverse-proxy-terminated auth like Authelia/Authentik forward
+  # auth). Traefik's forwardAuth middleware (see templates/middleware.yaml)
+  # authenticates the request against Authentik before it ever reaches this
+  # pod and injects the X-authentik-* headers below.
+  #
+  # NOT YET LIVE-VERIFIED: this is the first time this repo has used
+  # remote_user_guard/forward-auth (every other app uses native OIDC) — the
+  # exact header-to-user matching semantics need confirming against a real
+  # login. remote_user_guard does NOT auto-provision users — a Firefly user
+  # with a matching email must already exist (create it once via the normal
+  # registration screen before switching AUTHENTICATION_GUARD on, same
+  # one-manual-bootstrap-step precedent as Jellyfin/Immich's admin setup).
+  AUTHENTICATION_GUARD: remote_user_guard
+  AUTHENTICATION_GUARD_HEADER: X-Authentik-Email
+
+persistence:
+  # Firefly's file-upload storage (receipts, attachments, exports).
+  upload:
+    storageClass: local-path
+    size: 5Gi
+
+service:
+  port: 8080
+
+ingress:
+  enabled: true
+  className: traefik
+  host: finance.huybrechts.xyz
+  # Staging-first cert-manager pattern, same as every other Forge app —
+  # finance.huybrechts.xyz has never had a cert issued before.
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+    # Gates all traffic through the Authentik forwardAuth middleware (see
+    # templates/middleware.yaml) — namespace-qualified CRD reference.
+    traefik.ingress.kubernetes.io/router.middlewares: finance-authentik-forwardauth@kubernetescrd
+  tls:
+    - hosts:
+        - finance.huybrechts.xyz
+      secretName: finance-tls
+
+cron:
+  # Runs Firefly's recurring-transaction/auto-budget/notification sweep.
+  # https://docs.firefly-iii.org/how-to/firefly-iii/advanced/cron/
+  schedule: "0 3 * * *"
+
+# =============================================================================
+# Authentik forward-auth outpost bypass — see templates/ingress-outpost.yaml +
+# templates/service-outpost.yaml for the full writeup. In "forward auth
+# (single application)" mode, Authentik's docs require routing
+# "<external_host>/outpost.goauthentik.io/*" on THIS APP'S OWN DOMAIN to the
+# outpost — NOT to Firefly. Authentik itself (and its embedded outpost) runs
+# on Hearth (Docker Compose), while this app runs on Forge (k3s) — a
+# different host — so that path is proxied cross-host via a plain k8s
+# ExternalName Service pointing at auth.huybrechts.xyz.
+#
+# NOT YET LIVE-VERIFIED — this cross-host outpost-routing wiring is the
+# riskiest/newest part of this change and has no precedent elsewhere in this
+# repo (every other SSO integration is same-origin OIDC, not forward-auth).
+# Expect to iterate after the first real deploy + login attempt.
+# =============================================================================
+outpost:
+  authentikHost: auth.huybrechts.xyz

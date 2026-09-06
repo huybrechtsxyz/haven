@@ -15,15 +15,6 @@ spec:
     file: "config/logging.yaml"
 
   # ---------------------------------------------------------------------------
-  # Deployment layering — single environment layer
-  # ---------------------------------------------------------------------------
-  layering:
-    - name: environment
-      description: "Deployment environment"
-      pattern: ""
-      required: true
-
-  # ---------------------------------------------------------------------------
   # Deployment properties schema
   # ---------------------------------------------------------------------------
   deployment:

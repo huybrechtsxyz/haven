@@ -199,6 +199,27 @@ spec:
         type: urlsafe
         length: 48
 
+    # Application secrets — Homarr (Forge, system namespace)
+    - key: HOMARR_SSO_CLIENT_SECRET
+      store: infisical
+      value: HOMARR_SSO_CLIENT_SECRET
+      description: OIDC client secret for Homarr SSO via Authentik
+      generate:
+        type: urlsafe
+        length: 48
+    # Homarr's own SECRET_ENCRYPTION_KEY — encrypts integration credentials
+    # Homarr stores in its own database, required regardless of DB backend
+    # (per the chart's README secrets table). Chart's own docs suggest
+    # `openssl rand -hex 32` (32 bytes = 64 hex chars) — length here is in
+    # output characters, matching strata's other generate specs.
+    - key: HOMARR_DB_ENCRYPTION_KEY
+      store: infisical
+      value: HOMARR_DB_ENCRYPTION_KEY
+      description: Homarr's database encryption key (SECRET_ENCRYPTION_KEY)
+      generate:
+        type: hex
+        length: 64
+
     # Application secrets — Jellyfin (Forge)
     - key: JELLYFIN_SSO_CLIENT_SECRET
       store: infisical
@@ -270,6 +291,22 @@ spec:
       store: infisical
       value: KAVITA_SSO_CLIENT_SECRET
       description: OIDC client secret for Kavita SSO via Authentik (native OpenIdConnectSettings in appsettings.json)
+      generate:
+        type: urlsafe
+        length: 48
+
+    # Application secrets — Firefly III (Forge)
+    - key: FIREFLY_APP_KEY
+      store: infisical
+      value: FIREFLY_APP_KEY
+      description: Firefly III's Laravel APP_KEY (session/cookie encryption) — must stay exactly 32 alphanumeric chars, no special chars like #, < or >
+      generate:
+        type: alphanumeric
+        length: 32
+    - key: FIREFLY_DB_PASSWORD
+      store: infisical
+      value: FIREFLY_DB_PASSWORD
+      description: PostgreSQL password for Firefly III's database
       generate:
         type: urlsafe
         length: 48

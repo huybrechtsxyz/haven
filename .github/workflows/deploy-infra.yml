@@ -69,7 +69,7 @@ jobs:
       # Install tools
       # ------------------------------------------------------------------
       - name: Setup strata
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.3
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.9.3
         with:
           # 1.8.2 fixed all bugs found while building Forge's Helm modules this
           # session: (1) OCI chart_repository support, (2) Helm ${KEY} secret
@@ -86,7 +86,16 @@ jobs:
           # loading the environment/workspace services entirely — masked by
           # 'validate --deep'/'build run' using different loading paths).
           # All confirmed via source review.
-          strata-version: "==1.8.3"
+          #
+          # Bumped 1.8.3 -> 1.9.3 (2026-09-06): ADR-0072 (strata source repo)
+          # replaced spec.layering/spec.layers' old flat {name: value} shape
+          # with a new opt-in spec.paths convention system (follows/segments)
+          # — an intentional breaking change, no backward compatibility.
+          # Haven doesn't need tenants/multi-environment path resolution, so
+          # config/configuration.yaml's spec.layering block and
+          # config/deployment.yaml's spec.layers block were removed entirely
+          # (both fields are optional) rather than migrated to the new shape.
+          strata-version: "==1.9.3"
         env:
           # Only matters when multiple package indexes are configured (e.g. a corporate
           # PyPI mirror in front of public PyPI) — makes uv fall through to a later index

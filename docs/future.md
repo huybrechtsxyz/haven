@@ -146,8 +146,10 @@ into it as a bonus dashboard is low-effort; don't build a whole stack just for t
   **[PhotoPrism](https://github.com/photoprism/photoprism)** only if Immich ever falls short.
 - **[Stirling-PDF](https://github.com/Stirling-Tools/Stirling-PDF)** — family-friendly PDF toolbox
   (merge/split/convert) as a self-hosted alternative to random online tools.
-- **[Homepage](https://github.com/gethomepage/homepage)** or **[Homarr](https://github.com/ajnart/homarr)**
-  — a family-facing dashboard/landing page linking to all the deployed apps.
+- ~~**[Homepage](https://github.com/gethomepage/homepage)** or **[Homarr](https://github.com/homarr-labs/homarr)**
+  — a family-facing dashboard/landing page linking to all the deployed apps.~~ **Implemented — see
+  [docs/services/homarr.md](services/homarr.md).** Chose Homarr over Homepage: real per-user
+  boards/permissions synced from Authentik groups (not just a shared admin-edited YAML page).
 - **[FreshRSS](https://github.com/FreshRSS/FreshRSS)** — self-hosted RSS reader.
 - **[Recipya](https://github.com/reaper47/recipya)** or **[Mealie](https://github.com/mealie-recipes/mealie)**
   — family recipe manager and meal planner.

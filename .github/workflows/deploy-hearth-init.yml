@@ -84,11 +84,11 @@ jobs:
       # ------------------------------------------------------------------
       - name: Setup strata
         if: ${{ inputs.dry_run != true }}
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.3
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.9.3
         with:
-          # See deploy-infra.yml for why this is '==1.8.3' — also fixes 'strata
-          # deploy run' crashing unconditionally on every invocation (v1.7.0-1.8.2).
-          strata-version: "==1.8.3"
+          # See deploy-infra.yml for the full 1.9.3 bump rationale (ADR-0072
+          # breaking change, migrated config/configuration.yaml + deployment.yaml).
+          strata-version: "==1.9.3"
         env:
           # See deploy-infra.yml for why this is set — no-op on GitHub-hosted runners.
           UV_INDEX_STRATEGY: unsafe-best-match

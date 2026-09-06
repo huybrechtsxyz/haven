@@ -579,6 +579,84 @@ entries:
       timeout: 30
 
   # ---------------------------------------------------------------------------
+  # Firefly III — Proxy Provider (forward auth, single application)
+  # ---------------------------------------------------------------------------
+  # Runs on Forge (k3s), not Hearth — same reasoning as Jellyfin/Nextcloud/
+  # Kavita/Immich above. UNLIKE every app above, Firefly III has NO native
+  # OIDC support (confirmed from its own docs — only 'web' built-in DB auth
+  # or 'remote_user_guard', a header-based mode for reverse-proxy-terminated
+  # auth). So this uses an `authentik_providers_proxy.proxyprovider` in
+  # "forward auth (single application)" mode instead of an OAuth2 provider —
+  # the first use of this provider type in this blueprint.
+  #
+  # No client_secret needed here (unlike every oauth2provider above) — forward
+  # auth has no app-side OAuth client at all; Traefik's forwardAuth middleware
+  # (services/forge/firefly/templates/middleware.yaml) talks to the outpost
+  # directly, and Firefly only ever sees the already-authenticated request
+  # plus the injected X-authentik-* headers.
+  #
+  # external_host MUST be the app's own domain (not auth.huybrechts.xyz) —
+  # this is what Authentik's docs specify for single-application forward
+  # auth mode, and is why Traefik needs the cross-host outpost-bypass
+  # routing documented in firefly's own chart (see
+  # services/forge/firefly/templates/ingress-outpost.yaml).
+  #
+  # Not explicitly assigned to an outpost here — relies on Authentik's
+  # documented default behavior that the built-in "authentik Embedded
+  # Outpost" automatically manages any Proxy/LDAP/RADIUS provider not
+  # explicitly assigned elsewhere. NOT YET LIVE-VERIFIED: this whole
+  # provider type + the cross-host routing it depends on has no precedent
+  # elsewhere in this blueprint — expect to iterate after the first real
+  # login attempt.
+
+  - model: authentik_providers_proxy.proxyprovider
+    state: present
+    identifiers:
+      name: Firefly III
+    id: provider-firefly
+    attrs:
+      name: Firefly III
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      mode: forward_single
+      external_host: https://finance.huybrechts.xyz
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !KeyOf mapping-email-verified
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: firefly
+    attrs:
+      name: Firefly III
+      slug: firefly
+      provider: !KeyOf provider-firefly
+      meta_launch_url: https://finance.huybrechts.xyz
+      # TODO: verify this icon filename actually exists in homarr-labs/dashboard-icons
+      # before first deploy (unlike every other meta_icon above, this one
+      # wasn't confirmed via a real fetch when this block was authored).
+      meta_icon: https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/png/firefly.png
+
+  - model: authentik_policies.policybinding
+    state: present
+    identifiers:
+      target: !Find [authentik_core.application, [slug, firefly]]
+      order: 0
+    attrs:
+      target: !Find [authentik_core.application, [slug, firefly]]
+      # parents (+ admins), not members — financial data is more sensitive
+      # than the shared-family apps above; change to policy-group-members
+      # if kids should have their own accounts too.
+      policy: !KeyOf policy-group-parents
+      order: 0
+      enabled: true
+      negate: false
+      timeout: 30
+
+  # ---------------------------------------------------------------------------
   # Infomaniak kSuite — dashboard launcher links (Mail, Calendar, kDrive,
   # Contacts). These are deliberately NOT SSO-backed — no `provider:` field,
   # same "link-only Application" pattern Authentik itself supports natively.
@@ -742,6 +820,206 @@ entries:
     attrs:
       target: !Find [authentik_core.application, [slug, gatus]]
       policy: !KeyOf policy-group-members
+      order: 0
+      enabled: true
+      negate: false
+      timeout: 30
+
+  # ---------------------------------------------------------------------------
+  # Homarr — OAuth2/OIDC Provider + Application
+  # ---------------------------------------------------------------------------
+  # Runs on Forge (k3s), in the `system` namespace — same cross-Forge pattern
+  # as Gatus. Family-facing dashboard/landing page linking to every deployed
+  # service. Unlike every other app in this blueprint, Homarr does its OWN
+  # RBAC sync from the "groups" claim: per Homarr's own docs, a user is
+  # auto-placed into any locally-created Homarr group that shares the same
+  # NAME as an Authentik group in this claim. Since this blueprint already
+  # defines `admins`/`parents`/`members` groups, creating three matching
+  # groups in Homarr's own admin UI (one-time manual step, no blueprint
+  # equivalent for Homarr itself) is enough to get per-role board/permission
+  # differences — e.g. an admin-only board with the bootstrap/infra links
+  # further up this file, alongside the shared family board.
+  - model: authentik_providers_oauth2.oauth2provider
+    state: present
+    identifiers:
+      name: Homarr
+    id: provider-homarr
+    attrs:
+      name: Homarr
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      client_type: confidential
+      client_id: homarr
+      client_secret: "{{ homarr_sso_client_secret }}"
+      redirect_uris:
+        - matching_mode: strict
+          # Homarr is built on Auth.js/NextAuth — fixed callback path for
+          # any OIDC-shaped provider, confirmed via Homarr's own docs'
+          # worked Authentik example (not app-specific/configurable).
+          url: "https://home.huybrechts.xyz/api/auth/callback/oidc"
+      grant_types:
+        - authorization_code
+        - refresh_token
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !KeyOf mapping-email-verified
+        - !KeyOf mapping-group-membership
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
+      sub_mode: hashed_user_id
+      # per_provider, not global — same issuer-mismatch reasoning as
+      # Jellyfin/Nextcloud/Kavita above (see config/forge/modules/immich.yaml's
+      # comment for the original root-cause writeup). Homarr's own docs
+      # explicitly call out Authentik as the one provider where the issuer
+      # URL needs its trailing slash kept — matches this per_provider format
+      # exactly (config/forge/modules/homarr.yaml's AUTH_OIDC_ISSUER).
+      issuer_mode: per_provider
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: homarr
+    attrs:
+      name: Homarr
+      slug: homarr
+      provider: !KeyOf provider-homarr
+      meta_launch_url: https://home.huybrechts.xyz
+      meta_icon: https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/png/homarr.png
+
+  - model: authentik_policies.policybinding
+    state: present
+    identifiers:
+      target: !Find [authentik_core.application, [slug, homarr]]
+      order: 0
+    attrs:
+      target: !Find [authentik_core.application, [slug, homarr]]
+      policy: !KeyOf policy-group-members
+      order: 0
+      enabled: true
+      negate: false
+      timeout: 30
+
+  # ---------------------------------------------------------------------------
+  # Bootstrap / infrastructure management — admin-only dashboard launcher links
+  # ---------------------------------------------------------------------------
+  # Same dashboard-only "Application" pattern as the Infomaniak kSuite tiles
+  # above (no `provider:` field, no OIDC — each of these platforms has its
+  # own separate login/auth). Gated by policy-group-admins (not
+  # policy-group-members) since these are the tools used to provision/manage
+  # haven itself (Terraform Cloud, Infisical Cloud, Hetzner Cloud Console,
+  # the strata/haven GitHub repos), not family-facing applications.
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: terraform-cloud
+    attrs:
+      name: Terraform Cloud
+      slug: terraform-cloud
+      meta_launch_url: https://app.terraform.io/app/huybrechts-xyz/workspaces/haven_deploy_prd
+      meta_icon: https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/png/terraform.png
+
+  - model: authentik_policies.policybinding
+    state: present
+    identifiers:
+      target: !Find [authentik_core.application, [slug, terraform-cloud]]
+      order: 0
+    attrs:
+      target: !Find [authentik_core.application, [slug, terraform-cloud]]
+      policy: !KeyOf policy-group-admins
+      order: 0
+      enabled: true
+      negate: false
+      timeout: 30
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: infisical-cloud
+    attrs:
+      name: Infisical Cloud
+      slug: infisical-cloud
+      meta_launch_url: https://app.infisical.com
+      meta_icon: https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/png/infisical.png
+
+  - model: authentik_policies.policybinding
+    state: present
+    identifiers:
+      target: !Find [authentik_core.application, [slug, infisical-cloud]]
+      order: 0
+    attrs:
+      target: !Find [authentik_core.application, [slug, infisical-cloud]]
+      policy: !KeyOf policy-group-admins
+      order: 0
+      enabled: true
+      negate: false
+      timeout: 30
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: hetzner-console
+    attrs:
+      name: Hetzner Cloud Console
+      slug: hetzner-console
+      meta_launch_url: https://console.hetzner.cloud
+      meta_icon: https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/png/hetzner.png
+
+  - model: authentik_policies.policybinding
+    state: present
+    identifiers:
+      target: !Find [authentik_core.application, [slug, hetzner-console]]
+      order: 0
+    attrs:
+      target: !Find [authentik_core.application, [slug, hetzner-console]]
+      policy: !KeyOf policy-group-admins
+      order: 0
+      enabled: true
+      negate: false
+      timeout: 30
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: github-haven
+    attrs:
+      name: GitHub — haven
+      slug: github-haven
+      meta_launch_url: https://github.com/huybrechtsxyz/haven
+      meta_icon: https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/png/github.png
+
+  - model: authentik_policies.policybinding
+    state: present
+    identifiers:
+      target: !Find [authentik_core.application, [slug, github-haven]]
+      order: 0
+    attrs:
+      target: !Find [authentik_core.application, [slug, github-haven]]
+      policy: !KeyOf policy-group-admins
+      order: 0
+      enabled: true
+      negate: false
+      timeout: 30
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: github-strata
+    attrs:
+      name: GitHub — strata
+      slug: github-strata
+      meta_launch_url: https://github.com/huybrechtsxyz/strata
+      meta_icon: https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/png/github.png
+
+  - model: authentik_policies.policybinding
+    state: present
+    identifiers:
+      target: !Find [authentik_core.application, [slug, github-strata]]
+      order: 0
+    attrs:
+      target: !Find [authentik_core.application, [slug, github-strata]]
+      policy: !KeyOf policy-group-admins
       order: 0
       enabled: true
       negate: false

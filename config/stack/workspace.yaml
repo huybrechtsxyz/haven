@@ -48,6 +48,8 @@ spec:
       file: config/forge/namespaces/media.yaml # 3rd — self-contained, no shared-storage dependency
     - name: documents
       file: config/forge/namespaces/documents.yaml # 4th — blocked on the haven-data Storage Box docs SMB mount migration (see docs/guides/forge.md)
+    - name: finance
+      file: config/forge/namespaces/finance.yaml # 5th — Firefly III, no shared-storage dependency (own local-path PVC only)
 
   topology:
     - name: hetzner_hearth
@@ -79,6 +81,7 @@ spec:
         - namespace: immich
         - namespace: media
         - namespace: documents
+        - namespace: finance
       volumes:
         - name: k3s
           type: local

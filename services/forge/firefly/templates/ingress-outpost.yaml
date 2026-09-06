@@ -1,0 +1,30 @@
+{{- if .Values.ingress.enabled }}
+# Authentik "forward auth (single application)" mode requires
+# "<external_host>/outpost.goauthentik.io/*" (on the PROTECTED APP'S OWN
+# domain, not Authentik's) to be routed directly to the outpost that
+# actually validates/issues sessions — it handles the login redirect
+# callback and session-cookie exchange for this domain. Deliberately has NO
+# forwardAuth middleware attached (that would create a redirect loop: the
+# outpost's own endpoints must always be reachable unauthenticated).
+#
+# Authentik (and its embedded outpost) runs on Hearth, not here on Forge —
+# see templates/service-outpost.yaml for the cross-host ExternalName Service
+# this backend points at.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-outpost
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: /outpost.goauthentik.io
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-authentik-outpost
+                port:
+                  number: 443
+{{- end }}

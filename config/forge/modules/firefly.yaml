@@ -1,0 +1,70 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: firefly
+  annotations:
+    description: Firefly III — self-hosted personal finance manager (budgets, transactions, recurring bills), family-shared
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, finance, firefly]
+spec:
+  type: helm
+  source:
+    repository: haven
+    source_path: services/forge/firefly
+  kubernetes_namespace: finance
+  references:
+    secrets:
+      - FIREFLY_APP_KEY
+      - FIREFLY_DB_PASSWORD
+  configuration:
+    image:
+      repository: fireflyiii/core
+      tag: latest
+    env:
+      APP_ENV: production
+      APP_URL: https://finance.huybrechts.xyz
+      TZ: Europe/Brussels
+      DEFAULT_LANGUAGE: en_US
+      DEFAULT_LOCALE: equal
+      TRUSTED_PROXIES: "10.42.0.0/16"
+      DB_CONNECTION: pgsql
+      DB_HOST: firefly-postgres
+      DB_PORT: "5432"
+      DB_DATABASE: firefly
+      DB_USERNAME: firefly
+      # Real values injected by strata at deploy time — never written here.
+      DB_PASSWORD: "${FIREFLY_DB_PASSWORD}"
+      APP_KEY: "${FIREFLY_APP_KEY}"
+      CACHE_DRIVER: file
+      SESSION_DRIVER: file
+      COOKIE_SECURE: "true"
+      COOKIE_SAMESITE: lax
+      MAIL_MAILER: log
+      # SSO via Traefik forwardAuth -> Authentik (see services/forge/firefly's
+      # templates/middleware.yaml + docs/services/firefly.md). NOT YET
+      # LIVE-VERIFIED — first use of remote_user_guard in this repo (every
+      # other app uses native OIDC instead).
+      AUTHENTICATION_GUARD: remote_user_guard
+      AUTHENTICATION_GUARD_HEADER: X-Authentik-Email
+    persistence:
+      upload:
+        storageClass: local-path
+        size: 5Gi
+    service:
+      port: 8080
+    ingress:
+      enabled: true
+      className: traefik
+      host: finance.huybrechts.xyz
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-staging
+        traefik.ingress.kubernetes.io/router.middlewares: finance-authentik-forwardauth@kubernetescrd
+      tls:
+        - hosts:
+            - finance.huybrechts.xyz
+          secretName: finance-tls
+    cron:
+      schedule: "0 3 * * *"
+    outpost:
+      authentikHost: auth.huybrechts.xyz
