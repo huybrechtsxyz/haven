@@ -156,7 +156,7 @@ jobs:
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
           set +e
-          VALUES=$(strata values get AUTHENTIK_SECRET_KEY AUTHENTIK_POSTGRESQL__PASSWORD VAULTWARDEN_ADMIN_ARGON VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          VALUES=$(strata values get AUTHENTIK_SECRET_KEY AUTHENTIK_POSTGRESQL__PASSWORD VAULTWARDEN_ADMIN_ARGON VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET INFOMANIAK_EMAIL__HOST INFOMANIAK_EMAIL__PORT INFOMANIAK_EMAIL__USERNAME INFOMANIAK_EMAIL__PASSWORD -f $DEPLOYMENT_FILE --output json)
           STATUS=$?
           set -e
           if [ $STATUS -ne 0 ]; then
@@ -169,12 +169,20 @@ jobs:
           VAULTWARDEN_TOKEN=$(echo "$VALUES" | jq -r '.data.results.VAULTWARDEN_ADMIN_ARGON')
           VAULTWARDEN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.VAULTWARDEN_SSO_CLIENT_SECRET')
           WUD_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.WUD_SSO_CLIENT_SECRET')
+          INFOMANIAK_EMAIL_HOST=$(echo "$VALUES" | jq -r '.data.results.INFOMANIAK_EMAIL__HOST')
+          INFOMANIAK_EMAIL_PORT=$(echo "$VALUES" | jq -r '.data.results.INFOMANIAK_EMAIL__PORT')
+          INFOMANIAK_EMAIL_USERNAME=$(echo "$VALUES" | jq -r '.data.results.INFOMANIAK_EMAIL__USERNAME')
+          INFOMANIAK_EMAIL_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.INFOMANIAK_EMAIL__PASSWORD')
           cat > /tmp/deploy_vars.yml << VARSEOF
           authentik_secret_key: "$AUTHENTIK_KEY"
           authentik_postgresql_password: "$AUTHENTIK_DB_PASSWORD"
           vaultwarden_admin_token: "$VAULTWARDEN_TOKEN"
           vaultwarden_sso_client_secret: "$VAULTWARDEN_SSO_SECRET"
           wud_sso_client_secret: "$WUD_SSO_SECRET"
+          infomaniak_email_host: "$INFOMANIAK_EMAIL_HOST"
+          infomaniak_email_port: "$INFOMANIAK_EMAIL_PORT"
+          infomaniak_email_username: "$INFOMANIAK_EMAIL_USERNAME"
+          infomaniak_email_password: "$INFOMANIAK_EMAIL_PASSWORD"
           VARSEOF
 
       - name: Run hearth-deploy playbook

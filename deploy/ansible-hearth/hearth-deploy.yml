@@ -20,6 +20,10 @@
 #   vaultwarden_admin_token
 #   vaultwarden_sso_client_secret
 #   wud_sso_client_secret
+#   infomaniak_email_host
+#   infomaniak_email_port
+#   infomaniak_email_username
+#   infomaniak_email_password
 # =============================================================================
 
 - name: Hearth — deploy Docker Compose services
@@ -123,6 +127,10 @@
           VAULTWARDEN_ADMIN_TOKEN={{ vaultwarden_admin_token }}
           VAULTWARDEN_SSO_CLIENT_SECRET={{ vaultwarden_sso_client_secret }}
           WUD_SSO_CLIENT_SECRET={{ wud_sso_client_secret }}
+          INFOMANIAK_EMAIL__HOST={{ infomaniak_email_host }}
+          INFOMANIAK_EMAIL__PORT={{ infomaniak_email_port }}
+          INFOMANIAK_EMAIL__USERNAME={{ infomaniak_email_username }}
+          INFOMANIAK_EMAIL__PASSWORD={{ infomaniak_email_password }}
       no_log: true
 
     - name: Verify .env keys (values masked)

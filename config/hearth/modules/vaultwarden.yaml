@@ -50,6 +50,15 @@ spec:
           value: warn
         - key: DOMAIN
           value: https://vault.huybrechts.xyz
+        # Caddy's reverse_proxy sends its own default proxy headers
+        # (X-Forwarded-For/-Proto/-Host), not X-Real-IP (that's an nginx
+        # convention) — Vaultwarden's own default ip_header is X-Real-IP,
+        # so without this override every login/audit-log entry and the
+        # rate-limiter see the internal Docker network IP instead of the
+        # real client IP (confirmed via the diagnostics page's failing
+        # "IP Header check").
+        - key: IP_HEADER
+          value: X-Forwarded-For
         - key: SSO_ENABLED
           value: "true"
         - key: SSO_SCOPES
