@@ -656,6 +656,28 @@ entries:
       negate: false
       timeout: 30
 
+  # Explicit outpost assignment — REQUIRED, not automatic. Confirmed via
+  # Authentik's own docs (embedded-outpost page): "Any hosts configured in
+  # the providers ASSIGNED to the embedded outpost are sent to the outpost" —
+  # assignment is opt-in per provider, never automatic for newly-created
+  # Proxy/LDAP/RADIUS providers. The original comment above assumed the
+  # embedded outpost auto-manages any unassigned provider — WRONG, confirmed
+  # by a real live bug (2026-09-06): without this block, forwardAuth's calls
+  # to https://finance.huybrechts.xyz/outpost.goauthentik.io/auth/traefik
+  # never reached a real auth check (host not routed to any outpost), so
+  # every request — including real browser traffic — fell through to
+  # Firefly unauthenticated, producing "No user in header" 500s. Firefly is
+  # the ONLY Proxy-type provider in this whole blueprint, so setting
+  # protocol_providers to just this one list is safe (nothing else to lose
+  # from the embedded outpost's provider set).
+  - model: authentik_outposts.outpost
+    state: present
+    identifiers:
+      name: authentik Embedded Outpost
+    attrs:
+      protocol_providers:
+        - !Find [authentik_providers_proxy.proxyprovider, [name, Firefly III]]
+
   # ---------------------------------------------------------------------------
   # Infomaniak kSuite — dashboard launcher links (Mail, Calendar, kDrive,
   # Contacts). These are deliberately NOT SSO-backed — no `provider:` field,
