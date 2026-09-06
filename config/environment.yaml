@@ -215,15 +215,21 @@ spec:
     # Homarr's own SECRET_ENCRYPTION_KEY — encrypts integration credentials
     # Homarr stores in its own database, required regardless of DB backend
     # (per the chart's README secrets table). Chart's own docs suggest
-    # `openssl rand -hex 32` (32 bytes = 64 hex chars) — length here is in
-    # output characters, matching strata's other generate specs.
+    # `openssl rand -hex 32` (32 bytes = 64 hex chars). CONFIRMED via strata
+    # source (utils/secret_generator.py): for type "hex", `length` is the
+    # number of random BYTES, not output characters — token_hex(n) emits
+    # n*2 hex chars. So length: 32 here (not 64) is what actually produces
+    # the required 64-character hex string; length: 64 previously produced
+    # a 128-char string, which Homarr's own env-var schema rejected outright
+    # (zod: "SECRET_ENCRYPTION_KEY has to be 64 characters" + hex-regex
+    # failure) — confirmed via a real deploy log 2026-09-06.
     - key: HOMARR_DB_ENCRYPTION_KEY
       store: infisical
       value: HOMARR_DB_ENCRYPTION_KEY
-      description: Homarr's database encryption key (SECRET_ENCRYPTION_KEY)
+      description: Homarr's database encryption key (SECRET_ENCRYPTION_KEY) — must be exactly 64 hex characters
       generate:
         type: hex
-        length: 64
+        length: 32
 
     # Application secrets — Jellyfin (Forge)
     - key: JELLYFIN_SSO_CLIENT_SECRET
