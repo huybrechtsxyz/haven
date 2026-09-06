@@ -78,6 +78,16 @@ spec:
       proto: tcp
       port: [443]
       comment: HTTPS outbound
+    # SMTP (STARTTLS) — outbound to Infomaniak's mail server, used by
+    # Vaultwarden/Authentik for invitation/notification/password-reset
+    # emails. Without this rule, Hetzner's Cloud Firewall silently drops
+    # outbound port 587 traffic — confirmed live 2026-09-06 as "Network
+    # unreachable (os error 101)" once DNS/SMTP_HOST were fixed (same class
+    # of missing-egress-rule bug as Forge's port 445/SMB fix).
+    - direction: out
+      proto: tcp
+      port: [587]
+      comment: SMTP STARTTLS outbound (Infomaniak mail server)
     # SSH — private network only (Hetzner private network or Tailscale CGNAT)
     - direction: in
       proto: tcp
