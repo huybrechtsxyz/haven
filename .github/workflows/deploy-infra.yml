@@ -77,7 +77,7 @@ jobs:
       # Install tools
       # ------------------------------------------------------------------
       - name: Setup strata
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.3
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.9.3
         with:
           # 1.8.2 fixed all bugs found while building Forge's Helm modules this
           # session: (1) OCI chart_repository support, (2) Helm ${KEY} secret
