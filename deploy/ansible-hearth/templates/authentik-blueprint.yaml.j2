@@ -54,9 +54,23 @@ entries:
       name: default-authentication-mfa-validation
     attrs:
       not_configured_action: "{{ authentik_mfa_not_configured_action }}"
+      # Explicit device_classes so WebAuthn (passkeys/security keys) is
+      # accepted as a valid MFA method during login, not just TOTP/static
+      # backup codes — omitting this would silently restrict validation to
+      # whatever Authentik's own model default is.
+      device_classes:
+        - static
+        - totp
+        - webauthn
 {% if authentik_mfa_not_configured_action == "configure" %}
       configuration_stages:
         - !Find [authentik_stages_authenticator_totp.authenticatortotpstage, [name, default-authenticator-totp-setup]]
+        # Built-in stage Authentik ships with every install (same !Find
+        # pattern as the TOTP setup stage above — not defined by this
+        # blueprint, just referenced) — lets a user without any configured
+        # MFA method choose to register a passkey/security key instead of
+        # TOTP when prompted.
+        - !Find [authentik_stages_authenticator_webauthn.authenticatorwebauthnstage, [name, default-authenticator-webauthn-setup]]
 {% endif %}
 
   - model: authentik_flows.flowstagebinding

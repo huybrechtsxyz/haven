@@ -33,11 +33,8 @@ spec:
     service:
       port: 5000
     # Staging-first cert-manager pattern, same as Immich/Jellyfin/Nextcloud —
-    # books.huybrechts.xyz has never had a cert issued before, so it needs its
-    # own HTTP-01 challenge to succeed at least once via letsencrypt-staging
-    # before switching to letsencrypt-prod (rate-limited to 5 certs/domain/week).
-    # Once `kubectl describe certificate books-tls -n documents` shows
-    # Ready: True, switch cluster-issuer below to letsencrypt-prod.
+    # flipped to letsencrypt-prod (2026-09-07) after confirming the HTTP-01
+    # challenge for books.huybrechts.xyz succeeded via staging.
     #
     # NOTE: confirmed live (2026-08-29) that Kavita's own ASP.NET Core OIDC
     # handler sends redirect_uri=https://books.huybrechts.xyz/signin-oidc
@@ -51,7 +48,7 @@ spec:
       className: traefik
       host: books.huybrechts.xyz
       annotations:
-        cert-manager.io/cluster-issuer: letsencrypt-staging
+        cert-manager.io/cluster-issuer: letsencrypt-prod
       tls:
         - hosts:
             - books.huybrechts.xyz
