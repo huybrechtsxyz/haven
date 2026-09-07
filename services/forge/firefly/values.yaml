@@ -41,15 +41,20 @@ env:
   # authenticates the request against Authentik before it ever reaches this
   # pod and injects the X-authentik-* headers below.
   #
-  # NOT YET LIVE-VERIFIED: this is the first time this repo has used
-  # remote_user_guard/forward-auth (every other app uses native OIDC) — the
-  # exact header-to-user matching semantics need confirming against a real
-  # login. remote_user_guard does NOT auto-provision users — a Firefly user
-  # with a matching email must already exist (create it once via the normal
+  # CONFIRMED (read FireflyIII\Support\Authentication\RemoteUserGuard.php
+  # source directly): the guard does request()->server($header) — a literal
+  # $_SERVER lookup, NOT a normalized HTTP header lookup. PHP only exposes
+  # HTTP headers in $_SERVER as "HTTP_" + uppercase + underscores (standard
+  # CGI convention) — the guard was really designed for Apache's own
+  # REMOTE_USER variable (set directly by Apache, no HTTP_ prefix), so any
+  # proxy-injected header must be given here in its already-transformed
+  # $_SERVER form, e.g. HTTP_X_AUTHENTIK_EMAIL, not X-Authentik-Email.
+  # remote_user_guard does NOT auto-provision users — a Firefly user with a
+  # matching email must already exist (create it once via the normal
   # registration screen before switching AUTHENTICATION_GUARD on, same
   # one-manual-bootstrap-step precedent as Jellyfin/Immich's admin setup).
   AUTHENTICATION_GUARD: remote_user_guard
-  AUTHENTICATION_GUARD_HEADER: X-Authentik-Email
+  AUTHENTICATION_GUARD_HEADER: HTTP_X_AUTHENTIK_EMAIL
 
 persistence:
   # Firefly's file-upload storage (receipts, attachments, exports).

@@ -32,7 +32,7 @@ Every other app on Forge (Immich, Jellyfin, Nextcloud, Kavita) uses native OIDC 
 
 1. Traefik's `authentik-forwardauth` Middleware (`services/forge/firefly/templates/middleware.yaml`) is attached to Firefly's ingress via the `traefik.ingress.kubernetes.io/router.middlewares` annotation. On every request, Traefik calls out to Authentik's outpost to check the session before forwarding to Firefly.
 2. Authentik's Proxy Provider (`deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2`, `mode: forward_single`, `external_host: https://finance.huybrechts.xyz`) issues/validates the session and injects `X-authentik-*` headers (username, email, groups, etc.) once authenticated.
-3. Firefly is configured with `AUTHENTICATION_GUARD=remote_user_guard` + `AUTHENTICATION_GUARD_HEADER=X-Authentik-Email` — it trusts the injected header as the identity of an **already-existing** Firefly user (remote_user_guard does **not** auto-provision accounts).
+3. Firefly is configured with `AUTHENTICATION_GUARD=remote_user_guard` + `AUTHENTICATION_GUARD_HEADER=HTTP_X_AUTHENTIK_EMAIL` — it trusts the injected header as the user's identity, auto-creating a Firefly user for any email it hasn't seen before (confirmed from `RemoteUserProvider::retrieveById()` source — the first-ever user created this way is automatically granted the `owner` role).
 4. Access is gated to the `parents` group (+ `admins`) via `policy-group-parents` in the blueprint — deliberately narrower than the `members` policy used by the shared-family apps, since financial data is more sensitive. Change to `policy-group-members` in the blueprint if kids should have their own accounts too.
 
 ### The cross-host outpost routing problem
@@ -44,13 +44,16 @@ Authentik's "forward auth (single application)" mode requires `<external_host>/o
 
 Traefik gives more-specific path prefixes higher route priority automatically, so this outpost path always wins over the app's catch-all `/` — no explicit priority annotation should be needed, but confirm this with `kubectl describe ingressroute`/Traefik's dashboard if login redirects loop.
 
+### Confirmed bug + fix (2026-09-07): `AUTHENTICATION_GUARD_HEADER` must be the transformed `$_SERVER` key, not the raw header name
+
+First real deploy hit `production.ERROR: No user in header "X-Authentik-Email"`. Root cause, confirmed by reading `FireflyIII\Support\Authentication\RemoteUserGuard` source directly: the guard reads the configured header via a **literal `request()->server($header)` call — a raw `$_SERVER` lookup, not a normalized HTTP-header lookup**. PHP only exposes real HTTP headers in `$_SERVER` as `HTTP_` + uppercase + underscores (standard CGI convention) — the guard was really designed for Apache's own `REMOTE_USER` variable (set directly by Apache's auth modules, never going through the `HTTP_` transform), so any proxy-injected header must be given in its already-transformed form. Fixed: `AUTHENTICATION_GUARD_HEADER=HTTP_X_AUTHENTIK_EMAIL` (was `X-Authentik-Email`, which never matched anything in `$_SERVER`).
+
 ### Open risks / not yet live-verified
 
-This whole SSO integration is **unverified** — it has no precedent elsewhere in this repo (every other app is same-origin OIDC). Expect to iterate after the first real deploy + login attempt:
+This whole SSO integration is still fairly new — it has no precedent elsewhere in this repo (every other app is same-origin OIDC). Expect to iterate after the next login attempt:
 
-- Whether `remote_user_guard` really matches on the exact header/value set here (`X-Authentik-Email`) the way assumed — Firefly's own docs on this are thin; may need adjusting the header name or adding `AUTHENTICATION_GUARD_EMAIL` too.
+- **Correction to an earlier assumption in this doc**: `remote_user_guard` **does** auto-provision Firefly users — confirmed from `RemoteUserProvider::retrieveById()` source, which creates a new `User` row for any email not already in the database (and grants the very first user created this way the `owner` role). No manual pre-registration step is actually needed.
 - Whether the cross-host outpost bypass (`ExternalName` Service → `auth.huybrechts.xyz` over HTTPS) actually completes the login callback correctly — this pattern has never been used anywhere else in this repo.
-- `remote_user_guard` does **not** create Firefly users — a Firefly account (matching the family member's Authentik email) must be created once via Firefly's own registration screen *before* switching this on, same one-time-bootstrap precedent as Jellyfin/Immich's admin setup. Consider deploying with `AUTHENTICATION_GUARD=web` first to create the accounts, then switching to `remote_user_guard`.
 - Authentik's default behavior (the "authentik Embedded Outpost" auto-manages any Proxy provider not assigned elsewhere) is assumed, not confirmed against this specific Authentik version.
 
 ---

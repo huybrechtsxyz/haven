@@ -42,11 +42,16 @@ spec:
       COOKIE_SAMESITE: lax
       MAIL_MAILER: log
       # SSO via Traefik forwardAuth -> Authentik (see services/forge/firefly's
-      # templates/middleware.yaml + docs/services/firefly.md). NOT YET
-      # LIVE-VERIFIED — first use of remote_user_guard in this repo (every
-      # other app uses native OIDC instead).
+      # templates/middleware.yaml + docs/services/firefly.md).
+      # IMPORTANT: Firefly's RemoteUserGuard reads this via a literal
+      # request()->server($header) call — i.e. a raw $_SERVER lookup, NOT a
+      # normalized HTTP header lookup. PHP only exposes HTTP headers in
+      # $_SERVER as "HTTP_" + uppercase + underscores (standard CGI
+      # convention) — the guard was really designed for Apache's own
+      # REMOTE_USER variable (set directly by Apache, no HTTP_ prefix). So
+      # this MUST be the transformed $_SERVER key, not the literal header name.
       AUTHENTICATION_GUARD: remote_user_guard
-      AUTHENTICATION_GUARD_HEADER: X-Authentik-Email
+      AUTHENTICATION_GUARD_HEADER: HTTP_X_AUTHENTIK_EMAIL
     persistence:
       upload:
         storageClass: local-path
