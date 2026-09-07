@@ -85,7 +85,7 @@ jobs:
       # Strata + Helm setup
       # ------------------------------------------------------------------
       - name: Setup strata
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.3
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.9.3
         with:
           # See deploy-infra.yml for why this is '==1.8.3' — also fixes 'strata
           # deploy run' crashing unconditionally on every invocation (v1.7.0-1.8.2),
