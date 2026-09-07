@@ -83,14 +83,14 @@ spec:
         storageClassName: local-path
 
     # Staging-first cert-manager pattern, same as every other Forge app on
-    # its first-ever deploy — flip cert-manager.io/cluster-issuer to
-    # letsencrypt-prod once the HTTP-01 challenge for home.huybrechts.xyz
-    # has succeeded once via staging.
+    # its first-ever deploy — flipped to letsencrypt-prod (2026-09-07) after
+    # confirming the HTTP-01 challenge for home.huybrechts.xyz succeeded via
+    # staging.
     ingress:
       enabled: true
       ingressClassName: traefik
       annotations:
-        cert-manager.io/cluster-issuer: letsencrypt-staging
+        cert-manager.io/cluster-issuer: letsencrypt-prod
       hosts:
         - host: home.huybrechts.xyz
           paths:
