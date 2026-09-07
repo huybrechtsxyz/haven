@@ -249,6 +249,25 @@
       when: compose_up.changed
       changed_when: true
 
+    # Vaultwarden's SMTP/admin/SSO secrets rotate more often than the other
+    # services here — confirmed live (2026-09-07) that a plain `up -d`
+    # (relying on Docker Compose's own config-hash diff) can decide nothing
+    # changed and leave the OLD container (with stale secrets) running, even
+    # after a fresh secret value was written to .env moments earlier. Same
+    # class of unreliable-diff-detection issue Caddy already needed
+    # `--force-recreate` for above — apply the same fix here so secret
+    # rotations (SMTP password, admin token, SSO client secret) always take
+    # effect on every deploy, not just when Compose happens to notice.
+    - name: Force-recreate Vaultwarden to ensure updated secrets take effect
+      ansible.builtin.command:
+        cmd: >
+          docker compose
+          --project-name haven
+          -f {{ haven_install_path }}/etc/docker-compose.yml
+          --env-file {{ haven_install_path }}/etc/.env
+          up -d --force-recreate vaultwarden
+      changed_when: true
+
     - name: Wait for Caddy to be ready after recreate
       ansible.builtin.pause:
         seconds: 10
