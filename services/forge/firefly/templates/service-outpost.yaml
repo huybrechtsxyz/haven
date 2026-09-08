@@ -7,6 +7,13 @@
 # reached. `service.serversscheme: https` tells Traefik to connect out over
 # HTTPS (Hearth's Caddy terminates TLS for auth.{{ .Values.outpost.authentikHost }}'s real domain) —
 # without it Traefik defaults to plain HTTP for ExternalName backends.
+#
+# NOTE: Traefik preserves the original Host header (passHostHeader defaults to
+# true), so Caddy receives "Host: {{ .Values.ingress.host }}" over a connection whose
+# SNI is {{ .Values.outpost.authentikHost }}. That is deliberate — the outpost needs the app's own
+# host — but it means Hearth's Caddyfile MUST carry a matching site block for
+# {{ .Values.ingress.host }} routing /outpost.goauthentik.io/* to authentik-server.
+# Without it Caddy has no matching site and answers 404 (real bug, 2026-09-08).
 apiVersion: v1
 kind: Service
 metadata:

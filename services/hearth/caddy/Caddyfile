@@ -9,6 +9,37 @@ auth.huybrechts.xyz {
     reverse_proxy authentik-server:9000
 }
 
+# Firefly III (runs on Forge/k3s) — Authentik forward-auth outpost bypass.
+#
+# In "forward auth (single application)" mode Authentik requires
+# <app_domain>/outpost.goauthentik.io/* to reach the outpost, and the outpost
+# must see the app's own Host header (that is how the embedded outpost ties
+# the request back to the provider's external_host and scopes its session
+# cookie). Forge's Traefik proxies that path here via an ExternalName Service
+# pointing at auth.huybrechts.xyz, but it preserves the original
+# "Host: finance.huybrechts.xyz" — which matched no site block here, so Caddy
+# answered 404 and the outpost was never reached. This block is that missing
+# route. See services/forge/firefly/templates/{ingress,service}-outpost.yaml.
+#
+# `tls internal` because Caddy cannot obtain a public certificate for this
+# name — finance.huybrechts.xyz resolves to Forge, so ACME HTTP-01 would fail
+# forever. The internal cert is never actually served: Traefik dials
+# auth.huybrechts.xyz, so SNI selects the real auth certificate, and only the
+# Host header selects this block.
+finance.huybrechts.xyz {
+    tls internal
+
+    handle /outpost.goauthentik.io/* {
+        reverse_proxy authentik-server:9000
+    }
+
+    # Nothing else on this domain belongs on Hearth — Firefly itself is served
+    # by Forge's Traefik.
+    handle {
+        respond "Not found" 404
+    }
+}
+
 # Vaultwarden — Password Manager
 vault.huybrechts.xyz {
     reverse_proxy vaultwarden:80
