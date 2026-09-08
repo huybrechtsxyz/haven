@@ -211,6 +211,51 @@
       changed_when: false
       when: traefik_check.rc != 0
 
+    # Traefik refuses to build a route whose backend is an ExternalName
+    # Service unless explicitly allowed ("externalName services not allowed"),
+    # because a namespaced user could otherwise point a route at an arbitrary
+    # external host. Firefly's Authentik forward-auth needs exactly that: its
+    # /outpost.goauthentik.io path is proxied cross-host to Authentik on
+    # Hearth via an ExternalName Service (see
+    # services/forge/firefly/templates/service-outpost.yaml).
+    #
+    # k3s bundles Traefik via its helm-controller, so the supported way to
+    # change chart values is a HelmChartConfig dropped into the server
+    # manifests directory — k3s watches it and reconciles the release
+    # automatically, no k3s restart needed. Editing the Deployment directly
+    # would be reverted on the next k3s restart.
+    - name: Allow Traefik to route to ExternalName Services (Authentik outpost bypass)
+      ansible.builtin.copy:
+        dest: /var/lib/rancher/k3s/server/manifests/traefik-config.yaml
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # Managed by deploy/ansible-forge/forge-init.yml — do not edit by hand.
+          apiVersion: helm.cattle.io/v1
+          kind: HelmChartConfig
+          metadata:
+            name: traefik
+            namespace: kube-system
+          spec:
+            valuesContent: |-
+              providers:
+                kubernetesIngress:
+                  allowExternalNameServices: true
+      register: traefik_externalname_config
+
+    - name: Wait for Traefik to pick up the ExternalName setting
+      ansible.builtin.shell:
+        cmd: >
+          kubectl -n kube-system get deployment traefik -o yaml
+          | grep -q 'allowexternalnameservices=true'
+        executable: /bin/bash
+      register: traefik_externalname_check
+      until: traefik_externalname_check.rc == 0
+      retries: 30
+      delay: 10
+      changed_when: false
+
     # =========================================================================
     # Portainer Edge Agent — registers Forge's k3s cluster as a Kubernetes
     # environment in the existing Hearth Portainer instance. Edge Agent mode:

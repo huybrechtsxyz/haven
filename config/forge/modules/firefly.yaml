@@ -70,7 +70,12 @@ spec:
       className: traefik
       host: finance.huybrechts.xyz
       annotations:
-        cert-manager.io/cluster-issuer: letsencrypt-staging
+        # MUST be the production issuer, not staging. The forwardAuth
+        # middleware makes a server-to-server HTTPS call back to this very
+        # host, and Go verifies the certificate against the system trust
+        # store — a staging cert fails with "x509: certificate signed by
+        # unknown authority" and every request 500s (real bug, 2026-09-08).
+        cert-manager.io/cluster-issuer: letsencrypt-prod
       tls:
         - hosts:
             - finance.huybrechts.xyz

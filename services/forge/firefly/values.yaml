@@ -81,10 +81,12 @@ ingress:
   enabled: true
   className: traefik
   host: finance.huybrechts.xyz
-  # Staging-first cert-manager pattern, same as every other Forge app —
-  # finance.huybrechts.xyz has never had a cert issued before.
+  # Production issuer, NOT staging: the forwardAuth middleware calls back to
+  # this same host over HTTPS and Go verifies the cert against the system
+  # trust store. A staging cert is signed by an untrusted CA, so every
+  # request fails with "x509: certificate signed by unknown authority".
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-staging
+    cert-manager.io/cluster-issuer: letsencrypt-prod
   tls:
     - hosts:
         - finance.huybrechts.xyz
