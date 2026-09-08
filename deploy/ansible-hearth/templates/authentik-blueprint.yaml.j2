@@ -615,13 +615,11 @@ entries:
   # routing documented in firefly's own chart (see
   # services/forge/firefly/templates/ingress-outpost.yaml).
   #
-  # Not explicitly assigned to an outpost here — relies on Authentik's
-  # documented default behavior that the built-in "authentik Embedded
-  # Outpost" automatically manages any Proxy/LDAP/RADIUS provider not
-  # explicitly assigned elsewhere. NOT YET LIVE-VERIFIED: this whole
-  # provider type + the cross-host routing it depends on has no precedent
-  # elsewhere in this blueprint — expect to iterate after the first real
-  # login attempt.
+  # Not explicitly assigned to an outpost here — see the dedicated
+  # `authentik_outposts.outpost` block further down this file (search
+  # "Explicit outpost assignment") for the required `providers:` M2M
+  # assignment. Proxy providers are NEVER auto-managed by the embedded
+  # outpost — that assignment is mandatory, not automatic.
 
   - model: authentik_providers_proxy.proxyprovider
     state: present
@@ -682,14 +680,22 @@ entries:
   # every request — including real browser traffic — fell through to
   # Firefly unauthenticated, producing "No user in header" 500s. Firefly is
   # the ONLY Proxy-type provider in this whole blueprint, so setting
-  # protocol_providers to just this one list is safe (nothing else to lose
-  # from the embedded outpost's provider set).
+  # providers to just this one list is safe (nothing else to lose from the
+  # embedded outpost's provider set).
+  #
+  # CONFIRMED FIELD NAME (2026-09-07, from Authentik source
+  # authentik/outposts/models.py): `Outpost.providers` is the actual M2M
+  # field (`models.ManyToManyField(Provider, through="OutpostProvider")`),
+  # NOT `protocol_providers` — that wrong name was silently ignored by
+  # blueprint apply (no error, just a no-op), which is why the Outpost edit
+  # UI kept showing Firefly under "Available" instead of "Selected" even
+  # after this block was supposedly applied. Fixed to the real field name.
   - model: authentik_outposts.outpost
     state: present
     identifiers:
       name: authentik Embedded Outpost
     attrs:
-      protocol_providers:
+      providers:
         - !Find [authentik_providers_proxy.proxyprovider, [name, Firefly III]]
 
   # ---------------------------------------------------------------------------

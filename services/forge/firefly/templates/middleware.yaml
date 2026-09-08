@@ -1,3 +1,4 @@
+{{- if .Values.sso.enabled }}
 # Traefik forwardAuth middleware — delegates authentication to Authentik's
 # outpost before any request reaches Firefly. See values.yaml's `outpost:`
 # comment and ingress-outpost.yaml/service-outpost.yaml for the full
@@ -27,3 +28,4 @@ spec:
       - X-authentik-meta-provider
       - X-authentik-meta-app
       - X-authentik-meta-version
+{{- end }}

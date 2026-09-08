@@ -1,3 +1,4 @@
+{{- if .Values.sso.enabled }}
 # Cross-host bridge: Authentik's embedded outpost lives inside the Authentik
 # server container on Hearth (Docker Compose), while this Ingress is served
 # by Forge's own Traefik (k3s). A plain ExternalName Service lets Traefik
@@ -19,3 +20,4 @@ spec:
     - name: https
       port: 443
       targetPort: 443
+{{- end }}

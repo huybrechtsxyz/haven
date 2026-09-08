@@ -41,17 +41,20 @@ spec:
       COOKIE_SECURE: "true"
       COOKIE_SAMESITE: lax
       MAIL_MAILER: log
-      # SSO via Traefik forwardAuth -> Authentik (see services/forge/firefly's
-      # templates/middleware.yaml + docs/services/firefly.md).
-      # IMPORTANT: Firefly's RemoteUserGuard reads this via a literal
-      # request()->server($header) call — i.e. a raw $_SERVER lookup, NOT a
-      # normalized HTTP header lookup. PHP only exposes HTTP headers in
-      # $_SERVER as "HTTP_" + uppercase + underscores (standard CGI
-      # convention) — the guard was really designed for Apache's own
-      # REMOTE_USER variable (set directly by Apache, no HTTP_ prefix). So
-      # this MUST be the transformed $_SERVER key, not the literal header name.
-      AUTHENTICATION_GUARD: remote_user_guard
-      AUTHENTICATION_GUARD_HEADER: HTTP_X_AUTHENTIK_EMAIL
+      # SSO TEMPORARILY DISABLED (isolation test) — running Firefly on its own
+      # built-in login screen to confirm whether the app itself works, before
+      # re-enabling the Authentik forward-auth path. To restore SSO: set
+      # sso.enabled back to true below and switch this back to:
+      #   AUTHENTICATION_GUARD: remote_user_guard
+      #   AUTHENTICATION_GUARD_HEADER: HTTP_X_AUTHENTIK_EMAIL
+      # (see services/forge/firefly/values.yaml for why the header must be in
+      # its transformed $_SERVER form.)
+      AUTHENTICATION_GUARD: web
+    # Master switch for the Traefik forwardAuth middleware, the Authentik
+    # outpost Ingress/ExternalName Service, and the ingress annotation that
+    # attaches the middleware.
+    sso:
+      enabled: false
     persistence:
       upload:
         storageClass: local-path
@@ -64,7 +67,6 @@ spec:
       host: finance.huybrechts.xyz
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-staging
-        traefik.ingress.kubernetes.io/router.middlewares: finance-authentik-forwardauth@kubernetescrd
       tls:
         - hosts:
             - finance.huybrechts.xyz

@@ -1,4 +1,4 @@
-{{- if .Values.ingress.enabled }}
+{{- if and .Values.ingress.enabled .Values.sso.enabled }}
 # Authentik "forward auth (single application)" mode requires
 # "<external_host>/outpost.goauthentik.io/*" (on the PROTECTED APP'S OWN
 # domain, not Authentik's) to be routed directly to the outpost that

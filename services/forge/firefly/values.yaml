@@ -41,6 +41,10 @@ env:
   # authenticates the request against Authentik before it ever reaches this
   # pod and injects the X-authentik-* headers below.
   #
+  # Only takes effect when sso.enabled is true — with sso.enabled=false the
+  # module override must also set AUTHENTICATION_GUARD back to 'web', or
+  # Firefly will look for a header no proxy is injecting anymore.
+  #
   # CONFIRMED (read FireflyIII\Support\Authentication\RemoteUserGuard.php
   # source directly): the guard does request()->server($header) — a literal
   # $_SERVER lookup, NOT a normalized HTTP header lookup. PHP only exposes
@@ -55,6 +59,14 @@ env:
   # one-manual-bootstrap-step precedent as Jellyfin/Immich's admin setup).
   AUTHENTICATION_GUARD: remote_user_guard
   AUTHENTICATION_GUARD_HEADER: HTTP_X_AUTHENTIK_EMAIL
+
+# Master switch for the whole Authentik forward-auth path: the Traefik
+# Middleware, the outpost Ingress + ExternalName Service, and the ingress
+# annotation that attaches the middleware. Set to false to run Firefly on its
+# own built-in login screen (also set env.AUTHENTICATION_GUARD: web) — useful
+# for isolating whether a problem is Firefly itself or the Authentik wiring.
+sso:
+  enabled: true
 
 persistence:
   # Firefly's file-upload storage (receipts, attachments, exports).
@@ -73,9 +85,6 @@ ingress:
   # finance.huybrechts.xyz has never had a cert issued before.
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-staging
-    # Gates all traffic through the Authentik forwardAuth middleware (see
-    # templates/middleware.yaml) — namespace-qualified CRD reference.
-    traefik.ingress.kubernetes.io/router.middlewares: finance-authentik-forwardauth@kubernetescrd
   tls:
     - hosts:
         - finance.huybrechts.xyz
