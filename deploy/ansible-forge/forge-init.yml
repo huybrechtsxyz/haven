@@ -244,17 +244,54 @@
                   allowExternalNameServices: true
       register: traefik_externalname_config
 
-    - name: Wait for Traefik to pick up the ExternalName setting
-      ansible.builtin.shell:
-        cmd: >
-          kubectl -n kube-system get deployment traefik -o yaml
-          | grep -q 'allowexternalnameservices=true'
-        executable: /bin/bash
-      register: traefik_externalname_check
-      until: traefik_externalname_check.rc == 0
-      retries: 30
-      delay: 10
-      changed_when: false
+    # The rendered container arg has varied in case across Traefik chart
+    # versions (--providers.kubernetesingress.allowexternalnameservices vs
+    # ...kubernetesIngress.allowExternalNameServices), so match a loose,
+    # case-insensitive substring rather than an exact flag string.
+    - name: Ensure Traefik allows ExternalName Services
+      block:
+        - name: Wait for Traefik to pick up the ExternalName setting
+          ansible.builtin.shell:
+            cmd: >
+              kubectl -n kube-system get deployment traefik -o yaml
+              | grep -qi 'allowexternalname'
+            executable: /bin/bash
+          register: traefik_externalname_check
+          until: traefik_externalname_check.rc == 0
+          retries: 18
+          delay: 10
+          changed_when: false
+      rescue:
+        # helm-controller reconciles asynchronously via a Job; when it fails
+        # (bad values, image pull, chart version mismatch) nothing surfaces on
+        # the Deployment itself, so dump the whole chain to make the next run
+        # diagnosable instead of just timing out again.
+        - name: Collect helm-controller diagnostics
+          ansible.builtin.shell:
+            cmd: |
+              echo "=== HelmChartConfig ==="
+              kubectl -n kube-system get helmchartconfig traefik -o yaml 2>&1 | tail -30
+              echo "=== HelmChart status ==="
+              kubectl -n kube-system get helmchart traefik -o yaml 2>&1 | tail -40
+              echo "=== helm-install jobs ==="
+              kubectl -n kube-system get jobs 2>&1
+              echo "=== last helm-install pod logs ==="
+              POD=$(kubectl -n kube-system get pods --sort-by=.metadata.creationTimestamp \
+                -o name 2>/dev/null | grep helm-install-traefik | tail -1)
+              [ -n "$POD" ] && kubectl -n kube-system logs "$POD" --tail=60 2>&1
+              echo "=== traefik deployment args ==="
+              kubectl -n kube-system get deployment traefik \
+                -o jsonpath='{.spec.template.spec.containers[0].args}' 2>&1
+            executable: /bin/bash
+          register: traefik_diagnostics
+          changed_when: false
+          failed_when: false
+
+        - name: Fail with helm-controller diagnostics
+          ansible.builtin.fail:
+            msg: |
+              Traefik never picked up allowExternalNameServices.
+              {{ traefik_diagnostics.stdout }}
 
     # =========================================================================
     # Portainer Edge Agent — registers Forge's k3s cluster as a Kubernetes
