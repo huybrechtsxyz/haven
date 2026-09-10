@@ -18,7 +18,12 @@ spec:
     # the full writeup of the duplicated-path bug this avoids).
     chart_repository: oci://ghcr.io/homarr-labs/charts
     chart_name: homarr
-    chart_version: "2.4.0"
+    # Bumped 2.4.0 -> 8.29.0 (2026-09-10, latest upstream; app v1.4.0 -> v1.77.0).
+    # Chart schema change confirmed via diff of the chart's values.yaml between
+    # these versions: envSecrets.dbCredentials.dbEncryptionKey was split out into
+    # its own envSecrets.dbEncryption block (existingSecret + key) — see the
+    # envSecrets.dbEncryption block below, updated to match.
+    chart_version: "8.29.0"
   kubernetes_namespace: system
   references:
     secrets:
@@ -69,9 +74,13 @@ spec:
         existingSecret: homarr-auth-oidc-secret
         oidcClientId: oidc-client-id
         oidcClientSecret: oidc-client-secret
-      dbCredentials:
+      # Chart 8.x moved the DB encryption key out of dbCredentials into its
+      # own envSecrets.dbEncryption block (existingSecret + key) — dbCredentials
+      # itself is only for external DB (mysql/postgresql) creds now, unused
+      # here since we run on the chart's default sqlite backend.
+      dbEncryption:
         existingSecret: homarr-db-secret
-        dbEncryptionKey: db-encryption-key
+        key: db-encryption-key
 
     # sqlite (better-sqlite3, the chart's default) persisted to a small PVC
     # — same pattern as Gatus. No mysql subchart dependency needed at this
