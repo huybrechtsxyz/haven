@@ -1,0 +1,55 @@
+# Defaults — override via the strata module's spec.configuration (see
+# config/forge/modules/filebrowser.yaml).
+image:
+  repository: gtstef/filebrowser
+  # FileBrowser Quantum v2.0.0 line. Upstream README currently marks v2.0.0
+  # as "beta" (latest STABLE release is v1.5.6-stable) — this chart's
+  # config.yaml shape below matches v2's schema (confirmed 2026-09-11 from
+  # main branch's frontend/public/config.generated.yaml). Do NOT retag to a
+  # v1.x image without also rewriting templates/configmap.yaml — v1.x uses
+  # an older/deprecated flat config format that this chart does not emit.
+  tag: v2.0.5
+
+# Credentials (FILEBROWSER_ADMIN_PASSWORD / FILEBROWSER_OIDC_CLIENT_ID /
+# FILEBROWSER_OIDC_CLIENT_SECRET) MUST be declared here as placeholders so
+# strata's chart-values validator recognizes the keys the module sets —
+# real values are injected by strata at deploy time, never written here
+# (same pattern as homarr-secrets/values.yaml).
+env:
+  TZ: Europe/Brussels
+  FILEBROWSER_ADMIN_PASSWORD: ""
+  FILEBROWSER_OIDC_CLIENT_ID: ""
+  FILEBROWSER_OIDC_CLIENT_SECRET: ""
+
+persistence:
+  # FileBrowser's own SQLite database (users, sessions, search index) —
+  # local disk, not shared with any other app.
+  data:
+    storageClass: local-path
+    size: 1Gi
+
+# Every Storage Box mount already used elsewhere on Forge, exposed here
+# read-write as distinct FileBrowser "sources" for direct family file
+# management — no separate SMB/S3 client support needed, FileBrowser Quantum
+# only consumes local filesystem paths, so these are the same hostPath mounts
+# Immich/Jellyfin/Nextcloud/Kavita already read from.
+sources:
+  - name: "Media (Immich + Jellyfin)"
+    hostPath: /mnt/haven-data-media
+  - name: "Documents (Nextcloud + Kavita)"
+    hostPath: /mnt/haven-data-docs
+
+service:
+  port: 80
+
+ingress:
+  enabled: true
+  className: traefik
+  host: files.huybrechts.xyz
+  annotations: {}
+  tls: []
+
+auth:
+  issuerUrl: "https://auth.huybrechts.xyz/application/o/filebrowser/"
+  scopes: "openid email profile groups"
+  adminGroup: admins

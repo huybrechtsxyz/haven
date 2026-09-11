@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: filebrowser
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          env:
+            - name: FILEBROWSER_CONFIG
+              value: /home/filebrowser/config.yaml
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          volumeMounts:
+            - name: config
+              mountPath: /home/filebrowser/config.yaml
+              subPath: config.yaml
+            - name: data
+              mountPath: /data
+            {{- range $index, $source := .Values.sources }}
+            - name: source-{{ $index }}
+              mountPath: {{ $source.hostPath }}
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-data
+        {{- range $index, $source := .Values.sources }}
+        - name: source-{{ $index }}
+          hostPath:
+            path: {{ $source.hostPath }}
+            type: DirectoryOrCreate
+        {{- end }}

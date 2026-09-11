@@ -1,0 +1,90 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: filebrowser
+  annotations:
+    description: >
+      FileBrowser Quantum — self-hosted web file manager giving every family
+      member direct browse/upload/rename/delete access to both Storage Box
+      shares already used elsewhere on Forge (Immich/Jellyfin's haven-data
+      media share, Nextcloud/Kavita's haven-data docs share), from one
+      admin-friendly UI at files.huybrechts.xyz.
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, system, filebrowser, storage]
+spec:
+  type: helm
+  source:
+    # No official Helm chart exists upstream for FileBrowser Quantum
+    # (Docker-first project) — local chart, same pattern as kavita/
+    # homarr-secrets.
+    repository: haven
+    source_path: services/forge/filebrowser
+  kubernetes_namespace: system
+  references:
+    secrets:
+      - FILEBROWSER_SSO_CLIENT_SECRET
+      - FILEBROWSER_ADMIN_PASSWORD
+  configuration:
+    # Credentials MUST live under a literal `env:` dict — strata's Helm
+    # secret substitution only resolves ${TOKEN} placeholders found inside a
+    # dict node keyed literally "env" (see nextcloud-secrets.yaml's module
+    # comment for the full writeup of this constraint). FileBrowser Quantum
+    # conveniently supports supplying its admin password and OIDC client
+    # id/secret via FILEBROWSER_ADMIN_PASSWORD / FILEBROWSER_OIDC_CLIENT_ID /
+    # FILEBROWSER_OIDC_CLIENT_SECRET env vars (confirmed via the project's
+    # reference/environment-variables.md docs), so — unlike Homarr/Nextcloud
+    # — no separate "-secrets" local chart + K8s Secret indirection is
+    # needed here at all.
+    env:
+      TZ: Europe/Brussels
+      # Without this, the bootstrap "admin" account keeps the software's own
+      # default admin/admin credentials on a publicly reachable ingress —
+      # generated explicitly instead (see config/environment.yaml).
+      FILEBROWSER_ADMIN_PASSWORD: "${FILEBROWSER_ADMIN_PASSWORD}"
+      FILEBROWSER_OIDC_CLIENT_ID: filebrowser
+      FILEBROWSER_OIDC_CLIENT_SECRET: "${FILEBROWSER_SSO_CLIENT_SECRET}"
+
+    persistence:
+      data:
+        storageClass: local-path
+        size: 1Gi
+
+    # Every Storage Box mount already used elsewhere on Forge, exposed
+    # read-write so family members can directly reorganize/upload files
+    # without going through Nextcloud/Immich/Jellyfin's own app-specific UIs.
+    sources:
+      - name: "Media (Immich + Jellyfin)"
+        hostPath: /mnt/haven-data-media
+      - name: "Documents (Nextcloud + Kavita)"
+        hostPath: /mnt/haven-data-docs
+
+    auth:
+      issuerUrl: "https://auth.huybrechts.xyz/application/o/filebrowser/"
+      scopes: "openid email profile groups"
+      # adminGroup only affects FileBrowser's own internal admin role for
+      # OIDC-created users — app-level ACCESS is granted to every family
+      # member via the Authentik application's policy-group-members binding
+      # (see authentik-blueprint.yaml.j2), not just admins.
+      adminGroup: admins
+
+    # Staging-first cert-manager pattern, same as every other Forge app's
+    # first-ever deploy in this repo — flip to letsencrypt-prod once the
+    # HTTP-01 challenge for files.huybrechts.xyz is confirmed via staging.
+    ingress:
+      enabled: true
+      className: traefik
+      host: files.huybrechts.xyz
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-staging
+      tls:
+        - hosts:
+            - files.huybrechts.xyz
+          secretName: files-tls
+
+  # SSO: Authentik OAuth2 Provider + Application block in
+  # deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2 (per_provider
+  # issuer, groups-claim scope mapping, policy-group-members binding — "for
+  # all users", not admin-only, matching Homarr/Jellyfin/Nextcloud/Kavita's
+  # pattern). FILEBROWSER_OIDC_CLIENT_ID is a fixed literal ("filebrowser")
+  # matching that blueprint's client_id, not a generated secret.

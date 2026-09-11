@@ -22,6 +22,85 @@
 
   tasks:
     # =========================================================================
+    # System — security updates
+    # =========================================================================
+    # Mirrors hearth-config.yml — forge-init.yml sets this up once at
+    # bootstrap, but drift (a manually edited apt.conf.d file, a missing
+    # package) is only corrected if it's re-enforced on every routine run too.
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Apply security-only upgrades
+      ansible.builtin.apt:
+        upgrade: safe
+      register: apt_upgrade
+
+    - name: Remove unused packages
+      ansible.builtin.apt:
+        autoremove: true
+
+    # =========================================================================
+    # Ensure required packages are present
+    # =========================================================================
+
+    - name: Ensure system packages are present
+      ansible.builtin.apt:
+        name:
+          - curl
+          - wget
+          - gnupg
+          - ca-certificates
+          - apt-transport-https
+          - lsb-release
+          - unattended-upgrades
+          - apt-listchanges
+          - borgbackup
+          - sshpass
+          - htop
+          - ncdu
+          - fail2ban
+          - jq
+          - cifs-utils # required for Storage Box SMB mounts (subaccounts don't support NFS)
+          - open-iscsi # required for k3s iSCSI storage support
+        state: present
+
+    # =========================================================================
+    # Timezone
+    # =========================================================================
+
+    - name: Ensure timezone is {{ haven_timezone }}
+      community.general.timezone:
+        name: "{{ haven_timezone }}"
+
+    # =========================================================================
+    # Unattended security upgrades
+    # =========================================================================
+
+    - name: Ensure unattended-upgrades configuration (security only, no auto-reboot)
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/50unattended-upgrades
+        mode: "0644"
+        content: |
+          Unattended-Upgrade::Allowed-Origins {
+              "${distro_id}:${distro_codename}-security";
+          };
+          Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+          Unattended-Upgrade::MinimalSteps "true";
+          Unattended-Upgrade::Remove-Unused-Dependencies "true";
+          Unattended-Upgrade::Automatic-Reboot "false";
+
+    - name: Ensure unattended-upgrades timer is enabled
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        mode: "0644"
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+
+    # =========================================================================
     # LAN routing — Forge apps must reach Hearth's Authentik over the private
     # network, not hairpin back out through the public internet. Both servers
     # share the same Hetzner private network (deploy/terraform/main.tf's
@@ -360,3 +439,34 @@
         modification_time: preserve
         access_time: preserve
       when: configure_borg | bool
+
+    # =========================================================================
+    # containerd image cleanup — scheduled prune of unused images
+    # =========================================================================
+    # Same rationale as Hearth's Docker image prune: every Helm upgrade pulls
+    # a new image tag but never removes the old one from containerd's local
+    # store. `crictl rmi --prune` only removes images with zero containers
+    # referencing them (running OR stopped) — k3s's kubelet also runs its own
+    # implicit image GC once disk pressure crosses a threshold, but this cron
+    # keeps usage low proactively instead of waiting for that to kick in.
+
+    - name: Install containerd image prune cron job (daily at 03:30 UTC)
+      ansible.builtin.cron:
+        name: "haven-containerd-image-prune"
+        user: "root"
+        minute: "30"
+        hour: "3"
+        job: >-
+          /usr/local/bin/k3s crictl rmi --prune
+          >> /var/log/haven-image-prune-forge.log 2>&1
+        state: present
+
+    - name: Ensure image-prune log file exists and is owned by haven user
+      ansible.builtin.file:
+        path: /var/log/haven-image-prune-forge.log
+        state: touch
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0640"
+        modification_time: preserve
+        access_time: preserve

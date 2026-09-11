@@ -35,6 +35,9 @@ spec:
     - name: homarr
       description: Family-facing dashboard/landing page — real per-user boards/permissions synced from Authentik groups
       file: config/forge/modules/homarr.yaml
+    - name: filebrowser
+      description: FileBrowser Quantum — direct read/write browser access to both haven-data Storage Box shares (media + docs), for every family member
+      file: config/forge/modules/filebrowser.yaml
     # rclone-mount (haven-docs S3 bucket bridge) removed 2026-08-29 — the
     # haven-docs bucket has been deleted from Hetzner. Nextcloud/Kavita's
     # shared documents storage is migrating to the haven-data Storage Box's

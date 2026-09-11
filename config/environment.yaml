@@ -321,3 +321,19 @@ spec:
       generate:
         type: urlsafe
         length: 48
+
+    # Application secrets — FileBrowser Quantum (Forge, system namespace)
+    - key: FILEBROWSER_SSO_CLIENT_SECRET
+      store: infisical
+      value: FILEBROWSER_SSO_CLIENT_SECRET
+      description: OIDC client secret for FileBrowser Quantum SSO via Authentik
+      generate:
+        type: urlsafe
+        length: 48
+    - key: FILEBROWSER_ADMIN_PASSWORD
+      store: infisical
+      value: FILEBROWSER_ADMIN_PASSWORD
+      description: Bootstrap local "admin" account password (FileBrowser Quantum ships an insecure admin/admin default otherwise)
+      generate:
+        type: urlsafe
+        length: 32

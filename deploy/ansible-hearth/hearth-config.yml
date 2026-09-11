@@ -66,6 +66,37 @@
         autoremove: true
 
     # =========================================================================
+    # Docker image cleanup — scheduled prune of unused images
+    # =========================================================================
+    # Every redeploy pulls a new image tag but never removes the old one —
+    # left unchecked, disk fills up with superseded layers over time.
+    # `docker image prune -a` only removes images with zero containers
+    # referencing them (running OR stopped), so it can never touch anything
+    # actually in use; the `until` filter leaves a short safety buffer so a
+    # very recent rollback still has its previous image cached locally.
+
+    - name: Install Docker image prune cron job (daily at 03:30 UTC)
+      ansible.builtin.cron:
+        name: "haven-docker-image-prune"
+        user: "root"
+        minute: "30"
+        hour: "3"
+        job: >-
+          docker image prune -af --filter "until=72h"
+          >> /var/log/haven-image-prune.log 2>&1
+        state: present
+
+    - name: Ensure image-prune log file exists and is owned by haven user
+      ansible.builtin.file:
+        path: /var/log/haven-image-prune.log
+        state: touch
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0640"
+        modification_time: preserve
+        access_time: preserve
+
+    # =========================================================================
     # Ensure required packages are present
     # =========================================================================
 
@@ -538,6 +569,19 @@
       ansible.builtin.debug:
         var: borg_cron.stdout_lines
       when: configure_borg | bool
+
+    # ----- Docker image prune -----
+
+    - name: "Validate: Docker image prune cron job"
+      ansible.builtin.shell:
+        cmd: crontab -u root -l 2>&1 | grep -i haven-docker-image-prune || echo "NO IMAGE-PRUNE CRON FOUND"
+      register: image_prune_cron
+      changed_when: false
+      failed_when: false
+
+    - name: "Validate: Show Docker image prune cron"
+      ansible.builtin.debug:
+        var: image_prune_cron.stdout_lines
 
     # ----- System services -----
 

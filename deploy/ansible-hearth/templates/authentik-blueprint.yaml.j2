@@ -943,6 +943,73 @@ entries:
       timeout: 30
 
   # ---------------------------------------------------------------------------
+  # FileBrowser Quantum — OAuth2/OIDC Provider + Application
+  # ---------------------------------------------------------------------------
+  # Runs on Forge (k3s), in the `system` namespace — same cross-Forge pattern
+  # as Homarr/Gatus. Gives every family member (policy-group-members, not
+  # just admins) direct browse/upload/rename/delete access to the haven-data
+  # Storage Box's media + docs shares from one UI. FileBrowser's own
+  # `auth.methods.oidc.adminGroup` maps the "admins" Authentik group to its
+  # internal admin role — separate from this application-level access policy.
+  - model: authentik_providers_oauth2.oauth2provider
+    state: present
+    identifiers:
+      name: FileBrowser
+    id: provider-filebrowser
+    attrs:
+      name: FileBrowser
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      client_type: confidential
+      client_id: filebrowser
+      client_secret: "{{ filebrowser_sso_client_secret }}"
+      redirect_uris:
+        - matching_mode: strict
+          # Fixed callback path, confirmed via FileBrowser Quantum's own
+          # OIDC docs — not app-specific/configurable.
+          url: "https://files.huybrechts.xyz/api/auth/oidc/callback"
+      grant_types:
+        - authorization_code
+        - refresh_token
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !KeyOf mapping-email-verified
+        - !KeyOf mapping-group-membership
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
+      sub_mode: hashed_user_id
+      # per_provider, not global — same issuer-mismatch reasoning as every
+      # other app in this blueprint (see config/forge/modules/immich.yaml's
+      # comment for the original root-cause writeup).
+      issuer_mode: per_provider
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: filebrowser
+    attrs:
+      name: FileBrowser
+      slug: filebrowser
+      provider: !KeyOf provider-filebrowser
+      meta_launch_url: https://files.huybrechts.xyz
+      # TODO: verify this icon filename actually exists in homarr-labs/dashboard-icons
+      meta_icon: https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/png/filebrowser.png
+
+  - model: authentik_policies.policybinding
+    state: present
+    identifiers:
+      target: !Find [authentik_core.application, [slug, filebrowser]]
+      order: 0
+    attrs:
+      target: !Find [authentik_core.application, [slug, filebrowser]]
+      policy: !KeyOf policy-group-members
+      order: 0
+      enabled: true
+      negate: false
+      timeout: 30
+
+  # ---------------------------------------------------------------------------
   # Bootstrap / infrastructure management — admin-only dashboard launcher links
   # ---------------------------------------------------------------------------
   # Same dashboard-only "Application" pattern as the Infomaniak kSuite tiles

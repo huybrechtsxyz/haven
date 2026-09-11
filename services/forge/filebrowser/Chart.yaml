@@ -1,0 +1,12 @@
+apiVersion: v2
+name: filebrowser
+description: >
+  FileBrowser Quantum — self-hosted web file manager. No official Helm chart
+  exists upstream (Docker-first project), so this is a small local chart,
+  same pattern as kavita/homarr-secrets. Gives every family member direct
+  browse/upload/rename/delete access to the same Storage Box shares already
+  used by Immich/Jellyfin (haven-data media) and Nextcloud/Kavita (haven-data
+  docs) from one admin-friendly UI. See config/forge/modules/filebrowser.yaml
+  for the module-level writeup.
+type: application
+version: "1.0.0"

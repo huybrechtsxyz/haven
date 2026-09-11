@@ -78,5 +78,7 @@ spec:
         - HOMARR_DB_ENCRYPTION_KEY
         - FIREFLY_APP_KEY
         - FIREFLY_DB_PASSWORD
+        - FILEBROWSER_SSO_CLIENT_SECRET
+        - FILEBROWSER_ADMIN_PASSWORD
       depends_on: infrastructure_forge
       on_failure: stop
