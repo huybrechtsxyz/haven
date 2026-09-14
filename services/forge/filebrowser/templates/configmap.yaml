@@ -31,12 +31,10 @@ data:
       {{- end }}
     auth:
       methods:
-        # Local admin/password login kept enabled as a bootstrap fallback for
-        # the fixed "admin" account only (signup stays disabled) — same
-        # pattern as Homarr's AUTH_PROVIDERS: "oidc,credentials". Tighten to
-        # OIDC-only once SSO is confirmed working end-to-end live.
+        # OIDC-only login: local admin/password login is disabled — SSO
+        # via Authentik confirmed working end-to-end (2026-09-14).
         password:
-          enabled: true
+          enabled: false
         oidc:
           enabled: true
           issuerUrl: {{ .Values.auth.issuerUrl | quote }}
