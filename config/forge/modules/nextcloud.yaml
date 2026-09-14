@@ -155,6 +155,8 @@ spec:
             --clientsecret="$NEXTCLOUD_SSO_CLIENT_SECRET" \
             --discoveryuri=https://auth.huybrechts.xyz/application/o/nextcloud/.well-known/openid-configuration \
             --group-provisioning=1
+          echo "Disabling local username/password login (SSO-only, admin bypass via ?direct=1)..."
+          occ config:app:set --type=string --value=0 user_oidc allow_multiple_user_backends
           echo "Configuring External Storage for /mnt/haven-data-docs..."
           occ files_external:create "Haven" local null::null -c datadir=/mnt/haven-data-docs
           echo "Configuring External Storage for /mnt/haven-data-docs/media..."

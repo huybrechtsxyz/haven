@@ -321,6 +321,30 @@ jobs:
           done
           echo "::warning::Failed to register Nextcloud SSO provider after 5 attempts — not failing the deploy, check manually."
 
+      # Nextcloud was already installed before SSO-only was decided, so the
+      # post-installation hook's `occ config:app:set ... allow_multiple_user_backends`
+      # (added to nextcloud.yaml alongside this step) never fired for the
+      # live instance — this retroactively (re-)applies it every deploy.
+      # Idempotent (occ config:app:set is safe to run repeatedly) and
+      # non-fatal if user_oidc isn't installed yet (SSO registration above
+      # runs first in this same job).
+      - name: Disable Nextcloud local login (SSO-only)
+        if: ${{ inputs.dry_run != true }}
+        env:
+          KUBECONFIG: /tmp/forge-kubeconfig.yaml
+        run: |
+          set +e
+          kubectl rollout status deployment/nextcloud -n documents --timeout=180s
+          kubectl exec -n documents deploy/nextcloud -c nextcloud -- \
+            php occ config:app:set --type=string --value=0 user_oidc allow_multiple_user_backends
+          RC=$?
+          set -e
+          if [ $RC -eq 0 ]; then
+            echo "Nextcloud local login disabled — SSO via Authentik is now the only login method (admin bypass: ?direct=1)."
+          else
+            echo "::warning::Failed to disable Nextcloud local login — not failing the deploy, check manually."
+          fi
+
       # =========================================================================
       # Nextcloud External Storage — "Haven", "Media", and "Books" folders.
       #
