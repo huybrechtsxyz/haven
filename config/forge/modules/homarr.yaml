@@ -34,14 +34,9 @@ spec:
       TZ: "Europe/Brussels"
 
       # --- Authentication -----------------------------------------------
-      # "oidc,credentials" (not just "oidc") deliberately keeps local
-      # username/password login available as a bootstrap fallback — Homarr's
-      # first-run onboarding wizard creates the initial admin account via
-      # the credentials provider. Once OIDC login + Authentik-group-based
-      # permissions are confirmed working end-to-end, this can be tightened
-      # to "oidc" only (same staging-then-prod caution as every other app's
-      # cert-manager issuer in this repo — prove it works, then lock it down).
-      AUTH_PROVIDERS: "oidc,credentials"
+      # OIDC-only login: disable local username/password credentials and
+      # require Authentik SSO for all Homarr sign-ins.
+      AUTH_PROVIDERS: "oidc"
 
       # Authentik-specific: keep the trailing slash — Homarr's own docs
       # explicitly call out Authentik as the one documented exception to

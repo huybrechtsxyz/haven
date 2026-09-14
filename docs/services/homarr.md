@@ -66,7 +66,7 @@ Homarr is built on Auth.js/NextAuth and has **native OIDC support** — no plugi
 The Authentik side is **already automated** — `deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2` creates the OAuth2 Provider + Application for Homarr (client ID `homarr`, `members` group policy, `mapping-group-membership` scope mapping for the `groups` claim) every time `deploy-hearth-config.yml` runs, using the `HOMARR_SSO_CLIENT_SECRET` Infisical secret.
 
 ```yaml
-AUTH_PROVIDERS: "oidc,credentials"   # credentials kept as a bootstrap fallback for now
+AUTH_PROVIDERS: "oidc"   # OIDC-only login; local credentials disabled
 AUTH_OIDC_ISSUER: "https://auth.huybrechts.xyz/application/o/homarr/"  # trailing slash kept — Homarr's own docs call out Authentik as the one exception
 AUTH_OIDC_CLIENT_NAME: "Authentik"
 AUTH_OIDC_SCOPE_OVERWRITE: "openid email profile groups"
@@ -75,7 +75,7 @@ AUTH_OIDC_GROUPS_ATTRIBUTE: "groups"
 
 **This is what makes per-user customization actually work.** Per Homarr's own documented Authentik example: a user is automatically placed into any *locally-created Homarr group* that shares the same **name** as an Authentik group in the `groups` claim. Since the blueprint already defines `admins`/`parents`/`members` groups, the one remaining manual step is:
 
-1. Log in to Homarr as the bootstrap admin (via the `credentials` provider, first-run onboarding).
+1. Log in to Homarr via Authentik OIDC as an admin-group user.
 2. Create three groups in Homarr's own admin UI, named exactly `admins`, `parents`, `members`.
 3. Assign the permissions/board access you want to each group (e.g. `admins` gets an extra "Infra" board with links to Terraform Cloud/Infisical/Hetzner Console — mirroring the admin-only tiles already in Authentik itself, see below).
 
@@ -87,7 +87,7 @@ From then on, every OIDC login auto-syncs group membership from Authentik — no
 
 ### Rollout caution (mirrors every other app's first deploy)
 
-- `AUTH_PROVIDERS` is `"oidc,credentials"`, not `"oidc"` alone — keeps local username/password login available so the first-run onboarding wizard (which creates the bootstrap admin) still works. Tighten to `"oidc"` only once OIDC + group sync are confirmed working live.
+- `AUTH_PROVIDERS` is `"oidc"` only — local username/password login is disabled and Authentik SSO is required.
 - `AUTH_OIDC_AUTO_LOGIN` is `"false"` (manual login button) until then — flip to `"true"` afterwards for the one-click landing-page feel.
 - Ingress uses `letsencrypt-staging` first — flip to `letsencrypt-prod` once the HTTP-01 challenge for `home.huybrechts.xyz` has succeeded once (same pattern as every other Forge app's first deploy).
 
@@ -114,8 +114,7 @@ Without this PVC, Homarr defaults to ephemeral pod-disk storage (all boards/sett
 ## Verification checklist
 
 - [ ] `https://home.{domain}` — Homarr loads and is reachable from a browser
-- [ ] First-run onboarding creates a bootstrap admin via the credentials provider
-- [ ] "Sign in with Authentik" OIDC button appears alongside the credentials login form
+- [ ] Login is available only through Authentik OIDC (no local credentials form)
 - [ ] `admins`/`parents`/`members` groups created in Homarr's own admin UI, matching Authentik's group names exactly
 - [ ] A `members` group user can sign in via OIDC and lands in the correct Homarr group
 - [ ] Each user can drag-and-drop rearrange their own board and change icons without affecting other users
@@ -138,4 +137,4 @@ Like Gatus, Homarr shares the `system` namespace with cert-manager rather than g
 
 - Homarr's own `admins`/`parents`/`members` groups and their permission assignments are a one-time manual step (no blueprint-equivalent for Homarr itself) — not yet performed, pending first deploy.
 - Widgets/integrations (e.g. live status cards for Immich/Jellyfin/Nextcloud, matching what Gatus already health-checks) are not yet configured — Homarr supports 40+ service widgets natively, this is a nice-to-have once the base dashboard is confirmed working.
-- `AUTH_PROVIDERS`/`AUTH_OIDC_AUTO_LOGIN` tightening (see Rollout caution above) — deferred until OIDC + group sync are confirmed live.
+- Optional UX hardening: set `AUTH_OIDC_AUTO_LOGIN` to `"true"` once you want automatic redirect straight to Authentik on every visit.

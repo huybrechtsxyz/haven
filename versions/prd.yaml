@@ -1,0 +1,35 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: version
+meta:
+  name: prd
+  annotations:
+    description: Version manifest for the prd ring
+spec:
+  ring: prd
+  # Bumped 2026-09-08: patch/security releases only, within the same pinned
+  # major.minor line — behavior-compatible, safe to roll out directly.
+  # Anything requiring a major-version jump, data migration, or a Helm chart
+  # values.yaml diff is held back on purpose and documented below; bump those
+  # in a separate, individually-tested change.
+  # NOTE: `strata versions lock`/`refresh` rewrite this file and strip
+  # comments — re-add them after running those commands.
+  pins:
+    images:
+      db: docker.io/library/postgres:16-alpine # HELD — 18.6-alpine is latest upstream, but postgres majors need pg_upgrade/dump-restore; plan as its own migration task
+      redis: docker.io/library/redis:7-alpine # HELD — 8.10.1-alpine is latest upstream (also has RCE/OOB security fixes), but redis 8 is a licensing + behavior major bump; verify authentik/immich compatibility first
+      server: ghcr.io/goauthentik/server:2026.5.6 # bumped 2026.5.2 -> 2026.5.6, patch releases within the pinned 2026.5 line; newer minor 2026.8.1 held back pending changelog review
+      worker: ghcr.io/goauthentik/server:2026.5.6 # kept in sync with server
+      caddy: caddy:2-alpine # floating tag already resolves to latest v2.11.4, no pin change needed
+      portainer: portainer/portainer-ce:2.39.7-alpine # bumped 2.39.3 -> 2.39.7, patch releases within the pinned 2.39.x LTS line (includes Docker proxy auth-bypass fix); newer 2.45.0 LTS held back pending review
+      vaultwarden: vaultwarden/server:1.37.2-alpine # bumped 1.36.0 -> 1.37.2, includes SSRF + cross-organization access security fixes
+      wud: fmartinou/whats-up-docker:6.6.1 # HELD — upstream project renamed to getwud/wud, latest is 8.4.0 (two majors ahead with breaking changes); needs its own migration task, not a drop-in bump
+    charts:
+      cert-manager: v1.16.2 # HELD — v1.21.1 is latest but ships breaking Helm RBAC/metrics-value changes (tokenrequest RBAC removed, metrics port renamed); needs a reviewed upgrade, not a blind bump
+      gatus: 1.0.0 # UNVERIFIED — could not confirm the actual chart version from its repo (twin.github.io/helm-charts); do not trust this pin blindly, re-verify before bumping
+      homarr: 8.29.0 # bumped 2.4.0 -> 8.29.0, latest upstream: works
+      immich: 0.13.1 # already latest
+      jellyfin: 3.2.0 # already latest
+      nextcloud: 9.2.6 # already latest
+    remotes:
+      haven: abc64feae2da19a61b76460269941399b04acb7b
+  hash: c3f7bbe0e93803073e8d080ace0e69be92b54185ecf94a4200d0c16d81a74c95
