@@ -89,14 +89,15 @@ spec:
       adminGroup: admins
 
     # Staging-first cert-manager pattern, same as every other Forge app's
-    # first-ever deploy in this repo — flip to letsencrypt-prod once the
-    # HTTP-01 challenge for files.huybrechts.xyz is confirmed via staging.
+    # first-ever deploy in this repo — flipped to letsencrypt-prod (2026-09-14)
+    # after confirming the HTTP-01 challenge for files.huybrechts.xyz
+    # succeeded via staging (first successful FileBrowser deploy).
     ingress:
       enabled: true
       className: traefik
       host: files.huybrechts.xyz
       annotations:
-        cert-manager.io/cluster-issuer: letsencrypt-staging
+        cert-manager.io/cluster-issuer: letsencrypt-prod
       tls:
         - hosts:
             - files.huybrechts.xyz
