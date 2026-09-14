@@ -33,7 +33,11 @@ spec:
     # repo, e.g. kavita.yaml/nextcloud-redis.yaml's own `image:` blocks).
     image:
       repository: gtstef/filebrowser
-      tag: v2.0.5
+      # Confirmed via the project's GitHub releases/tags page (2026-09-14):
+      # the v2 beta line's actual published tags are suffixed "-beta"
+      # (v2.0.5-beta, v2.0.6-beta, ...) — a plain "v2.0.5" tag never existed,
+      # which caused a real ErrImagePull/"not found" failure in CI.
+      tag: v2.0.5-beta
 
     # Credentials MUST live under a literal `env:` dict — strata's Helm
     # secret substitution only resolves ${TOKEN} placeholders found inside a

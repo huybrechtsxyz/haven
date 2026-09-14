@@ -8,7 +8,10 @@ image:
   # main branch's frontend/public/config.generated.yaml). Do NOT retag to a
   # v1.x image without also rewriting templates/configmap.yaml — v1.x uses
   # an older/deprecated flat config format that this chart does not emit.
-  tag: v2.0.5
+  # Real published tags for the v2 beta line are suffixed "-beta" (confirmed
+  # via GitHub releases/tags, 2026-09-14) — a plain "v2.0.5" tag never
+  # existed and caused a real ErrImagePull in CI.
+  tag: v2.0.5-beta
 
 # Credentials (FILEBROWSER_ADMIN_PASSWORD / FILEBROWSER_OIDC_CLIENT_ID /
 # FILEBROWSER_OIDC_CLIENT_SECRET) MUST be declared here as placeholders so
