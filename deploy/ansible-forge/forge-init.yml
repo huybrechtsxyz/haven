@@ -404,9 +404,9 @@
     # rather than password-based). SMB/CIFS is what subaccounts actually offer.
     # Share name equals the subaccount username itself (confirmed via Hetzner
     # Robot's own connection details, e.g. \\u604953-sub2.your-storagebox.de\u604953-sub2).
-    # Two independent shares on the SAME haven-data box — media (Immich
-    # only) and docs (Nextcloud + Kavita + Jellyfin) — each mounted only
-    # when its own password is provided.
+    # Two independent shares on the SAME haven-data box — media (Immich +
+    # Jellyfin + FileBrowser) and docs (Nextcloud + Kavita + Jellyfin +
+    # FileBrowser) — each mounted only when its own password is provided.
 
     - name: Write SMB credentials file (media share)
       ansible.builtin.copy:
@@ -420,13 +420,40 @@
       when: storagebox_data_media_password | default('') | length > 0
       no_log: true
 
+    # file_mode/dir_mode=0777 + nounix — same fix already proven necessary for
+    # the docs share below (see that task's comment for the full root-cause
+    # writeup: Hetzner Storage Box's CIFS server negotiates Unix Extensions,
+    # which makes the SERVER's stored per-file owner/mode authoritative and
+    # ignores client-side file_mode/dir_mode hints unless `nounix` disables
+    # that negotiation). This share was originally "Immich only" (single
+    # consumer, its own writer uid, no cross-uid read problem) — now also
+    # read by Jellyfin and FileBrowser (added 2026-09), each a DIFFERENT
+    # non-root uid than whatever originally wrote the files, which is
+    # exactly the cross-uid-read scenario this fix resolves (confirmed
+    # symptom: FileBrowser could list directory names but not read/see the
+    # files inside them).
     - name: Mount Storage Box SMB share (media library)
       ansible.posix.mount:
         path: /mnt/haven-data-media
         src: "//{{ storagebox_data_host }}/{{ storagebox_data_media_subaccount }}"
         fstype: cifs
-        opts: "credentials={{ haven_install_path }}/.smbcredentials-media,uid=0,gid=0,_netdev,noatime,vers=3.0"
+        opts: "credentials={{ haven_install_path }}/.smbcredentials-media,uid=0,gid=0,file_mode=0777,dir_mode=0777,nounix,_netdev,noatime,vers=3.0"
         state: mounted
+      when: storagebox_data_media_password | default('') | length > 0
+
+    # Verification-only — same reasoning/pattern as the docs share's own
+    # verification block below (no SSH access outside this CI job).
+    - name: Verify media share mount type and options
+      ansible.builtin.command:
+        cmd: findmnt --raw --output SOURCE,TARGET,FSTYPE,OPTIONS /mnt/haven-data-media
+      register: media_mount_check
+      changed_when: false
+      failed_when: false
+      when: storagebox_data_media_password | default('') | length > 0
+
+    - name: Show media share mount details
+      ansible.builtin.debug:
+        msg: "{{ media_mount_check.stdout_lines | default(['(mount check skipped or produced no output)']) }}"
       when: storagebox_data_media_password | default('') | length > 0
 
     - name: Write SMB credentials file (docs share)
