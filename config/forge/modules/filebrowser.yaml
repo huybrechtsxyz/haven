@@ -26,6 +26,15 @@ spec:
       - FILEBROWSER_SSO_CLIENT_SECRET
       - FILEBROWSER_ADMIN_PASSWORD
   configuration:
+    # strata's build does NOT merge this configuration on top of the local
+    # chart's own values.yaml defaults for helm lint's -f invocation — every
+    # field a template dereferences must be declared explicitly here (same
+    # convention already followed by every other local-chart module in this
+    # repo, e.g. kavita.yaml/nextcloud-redis.yaml's own `image:` blocks).
+    image:
+      repository: gtstef/filebrowser
+      tag: v2.0.5
+
     # Credentials MUST live under a literal `env:` dict — strata's Helm
     # secret substitution only resolves ${TOKEN} placeholders found inside a
     # dict node keyed literally "env" (see nextcloud-secrets.yaml's module
@@ -49,6 +58,11 @@ spec:
       data:
         storageClass: local-path
         size: 1Gi
+
+    # Chart templates (service.yaml/configmap.yaml/deployment.yaml) all
+    # dereference .Values.service.port directly.
+    service:
+      port: 80
 
     # Every Storage Box mount already used elsewhere on Forge, exposed
     # read-write so family members can directly reorganize/upload files
