@@ -398,25 +398,54 @@ jobs:
             # and this step silently duplicated every mount on every deploy
             # (confirmed 2026-08-30 — found 6 entries registered for 3
             # intended mounts). Use jq for an exact mount_point match instead.
-            EXISTS=$(kubectl exec -n documents deploy/nextcloud -c nextcloud -- \
+            #
+            # CRITICAL (found 2026-09-15): checking existence BY NAME ONLY is
+            # not enough — if "Media"/"Books" were ever created pointing at a
+            # stale/wrong datadir (e.g. from before this exact path convention
+            # was settled), every subsequent deploy just saw "name already
+            # exists" and skipped forever, silently leaving the wrong path in
+            # place (symptom: "Media" still showed an old test-upload file
+            # instead of Jellyfin's real library). Fixed by also reading the
+            # existing mount's actual `configuration.datadir` (confirmed field
+            # name via Nextcloud server source,
+            # apps/files_external/lib/Command/ListCommand.php) and correcting
+            # it in place via `occ files_external:config` when it doesn't
+            # match — instead of only ever creating-if-absent.
+            MOUNT_JSON=$(kubectl exec -n documents deploy/nextcloud -c nextcloud -- \
               php occ files_external:list --output=json 2>/dev/null | \
-              jq -r --arg mp "/$NAME" '[.[] | select(.mount_point == $mp)] | length' 2>/dev/null)
-            EXISTS="${EXISTS:-0}"
+              jq -c --arg mp "/$NAME" '[.[] | select(.mount_point == $mp)] | first // empty' 2>/dev/null)
 
-            if [ "$EXISTS" -gt 0 ]; then
-              echo "Nextcloud External Storage \"$NAME\" already exists — skipping."
+            if [ -z "$MOUNT_JSON" ] || [ "$MOUNT_JSON" = "null" ]; then
+              kubectl exec -n documents deploy/nextcloud -c nextcloud -- \
+                php occ files_external:create "$NAME" local null::null -c datadir="$PATH_"
+              RC=$?
+              set -e
+              if [ $RC -eq 0 ]; then
+                echo "Nextcloud External Storage \"$NAME\" created successfully."
+              else
+                echo "::warning::Failed to create Nextcloud External Storage \"$NAME\" — not failing the deploy, check manually."
+              fi
+              continue
+            fi
+
+            MOUNT_ID=$(echo "$MOUNT_JSON" | jq -r '.mount_id')
+            CURRENT_PATH=$(echo "$MOUNT_JSON" | jq -r '.configuration.datadir // empty')
+
+            if [ "$CURRENT_PATH" = "$PATH_" ]; then
+              echo "Nextcloud External Storage \"$NAME\" already points at \"$PATH_\" — skipping."
               set -e
               continue
             fi
 
+            echo "Nextcloud External Storage \"$NAME\" (mount_id=$MOUNT_ID) points at \"$CURRENT_PATH\", expected \"$PATH_\" — correcting."
             kubectl exec -n documents deploy/nextcloud -c nextcloud -- \
-              php occ files_external:create "$NAME" local null::null -c datadir="$PATH_"
+              php occ files_external:config "$MOUNT_ID" datadir "$PATH_"
             RC=$?
             set -e
             if [ $RC -eq 0 ]; then
-              echo "Nextcloud External Storage \"$NAME\" created successfully."
+              echo "Nextcloud External Storage \"$NAME\" datadir corrected successfully."
             else
-              echo "::warning::Failed to create Nextcloud External Storage \"$NAME\" — not failing the deploy, check manually."
+              echo "::warning::Failed to correct Nextcloud External Storage \"$NAME\" datadir — not failing the deploy, check manually."
             fi
           done
 
