@@ -154,7 +154,8 @@ spec:
             --clientid=nextcloud \
             --clientsecret="$NEXTCLOUD_SSO_CLIENT_SECRET" \
             --discoveryuri=https://auth.huybrechts.xyz/application/o/nextcloud/.well-known/openid-configuration \
-            --group-provisioning=1
+            --group-provisioning=1 \
+            --group-whitelist-regex='^(admins|parents|members)$'
           # TEMPORARY (2026-09-15): re-enabled local login alongside SSO —
           # admin@huybrechts.xyz's Authentik account isn't linked to the
           # local "admin" Nextcloud user, so SSO-only locked out admin

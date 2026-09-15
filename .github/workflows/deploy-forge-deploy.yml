@@ -309,7 +309,8 @@ jobs:
                 --clientid=nextcloud \
                 --clientsecret="$NEXTCLOUD_SSO_SECRET" \
                 --discoveryuri=https://auth.huybrechts.xyz/application/o/nextcloud/.well-known/openid-configuration \
-                --group-provisioning=1
+                --group-provisioning=1 \
+                --group-whitelist-regex='^(admins|parents|members)$'
             RC=$?
             set -e
             if [ $RC -eq 0 ]; then
