@@ -330,12 +330,11 @@ jobs:
       # non-fatal if user_oidc isn't installed yet (SSO registration above
       # runs first in this same job).
       #
-      # TEMPORARY (2026-09-15): value flipped back to 1 (re-enabled) —
-      # admin@huybrechts.xyz's Authentik account isn't linked to the local
-      # "admin" Nextcloud user, so SSO-only locked out admin access. Revert
-      # to --value=0 here AND in nextcloud.yaml's post-installation hook
-      # once the account link is fixed and SSO-only is confirmed safe again.
-      - name: Re-enable Nextcloud local login (temporary, admin access)
+      # admin@huybrechts.xyz was granted Nextcloud's built-in "admin" group
+      # directly (2026-09-15, confirmed working via SSO login) — the
+      # temporary local-login re-enable is no longer needed, reverted back
+      # to SSO-only. Emergency bypass if ever needed again: ?direct=1.
+      - name: Disable Nextcloud local login (SSO-only)
         if: ${{ inputs.dry_run != true }}
         env:
           KUBECONFIG: /tmp/forge-kubeconfig.yaml
@@ -343,13 +342,13 @@ jobs:
           set +e
           kubectl rollout status deployment/nextcloud -n documents --timeout=180s
           kubectl exec -n documents deploy/nextcloud -c nextcloud -- \
-            php occ config:app:set --type=string --value=1 user_oidc allow_multiple_user_backends
+            php occ config:app:set --type=string --value=0 user_oidc allow_multiple_user_backends
           RC=$?
           set -e
           if [ $RC -eq 0 ]; then
-            echo "Nextcloud local login re-enabled (temporary) — classic login form shows alongside SSO."
+            echo "Nextcloud local login disabled — SSO via Authentik is now the only login method (admin bypass: ?direct=1)."
           else
-            echo "::warning::Failed to re-enable Nextcloud local login — not failing the deploy, check manually."
+            echo "::warning::Failed to disable Nextcloud local login — not failing the deploy, check manually."
           fi
 
       # =========================================================================

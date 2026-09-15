@@ -156,14 +156,13 @@ spec:
             --discoveryuri=https://auth.huybrechts.xyz/application/o/nextcloud/.well-known/openid-configuration \
             --group-provisioning=1 \
             --group-whitelist-regex='^(admins|parents|members)$'
-          # TEMPORARY (2026-09-15): re-enabled local login alongside SSO —
-          # admin@huybrechts.xyz's Authentik account isn't linked to the
-          # local "admin" Nextcloud user, so SSO-only locked out admin
-          # access. Re-disable once the account link is fixed (flip --value
-          # back to 0 here AND in deploy-forge-deploy.yml's "Re-enable
-          # Nextcloud local login" step).
-          echo "Re-enabling local username/password login (temporary, pending admin OIDC account fix)..."
-          occ config:app:set --type=string --value=1 user_oidc allow_multiple_user_backends
+          # SSO-only: local username/password login is disabled — admin@huybrechts.xyz
+          # was granted Nextcloud's built-in "admin" group directly (2026-09-15),
+          # confirmed working via SSO login, so local login is no longer needed as
+          # a fallback. Emergency bypass if ever needed again: ?direct=1 on the
+          # login URL (still works even with local login disabled).
+          echo "Disabling local username/password login (SSO-only, admin bypass via ?direct=1)..."
+          occ config:app:set --type=string --value=0 user_oidc allow_multiple_user_backends
           echo "Configuring External Storage for /mnt/haven-data-docs..."
           occ files_external:create "Haven" local null::null -c datadir=/mnt/haven-data-docs
           echo "Configuring External Storage for /mnt/haven-data-docs/media..."
