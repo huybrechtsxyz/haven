@@ -396,6 +396,15 @@ entries:
       redirect_uris:
         - matching_mode: strict
           url: "https://docs.huybrechts.xyz/apps/user_oidc/code"
+        # Authentik validates post_logout_redirect_uri (RP-Initiated Logout,
+        # sent by user_oidc's single_logout feature — enabled by default)
+        # against this SAME redirect_uris list, not a separate field. Without
+        # this entry, logging out of Nextcloud hit Authentik's end-session
+        # endpoint and got a generic "Bad Request: The request is otherwise
+        # malformed" (confirmed 2026-09-15 — the actual post_logout_redirect_uri
+        # sent is the site root, not the login callback path above).
+        - matching_mode: strict
+          url: "https://docs.huybrechts.xyz/"
       grant_types:
         - authorization_code
         - refresh_token
