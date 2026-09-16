@@ -28,6 +28,23 @@ data:
             # (FileBrowser's documented default is defaultEnabled: false once
             # more than one source exists).
             defaultEnabled: true
+            # CRITICAL (found 2026-09-16): as of FileBrowser Quantum v2.0.0,
+            # file permissions are PER SOURCE, not global — create/modify/
+            # delete all default to false regardless of defaultEnabled. Without
+            # this block, every new user (including every SSO-auto-provisioned
+            # family member) gets view+download only — no upload/rename/delete
+            # button appears at all — silently contradicting this module's own
+            # stated design intent ("giving every family member direct browse/
+            # upload/rename/delete access"). This only seeds NEW users going
+            # forward; any account that already logged in before this fix
+            # keeps its old (view-only) permissions and must be corrected once
+            # manually via Settings -> User Management in FileBrowser's own UI.
+            defaultPermissions:
+              view: true
+              download: true
+              create: true
+              modify: true
+              delete: true
       {{- end }}
     auth:
       methods:
