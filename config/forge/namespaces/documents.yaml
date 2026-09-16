@@ -24,3 +24,6 @@ spec:
     - name: nextcloud
       description: Family document archive/browsing layer, External Storage over the haven-data Storage Box docs sub-account (/mnt/haven-data-docs)
       file: config/forge/modules/nextcloud.yaml
+    - name: nextcloud-scan-cron
+      description: Periodic occ files:scan so files added directly via FileBrowser (or any other tool writing to the same mount) show up in Nextcloud
+      file: config/forge/modules/nextcloud-scan-cron.yaml

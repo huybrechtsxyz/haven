@@ -1,0 +1,29 @@
+# Credentials MUST live under a literal `env:` dict — strata's Helm secret
+# substitution only resolves ${TOKEN} placeholders found inside a dict node
+# keyed literally "env" (see nextcloud-secrets/values.yaml's comment for the
+# full writeup). This chart doesn't need any secrets at all though — RBAC
+# authenticates via the in-cluster ServiceAccount token, not a credential we
+# manage — this file only carries the non-secret knobs below.
+
+image:
+  # Verified by user against Docker Hub directly (2026-09-16): official
+  # alpine/kubectl image, tag 1.37.0 exists. Confirmed working, no further
+  # verification needed.
+  repository: alpine/kubectl
+  tag: "1.37.0"
+
+# Standard cron syntax. Every 15 minutes is a reasonable default for "family
+# member uploads a file via FileBrowser, wants it to show up in Nextcloud
+# soon" — tune down (e.g. hourly, "0 * * * *") if the scan proves heavy once
+# the library is large; occ files:scan only rescans changed mtimes, not full
+# checksums, so it stays cheap even on a big tree, but there's still SOME
+# fixed per-invocation overhead (booting PHP/Nextcloud's app framework).
+schedule: "*/15 * * * *"
+
+target:
+  namespace: documents
+  deployment: nextcloud
+  container: nextcloud
+
+successfulJobsHistoryLimit: 1
+failedJobsHistoryLimit: 3

@@ -1,0 +1,19 @@
+apiVersion: v2
+name: nextcloud-scan-cron
+description: >
+  Periodic `occ files:scan` for Nextcloud's External Storage mounts. Files
+  written directly to the haven-data Storage Box mounts by another tool
+  (FileBrowser, SMB, rclone, ...) never appear in Nextcloud's own file list
+  until a scan runs — Nextcloud has no filesystem watcher for
+  externally-modified External Storage content, only its own upload API.
+  This chart renders a namespaced ServiceAccount (least-privilege: get on
+  deployments, get/list on pods, create on pods/exec) plus a Kubernetes
+  CronJob that periodically runs
+  `kubectl exec deploy/nextcloud -- occ files:scan --all` against the
+  already-running, already-configured Nextcloud pod — deliberately NOT a
+  second copy of Nextcloud's own image/DB/volume wiring (which would be
+  fragile to keep in sync with nextcloud.yaml), just a tiny kubectl-capable
+  job reusing the live pod's own context.
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

@@ -1,0 +1,45 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: nextcloud-scan-cron
+  annotations:
+    description: >
+      Periodic occ files:scan for Nextcloud's External Storage mounts —
+      files added directly by FileBrowser (or any other tool writing
+      straight to the haven-data Storage Box mounts Nextcloud's External
+      Storage app points at) never appear in Nextcloud until a scan runs.
+      Renders a ServiceAccount (least-privilege pods/exec RBAC) + a
+      Kubernetes CronJob that runs `kubectl exec deploy/nextcloud -- occ
+      files:scan --all` on a schedule against the already-running Nextcloud
+      pod — see services/forge/nextcloud-scan-cron/Chart.yaml for the full
+      rationale (deliberately not a second copy of Nextcloud's own
+      image/DB/volume wiring).
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, documents, nextcloud, cron]
+spec:
+  type: helm
+  source:
+    # No official chart for this — it's a thin, repo-specific automation
+    # shim, same pattern as nextcloud-secrets/homarr-secrets.
+    repository: haven
+    source_path: services/forge/nextcloud-scan-cron
+  kubernetes_namespace: documents
+  configuration:
+    # Verified by user against Docker Hub directly (2026-09-16): official
+    # alpine/kubectl image, tag 1.37.0.
+    image:
+      repository: alpine/kubectl
+      tag: "1.37.0"
+    schedule: "*/15 * * * *"
+    # strata's build does NOT merge this configuration on top of the local
+    # chart's own values.yaml defaults for helm lint's -f invocation — every
+    # field a template dereferences must be declared explicitly here (same
+    # convention already followed by every other local-chart module in this
+    # repo, e.g. filebrowser.yaml's own image/service blocks).
+    target:
+      namespace: documents
+      deployment: nextcloud
+      container: nextcloud
+    successfulJobsHistoryLimit: 1
+    failedJobsHistoryLimit: 3
