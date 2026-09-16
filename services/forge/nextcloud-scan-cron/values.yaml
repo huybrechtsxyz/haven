@@ -24,6 +24,3 @@ target:
   namespace: documents
   deployment: nextcloud
   container: nextcloud
-
-successfulJobsHistoryLimit: 1
-failedJobsHistoryLimit: 3
