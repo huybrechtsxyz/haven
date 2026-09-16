@@ -15,3 +15,6 @@ spec:
     - name: firefly
       description: Personal finance manager — budgets, transactions, recurring bills
       file: config/forge/modules/firefly.yaml
+    - name: firefly-importer
+      description: Imports CSV/camt.053 bank statement files into Firefly III — web UI for per-bank config setup + a CronJob that auto-imports from a shared folder
+      file: config/forge/modules/firefly-importer.yaml

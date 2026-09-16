@@ -1,0 +1,24 @@
+{{- if and .Values.ingress.enabled .Values.sso.enabled }}
+# Authentik "forward auth (single application)" mode requires
+# "<external_host>/outpost.goauthentik.io/*" to be routed directly to the
+# outpost, unauthenticated — identical pattern to
+# services/forge/firefly/templates/ingress-outpost.yaml. See that file for
+# the full writeup.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: "{{ .Release.Name }}-outpost"
+spec:
+  ingressClassName: "{{ .Values.ingress.className }}"
+  rules:
+    - host: "{{ .Values.ingress.host }}"
+      http:
+        paths:
+          - path: /outpost.goauthentik.io
+            pathType: Prefix
+            backend:
+              service:
+                name: "{{ .Release.Name }}-authentik-outpost"
+                port:
+                  number: 443
+{{- end }}

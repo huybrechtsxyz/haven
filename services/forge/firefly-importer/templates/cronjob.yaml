@@ -1,0 +1,41 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: "{{ .Release.Name }}-auto-import"
+  labels:
+    app: "{{ .Release.Name }}-auto-import"
+spec:
+  schedule: "{{ .Values.cron.schedule }}"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: "{{ .Release.Name }}-auto-import"
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: auto-import
+              image: "{{ .Values.cli.image.repository }}:{{ .Values.cli.image.tag }}"
+              # CONFIRMED official command (see Chart.yaml's description /
+              # user-provided docs excerpt): scans the whole /import
+              # directory — every CSV/camt.053 file there needs a matching
+              # same-basename .json config file, or it's skipped.
+              command: ["php", "artisan", "importer:auto-import", "/import"]
+              env:
+                {{- range $key, $value := .Values.env }}
+                - name: "{{ $key }}"
+                  value: "{{ $value }}"
+                {{- end }}
+                - name: WEB_SERVER
+                  value: "false"
+              volumeMounts:
+                - name: import
+                  mountPath: /import
+          volumes:
+            - name: import
+              hostPath:
+                path: "{{ .Values.importFolder.hostPath }}"
+                type: DirectoryOrCreate

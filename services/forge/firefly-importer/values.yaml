@@ -1,0 +1,92 @@
+# Defaults — override via the strata module's spec.configuration (see
+# config/forge/modules/firefly-importer.yaml). Every field a template
+# dereferences must be re-declared there too — strata's build does NOT merge
+# this file's defaults into the values it generates for local-chart modules.
+
+image:
+  repository: fireflyiii/data-importer
+  # Web UI image — CONFIRMED official tag (github.com/firefly-iii/data-importer).
+  tag: latest
+
+cli:
+  image:
+    repository: fireflyiii/data-importer
+    # Dedicated one-shot/cron image, CONFIRMED from official docs: the plain
+    # "latest" tag starts a web server that never exits — using it here
+    # instead would make the CronJob hang forever.
+    tag: latest-cli
+
+env:
+  APP_ENV: production
+  APP_DEBUG: "false"
+  TZ: Europe/Brussels
+  FIREFLY_III_URL: https://finance.huybrechts.xyz
+  # Firefly III Personal Access Token — generated once via Firefly's own
+  # /profile/oauth page ("Remote access and tokens" -> "Personal Access
+  # Token" -> "Create new token") AFTER Firefly's first deploy. Manual
+  # one-time bootstrap step, same as other apps' first-admin-setup.
+  # Set via ${FIREFLY_IMPORTER_ACCESS_TOKEN} substitution token — never a
+  # literal value here.
+  FIREFLY_III_ACCESS_TOKEN: "${FIREFLY_IMPORTER_ACCESS_TOKEN}"
+  # CONFIRMED from the official .env.example: "TRUSTED_PROXIES is a useful
+  # variable when using Docker and/or a reverse proxy. Set it to ** and
+  # reverse proxies work just fine." — a different convention than Firefly
+  # III core's own TRUSTED_PROXIES (CIDR block).
+  TRUSTED_PROXIES: "**"
+  IMPORT_DIR_ALLOWLIST: /import
+  # If true, a lone "_fallback.json" in the import directory is used for any
+  # CSV/camt.053 file with no matching same-basename .json config. Left
+  # false since different banks need different column mappings.
+  FALLBACK_IN_DIR: "false"
+  CACHE_DRIVER: file
+  SESSION_DRIVER: file
+  QUEUE_CONNECTION: sync
+  BROADCAST_DRIVER: log
+  # No SMTP wired up yet, same as Firefly III core (docs/services/firefly.md).
+  MAIL_MAILER: log
+
+# Master switch for the Authentik forward-auth path — same pattern as
+# services/forge/firefly (Traefik Middleware + outpost Ingress/ExternalName
+# Service + ingress annotation). Unlike Firefly III core, the Data Importer
+# has no per-user login of its own to wire a header into — this purely gates
+# network access to the page at the Traefik/Authentik layer.
+sso:
+  enabled: true
+
+service:
+  port: 8080
+
+ingress:
+  enabled: true
+  className: traefik
+  host: import.huybrechts.xyz
+  annotations:
+    # Production issuer, NOT staging — the forwardAuth middleware calls back
+    # to this same host over HTTPS (see services/forge/firefly's
+    # values.yaml comment for the full "x509: certificate signed by unknown
+    # authority" failure mode this avoids).
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  tls:
+    - hosts:
+        - import.huybrechts.xyz
+      secretName: import-tls
+
+outpost:
+  authentikHost: auth.huybrechts.xyz
+
+importFolder:
+  # Subfolder of the already-mounted haven-data Storage Box "docs" share —
+  # same hostPath pattern as services/forge/filebrowser. Uses a generic
+  # top-level "import/" category (parallel to the existing
+  # family/{member} nested-purpose convention) rather than a firefly-specific
+  # top-level folder, since other automated import procedures may want their
+  # own subfolder here later (e.g. import/<other-service>). Files dropped
+  # here via FileBrowser (or SMB/rclone directly) are visible to both the
+  # web UI and the CronJob below.
+  hostPath: /mnt/haven-data-docs/import/firefly
+
+cron:
+  # CLI-only auto-import run: execs the "latest-cli" image as its own
+  # one-shot container (not an HTTP POST to the always-running web pod), so
+  # no AUTO_IMPORT_SECRET/CAN_POST_AUTOIMPORT wiring is needed at all.
+  schedule: "0 4 * * *"

@@ -1,0 +1,70 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: firefly-importer
+  annotations:
+    description: >
+      Firefly III Data Importer — imports CSV/camt.053 bank statement files
+      into Firefly III. Web UI (occasional, per-bank config setup) + a
+      CronJob that auto-imports anything dropped into a shared folder on
+      the haven-data Storage Box (visible/writable via FileBrowser too).
+      See services/forge/firefly-importer/Chart.yaml for the full design.
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, finance, firefly, import]
+spec:
+  type: helm
+  source:
+    repository: haven
+    source_path: services/forge/firefly-importer
+  kubernetes_namespace: finance
+  references:
+    secrets:
+      - FIREFLY_IMPORTER_ACCESS_TOKEN
+  configuration:
+    image:
+      repository: fireflyiii/data-importer
+      tag: latest
+    cli:
+      image:
+        repository: fireflyiii/data-importer
+        tag: latest-cli
+    env:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      TZ: Europe/Brussels
+      FIREFLY_III_URL: https://finance.huybrechts.xyz
+      # Real value injected by strata at deploy time — never written here.
+      # Generate once via Firefly's own /profile/oauth page AFTER Firefly's
+      # first deploy (Remote access and tokens -> Personal Access Token ->
+      # Create new token), then store as the FIREFLY_IMPORTER_ACCESS_TOKEN
+      # secret.
+      FIREFLY_III_ACCESS_TOKEN: "${FIREFLY_IMPORTER_ACCESS_TOKEN}"
+      TRUSTED_PROXIES: "**"
+      IMPORT_DIR_ALLOWLIST: /import
+      FALLBACK_IN_DIR: "false"
+      CACHE_DRIVER: file
+      SESSION_DRIVER: file
+      QUEUE_CONNECTION: sync
+      BROADCAST_DRIVER: log
+      MAIL_MAILER: log
+    sso:
+      enabled: true
+    service:
+      port: 8080
+    ingress:
+      enabled: true
+      className: traefik
+      host: import.huybrechts.xyz
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      tls:
+        - hosts:
+            - import.huybrechts.xyz
+          secretName: import-tls
+    outpost:
+      authentikHost: auth.huybrechts.xyz
+    importFolder:
+      hostPath: /mnt/haven-data-docs/import/firefly
+    cron:
+      schedule: "0 4 * * *"
