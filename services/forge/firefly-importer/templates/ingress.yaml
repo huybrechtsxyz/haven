@@ -8,7 +8,7 @@ metadata:
     {{- toYaml . | nindent 4 }}
     {{- end }}
     {{- if .Values.sso.enabled }}
-    traefik.ingress.kubernetes.io/router.middlewares: "{{ .Release.Namespace }}-authentik-forwardauth@kubernetescrd"
+    traefik.ingress.kubernetes.io/router.middlewares: "{{ .Release.Namespace }}-{{ .Release.Name }}-authentik-forwardauth@kubernetescrd"
     {{- end }}
 spec:
   ingressClassName: "{{ .Values.ingress.className }}"

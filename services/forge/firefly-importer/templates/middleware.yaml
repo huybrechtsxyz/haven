@@ -4,10 +4,19 @@
 # services/forge/firefly/templates/middleware.yaml — see that file and
 # values.yaml's `outpost:` comment for the full cross-host routing writeup
 # (Authentik runs on Hearth, this app runs on Forge).
+#
+# Name is release-specific ("{{ .Release.Name }}-authentik-forwardauth"),
+# NOT the bare "authentik-forwardauth" firefly's own chart uses — both
+# charts live in the same "finance" namespace, and each app's forwardAuth
+# address is host-specific (points at ITS OWN ingress.host), so they can't
+# share one Middleware object anyway. Reusing the same object name caused a
+# real Helm ownership-conflict error on first deploy: "Middleware
+# 'authentik-forwardauth' ... exists and cannot be imported into the current
+# release ... current value is 'firefly'" (2026-09-16).
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
-  name: authentik-forwardauth
+  name: "{{ .Release.Name }}-authentik-forwardauth"
 spec:
   forwardAuth:
     address: "https://{{ .Values.ingress.host }}/outpost.goauthentik.io/auth/traefik"
