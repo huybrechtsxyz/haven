@@ -65,6 +65,7 @@ Add these DNS records at INWX (Domains → `{base-domain}` → DNS Records). Unl
 | A    | `books.{base-domain}`   |          | `<forge-ip>` | 3600 | Kavita (books/PDFs/EPUBs)              |
 | A    | `home.{base-domain}`    |          | `<forge-ip>` | 3600 | Homarr (family dashboard/landing page) |
 | A    | `finance.{base-domain}` |          | `<forge-ip>` | 3600 | Firefly III (personal finance)         |
+| A    | `import.finance.{base-domain}` |   | `<forge-ip>` | 3600 | Firefly III Data Importer (bank statement import). Nested subdomain, deliberately not flat — see services/forge/firefly-importer/values.yaml's ingress comment: leaves a flat `import.{base-domain}` free for any future, unrelated automated-import tool. No wildcard needed — a plain A record with name `import.finance` works the same as any other multi-label name in the zone. |
 
 ## DNSSEC — Critical Warning
 

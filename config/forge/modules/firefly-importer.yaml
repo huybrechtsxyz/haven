@@ -50,18 +50,16 @@ spec:
       MAIL_MAILER: log
     sso:
       enabled: true
-    service:
-      port: 8080
     ingress:
       enabled: true
       className: traefik
-      host: import.huybrechts.xyz
+      host: import.finance.huybrechts.xyz
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
       tls:
         - hosts:
-            - import.huybrechts.xyz
-          secretName: import-tls
+            - import.finance.huybrechts.xyz
+          secretName: import-finance-tls
     outpost:
       authentikHost: auth.huybrechts.xyz
     importFolder:

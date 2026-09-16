@@ -20,7 +20,8 @@ spec:
         - name: firefly-importer
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           ports:
-            - containerPort: {{ .Values.service.port }}
+            # Hardcoded (not templated) — see templates/service.yaml's comment.
+            - containerPort: 8080
           env:
             {{- range $key, $value := .Values.env }}
             - name: "{{ $key }}"

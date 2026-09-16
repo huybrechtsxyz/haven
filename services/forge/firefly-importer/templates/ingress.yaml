@@ -21,8 +21,9 @@ spec:
             backend:
               service:
                 name: "{{ .Release.Name }}"
+                # Hardcoded (not templated) — see templates/service.yaml's comment.
                 port:
-                  number: {{ .Values.service.port }}
+                  number: 8080
   {{- with .Values.ingress.tls }}
   tls:
     {{- toYaml . | nindent 4 }}

@@ -9,5 +9,10 @@ spec:
   selector:
     app: "{{ .Release.Name }}"
   ports:
-    - port: { { .Values.service.port } }
-      targetPort: { { .Values.service.port } }
+    # Hardcoded (not templated): VS Code's YAML formatter repeatedly mangles
+    # a bare `{{ .Values.x }}` on an unquoted integer field into
+    # `{ { .Values.x } }` on save (flow-mapping ambiguity), which breaks
+    # Helm parsing — quoting isn't viable here since it would turn this into
+    # a string. 8080 is a fixed, rarely-changed value, so hardcode it.
+    - port: 8080
+      targetPort: 8080
