@@ -322,6 +322,12 @@ spec:
         type: urlsafe
         length: 48
 
+    # Application secrets — Firefly III Data Importer (Forge, finance namespace)
+    - key: FIREFLY_IMPORTER_ACCESS_TOKEN
+      store: infisical
+      value: FIREFLY_IMPORTER_ACCESS_TOKEN
+      description: Firefly III Personal Access Token used by the Data Importer to talk to Firefly's API — manually generated via finance.huybrechts.xyz/profile/oauth ("Remote access and tokens" -> "Personal Access Token" -> "Create new token") AFTER Firefly's first deploy; no generate spec (not a random value strata can create, must be pasted in manually)
+
     # Application secrets — FileBrowser Quantum (Forge, system namespace)
     - key: FILEBROWSER_SSO_CLIENT_SECRET
       store: infisical
