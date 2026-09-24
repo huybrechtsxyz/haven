@@ -14,11 +14,11 @@ Unlike Kavita (a general PDF/EPUB/comic reader), Grimoire is purpose-built for t
 
 ## What gets deployed
 
-| Item      | Value                                                                                                                                                  |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Image     | `hunterreadca/grimoire:latest` (official image, includes Tesseract OCR — see [image variants](#image-variants) below)                                  |
-| Namespace | `documents` (Kubernetes), module file `config/forge/modules/grimoire.yaml`                                                                             |
-| Ingress   | Traefik (`className: traefik`), host `grimoire.{domain}`, TLS via cert-manager (`letsencrypt-staging` initially — see [TLS](#tls--cert-manager) below) |
+| Item      | Value                                                                                                                                     |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Image     | `hunterreadca/grimoire:latest` (official image, includes Tesseract OCR — see [image variants](#image-variants) below)                     |
+| Namespace | `documents` (Kubernetes), module file `config/forge/modules/grimoire.yaml`                                                                |
+| Ingress   | Traefik (`className: traefik`), host `grimoire.{domain}`, TLS via cert-manager (`letsencrypt-prod` — see [TLS](#tls--cert-manager) below) |
 
 No official Helm chart exists for Grimoire — deployed via a local chart at `services/forge/grimoire/`, same pattern as Kavita's.
 
@@ -40,14 +40,14 @@ Grimoire's own database, full-text search index, and rendered thumbnails/cache a
 
 ## TLS — cert-manager
 
-Grimoire's chart (`services/forge/grimoire/templates/ingress.yaml`) supports `ingress.annotations` and `ingress.tls`, wired up the same way as Kavita/Jellyfin/Immich/Nextcloud. `config/forge/modules/grimoire.yaml` currently sets `cert-manager.io/cluster-issuer: letsencrypt-staging` — `grimoire.huybrechts.xyz` has never had a cert issued before, so it needs its own HTTP-01 challenge to succeed at least once via staging before switching to prod (rate-limited to 5 certs/domain/week).
+Grimoire's chart (`services/forge/grimoire/templates/ingress.yaml`) supports `ingress.annotations` and `ingress.tls`, wired up the same way as Kavita/Jellyfin/Immich/Nextcloud. `config/forge/modules/grimoire.yaml` was deployed with `cert-manager.io/cluster-issuer: letsencrypt-staging` first (`grimoire.huybrechts.xyz` had never had a cert issued before), then switched to `letsencrypt-prod` (2026-09-24) after confirming the HTTP-01 challenge succeeded via staging.
 
 **Rollout steps** (same staging-first pattern as every other Forge app):
 
-1. Deploy with `letsencrypt-staging` (already the current setting).
+1. Deploy with `letsencrypt-staging` first for a brand-new hostname.
 2. Confirm `kubectl describe certificate grimoire-tls -n documents` shows `Ready: True`.
-3. Switch the annotation in `config/forge/modules/grimoire.yaml` to `letsencrypt-prod` and redeploy.
-4. Re-verify `Ready: True` against the prod issuer before considering this done.
+3. Switch the annotation in `config/forge/modules/grimoire.yaml` to `letsencrypt-prod` and redeploy. **Done (2026-09-24).**
+4. Re-verify `Ready: True` against the prod issuer — confirm `https://grimoire.huybrechts.xyz` loads without a browser TLS warning.
 
 ---
 
@@ -97,7 +97,7 @@ Both are attached to Grimoire's OAuth2 Provider's Advanced Protocol Settings →
 
 ### Redirect URI — path is fixed by Grimoire
 
-Unlike Kavita's ASP.NET Core app (`/signin-oidc`), Grimoire's OIDC callback path is fixed at `/api/auth/openid/callback` (per upstream's `docs/oidc.md`). The blueprint registers `https://grimoire.huybrechts.xyz/api/auth/openid/callback`, matching `BASE_URL`. **Not yet confirmed live** whether Grimoire's own forwarded-headers scheme detection trusts Traefik the same way Kavita's ASP.NET Core handler does (see [Kavita's SSO section](kavita.md#sso--authentik-oidc-native) for the original discovery) — if the first real login attempt fails with Authentik's "Redirect URI Error", capture the failing `redirect_uri=` from the browser URL bar and compare against the registered value.
+Unlike Kavita's ASP.NET Core app (`/signin-oidc`), Grimoire's OIDC callback path is fixed at `/api/auth/openid/callback` (per upstream's `docs/oidc.md`). The blueprint registers `https://grimoire.huybrechts.xyz/api/auth/openid/callback`, matching `BASE_URL`. **Confirmed live (2026-09-24)**: the redirect_uri round-trips successfully (no "Redirect URI Error" from Authentik) — the first live login attempt got all the way to Grimoire's own post-login group-claim check (see [Still open](#still-open)), confirming the scheme/path match.
 
 ---
 
@@ -116,9 +116,7 @@ Unlike Kavita's ASP.NET Core app (`/signin-oidc`), Grimoire's OIDC callback path
 
 ## Still open
 
-- SSO redirect_uri scheme trust (http vs https behind Traefik) is not yet confirmed live — see [Redirect URI](#redirect-uri--path-is-fixed-by-grimoire) above
-- `grimoire-admin`/`grimoire-gm`/`grimoire-player`/`nsfw` Authentik group membership is manual, per-user — the blueprint only creates empty group shells (see [SSO](#sso--authentik-oidc-native))
+- `grimoire-admin`/`grimoire-gm`/`grimoire-player`/`nsfw` Authentik group membership is manual, per-user — the blueprint only creates empty group shells (see [SSO](#sso--authentik-oidc-native)). **Confirmed live (2026-09-24)**: an account with no group membership gets denied with a "no matching group in OIDC claims"-style error — expected behavior, not a bug. Fix: Authentik → Directory → Groups → `grimoire-admin` (or `grimoire-gm`/`grimoire-player`) → Users tab → add the account, then log out of Grimoire and log back in (the groups claim is only read at login time, an already-open session won't pick up a group change).
 - `SECRET_KEY` is left unset (upstream default): Grimoire generates and persists a random key under `DATA_PATH` on first boot, which is fine for a single-replica deployment — revisit only if this ever runs multiple replicas without a shared `DATA_PATH`
 - `persistence.data` size (10Gi) is an initial estimate (database + search index + rendered thumbnails/cache) — monitor actual usage and grow the PVC if needed
 - Pre-seeded users (`users.json`) not wired up — first-registration-becomes-admin is the only onboarding path today
-- TLS is on `letsencrypt-staging` pending a live `Ready: True` confirmation — switch to `letsencrypt-prod` once verified (see [TLS](#tls--cert-manager) above)

@@ -74,15 +74,17 @@ spec:
     # see services/forge/grimoire/values.yaml's comment for why this isn't
     # a values key.
     # Staging-first cert-manager pattern, same as every other Forge app —
-    # grimoire.huybrechts.xyz has never had a cert issued before, so it
-    # needs its own HTTP-01 challenge to succeed at least once via staging
-    # before switching to letsencrypt-prod. See docs/services/grimoire.md.
+    # grimoire.huybrechts.xyz had never had a cert issued before, so its
+    # HTTP-01 challenge was proven via staging first, then flipped to
+    # letsencrypt-prod (2026-09-24) after confirming
+    # `kubectl describe certificate grimoire-tls -n documents` showed
+    # Ready: True. See docs/services/grimoire.md.
     ingress:
       enabled: true
       className: traefik
       host: grimoire.huybrechts.xyz
       annotations:
-        cert-manager.io/cluster-issuer: letsencrypt-staging
+        cert-manager.io/cluster-issuer: letsencrypt-prod
       tls:
         - hosts:
             - grimoire.huybrechts.xyz
