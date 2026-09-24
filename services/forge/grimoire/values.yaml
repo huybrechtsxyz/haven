@@ -28,7 +28,6 @@ env:
 secrets:
   name: grimoire-secrets
 
-
 persistence:
   # Grimoire's database, search index, and rendered thumbnails — local disk,
   # not shared (see docs/services/grimoire.md).
