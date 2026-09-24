@@ -79,5 +79,5 @@ spec:
             claimName: "{{ .Release.Name }}-data"
         - name: library
           hostPath:
-            path: { { .Values.library.hostPath } }
+            path: "{{ .Values.library.hostPath }}"
             type: DirectoryOrCreate

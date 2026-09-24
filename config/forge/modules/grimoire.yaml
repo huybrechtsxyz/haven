@@ -47,6 +47,17 @@ spec:
       OIDC_AUTO_REGISTER: "true"
       OIDC_BUTTON_TEXT: "Sign in with Authentik"
 
+    # Name of the K8s Secret grimoire-secrets.yaml renders — must be set
+    # explicitly here (not left to the chart's own values.yaml default),
+    # since this module's configuration block replaces the chart's default
+    # values at deploy time rather than merging on top of them (confirmed
+    # 2026-09-24: a deploy without this key here failed with "nil pointer
+    # evaluating interface {}.name" at deployment.yaml's secretKeyRef.name,
+    # even though a local `helm template` using the chart's own values.yaml
+    # worked fine).
+    secrets:
+      name: grimoire-secrets
+
     persistence:
       data:
         storageClass: local-path
