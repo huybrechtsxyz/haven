@@ -28,11 +28,20 @@ The default tags (`latest`, pinned releases) include the Tesseract OCR engine so
 
 ---
 
-## Storage — a dedicated subfolder of the haven-data docs mount
+## Storage — shares Kavita's books/ folder, plus a dedicated subfolder for everything else
 
-Grimoire reads from `/mnt/haven-data-docs/ttrpg` (hostPath, **read-only**) — a subpath of the same haven-data Storage Box docs sub-account SMB mount (see [Forge](../guides/forge.md)) that Nextcloud's External Storage and Kavita also point at. This is a dedicated `ttrpg/` subfolder, distinct from Kavita's `books/`, so the two apps never index the exact same files.
+Grimoire mounts **two** read-only hostPaths from the same haven-data Storage Box docs sub-account SMB mount (see [Forge](../guides/forge.md)):
 
-Mounting read-only is a deliberate deviation from Grimoire's own default (writable, so its in-app file manager can upload/rename/delete) — it matches the same "apps only read, Nextcloud is where family uploads happen" convention already established for Kavita in this repo. Practically: add/organize TTRPG files via Nextcloud (or directly on the Storage Box), then trigger/await a library scan in Grimoire — the in-app upload/rename/delete/duplicate-merge tools are unavailable as a result.
+| Host path                    | Container path   | Purpose                                                                                 |
+| ---------------------------- | ---------------- | --------------------------------------------------------------------------------------- |
+| `/mnt/haven-data-docs/books` | `/library/books` | The **same physical folder Kavita already reads from** — see below                      |
+| `/mnt/haven-data-docs/ttrpg` | `/library`       | Grimoire-only content Kavita has no concept of: `maps/`, `tokens/`, `audio/`, `models/` |
+
+`/mnt/haven-data-docs/books` is bind-mounted a **second time**, directly at `/library/books` inside Grimoire's container (in addition to Kavita's own existing mount of the same host path at its own `/library`). Per upstream's [FAQ](https://github.com/hunter-read/grimoire/blob/main/docs/faq.md#the-scanner-finds-no-books-after-i-reorganized-my-library), Grimoire's scanner looks for a `books/` subfolder at the root of its library mount — mounting the shared folder at exactly that path means Grimoire indexes the **identical PDF files** Kavita already serves, with **zero duplication** and no separate upload step. Kavita's own module/mount is completely unaffected by this — it's purely an additional read-only mount on Grimoire's side.
+
+The dedicated `ttrpg/` subfolder is Grimoire-only — Kavita has no maps/tokens/audio/3D-model concept, so this is where genuinely new content lives, organized per upstream's [Library structure](https://github.com/hunter-read/grimoire/blob/main/docs/library-structure.md) doc (top-level `maps/`, `tokens/`, `audio/`, `models/` — no `books/` needed here, that comes from the shared mount above).
+
+Both mounts are read-only — same "apps only read, Nextcloud is where family uploads happen" convention already used for Kavita — so Grimoire's in-app file management (upload/rename/delete) is intentionally unavailable.
 
 Grimoire's own database, full-text search index, and rendered thumbnails/cache are separate, local-disk storage (`persistence.data`, `local-path` PVC, 10Gi) — not part of the shared tree. Back this up the same way Kavita's config PVC is backed up.
 
@@ -57,11 +66,11 @@ Grimoire has no pre-seeded admin account by default — the first person to regi
 
 1. Visit `https://grimoire.huybrechts.xyz`.
 2. Register the initial admin account.
-3. From **Settings**, confirm the library has picked up content under `/library` (mapped from `/mnt/haven-data-docs/ttrpg` — see [Storage](#storage--a-dedicated-subfolder-of-the-haven-data-docs-mount) above), and trigger a scan if needed.
+3. From **Settings**, confirm the library has picked up content under `/library` — this should already include Kavita's existing books (mapped from `/mnt/haven-data-docs/books` at `/library/books` — see [Storage](#storage--shares-kavitas-books-folder-plus-a-dedicated-subfolder-for-everything-else) above) with no extra step, plus anything already placed under `/mnt/haven-data-docs/ttrpg`. Trigger a scan if needed.
 
 ### Adding library content
 
-Grimoire's own file manager is unavailable here (mounted read-only — see [Storage](#storage--a-dedicated-subfolder-of-the-haven-data-docs-mount) above), so files must land directly on `/mnt/haven-data-docs/ttrpg`, the same way Kavita's `books/` and Jellyfin's `media/` folders are populated: via the **Nextcloud** app (already SSO-logged-in), using an External Storage-mounted folder that points at this same path, or by copying files directly onto the Storage Box. Organize the folder per upstream's [Library structure](https://github.com/hunter-read/grimoire/blob/main/docs/library-structure.md) doc (`books/<system>/<category>/...`, plus top-level `maps/`, `tokens/`, `audio/`, `models/`). Trigger a scan from Grimoire's own dashboard, or wait for its scheduled scan.
+Grimoire's own file manager is unavailable here (both mounts are read-only — see [Storage](#storage--shares-kavitas-books-folder-plus-a-dedicated-subfolder-for-everything-else) above). **Books already added for Kavita need nothing extra** — they show up in Grimoire automatically since it's the same physical folder. For new maps/tokens/audio/3D-models, files must land directly on `/mnt/haven-data-docs/ttrpg`, the same way Kavita's `books/` and Jellyfin's `media/` folders are populated: via the **Nextcloud** app (already SSO-logged-in), using an External Storage-mounted folder that points at this path, or by copying files directly onto the Storage Box. Organize per upstream's [Library structure](https://github.com/hunter-read/grimoire/blob/main/docs/library-structure.md) doc (top-level `maps/`, `tokens/`, `audio/`, `models/`). Trigger a scan from Grimoire's own dashboard, or wait for its scheduled scan.
 
 ---
 
@@ -105,7 +114,7 @@ Unlike Kavita's ASP.NET Core app (`/signin-oidc`), Grimoire's OIDC callback path
 
 - [ ] `https://grimoire.{domain}` — Grimoire loads over TLS (staging cert initially — browser will warn until switched to `letsencrypt-prod`)
 - [ ] `kubectl describe certificate grimoire-tls -n documents` shows `Ready: True`
-- [ ] Library scan picks up files under `/mnt/haven-data-docs/ttrpg`
+- [ ] Library scan picks up Kavita's existing books under `/library/books` and any new content under `/mnt/haven-data-docs/ttrpg`
 - [ ] First-run admin account created (see [First login](#first-login))
 - [ ] `kubectl get pods -n documents` shows the Grimoire pod healthy (`GET /api/health` readiness/liveness probes passing)
 - [ ] `kubectl get secret grimoire-secrets -n documents` exists and `OIDC_CLIENT_SECRET` resolves in the pod's env

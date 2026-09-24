@@ -63,13 +63,19 @@ spec:
         storageClass: local-path
         size: 10Gi
     # Same haven-data Storage Box docs sub-account tree as Nextcloud/Kavita,
-    # SMB-mounted on the host at /mnt/haven-data-docs — a dedicated `ttrpg/`
-    # subfolder, distinct from Kavita's `books/`. Mounted read-only, same
-    # "apps only read, Nextcloud is where family uploads happen" convention
-    # used for Kavita — Grimoire's in-app file management (upload/rename/
-    # delete) is intentionally unavailable as a result.
+    # SMB-mounted on the host at /mnt/haven-data-docs. Mounted read-only,
+    # same "apps only read, Nextcloud is where family uploads happen"
+    # convention used for Kavita — Grimoire's in-app file management
+    # (upload/rename/delete) is intentionally unavailable as a result.
     library:
+      # Grimoire-only content Kavita has no concept of (maps, tokens, audio,
+      # 3D models) — a dedicated ttrpg/ subfolder, mounted at /library root.
       hostPath: /mnt/haven-data-docs/ttrpg
+      # The SAME physical books/ folder Kavita already reads from —
+      # bind-mounted a second time at /library/books so Grimoire indexes the
+      # exact same PDF files as its "books" category, with zero duplication.
+      # See docs/services/grimoire.md's Storage section.
+      booksHostPath: /mnt/haven-data-docs/books
     # service.port is hardcoded to 9481 directly in the chart's templates —
     # see services/forge/grimoire/values.yaml's comment for why this isn't
     # a values key.
