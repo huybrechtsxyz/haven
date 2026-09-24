@@ -135,6 +135,38 @@ jobs:
             -i ~/.ssh/haven_ed25519 root@${{ steps.ssh.outputs.server_ip }}
 
       # =========================================================================
+      # Pre-flight — verify the k3s API is actually ready before touching Helm.
+      # Without this, a control-plane/API outage on Forge (e.g. k3s restarting,
+      # cert-manager losing leader election because it can't reach the
+      # in-cluster kubernetes.default Service) surfaces only as an opaque
+      # `helm upgrade --wait --atomic --timeout` failure or a cert-manager
+      # HTTP-01 self-check timeout, with the real cause buried. Fail fast with
+      # a clear message instead. Retries for ~2 minutes since the tunnel/API
+      # can take a few seconds to settle right after being opened.
+      # =========================================================================
+      - name: Verify Forge Kubernetes API
+        if: ${{ inputs.dry_run != true }}
+        env:
+          KUBECONFIG: /tmp/forge-kubeconfig.yaml
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 12); do
+            if kubectl --request-timeout=10s get --raw='/readyz' >/dev/null 2>&1; then
+              echo "Kubernetes API is ready."
+              kubectl get nodes -o wide
+              exit 0
+            fi
+            if [ "$attempt" -eq 12 ]; then
+              echo "::error::Forge Kubernetes API did not become ready after 2 minutes — aborting before Helm deploy."
+              kubectl --request-timeout=10s get --raw='/readyz?verbose' || true
+              kubectl get nodes -o wide || true
+              exit 1
+            fi
+            echo "Kubernetes API is not ready yet (attempt $attempt/12); retrying in 10s..."
+            sleep 10
+          done
+
+      # =========================================================================
       # Pre-flight safety net — clear any Helm release stuck in a 'pending-*'
       # state (install/upgrade/rollback) before deploying. This happens when a
       # previous `helm upgrade --wait --atomic --timeout Nm` gets killed rather
@@ -530,7 +562,7 @@ jobs:
         env:
           KUBECONFIG: /tmp/forge-kubeconfig.yaml
         run: |
-          for ns in system immich media documents; do
+          for ns in system immich media documents finance; do
             echo "::group::Pods in namespace: $ns"
             kubectl get pods -n "$ns" -o wide 2>/dev/null || true
             echo "::endgroup::"

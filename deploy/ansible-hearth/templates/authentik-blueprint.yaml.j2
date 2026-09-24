@@ -114,6 +114,53 @@ entries:
       attributes:
         description: Family members — access to shared applications
 
+  # Grimoire-specific role/permission groups — per hunter-read/grimoire's own
+  # docs/faq.md "How do I configure OIDC with Authentik?" worked example.
+  # Separate from admins/parents/members above: those gate WHO can attempt
+  # SSO into Grimoire at all (see policy-group-members on Grimoire's
+  # application below), while these four control the role/permissions
+  # Grimoire itself assigns once logged in (OIDC_GROUPS_CLAIM/
+  # OIDC_PERMISSIONS_CLAIM read the mapping-grimoire-groups/permissions
+  # scope mappings below, which only look at these four groups — plain
+  # family admins/parents/members membership has no effect on Grimoire's
+  # own role). Assign family members to these manually in Authentik; the
+  # blueprint only creates the empty group shells.
+  - model: authentik_core.group
+    state: present
+    identifiers:
+      name: grimoire-admin
+    attrs:
+      name: grimoire-admin
+      attributes:
+        description: Grimoire — full admin access
+
+  - model: authentik_core.group
+    state: present
+    identifiers:
+      name: grimoire-gm
+    attrs:
+      name: grimoire-gm
+      attributes:
+        description: Grimoire — GM role
+
+  - model: authentik_core.group
+    state: present
+    identifiers:
+      name: grimoire-player
+    attrs:
+      name: grimoire-player
+      attributes:
+        description: Grimoire — player role
+
+  - model: authentik_core.group
+    state: present
+    identifiers:
+      name: nsfw
+    attrs:
+      name: nsfw
+      attributes:
+        description: Grants explicit content access to non-admin Grimoire users
+
   # ---------------------------------------------------------------------------
   # Group access policies
   # ---------------------------------------------------------------------------
@@ -186,6 +233,55 @@ entries:
       scope_name: groups
       description: Exposes the user's Authentik group names for RBAC-capable OIDC clients (e.g. Jellyfin)
       expression: "return [group.name for group in user.ak_groups.all()]"
+
+  # ---------------------------------------------------------------------------
+  # Custom scope mappings — Grimoire role/permission claims
+  # ---------------------------------------------------------------------------
+  # Grimoire's own OIDC_GROUPS_CLAIM only recognizes groups named (case-
+  # insensitively) exactly "admin", "gm", or "player" in the claim value —
+  # the raw haven-group-membership mapping above returns this repo's real
+  # group names (admins/parents/members), which don't match. Per
+  # hunter-read/grimoire's docs/faq.md worked example, these two dedicated
+  # mappings translate the grimoire-admin/grimoire-gm/grimoire-player/nsfw
+  # groups (see Groups section above) into the exact claim shapes Grimoire
+  # expects. Both must be added to Grimoire's provider's Advanced Protocol
+  # Settings -> Scopes below.
+
+  - model: authentik_providers_oauth2.scopemapping
+    state: present
+    identifiers:
+      name: Grimoire Groups
+    id: mapping-grimoire-groups
+    attrs:
+      name: Grimoire Groups
+      scope_name: groups
+      description: Maps grimoire-admin/grimoire-gm/grimoire-player Authentik groups to Grimoire's admin/gm/player roles
+      expression: |
+        groups = [group.name for group in user.ak_groups.all()]
+        grimoire_groups = []
+        if "grimoire-admin" in groups:
+            grimoire_groups.append("admin")
+        if "grimoire-gm" in groups:
+            grimoire_groups.append("gm")
+        if "grimoire-player" in groups:
+            grimoire_groups.append("player")
+        return {"groups": grimoire_groups}
+
+  - model: authentik_providers_oauth2.scopemapping
+    state: present
+    identifiers:
+      name: Grimoire Permissions
+    id: mapping-grimoire-permissions
+    attrs:
+      name: Grimoire Permissions
+      scope_name: permissions
+      description: Grants Grimoire's viewNSFW permission to grimoire-admin or nsfw group members
+      expression: |
+        groups = [group.name for group in user.ak_groups.all()]
+        if "grimoire-admin" in groups:
+            return {"permissions": {"viewNSFW": True}}
+        explicit = "nsfw" in groups
+        return {"permissions": {"viewNSFW": explicit}}
 
   # ---------------------------------------------------------------------------
   # Vaultwarden — OAuth2/OIDC Provider + Application
@@ -520,6 +616,78 @@ entries:
       order: 0
     attrs:
       target: !Find [authentik_core.application, [slug, kavita]]
+      policy: !KeyOf policy-group-members
+      order: 0
+      enabled: true
+      negate: false
+      timeout: 30
+
+  # ---------------------------------------------------------------------------
+  # Grimoire — OAuth2/OIDC Provider + Application
+  # ---------------------------------------------------------------------------
+  # Runs on Forge (k3s), not Hearth. Grimoire has NATIVE OIDC support
+  # (Settings -> Authentication, or pinned via OIDC_* env vars — see
+  # config/forge/modules/grimoire.yaml). Unlike Kavita, this needs no
+  # post-deploy file patching: Grimoire reads its OIDC config from plain
+  # env vars at process startup, so a Helm values change + pod restart is
+  # the whole rollout — see docs/services/grimoire.md's SSO section.
+  #
+  # redirect_uris path is FIXED by Grimoire itself (/api/auth/openid/callback,
+  # per hunter-read/grimoire's docs/oidc.md), unlike Kavita/ASP.NET's
+  # /signin-oidc — not yet confirmed live whether Grimoire's own
+  # forwarded-headers scheme detection trusts Traefik the same way Kavita's
+  # did (see docs/services/grimoire.md's "Still open" section); registered
+  # as https:// here to match BASE_URL, same assumption as every other app.
+
+  - model: authentik_providers_oauth2.oauth2provider
+    state: present
+    identifiers:
+      name: Grimoire
+    id: provider-grimoire
+    attrs:
+      name: Grimoire
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      client_type: confidential
+      client_id: grimoire
+      client_secret: "{{ grimoire_sso_client_secret }}"
+      redirect_uris:
+        - matching_mode: strict
+          url: "https://grimoire.huybrechts.xyz/api/auth/openid/callback"
+      grant_types:
+        - authorization_code
+        - refresh_token
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !KeyOf mapping-email-verified
+        - !KeyOf mapping-grimoire-groups
+        - !KeyOf mapping-grimoire-permissions
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
+      sub_mode: hashed_user_id
+      # per_provider, not global — same issuer-mismatch reasoning as every
+      # other app in this repo (see config/forge/modules/immich.yaml's
+      # comment for the original root-cause writeup).
+      issuer_mode: per_provider
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: grimoire
+    attrs:
+      name: Grimoire
+      slug: grimoire
+      provider: !KeyOf provider-grimoire
+      meta_launch_url: https://grimoire.huybrechts.xyz
+
+  - model: authentik_policies.policybinding
+    state: present
+    identifiers:
+      target: !Find [authentik_core.application, [slug, grimoire]]
+      order: 0
+    attrs:
+      target: !Find [authentik_core.application, [slug, grimoire]]
       policy: !KeyOf policy-group-members
       order: 0
       enabled: true

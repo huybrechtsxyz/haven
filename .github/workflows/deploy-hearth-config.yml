@@ -130,7 +130,7 @@ jobs:
           # kSuite backup secrets (HEALTHCHECK_PING_KSUITE, KSUITE_BACKUP_*)
           # deliberately omitted from this call — feature disabled for now,
           # see config/environment.yaml's commented-out declarations.
-          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_HEARTH VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET JELLYFIN_SSO_CLIENT_SECRET NEXTCLOUD_SSO_CLIENT_SECRET IMMICH_SSO_CLIENT_SECRET KAVITA_SSO_CLIENT_SECRET GATUS_SSO_CLIENT_SECRET HOMARR_SSO_CLIENT_SECRET FILEBROWSER_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_HEARTH VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET JELLYFIN_SSO_CLIENT_SECRET NEXTCLOUD_SSO_CLIENT_SECRET IMMICH_SSO_CLIENT_SECRET KAVITA_SSO_CLIENT_SECRET GRIMOIRE_SSO_CLIENT_SECRET GATUS_SSO_CLIENT_SECRET HOMARR_SSO_CLIENT_SECRET FILEBROWSER_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
           STATUS=$?
           set -e
           if [ $STATUS -ne 0 ]; then
@@ -146,6 +146,7 @@ jobs:
           NEXTCLOUD_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.NEXTCLOUD_SSO_CLIENT_SECRET')
           IMMICH_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.IMMICH_SSO_CLIENT_SECRET')
           KAVITA_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.KAVITA_SSO_CLIENT_SECRET')
+          GRIMOIRE_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.GRIMOIRE_SSO_CLIENT_SECRET')
           GATUS_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.GATUS_SSO_CLIENT_SECRET')
           HOMARR_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.HOMARR_SSO_CLIENT_SECRET')
           FILEBROWSER_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.FILEBROWSER_SSO_CLIENT_SECRET')
@@ -167,6 +168,7 @@ jobs:
           nextcloud_sso_client_secret: "$NEXTCLOUD_SSO_SECRET"
           immich_sso_client_secret: "$IMMICH_SSO_SECRET"
           kavita_sso_client_secret: "$KAVITA_SSO_SECRET"
+          grimoire_sso_client_secret: "$GRIMOIRE_SSO_SECRET"
           gatus_sso_client_secret: "$GATUS_SSO_SECRET"
           homarr_sso_client_secret: "$HOMARR_SSO_SECRET"
           filebrowser_sso_client_secret: "$FILEBROWSER_SSO_SECRET"

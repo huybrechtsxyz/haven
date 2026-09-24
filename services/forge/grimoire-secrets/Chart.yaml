@@ -1,0 +1,11 @@
+apiVersion: v2
+name: grimoire-secrets
+description: >
+  K8s Secret holding Grimoire's real OIDC client secret — referenced by
+  grimoire.yaml via a plain secretKeyRef in its Deployment env. Exists
+  because Grimoire's own chart is hand-authored (services/forge/grimoire),
+  and this repo's convention keeps real secret values inside a dedicated
+  Secret object rather than inlined as a literal Deployment env value, same
+  pattern as nextcloud-secrets/homarr-secrets.
+type: application
+version: "1.0.0"

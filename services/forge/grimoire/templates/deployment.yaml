@@ -30,6 +30,27 @@ spec:
               value: {{ .Values.env.BASE_URL | quote }}
             - name: OPDS_ENABLED
               value: {{ .Values.env.OPDS_ENABLED | quote }}
+            - name: OIDC_ENABLED
+              value: {{ .Values.env.OIDC_ENABLED | quote }}
+            - name: OIDC_ISSUER_URL
+              value: {{ .Values.env.OIDC_ISSUER_URL | quote }}
+            - name: OIDC_CLIENT_ID
+              value: {{ .Values.env.OIDC_CLIENT_ID | quote }}
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: sso-client-secret
+            - name: OIDC_GROUPS_CLAIM
+              value: {{ .Values.env.OIDC_GROUPS_CLAIM | quote }}
+            - name: OIDC_PERMISSIONS_CLAIM
+              value: {{ .Values.env.OIDC_PERMISSIONS_CLAIM | quote }}
+            - name: OIDC_MATCH_BY
+              value: {{ .Values.env.OIDC_MATCH_BY | quote }}
+            - name: OIDC_AUTO_REGISTER
+              value: {{ .Values.env.OIDC_AUTO_REGISTER | quote }}
+            - name: OIDC_BUTTON_TEXT
+              value: {{ .Values.env.OIDC_BUTTON_TEXT | quote }}
           ports:
             - containerPort: {{ .Values.service.port }}
           volumeMounts:

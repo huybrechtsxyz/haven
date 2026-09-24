@@ -123,6 +123,7 @@ Full SSO configuration details live in each service's own doc. This table summar
 | Jellyfin    | `per_provider` | OIDC (plugin)      | `JELLYFIN_SSO_CLIENT_SECRET`    | [jellyfin.md](jellyfin.md)       |
 | Nextcloud   | `per_provider` | OIDC (`user_oidc`) | `NEXTCLOUD_SSO_CLIENT_SECRET`   | [nextcloud.md](nextcloud.md)     |
 | Kavita      | `per_provider` | OIDC (native)      | `KAVITA_SSO_CLIENT_SECRET`      | [kavita.md](kavita.md)           |
+| Grimoire    | `per_provider` | OIDC (native)      | `GRIMOIRE_SSO_CLIENT_SECRET`    | [grimoire.md](grimoire.md)       |
 
 **`issuer_mode` guidance:**
 - Use `per_provider` for every app. Authentik does not expose a global `/.well-known/openid-configuration` endpoint; per-app discovery URLs (`https://auth.huybrechts.xyz/application/o/<slug>/`) always work.

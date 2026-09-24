@@ -11,6 +11,23 @@ env:
   WORKERS: "2"
   BASE_URL: https://grimoire.huybrechts.xyz
   OPDS_ENABLED: "true"
+  # SSO — see config/forge/modules/grimoire.yaml for the real values;
+  # OIDC_ENABLED defaults to "false" here so a bare `helm template`/local
+  # render of this chart (no module overrides) never advertises SSO.
+  OIDC_ENABLED: "false"
+  OIDC_ISSUER_URL: ""
+  OIDC_CLIENT_ID: ""
+  OIDC_GROUPS_CLAIM: ""
+  OIDC_PERMISSIONS_CLAIM: ""
+  OIDC_MATCH_BY: email
+  OIDC_AUTO_REGISTER: "false"
+  OIDC_BUTTON_TEXT: "Sign in with Authentik"
+
+# Name of the K8s Secret (rendered by the grimoire-secrets module/chart)
+# holding the real OIDC client secret under key `sso-client-secret`.
+secrets:
+  name: grimoire-secrets
+
 
 persistence:
   # Grimoire's database, search index, and rendered thumbnails — local disk,

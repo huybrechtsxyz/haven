@@ -12,6 +12,9 @@ spec:
     - name: kavita
       description: PDF/EPUB/comic library server for TTRPG PDFs and reference material
       file: config/forge/modules/kavita.yaml
+    - name: grimoire-secrets
+      description: K8s Secret holding Grimoire's real OIDC client secret
+      file: config/forge/modules/grimoire-secrets.yaml
     - name: grimoire
       description: Self-hosted TTRPG library manager (books, maps, tokens, audio, 3D models) with campaign wiki and VTT tools
       file: config/forge/modules/grimoire.yaml

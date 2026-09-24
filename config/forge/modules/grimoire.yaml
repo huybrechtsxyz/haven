@@ -13,6 +13,9 @@ spec:
     repository: haven
     source_path: services/forge/grimoire
   kubernetes_namespace: documents
+  references:
+    secrets:
+      - GRIMOIRE_SSO_CLIENT_SECRET # not read directly — grimoire-secrets.yaml renders the actual K8s Secret this module points at via a plain secretKeyRef
   configuration:
     image:
       repository: hunterreadca/grimoire
@@ -21,6 +24,29 @@ spec:
       WORKERS: "2"
       BASE_URL: https://grimoire.huybrechts.xyz
       OPDS_ENABLED: "true"
+      # SSO — Grimoire's own built-in OIDC client (OIDC_* env vars pin the
+      # Settings → Authentication fields read-only). issuer_mode:
+      # per_provider on the Authentik side (see authentik-blueprint.yaml.j2),
+      # so this matches the same https://auth.huybrechts.xyz/application/o/
+      # grimoire/ per-app discovery URL every other app in this repo uses.
+      # OIDC_CLIENT_SECRET itself is NOT here — sourced via secretKeyRef
+      # from the grimoire-secrets K8s Secret instead (see deployment.yaml).
+      OIDC_ENABLED: "true"
+      OIDC_ISSUER_URL: https://auth.huybrechts.xyz/application/o/grimoire/
+      OIDC_CLIENT_ID: grimoire
+      # Groups/permissions claims populated by two custom Authentik scope
+      # mappings (Grimoire Groups / Grimoire Permissions) that translate the
+      # dedicated grimoire-admin/grimoire-gm/grimoire-player/nsfw Authentik
+      # groups into the bare admin/gm/player + viewNSFW values Grimoire's
+      # own OIDC_GROUPS_CLAIM/OIDC_PERMISSIONS_CLAIM expect — see
+      # docs/services/grimoire.md's SSO section and
+      # authentik-blueprint.yaml.j2's mapping-grimoire-groups/permissions.
+      OIDC_GROUPS_CLAIM: groups
+      OIDC_PERMISSIONS_CLAIM: permissions
+      OIDC_MATCH_BY: email
+      OIDC_AUTO_REGISTER: "true"
+      OIDC_BUTTON_TEXT: "Sign in with Authentik"
+
     persistence:
       data:
         storageClass: local-path

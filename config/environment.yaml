@@ -306,6 +306,15 @@ spec:
         type: urlsafe
         length: 48
 
+    # Application secrets — Grimoire (Forge)
+    - key: GRIMOIRE_SSO_CLIENT_SECRET
+      store: infisical
+      value: GRIMOIRE_SSO_CLIENT_SECRET
+      description: OIDC client secret for Grimoire SSO via Authentik (native OIDC_* env vars, routed through the grimoire-secrets K8s Secret)
+      generate:
+        type: urlsafe
+        length: 48
+
     # Application secrets — Firefly III (Forge)
     - key: FIREFLY_APP_KEY
       store: infisical
