@@ -1,13 +1,19 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: { { .Release.Name } }
+  name: "{{ .Release.Name }}"
   labels:
-    app: { { .Release.Name } }
+    app: "{{ .Release.Name }}"
 spec:
   type: ClusterIP
   selector:
-    app: { { .Release.Name } }
+    app: "{{ .Release.Name }}"
   ports:
-    - port: { { .Values.service.port } }
-      targetPort: { { .Values.service.port } }
+    # Hardcoded (not templated): VS Code's YAML formatter repeatedly mangles
+    # a bare Go-template expression on an unquoted integer field by inserting
+    # a stray space inside each brace pair (turning double braces into two
+    # separate single braces), which breaks Helm parsing (flow-mapping
+    # ambiguity) — same mitigation as nextcloud-scan-cron/firefly-importer.
+    # 9481 is Grimoire's fixed upstream port, rarely changed.
+    - port: 9481
+      targetPort: 9481

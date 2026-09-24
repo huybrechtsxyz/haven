@@ -10,9 +10,10 @@ spec:
     app: "{{ .Release.Name }}"
   ports:
     # Hardcoded (not templated): VS Code's YAML formatter repeatedly mangles
-    # a bare `{{ .Values.x }}` on an unquoted integer field into
-    # `{ { .Values.x } }` on save (flow-mapping ambiguity), which breaks
-    # Helm parsing — quoting isn't viable here since it would turn this into
+    # a bare Go-template expression on an unquoted integer field by inserting
+    # a stray space inside each brace pair (turning double braces into two
+    # separate single braces), which breaks Helm parsing (flow-mapping
+    # ambiguity) — quoting isn't viable here since it would turn this into
     # a string. 8080 is a fixed, rarely-changed value, so hardcode it.
     - port: 8080
       targetPort: 8080

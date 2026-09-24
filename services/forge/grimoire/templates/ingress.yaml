@@ -2,24 +2,25 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ .Release.Name }}
+  name: "{{ .Release.Name }}"
   {{- with .Values.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  ingressClassName: {{ .Values.ingress.className }}
+  ingressClassName: "{{ .Values.ingress.className }}"
   rules:
-    - host: {{ .Values.ingress.host }}
+    - host: "{{ .Values.ingress.host }}"
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: {{ .Release.Name }}
+                name: "{{ .Release.Name }}"
                 port:
-                  number: {{ .Values.service.port }}
+                  # Hardcoded — see service.yaml's comment; 9481 is fixed.
+                  number: 9481
   {{- with .Values.ingress.tls }}
   tls:
     {{- toYaml . | nindent 4 }}

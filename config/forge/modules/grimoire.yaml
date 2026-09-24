@@ -59,8 +59,9 @@ spec:
     # delete) is intentionally unavailable as a result.
     library:
       hostPath: /mnt/haven-data-docs/ttrpg
-    service:
-      port: 9481
+    # service.port is hardcoded to 9481 directly in the chart's templates —
+    # see services/forge/grimoire/values.yaml's comment for why this isn't
+    # a values key.
     # Staging-first cert-manager pattern, same as every other Forge app —
     # grimoire.huybrechts.xyz has never had a cert issued before, so it
     # needs its own HTTP-01 challenge to succeed at least once via staging

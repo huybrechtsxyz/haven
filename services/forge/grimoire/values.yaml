@@ -44,8 +44,12 @@ persistence:
 library:
   hostPath: /mnt/haven-data-docs/ttrpg
 
-service:
-  port: 9481
+# service.port is intentionally NOT a values key — hardcoded to 9481
+# directly in the chart templates (service.yaml/deployment.yaml/
+# ingress.yaml) since it's Grimoire's fixed upstream port and templating
+# a bare numeric field is repeatedly corrupted by the VS Code YAML
+# formatter (see check-helm-braces.ps1 / nextcloud-scan-cron's identical
+# fix for the same class of bug).
 
 ingress:
   enabled: true

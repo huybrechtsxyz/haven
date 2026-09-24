@@ -5,10 +5,11 @@ metadata:
 spec:
   schedule: "{{ .Values.schedule }}"
   # Hardcoded (not templated): VS Code's YAML formatter repeatedly mangles a
-  # bare `{{ .Values.x }}` on an unquoted integer field into `{ { .Values.x } }`
-  # on save (flow-mapping ambiguity), which breaks Helm parsing. These two
-  # knobs are rarely-changed housekeeping values, so hardcode them instead of
-  # fighting the formatter.
+  # bare Go-template expression on an unquoted integer field by inserting a
+  # stray space inside each brace pair (turning double braces into two
+  # separate single braces), which breaks Helm parsing (flow-mapping
+  # ambiguity). These two knobs are rarely-changed housekeeping values, so
+  # hardcode them instead of fighting the formatter.
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 3
   concurrencyPolicy: Forbid
