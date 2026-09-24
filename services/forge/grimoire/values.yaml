@@ -1,0 +1,38 @@
+# Defaults — override via the strata module's spec.configuration (see
+# config/forge/modules/grimoire.yaml).
+image:
+  # Default (non -slim) tag ships Tesseract OCR so scanned/image-only PDFs
+  # are still full-text searchable — see
+  # https://hub.docker.com/r/hunterreadca/grimoire.
+  repository: hunterreadca/grimoire
+  tag: latest
+
+env:
+  WORKERS: "2"
+  BASE_URL: https://grimoire.huybrechts.xyz
+  OPDS_ENABLED: "true"
+
+persistence:
+  # Grimoire's database, search index, and rendered thumbnails — local disk,
+  # not shared (see docs/services/grimoire.md).
+  data:
+    storageClass: local-path
+    size: 10Gi
+
+# Path on the haven-data Storage Box's docs sub-account SMB mount where the
+# TTRPG library files live. Mounted read-only — same "apps only read,
+# Nextcloud is where family uploads happen" convention already used for
+# Kavita — so Grimoire's in-app file management (upload/rename/delete) is
+# intentionally unavailable.
+library:
+  hostPath: /mnt/haven-data-docs/ttrpg
+
+service:
+  port: 9481
+
+ingress:
+  enabled: true
+  className: traefik
+  host: grimoire.huybrechts.xyz
+  annotations: {}
+  tls: []

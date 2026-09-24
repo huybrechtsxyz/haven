@@ -103,21 +103,23 @@ This runs `strata deploy run --scope apps --stage applications_forge` — tunnel
 
 ## What runs on Forge
 
-| Namespace   | Guide                                                                                          | Purpose                                                                                        |
-| ----------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `system`    | *(this doc)*                                                                                   | cert-manager + ClusterIssuers (TLS for all apps), Portainer Kubernetes Edge Agent              |
-| `immich`    | [services/immich.md](../services/immich.md)                                                    | Photo/video management                                                                         |
-| `media`     | [services/jellyfin.md](../services/jellyfin.md)                                                | Media streaming (Jellyfin), library on `haven-data` `media` sub-account                        |
-| `documents` | [services/nextcloud.md](../services/nextcloud.md), [services/kavita.md](../services/kavita.md) | Nextcloud (file archive) + Kavita (PDF/TTRPG library), both on `haven-data` `docs` sub-account |
-| `finance`   | [services/firefly.md](../services/firefly.md)                                                  | Firefly III (personal finance), own local-path PVC — no Storage Box mount needed               |
-| *(future)*  | —                                                                                              | New apps each get their own namespace                                                          |
+| Namespace   | Guide                                                                                                                                           | Purpose                                                                                                                          |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `system`    | *(this doc)*                                                                                                                                    | cert-manager + ClusterIssuers (TLS for all apps), Portainer Kubernetes Edge Agent                                                |
+| `immich`    | [services/immich.md](../services/immich.md)                                                                                                     | Photo/video management                                                                                                           |
+| `media`     | [services/jellyfin.md](../services/jellyfin.md)                                                                                                 | Media streaming (Jellyfin), library on `haven-data` `docs` sub-account (see note below)                                          |
+| `documents` | [services/nextcloud.md](../services/nextcloud.md), [services/kavita.md](../services/kavita.md), [services/grimoire.md](../services/grimoire.md) | Nextcloud (file archive) + Kavita (PDF/TTRPG library) + Grimoire (TTRPG library manager), all on `haven-data` `docs` sub-account |
+| `finance`   | [services/firefly.md](../services/firefly.md)                                                                                                   | Firefly III (personal finance), own local-path PVC — no Storage Box mount needed                                                 |
+| *(future)*  | —                                                                                                                                               | New apps each get their own namespace                                                                                            |
 
 Storage Box SMB mounts used by app namespaces:
 
-| Mount path              | Storage Box  | Sub-account | Used by           |
-| ----------------------- | ------------ | ----------- | ----------------- |
-| `/mnt/haven-data-media` | `haven-data` | `media`     | Immich, Jellyfin  |
-| `/mnt/haven-data-docs`  | `haven-data` | `docs`      | Nextcloud, Kavita |
+| Mount path              | Storage Box  | Sub-account | Used by                               |
+| ----------------------- | ------------ | ----------- | ------------------------------------- |
+| `/mnt/haven-data-media` | `haven-data` | `media`     | Immich only                           |
+| `/mnt/haven-data-docs`  | `haven-data` | `docs`      | Nextcloud, Kavita, Jellyfin, Grimoire |
+
+> **Note:** the `media` sub-account/mount is Immich's own dedicated photo/video library — despite the k8s namespace being named `media`, Jellyfin itself actually reads `/mnt/haven-data-docs/media` (moved there 2026-08-29, a free move since Jellyfin had zero live data at the time — see `config/forge/modules/jellyfin.yaml`). The `docs` sub-account is really this repo's general-purpose shared family library tree (documents, media, books, and now TTRPG content) — the name predates Jellyfin/Kavita/Grimoire joining it.
 
 ---
 
@@ -138,6 +140,10 @@ See [NextCloud](../services/nextcloud.md##initial-setup) for detailed setup inst
 ### Kavita Setup
 
 See [Kavita](../services/kavita.md##initial-setup) for detailed setup instructions.
+
+### Grimoire Setup
+
+See [Grimoire](../services/grimoire.md##initial-setup) for detailed setup instructions.
 
 ---
 
@@ -185,10 +191,11 @@ Both VPSes share a private Hetzner network. Without intervention, Forge pods aut
 
 ### Documents storage
 
-Nextcloud and Kavita both need a plain filesystem path — neither has a native object-storage backend. The `haven-data` Storage Box `docs` sub-account is SMB-mounted on the Forge host at `/mnt/haven-data-docs`, visible node-wide. Apps hostPath-mount into it:
+Nextcloud, Kavita, and Grimoire all need a plain filesystem path — none has a native object-storage backend. The `haven-data` Storage Box `docs` sub-account is SMB-mounted on the Forge host at `/mnt/haven-data-docs`, visible node-wide. Apps hostPath-mount into it:
 
 - **Nextcloud** → `/mnt/haven-data-docs` (External Storage root)
 - **Kavita** → `/mnt/haven-data-docs/books` (read-only)
+- **Grimoire** → `/mnt/haven-data-docs/ttrpg` (read-only)
 
 SMB is a proper shared filesystem — both apps see the same state at all times with no caching concerns.
 

@@ -3,7 +3,7 @@ kind: namespace
 meta:
   name: documents
   annotations:
-    description: Family document/reference library (k3s on Forge) — Kavita (PDF/TTRPG library) + Nextcloud (document archive/browsing layer), both reading from the haven-data Storage Box's docs sub-account (SMB, /mnt/haven-data-docs). Config-level mount paths are finalized; the Ansible/Terraform layer that provisions the actual SMB mount is not yet updated — see docs/guides/forge.md.
+    description: Family document/reference library (k3s on Forge) — Kavita (PDF/TTRPG library) + Grimoire (TTRPG library manager) + Nextcloud (document archive/browsing layer), all reading from the haven-data Storage Box's docs sub-account (SMB, /mnt/haven-data-docs). Config-level mount paths are finalized; the Ansible/Terraform layer that provisions the actual SMB mount is not yet updated — see docs/guides/forge.md.
   labels:
     version: "1.0.0"
   tags: [haven, forge, documents, k3s, family]
@@ -12,6 +12,9 @@ spec:
     - name: kavita
       description: PDF/EPUB/comic library server for TTRPG PDFs and reference material
       file: config/forge/modules/kavita.yaml
+    - name: grimoire
+      description: Self-hosted TTRPG library manager (books, maps, tokens, audio, 3D models) with campaign wiki and VTT tools
+      file: config/forge/modules/grimoire.yaml
     - name: nextcloud-secrets
       description: Shared K8s Secret holding Nextcloud's real credentials (see module comment for why this indirection exists)
       file: config/forge/modules/nextcloud-secrets.yaml

@@ -1,0 +1,51 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: grimoire
+  annotations:
+    description: Grimoire — self-hosted TTRPG library manager (books, maps, tokens, audio, 3D models) with campaign wiki and VTT tools
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, documents, grimoire, ttrpg, library]
+spec:
+  type: helm
+  source:
+    repository: haven
+    source_path: services/forge/grimoire
+  kubernetes_namespace: documents
+  configuration:
+    image:
+      repository: hunterreadca/grimoire
+      tag: latest
+    env:
+      WORKERS: "2"
+      BASE_URL: https://grimoire.huybrechts.xyz
+      OPDS_ENABLED: "true"
+    persistence:
+      data:
+        storageClass: local-path
+        size: 10Gi
+    # Same haven-data Storage Box docs sub-account tree as Nextcloud/Kavita,
+    # SMB-mounted on the host at /mnt/haven-data-docs — a dedicated `ttrpg/`
+    # subfolder, distinct from Kavita's `books/`. Mounted read-only, same
+    # "apps only read, Nextcloud is where family uploads happen" convention
+    # used for Kavita — Grimoire's in-app file management (upload/rename/
+    # delete) is intentionally unavailable as a result.
+    library:
+      hostPath: /mnt/haven-data-docs/ttrpg
+    service:
+      port: 9481
+    # Staging-first cert-manager pattern, same as every other Forge app —
+    # grimoire.huybrechts.xyz has never had a cert issued before, so it
+    # needs its own HTTP-01 challenge to succeed at least once via staging
+    # before switching to letsencrypt-prod. See docs/services/grimoire.md.
+    ingress:
+      enabled: true
+      className: traefik
+      host: grimoire.huybrechts.xyz
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-staging
+      tls:
+        - hosts:
+            - grimoire.huybrechts.xyz
+          secretName: grimoire-tls
