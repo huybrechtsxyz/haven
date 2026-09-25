@@ -1,0 +1,82 @@
+# Defaults — override via the strata module's spec.configuration (see
+# config/forge/modules/foundryvtt.yaml).
+image:
+  # felddy/foundryvtt-docker — the standard community image. Does NOT bundle
+  # the Foundry software itself (EULA doesn't allow redistribution) — it
+  # downloads your licensed copy at container startup using
+  # FOUNDRY_USERNAME/FOUNDRY_PASSWORD (or a presigned FOUNDRY_RELEASE_URL).
+  # Track the major version only, per upstream's own recommendation — this
+  # gets the newest release compatible with saved data without an
+  # inadvertent major-version jump.
+  repository: ghcr.io/felddy/foundryvtt
+  tag: "14"
+
+env:
+  # External hostname used in invite/join links and A/V — must match
+  # ingress.host below, or players connecting from outside see the wrong
+  # address.
+  FOUNDRY_HOSTNAME: foundry.huybrechts.xyz
+  # Traefik terminates TLS and forwards plain HTTP to the pod (same
+  # topology as every other app in this repo) — tell Foundry it's behind a
+  # TLS-terminating proxy on 443 so invite links and A/V negotiate https://.
+  FOUNDRY_PROXY_SSL: "true"
+  FOUNDRY_PROXY_PORT: "443"
+  # Recommended by upstream for most users — serves minified JS/CSS,
+  # module developers may want it off.
+  FOUNDRY_MINIFY_STATIC_FILES: "true"
+  TZ: Europe/Brussels
+
+# Name of the K8s Secret (rendered by the foundryvtt-secrets module/chart)
+# holding the real FOUNDRY_USERNAME/FOUNDRY_PASSWORD/FOUNDRY_ADMIN_KEY.
+secrets:
+  name: foundryvtt-secrets
+
+persistence:
+  # Foundry's ENTIRE state lives under /data: the downloaded application
+  # software itself, config, worlds/campaigns (LevelDB-style datastore),
+  # installed modules/systems, and every uploaded asset (maps, tokens,
+  # audio). Deliberately local-path, NOT the haven-data Storage Box SMB
+  # tree Kavita/Nextcloud/Grimoire share — that tree is read-only reference
+  # content; this is a live, frequently-written datastore, and SMB/CIFS
+  # risks locking/corruption for that access pattern. Automatically covered
+  # by the existing local-path-PVC backup sweep in
+  # deploy/ansible-forge/templates/backup.sh.j2 — no extra backup wiring
+  # needed. Sized generously since uploaded maps/tokens/audio add up
+  # quickly — grow if needed. See docs/services/foundryvtt.md's Storage
+  # section.
+  data:
+    storageClass: local-path
+    size: 30Gi
+
+ingress:
+  enabled: true
+  className: traefik
+  host: foundry.huybrechts.xyz
+  annotations: {}
+  tls: []
+
+# =============================================================================
+# Authentik forward-auth outpost bypass — Foundry has NO native OIDC/SSO
+# support at all (confirmed against felddy/foundryvtt-docker's own deployment
+# guides — no mention of OIDC/SSO/Authentik anywhere), so this uses the same
+# Traefik-forwardAuth-in-front-of-a-non-OIDC-app pattern already proven for
+# Firefly III (services/forge/firefly/) rather than a native OAuth2 client.
+# See templates/middleware.yaml + templates/ingress-outpost.yaml +
+# templates/service-outpost.yaml, and docs/services/foundryvtt.md's SSO
+# section for the full writeup.
+#
+# IMPORTANT — unlike Firefly, Foundry has no header-based auto-login guard
+# to consume the injected X-authentik-* headers. This forwardAuth only GATES
+# reaching Foundry's own login screen at all (via the `gaming` Authentik
+# group) — it does NOT auto-select which Foundry user you are. Foundry's own
+# user picker + per-user passwords remain a second, independent layer
+# underneath.
+#
+# Set sso.enabled: false (and drop the forwardAuth annotation) temporarily
+# to isolate app/ingress/cert problems from Authentik wiring problems, same
+# debugging technique documented in docs/services/firefly.md.
+sso:
+  enabled: true
+
+outpost:
+  authentikHost: auth.huybrechts.xyz

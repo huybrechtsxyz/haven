@@ -40,6 +40,25 @@ finance.huybrechts.xyz {
     }
 }
 
+# FoundryVTT (runs on Forge/k3s) — Authentik forward-auth outpost bypass.
+# Same reasoning as the finance.huybrechts.xyz block above — Foundry has no
+# native OIDC/SSO, so it's gated the same forwardAuth way as Firefly III.
+# See services/forge/foundryvtt/templates/{ingress,service}-outpost.yaml and
+# docs/services/foundryvtt.md's SSO section.
+foundry.huybrechts.xyz {
+    tls internal
+
+    handle /outpost.goauthentik.io/* {
+        reverse_proxy authentik-server:9000
+    }
+
+    # Nothing else on this domain belongs on Hearth — Foundry itself is
+    # served by Forge's Traefik.
+    handle {
+        respond "Not found" 404
+    }
+}
+
 # Vaultwarden — Password Manager
 vault.huybrechts.xyz {
     reverse_proxy vaultwarden:80

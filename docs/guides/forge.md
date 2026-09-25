@@ -110,6 +110,7 @@ This runs `strata deploy run --scope apps --stage applications_forge` — tunnel
 | `media`     | [services/jellyfin.md](../services/jellyfin.md)                                                                                                 | Media streaming (Jellyfin), library on `haven-data` `docs` sub-account (see note below)                                          |
 | `documents` | [services/nextcloud.md](../services/nextcloud.md), [services/kavita.md](../services/kavita.md), [services/grimoire.md](../services/grimoire.md) | Nextcloud (file archive) + Kavita (PDF/TTRPG library) + Grimoire (TTRPG library manager), all on `haven-data` `docs` sub-account |
 | `finance`   | [services/firefly.md](../services/firefly.md)                                                                                                   | Firefly III (personal finance), own local-path PVC — no Storage Box mount needed                                                 |
+| `gaming`    | [services/foundryvtt.md](../services/foundryvtt.md)                                                                                             | Foundry Virtual Tabletop (VTT server), own local-path PVC — no Storage Box mount needed (see note below)                         |
 | *(future)*  | —                                                                                                                                               | New apps each get their own namespace                                                                                            |
 
 Storage Box SMB mounts used by app namespaces:
@@ -119,7 +120,7 @@ Storage Box SMB mounts used by app namespaces:
 | `/mnt/haven-data-media` | `haven-data` | `media`     | Immich only                           |
 | `/mnt/haven-data-docs`  | `haven-data` | `docs`      | Nextcloud, Kavita, Jellyfin, Grimoire |
 
-> **Note:** the `media` sub-account/mount is Immich's own dedicated photo/video library — despite the k8s namespace being named `media`, Jellyfin itself actually reads `/mnt/haven-data-docs/media` (moved there 2026-08-29, a free move since Jellyfin had zero live data at the time — see `config/forge/modules/jellyfin.yaml`). The `docs` sub-account is really this repo's general-purpose shared family library tree (documents, media, books, and now TTRPG content) — the name predates Jellyfin/Kavita/Grimoire joining it.
+> **Note:** the `media` sub-account/mount is Immich's own dedicated photo/video library — despite the k8s namespace being named `media`, Jellyfin itself actually reads `/mnt/haven-data-docs/media` (moved there 2026-08-29, a free move since Jellyfin had zero live data at the time — see `config/forge/modules/jellyfin.yaml`). The `docs` sub-account is really this repo's general-purpose shared family library tree (documents, media, books, and now TTRPG content) — the name predates Jellyfin/Kavita/Grimoire joining it. **FoundryVTT is deliberately NOT part of this tree** — its `/data` volume is a live, frequently-written datastore (worlds, saves, uploaded assets), not read-only reference content, so SMB/CIFS risks locking/corruption there; it gets its own dedicated local-path PVC instead (automatically covered by the generic local-path-PVC backup sweep, no shared-storage dependency at all).
 
 ---
 

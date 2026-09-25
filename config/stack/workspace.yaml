@@ -50,6 +50,8 @@ spec:
       file: config/forge/namespaces/documents.yaml # 4th — blocked on the haven-data Storage Box docs SMB mount migration (see docs/guides/forge.md)
     - name: finance
       file: config/forge/namespaces/finance.yaml # 5th — Firefly III, no shared-storage dependency (own local-path PVC only)
+    - name: gaming
+      file: config/forge/namespaces/gaming.yaml # 6th — FoundryVTT, own local-path PVC only, no shared-storage dependency
 
   topology:
     - name: hetzner_hearth
@@ -82,6 +84,7 @@ spec:
         - namespace: media
         - namespace: documents
         - namespace: finance
+        - namespace: gaming
       volumes:
         - name: k3s
           type: local

@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ .Release.Name }}"
+  labels:
+    app: "{{ .Release.Name }}"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: "{{ .Release.Name }}"
+  template:
+    metadata:
+      labels:
+        app: "{{ .Release.Name }}"
+    spec:
+      # STABLE hostname — Foundry binds its software license to the
+      # container/pod hostname (per felddy/foundryvtt-docker's own docs): "If
+      # no hostname is set, the runtime assigns a random container ID on each
+      # start, causing license verification to fail after every restart."
+      # Release.Name is stable across deploys/restarts (only changes if the
+      # Helm release itself is renamed), so this satisfies that requirement
+      # without extra values plumbing.
+      hostname: "{{ .Release.Name }}"
+      containers:
+        - name: foundryvtt
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          env:
+            - name: FOUNDRY_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .Values.secrets.name }}"
+                  key: foundry-username
+            - name: FOUNDRY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .Values.secrets.name }}"
+                  key: foundry-password
+            - name: FOUNDRY_ADMIN_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .Values.secrets.name }}"
+                  key: foundry-admin-key
+            - name: FOUNDRY_HOSTNAME
+              value: "{{ .Values.env.FOUNDRY_HOSTNAME }}"
+            - name: FOUNDRY_PROXY_SSL
+              value: "{{ .Values.env.FOUNDRY_PROXY_SSL }}"
+            - name: FOUNDRY_PROXY_PORT
+              value: "{{ .Values.env.FOUNDRY_PROXY_PORT }}"
+            - name: FOUNDRY_MINIFY_STATIC_FILES
+              value: "{{ .Values.env.FOUNDRY_MINIFY_STATIC_FILES }}"
+            - name: TZ
+              value: "{{ .Values.env.TZ }}"
+          ports:
+            # Hardcoded (not templated) — see nextcloud-scan-cron/
+            # firefly-importer/grimoire's own templates for why bare numeric
+            # fields aren't templated in this repo (VS Code YAML formatter
+            # corruption risk). 30000 is Foundry's fixed upstream port.
+            - containerPort: 30000
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          # Generous initial delay — first boot downloads the licensed
+          # Foundry distribution (tens to hundreds of MB) before the server
+          # can even start listening, on top of normal startup time.
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 30000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 20
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 30000
+            initialDelaySeconds: 90
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: "{{ .Release.Name }}-data"

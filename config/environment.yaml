@@ -315,6 +315,24 @@ spec:
         type: urlsafe
         length: 48
 
+    # Application secrets — FoundryVTT (Forge)
+    # NOTE: unlike most secrets in this file, these are NOT strata-generated
+    # — they're the user's real foundryvtt.com account credentials and a
+    # chosen admin password, entered directly into Infisical (no `generate:`
+    # block). See docs/services/foundryvtt.md.
+    - key: FOUNDRY_USERNAME
+      store: infisical
+      value: FOUNDRY_USERNAME
+      description: foundryvtt.com account username/email — used by felddy/foundryvtt-docker to download the licensed distribution at container startup
+    - key: FOUNDRY_PASSWORD
+      store: infisical
+      value: FOUNDRY_PASSWORD
+      description: foundryvtt.com account password — paired with FOUNDRY_USERNAME
+    - key: FOUNDRY_ADMIN_KEY
+      store: infisical
+      value: FOUNDRY_ADMIN_KEY
+      description: FoundryVTT's in-app admin/GM password, applied at every container startup
+
     # Application secrets — Firefly III (Forge)
     - key: FIREFLY_APP_KEY
       store: infisical
