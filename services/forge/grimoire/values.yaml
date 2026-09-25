@@ -22,6 +22,10 @@ env:
   OIDC_MATCH_BY: email
   OIDC_AUTO_REGISTER: "false"
   OIDC_BUTTON_TEXT: "Sign in with Authentik"
+  # Safe defaults for a bare chart render — module config overrides both
+  # once SSO is the only intended login path (see grimoire.yaml).
+  OIDC_AUTO_LAUNCH: "false"
+  ALLOW_PASSWORD_AUTHENTICATION: "true"
 
 # Name of the K8s Secret (rendered by the grimoire-secrets module/chart)
 # holding the real OIDC client secret under key `sso-client-secret`.

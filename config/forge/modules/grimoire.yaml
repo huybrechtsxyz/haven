@@ -46,6 +46,15 @@ spec:
       OIDC_MATCH_BY: email
       OIDC_AUTO_REGISTER: "true"
       OIDC_BUTTON_TEXT: "Sign in with Authentik"
+      # "Everyone goes through Authentik, always" (2026-09-25 decision) — no
+      # local Grimoire accounts, no dead login form to skip past. First-run
+      # admin setup is exempt from ALLOW_PASSWORD_AUTHENTICATION regardless
+      # (Grimoire always requires it for that one-time bootstrap) — keep
+      # that original admin password documented somewhere safe (e.g.
+      # Bitwarden): it's the only recovery path if Authentik itself is ever
+      # down, by temporarily unsetting this var and redeploying.
+      OIDC_AUTO_LAUNCH: "true"
+      ALLOW_PASSWORD_AUTHENTICATION: "false"
 
     # Name of the K8s Secret grimoire-secrets.yaml renders — must be set
     # explicitly here (not left to the chart's own values.yaml default),

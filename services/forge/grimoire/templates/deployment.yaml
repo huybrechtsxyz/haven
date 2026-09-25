@@ -51,6 +51,10 @@ spec:
               value: "{{ .Values.env.OIDC_AUTO_REGISTER }}"
             - name: OIDC_BUTTON_TEXT
               value: "{{ .Values.env.OIDC_BUTTON_TEXT }}"
+            - name: OIDC_AUTO_LAUNCH
+              value: "{{ .Values.env.OIDC_AUTO_LAUNCH }}"
+            - name: ALLOW_PASSWORD_AUTHENTICATION
+              value: "{{ .Values.env.ALLOW_PASSWORD_AUTHENTICATION }}"
           ports:
             # Hardcoded (not templated) — see service.yaml's comment; 9481
             # is Grimoire's fixed upstream port.

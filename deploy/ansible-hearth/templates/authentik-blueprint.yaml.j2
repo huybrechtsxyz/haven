@@ -114,6 +114,24 @@ entries:
       attributes:
         description: Family members — access to shared applications
 
+  # Reusable, non-family access group — for the specific people (gaming
+  # friends, not necessarily "family friends" generally) invited to join a
+  # TTRPG campaign via Grimoire, without giving them the run of every
+  # family app the blanket members/parents/admins policy would grant.
+  # Also usable to selectively include/exclude individual family members
+  # from this same audience — membership here is entirely manual and
+  # independent of the family groups above. Intentionally scoped to
+  # "gaming" (not "grimoire-users") so any future gaming-adjacent app can
+  # reuse the same group/policy.
+  - model: authentik_core.group
+    state: present
+    identifiers:
+      name: gaming
+    attrs:
+      name: gaming
+      attributes:
+        description: People invited to play in the TTRPG campaign(s) via Grimoire (and any hand-picked family members) — distinct from general "friends"
+
   # Grimoire-specific role/permission groups — per hunter-read/grimoire's own
   # docs/faq.md "How do I configure OIDC with Authentik?" worked example.
   # Separate from admins/parents/members above: those gate WHO can attempt
@@ -195,6 +213,16 @@ entries:
       description: Grants access to all family members (members, parents, and admins)
       expression: "return ak_is_group_member(request.user, name='members') or ak_is_group_member(request.user, name='parents') or ak_is_group_member(request.user, name='admins')"
 
+  - model: authentik_policies_expression.expressionpolicy
+    state: present
+    identifiers:
+      name: policy-group-gaming
+    id: policy-group-gaming
+    attrs:
+      name: policy-group-gaming
+      description: Grants access to the gaming group plus admins (NOT the blanket members/parents family policy) — for Grimoire specifically
+      expression: "return ak_is_group_member(request.user, name='gaming') or ak_is_group_member(request.user, name='admins')"
+
   # ---------------------------------------------------------------------------
   # Custom scope mapping — force email_verified: true for internal trusted users
   # ---------------------------------------------------------------------------
@@ -255,11 +283,13 @@ entries:
     attrs:
       name: Grimoire Groups
       scope_name: groups
-      description: Maps grimoire-admin/grimoire-gm/grimoire-player Authentik groups to Grimoire's admin/gm/player roles
+      description: Maps grimoire-admin/grimoire-gm/grimoire-player (and this repo's admins group) to Grimoire's admin/gm/player roles
       expression: |
         groups = [group.name for group in user.ak_groups.all()]
         grimoire_groups = []
-        if "grimoire-admin" in groups:
+        # Household Authentik admins are automatically Grimoire admins too —
+        # no separate grimoire-admin group membership required for them.
+        if "grimoire-admin" in groups or "admins" in groups:
             grimoire_groups.append("admin")
         if "grimoire-gm" in groups:
             grimoire_groups.append("gm")
@@ -275,10 +305,10 @@ entries:
     attrs:
       name: Grimoire Permissions
       scope_name: permissions
-      description: Grants Grimoire's viewNSFW permission to grimoire-admin or nsfw group members
+      description: Grants Grimoire's viewNSFW permission to grimoire-admin/admins or nsfw group members
       expression: |
         groups = [group.name for group in user.ak_groups.all()]
-        if "grimoire-admin" in groups:
+        if "grimoire-admin" in groups or "admins" in groups:
             return {"permissions": {"viewNSFW": True}}
         explicit = "nsfw" in groups
         return {"permissions": {"viewNSFW": explicit}}
@@ -688,7 +718,7 @@ entries:
       order: 0
     attrs:
       target: !Find [authentik_core.application, [slug, grimoire]]
-      policy: !KeyOf policy-group-members
+      policy: !KeyOf policy-group-gaming
       order: 0
       enabled: true
       negate: false

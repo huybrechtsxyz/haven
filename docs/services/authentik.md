@@ -59,21 +59,24 @@ Then assign each user to a group:
 
 The blueprint creates three groups and a corresponding group-membership policy for each:
 
-| Group     | Policy                 | Who belongs           |
-| --------- | ---------------------- | --------------------- |
-| `admins`  | `policy-group-admins`  | Tech admin            |
-| `parents` | `policy-group-parents` | Adult family members  |
-| `members` | `policy-group-members` | Everyone (kids, etc.) |
+| Group     | Policy                 | Who belongs                                                                                                                                                 |
+| --------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `admins`  | `policy-group-admins`  | Tech admin                                                                                                                                                  |
+| `parents` | `policy-group-parents` | Adult family members                                                                                                                                        |
+| `members` | `policy-group-members` | Everyone (kids, etc.)                                                                                                                                       |
+| `gaming`  | `policy-group-gaming`  | People invited to play in the TTRPG campaign(s) via Grimoire (and any hand-picked family members) — see [grimoire.md](grimoire.md#access--the-gaming-group) |
 
 Application access is gated by binding the appropriate policy to each application:
 
-| Application | Bound policy           | Who can log in        |
-| ----------- | ---------------------- | --------------------- |
-| Vaultwarden | `policy-group-members` | Everyone (all groups) |
-| WUD         | `policy-group-admins`  | Admins only           |
-| Immich      | `policy-group-members` | Everyone (all groups) |
-| Jellyfin    | `policy-group-members` | Everyone (all groups) |
-| Nextcloud   | `policy-group-members` | Everyone (all groups) |
+| Application | Bound policy           | Who can log in                                                      |
+| ----------- | ---------------------- | ------------------------------------------------------------------- |
+| Vaultwarden | `policy-group-members` | Everyone (all groups)                                               |
+| WUD         | `policy-group-admins`  | Admins only                                                         |
+| Immich      | `policy-group-members` | Everyone (all groups)                                               |
+| Jellyfin    | `policy-group-members` | Everyone (all groups)                                               |
+| Nextcloud   | `policy-group-members` | Everyone (all groups)                                               |
+| Kavita      | `policy-group-members` | Everyone (all groups)                                               |
+| Grimoire    | `policy-group-gaming`  | `gaming` group or `admins` only — **not** the blanket family policy |
 
 ---
 
