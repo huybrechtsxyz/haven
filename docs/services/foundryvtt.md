@@ -134,6 +134,12 @@ If that loads fine, the app/ingress/cert/PVC are all healthy and the fault is in
 
 ## Still open
 
-- Cross-host outpost routing is **not yet live-verified** — same caveat Firefly's own docs carry: this is the riskiest/newest part of the change, expect to iterate after the first real deploy + login attempt
 - `persistence.data` size (30Gi) is an initial estimate — monitor actual usage (uploaded maps/tokens/audio add up fast) and grow the PVC if needed
 - Foundry's own automatic "Update Software" tab is disabled by design in this image — upgrades happen by bumping the image tag and redeploying instead (see upstream's [Updating](https://github.com/felddy/foundryvtt-docker#updating) docs)
+
+## Rollout notes (2026-09-25)
+
+Confirmed live end-to-end: cross-host outpost routing, the `foundry.huybrechts.xyz` Caddy site block, and the shared embedded outpost (both Firefly's and FoundryVTT's Proxy Providers assigned to the same "authentik Embedded Outpost") all work correctly together. Two real issues hit during first rollout, for reference:
+
+- **500 Bad Gateway on first deploy** — root cause: `23 - Hearth - Deploy` hadn't been run yet, so the new Caddy site block for `foundry.huybrechts.xyz` wasn't live (`22 - Hearth - Config` only handles the Authentik blueprint, not the Docker Compose stack/Caddyfile). Fixed by running `23 - Hearth - Deploy`.
+- **400 Bad Request after that** — resolved after a pod restart/redeploy settled; likely stale Ingress/Middleware CRD propagation or an intermediate cert/outpost cache, not a config defect. If this recurs, check `kubectl describe certificate foundryvtt-tls -n gaming` (should be `Ready: True` with no lingering `Challenge` objects) and the Authentik Events log before assuming it's config-related again.
