@@ -195,7 +195,7 @@ Nextcloud, Kavita, and Grimoire all need a plain filesystem path — none has a 
 
 - **Nextcloud** → `/mnt/haven-data-docs` (External Storage root)
 - **Kavita** → `/mnt/haven-data-docs/books` (read-only)
-- **Grimoire** → `/mnt/haven-data-docs/ttrpg` (read-only, maps/tokens/audio/models) **and** `/mnt/haven-data-docs/books` (read-only, bind-mounted a second time at `/library/books` — the same physical folder Kavita reads from, so both apps index identical files with no duplication)
+- **Grimoire** → `/mnt/haven-data-docs/ttrpg` (read-only, maps/tokens/audio/models) **and** `/mnt/haven-data-docs/books/ttrpg` (read-only, bind-mounted at `/library/books` — only the TTRPG subset of Kavita's `books/` tree, not the whole ~20K-book library)
 
 SMB is a proper shared filesystem — both apps see the same state at all times with no caching concerns.
 

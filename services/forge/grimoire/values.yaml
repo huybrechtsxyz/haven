@@ -45,12 +45,13 @@ library:
   # models) — a dedicated ttrpg/ subfolder, mounted at Grimoire's /library
   # root.
   hostPath: /mnt/haven-data-docs/ttrpg
-  # The SAME physical books/ folder Kavita already reads from — bind-mounted
-  # a second time at /library/books (per hunter-read/grimoire's own
-  # docs/faq.md scanner-folder-structure note) so Grimoire indexes the exact
-  # same PDF files as its "books" category, with zero duplication. See
-  # docs/services/grimoire.md's Storage section.
-  booksHostPath: /mnt/haven-data-docs/books
+  # A SUBFOLDER of the same physical books/ folder Kavita reads from —
+  # bind-mounted at /library/books (per hunter-read/grimoire's own
+  # docs/faq.md scanner-folder-structure note) so Grimoire indexes only the
+  # TTRPG-specific books living under books/ttrpg/, not Kavita's entire
+  # ~20K-book library. Deliberately scoped narrower than the whole books/
+  # tree — see docs/services/grimoire.md's Storage section.
+  booksHostPath: /mnt/haven-data-docs/books/ttrpg
 
 # service.port is intentionally NOT a values key — hardcoded to 9481
 # directly in the chart templates (service.yaml/deployment.yaml/

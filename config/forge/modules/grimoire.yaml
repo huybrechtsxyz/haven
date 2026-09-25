@@ -71,11 +71,11 @@ spec:
       # Grimoire-only content Kavita has no concept of (maps, tokens, audio,
       # 3D models) — a dedicated ttrpg/ subfolder, mounted at /library root.
       hostPath: /mnt/haven-data-docs/ttrpg
-      # The SAME physical books/ folder Kavita already reads from —
-      # bind-mounted a second time at /library/books so Grimoire indexes the
-      # exact same PDF files as its "books" category, with zero duplication.
-      # See docs/services/grimoire.md's Storage section.
-      booksHostPath: /mnt/haven-data-docs/books
+      # A SUBFOLDER of the same physical books/ folder Kavita reads from —
+      # bind-mounted at /library/books so Grimoire indexes only the
+      # TTRPG-specific books under books/ttrpg/, not Kavita's entire
+      # ~20K-book library. See docs/services/grimoire.md's Storage section.
+      booksHostPath: /mnt/haven-data-docs/books/ttrpg
     # service.port is hardcoded to 9481 directly in the chart's templates —
     # see services/forge/grimoire/values.yaml's comment for why this isn't
     # a values key.
