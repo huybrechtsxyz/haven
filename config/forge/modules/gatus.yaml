@@ -3,7 +3,7 @@ kind: module
 meta:
   name: gatus
   annotations:
-    description: Gatus — health/status dashboard for every family service (Immich, Jellyfin, Nextcloud, Kavita, Grimoire, FoundryVTT, Authentik, Vaultwarden, WUD, Portainer). Members-only, no public access — real OIDC login via Authentik.
+    description: Gatus — health/status dashboard for every family service (Immich, Jellyfin, Nextcloud, Kavita, Grimoire, FoundryVTT, RPGKeeper, Authentik, Vaultwarden, WUD, Portainer). Members-only, no public access — real OIDC login via Authentik.
   labels:
     version: "1.0.0"
   tags: [haven, forge, system, monitoring, gatus]
@@ -197,6 +197,14 @@ spec:
         - name: FoundryVTT
           group: forge
           url: "https://foundry.huybrechts.xyz"
+          interval: 60s
+          conditions:
+            - "[STATUS] == 200"
+          alerts:
+            - type: email
+        - name: RPGKeeper
+          group: forge
+          url: "https://rpgkeeper.huybrechts.xyz"
           interval: 60s
           conditions:
             - "[STATUS] == 200"

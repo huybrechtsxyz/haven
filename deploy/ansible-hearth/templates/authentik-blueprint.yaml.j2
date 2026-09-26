@@ -933,6 +933,60 @@ entries:
       negate: false
       timeout: 30
 
+  # ---------------------------------------------------------------------------
+  # RPGKeeper — Proxy Provider (forward auth, single application)
+  # ---------------------------------------------------------------------------
+  # Same shape as Firefly III/FoundryVTT above — RPGKeeper's only built-in
+  # multi-user auth is Google OAuth (confirmed from its own README), no
+  # generic OIDC. Run with SINGLE_USER_MODE=true (see
+  # config/forge/modules/rpgkeeper.yaml) so it doesn't layer a second,
+  # redundant auth system on top of this forwardAuth gate — trade-off:
+  # everyone who passes gets the SAME shared RPGKeeper account/character
+  # list, no per-user separation. See docs/services/rpgkeeper.md's SSO
+  # section.
+  #
+  # Gated by policy-group-gaming, same as FoundryVTT/Grimoire.
+
+  - model: authentik_providers_proxy.proxyprovider
+    state: present
+    identifiers:
+      name: RPGKeeper
+    id: provider-rpgkeeper
+    attrs:
+      name: RPGKeeper
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      mode: forward_single
+      external_host: https://rpgkeeper.huybrechts.xyz
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        - !KeyOf mapping-email-verified
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: rpgkeeper
+    attrs:
+      name: RPGKeeper
+      slug: rpgkeeper
+      provider: !KeyOf provider-rpgkeeper
+      meta_launch_url: https://rpgkeeper.huybrechts.xyz
+
+  - model: authentik_policies.policybinding
+    state: present
+    identifiers:
+      target: !Find [authentik_core.application, [slug, rpgkeeper]]
+      order: 0
+    attrs:
+      target: !Find [authentik_core.application, [slug, rpgkeeper]]
+      policy: !KeyOf policy-group-gaming
+      order: 0
+      enabled: true
+      negate: false
+      timeout: 30
+
   # Explicit outpost assignment — REQUIRED, not automatic. Confirmed via
   # Authentik's own docs (embedded-outpost page): "Any hosts configured in
   # the providers ASSIGNED to the embedded outpost are sent to the outpost" —
@@ -956,10 +1010,11 @@ entries:
   # UI kept showing Firefly under "Available" instead of "Selected" even
   # after this block was supposedly applied. Fixed to the real field name.
   #
-  # FoundryVTT's proxyprovider was added to this same list (2026-09-25) —
-  # this whole block is `state: present` for one identified object, so
-  # every provider that needs the embedded outpost's forward-auth handling
-  # must be listed together here, not in a separate competing block.
+  # FoundryVTT's proxyprovider was added to this same list (2026-09-25),
+  # RPGKeeper's the same day — this whole block is `state: present` for one
+  # identified object, so every provider that needs the embedded outpost's
+  # forward-auth handling must be listed together here, not in a separate
+  # competing block.
   - model: authentik_outposts.outpost
     state: present
     identifiers:
@@ -968,6 +1023,7 @@ entries:
       providers:
         - !Find [authentik_providers_proxy.proxyprovider, [name, Firefly III]]
         - !Find [authentik_providers_proxy.proxyprovider, [name, FoundryVTT]]
+        - !Find [authentik_providers_proxy.proxyprovider, [name, RPGKeeper]]
 
   # ---------------------------------------------------------------------------
   # Infomaniak kSuite — dashboard launcher links (Mail, Calendar, kDrive,

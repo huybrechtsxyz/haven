@@ -1,0 +1,51 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: rpgkeeper
+  annotations:
+    description: RPGKeeper — universal digital character sheet manager (any TTRPG system), gated by Authentik forwardAuth
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, gaming, rpgkeeper, ttrpg]
+spec:
+  type: helm
+  source:
+    repository: haven
+    source_path: services/forge/rpgkeeper
+  kubernetes_namespace: gaming
+  configuration:
+    image:
+      repository: morgul/rpgkeeper
+      tag: latest
+    env:
+      DOMAIN: https://rpgkeeper.huybrechts.xyz
+      SINGLE_USER_MODE: "true"
+    persistence:
+      data:
+        storageClass: local-path
+        size: 2Gi
+    # NOT staging-first, same reasoning as FoundryVTT/Firefly — MUST be
+    # letsencrypt-prod from the start. The forwardAuth middleware makes a
+    # server-to-server HTTPS call back to this exact host, and a staging
+    # cert (untrusted CA) fails that validation outright. See
+    # docs/services/rpgkeeper.md's SSO section.
+    ingress:
+      enabled: true
+      className: traefik
+      host: rpgkeeper.huybrechts.xyz
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      tls:
+        - hosts:
+            - rpgkeeper.huybrechts.xyz
+          secretName: rpgkeeper-tls
+
+    # Authentik forward-auth outpost bypass — RPGKeeper has no native OIDC
+    # (only Google OAuth), so Traefik forwardAuth gates the ingress instead
+    # (same pattern as Firefly III/FoundryVTT). See
+    # services/forge/rpgkeeper/values.yaml's `sso:`/`outpost:` comment and
+    # docs/services/rpgkeeper.md's SSO section.
+    sso:
+      enabled: true
+    outpost:
+      authentikHost: auth.huybrechts.xyz

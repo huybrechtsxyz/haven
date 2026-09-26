@@ -1,0 +1,32 @@
+{{- if .Values.sso.enabled }}
+# Cross-host bridge: Authentik's embedded outpost lives inside the Authentik
+# server container on Hearth (Docker Compose), while this Ingress is served
+# by Forge's own Traefik (k3s). A plain ExternalName Service lets Traefik
+# proxy the outpost's own path (see ingress-outpost.yaml) over the public
+# domain to the real backend, the same way any other upstream would be
+# reached. `service.serversscheme: https` tells Traefik to connect out over
+# HTTPS — without it Traefik defaults to plain HTTP for ExternalName
+# backends.
+#
+# NOTE: Traefik preserves the original Host header (passHostHeader defaults
+# to true), so Caddy receives "Host: {{ .Values.ingress.host }}" over a
+# connection whose SNI is {{ .Values.outpost.authentikHost }}. That is
+# deliberate — the outpost needs the app's own host — but it means Hearth's
+# Caddyfile MUST carry a matching site block for {{ .Values.ingress.host }}
+# routing /outpost.goauthentik.io/* to authentik-server. Without it Caddy
+# has no matching site and answers 404 (same class of bug hit for Firefly/
+# FoundryVTT — see services/hearth/caddy/Caddyfile).
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ .Release.Name }}-authentik-outpost"
+  annotations:
+    traefik.ingress.kubernetes.io/service.serversscheme: https
+spec:
+  type: ExternalName
+  externalName: "{{ .Values.outpost.authentikHost }}"
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+{{- end }}

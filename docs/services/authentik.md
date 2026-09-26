@@ -68,16 +68,17 @@ The blueprint creates three groups and a corresponding group-membership policy f
 
 Application access is gated by binding the appropriate policy to each application:
 
-| Application | Bound policy           | Who can log in                                                                                                         |
-| ----------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Vaultwarden | `policy-group-members` | Everyone (all groups)                                                                                                  |
-| WUD         | `policy-group-admins`  | Admins only                                                                                                            |
-| Immich      | `policy-group-members` | Everyone (all groups)                                                                                                  |
-| Jellyfin    | `policy-group-members` | Everyone (all groups)                                                                                                  |
-| Nextcloud   | `policy-group-members` | Everyone (all groups)                                                                                                  |
-| Kavita      | `policy-group-members` | Everyone (all groups)                                                                                                  |
-| Grimoire    | `policy-group-gaming`  | `gaming` group or `admins` only — **not** the blanket family policy                                                    |
-| FoundryVTT  | `policy-group-gaming`  | `gaming` group or `admins` only, enforced via Traefik forwardAuth (no native OIDC) — **not** the blanket family policy |
+| Application | Bound policy           | Who can log in                                                                                                                            |
+| ----------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Vaultwarden | `policy-group-members` | Everyone (all groups)                                                                                                                     |
+| WUD         | `policy-group-admins`  | Admins only                                                                                                                               |
+| Immich      | `policy-group-members` | Everyone (all groups)                                                                                                                     |
+| Jellyfin    | `policy-group-members` | Everyone (all groups)                                                                                                                     |
+| Nextcloud   | `policy-group-members` | Everyone (all groups)                                                                                                                     |
+| Kavita      | `policy-group-members` | Everyone (all groups)                                                                                                                     |
+| Grimoire    | `policy-group-gaming`  | `gaming` group or `admins` only — **not** the blanket family policy                                                                       |
+| FoundryVTT  | `policy-group-gaming`  | `gaming` group or `admins` only, enforced via Traefik forwardAuth (no native OIDC) — **not** the blanket family policy                    |
+| RPGKeeper   | `policy-group-gaming`  | `gaming` group or `admins` only, enforced via Traefik forwardAuth (no native OIDC, only Google OAuth) — **not** the blanket family policy |
 
 ---
 
@@ -130,11 +131,12 @@ Full SSO configuration details live in each service's own doc. This table summar
 | Grimoire    | `per_provider`     | OIDC (native)                        | `GRIMOIRE_SSO_CLIENT_SECRET`              | [grimoire.md](grimoire.md)       |
 | Firefly III | n/a (forward auth) | Traefik forwardAuth (Proxy Provider) | none \u2014 no client secret in this mode | [firefly.md](firefly.md)         |
 | FoundryVTT  | n/a (forward auth) | Traefik forwardAuth (Proxy Provider) | none \u2014 no client secret in this mode | [foundryvtt.md](foundryvtt.md)   |
+| RPGKeeper   | n/a (forward auth) | Traefik forwardAuth (Proxy Provider) | none — no client secret in this mode      | [rpgkeeper.md](rpgkeeper.md)     |
 
 **`issuer_mode` guidance:**
 - Use `per_provider` for every OIDC app. Authentik does not expose a global `/.well-known/openid-configuration` endpoint; per-app discovery URLs (`https://auth.huybrechts.xyz/application/o/<slug>/`) always work.
 - WUD uses `global` and is confirmed working — do not change it. Every other OIDC app uses `per_provider`.
-- Firefly III and FoundryVTT have no native OIDC support at all, so they use an `authentik_providers_proxy.proxyprovider` (`mode: forward_single`) instead — `issuer_mode` doesn't apply to that provider type. See [firefly.md](firefly.md) and [foundryvtt.md](foundryvtt.md) for the Traefik-forwardAuth wiring.
+- Firefly III, FoundryVTT, and RPGKeeper have no native OIDC support at all, so they use an `authentik_providers_proxy.proxyprovider` (`mode: forward_single`) instead — `issuer_mode` doesn't apply to that provider type. See [firefly.md](firefly.md), [foundryvtt.md](foundryvtt.md), and [rpgkeeper.md](rpgkeeper.md) for the Traefik-forwardAuth wiring.
 
 ---
 

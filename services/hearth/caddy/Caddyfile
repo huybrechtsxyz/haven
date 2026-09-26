@@ -59,6 +59,26 @@ foundry.huybrechts.xyz {
     }
 }
 
+# RPGKeeper (runs on Forge/k3s) — Authentik forward-auth outpost bypass.
+# Same reasoning as the finance.huybrechts.xyz/foundry.huybrechts.xyz blocks
+# above — RPGKeeper has no native OIDC/SSO (only Google OAuth), so it's
+# gated the same forwardAuth way. See
+# services/forge/rpgkeeper/templates/{ingress,service}-outpost.yaml and
+# docs/services/rpgkeeper.md's SSO section.
+rpgkeeper.huybrechts.xyz {
+    tls internal
+
+    handle /outpost.goauthentik.io/* {
+        reverse_proxy authentik-server:9000
+    }
+
+    # Nothing else on this domain belongs on Hearth — RPGKeeper itself is
+    # served by Forge's Traefik.
+    handle {
+        respond "Not found" 404
+    }
+}
+
 # Vaultwarden — Password Manager
 vault.huybrechts.xyz {
     reverse_proxy vaultwarden:80

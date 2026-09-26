@@ -1,0 +1,10 @@
+apiVersion: v2
+name: rpgkeeper
+description: >
+  RPGKeeper — universal digital character sheet manager (any TTRPG system),
+  gated by Authentik forwardAuth (same pattern as Firefly III/FoundryVTT) —
+  no native OIDC support, and single-user mode used internally since access
+  is already controlled at the ingress. SQLite-backed, own dedicated
+  local-path data volume.
+type: application
+version: "1.0.0"

@@ -1,0 +1,62 @@
+# Defaults — override via the strata module's spec.configuration (see
+# config/forge/modules/rpgkeeper.yaml).
+image:
+  # Official, actively-maintained image from the project's own maintainer —
+  # https://hub.docker.com/r/morgul/rpgkeeper. Node.js/SQLite, no separate
+  # database service needed.
+  repository: morgul/rpgkeeper
+  tag: latest
+
+env:
+  # Public URL — required by RPGKeeper even with Google OAuth disabled,
+  # used to build absolute links.
+  DOMAIN: https://rpgkeeper.huybrechts.xyz
+  # No native OIDC/SSO support (confirmed against the project's own README —
+  # only Google OAuth or this). Access is already gated at the ingress by
+  # Authentik forwardAuth (see `sso:`/`outpost:` below, same pattern as
+  # Firefly III/FoundryVTT) — SINGLE_USER_MODE avoids layering a second,
+  # redundant auth system (Google OAuth) on top, per upstream's own
+  # documented use case ("personal home server deployments"). Trade-off:
+  # everyone who passes the forwardAuth gate shares ONE RPGKeeper account/
+  # character list — there is no per-user character separation in this
+  # mode. See docs/services/rpgkeeper.md.
+  SINGLE_USER_MODE: "true"
+
+persistence:
+  # A single SQLite file (rpgk.db) plus the bundled static.db (game
+  # supplement data: weapons, armor, talents, etc.) — both live under
+  # /app/db. Small, low-write-volume data (nothing like Foundry's live
+  # world saves), but still local-path rather than the haven-data Storage
+  # Box tree: this is app-owned state, not shared reference content, same
+  # category as Kavita's/Grimoire's own config/data PVCs. Automatically
+  # covered by the existing local-path-PVC backup sweep in
+  # deploy/ansible-forge/templates/backup.sh.j2 — no extra backup wiring
+  # needed.
+  data:
+    storageClass: local-path
+    size: 2Gi
+
+ingress:
+  enabled: true
+  className: traefik
+  host: rpgkeeper.huybrechts.xyz
+  annotations: {}
+  tls: []
+
+# =============================================================================
+# Authentik forward-auth outpost bypass — RPGKeeper has no native OIDC/SSO
+# support (only Google OAuth, per its own README), so this uses the same
+# Traefik-forwardAuth-in-front-of-a-non-OIDC-app pattern already proven for
+# Firefly III and FoundryVTT rather than a native OAuth2 client. See
+# templates/middleware.yaml + templates/ingress-outpost.yaml +
+# templates/service-outpost.yaml, and docs/services/rpgkeeper.md's SSO
+# section for the full writeup.
+#
+# Set sso.enabled: false (and drop the forwardAuth annotation) temporarily
+# to isolate app/ingress/cert problems from Authentik wiring problems, same
+# debugging technique documented in docs/services/firefly.md.
+sso:
+  enabled: true
+
+outpost:
+  authentikHost: auth.huybrechts.xyz

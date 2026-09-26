@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ .Release.Name }}"
+  labels:
+    app: "{{ .Release.Name }}"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: "{{ .Release.Name }}"
+  template:
+    metadata:
+      labels:
+        app: "{{ .Release.Name }}"
+    spec:
+      # Seeds the PVC with the image's own bundled static.db (game
+      # supplement data: weapons, armor, talents, etc.) on first run only.
+      # A volume mounted at /app/db in the MAIN container would otherwise
+      # shadow the image's baked-in copy, leaving a fresh PVC with no
+      # static.db at all (per upstream's own README: "If you mount a volume
+      # at /app/db, it will shadow the bundled static.db file"). Mounting
+      # the SAME PVC at a different path here avoids that shadowing, so
+      # this copies from the image's real, unshadowed /app/db/static.db —
+      # idempotent (skips if already present, e.g. after a redeploy).
+      initContainers:
+        - name: seed-static-db
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command:
+            - sh
+            - -c
+            - "test -f /pvc-data/static.db || cp /app/db/static.db /pvc-data/static.db"
+          volumeMounts:
+            - name: data
+              mountPath: /pvc-data
+      containers:
+        - name: rpgkeeper
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          env:
+            - name: DOMAIN
+              value: "{{ .Values.env.DOMAIN }}"
+            - name: SINGLE_USER_MODE
+              value: "{{ .Values.env.SINGLE_USER_MODE }}"
+          ports:
+            # Hardcoded (not templated) — see nextcloud-scan-cron/
+            # firefly-importer/grimoire/foundryvtt's own templates for why
+            # bare numeric fields aren't templated in this repo (VS Code
+            # YAML formatter corruption risk). 5678 is RPGKeeper's fixed
+            # upstream port.
+            - containerPort: 5678
+          volumeMounts:
+            - name: data
+              mountPath: /app/db
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5678
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5678
+            initialDelaySeconds: 20
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: "{{ .Release.Name }}-data"
