@@ -61,6 +61,14 @@ Authentik's "forward auth (single application)" mode requires `<external_host>/o
 
 Traefik gives more-specific path prefixes higher route priority automatically, so this outpost path always wins over the app's catch-all `/` — no explicit priority annotation should be needed, but confirm this with `kubectl describe ingressroute`/Traefik's dashboard if login redirects loop.
 
+### API access (Personal Access Tokens) — a second, separate bypass
+
+**Confirmed live (2026-09-26)**: any external client authenticating with a Firefly **Personal Access Token** (`Authorization: Bearer <token>`) against `/api/*` — a budgeting app importing transactions, for example — got a "failed to validate access token" error even with a genuinely valid token. Root cause: the forwardAuth middleware gates the app's *entire* domain, including `/api/*`, and it only understands Authentik browser sessions — it has no concept of Firefly's own Bearer tokens. The API client's request was being rejected/redirected by forwardAuth before it ever reached Firefly's own token check.
+
+Fixed the same way as the outpost path: `templates/ingress-api.yaml` adds a third Ingress on the same host, routing `/api` with **no** forwardAuth middleware attached, straight to Firefly. This is safe — it doesn't disable auth on the API, it just removes the redundant, incompatible Authentik-session check in front of it. Firefly's own Personal Access Token validation still applies to every request under `/api/*`, same as always.
+
+If a future forwardAuth-protected app in this repo also exposes its own token-based API for third-party integrations, check for this same class of problem — it's not Firefly-specific.
+
 ### Prerequisites (all three required — confirmed 2026-09-08)
 
 The chart alone is not sufficient. Each of these was a real, separately-diagnosed blocker; missing any one produces a browser 500 with **no corresponding line in Firefly's own access log** (the failure happens in Traefik, upstream of the pod).
