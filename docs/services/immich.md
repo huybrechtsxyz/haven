@@ -54,6 +54,24 @@ The Immich side is a **one-time manual step** (Immich stores OAuth config in its
 
 ---
 
+### Disabling password login (manual step, optional)
+
+Once OAuth is confirmed working end-to-end, password-based login can be disabled entirely so Authentik is the only way in. This is **not** a Helm value or admin-UI toggle — Immich ships a CLI command for it, run inside the live pod:
+
+```powershell
+kubectl exec -n immich deploy/immich-server -- immich-admin disable-password-login
+```
+
+(Run `kubectl get deploy -n immich` first if `immich-server` isn't the exact deployment name — it depends on how the `immich-charts` chart names things.)
+
+**Before disabling:** log out and log back in via "Login with OAuth" at least once to confirm the Authentik integration actually works — password login is the fallback if that ever breaks.
+
+**To revert or recover:**
+- Re-enable password login: `kubectl exec -n immich deploy/immich-server -- immich-admin enable-password-login`
+- Break-glass admin password reset (works regardless of OAuth/password-login state): `kubectl exec -n immich deploy/immich-server -- immich-admin reset-admin-password`
+
+---
+
 ### Email notifications (manual setup, optional)
 
 Immich supports SMTP for its own notification emails (album invites, album updates, welcome emails on new user creation) via **Administration → Settings → Notifications**. Unlike SSO, this has no env var / Helm values equivalent at all — it's stored entirely in Immich's own database, configured only through the admin UI.
