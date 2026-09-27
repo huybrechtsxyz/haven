@@ -596,6 +596,18 @@ entries:
   # initially registered as http:// (before Kavita's ingress had TLS) and
   # broke the very first login attempt with Authentik's "Redirect URI Error"
   # once TLS went live — fixed here to match reality.
+  #
+  # SECOND redirect_uris entry (2026-09-27): Kavita's own logout flow
+  # (Kavita.Server/Controllers/OidcController.cs's Logout action) calls
+  # ASP.NET Core's SignOut(..., OpenIdConnect) with
+  # AuthenticationProperties.RedirectUri = "<baseUrl>login" (i.e.
+  # https://books.huybrechts.xyz/login), which becomes the
+  # post_logout_redirect_uri sent to Authentik's end_session_endpoint.
+  # Confirmed live bug (2026-09-27): logging out of Kavita produced
+  # Authentik's "the request is malformed" error, because only the
+  # /signin-oidc login-callback URI was ever registered — Authentik
+  # validates post_logout_redirect_uri against the same redirect_uris list,
+  # so the logout redirect had no matching entry. Fixed by registering both.
 
   - model: authentik_providers_oauth2.oauth2provider
     state: present
@@ -612,6 +624,8 @@ entries:
       redirect_uris:
         - matching_mode: strict
           url: "https://books.huybrechts.xyz/signin-oidc"
+        - matching_mode: strict
+          url: "https://books.huybrechts.xyz/login"
       grant_types:
         - authorization_code
         - refresh_token

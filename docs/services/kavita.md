@@ -84,6 +84,12 @@ Unlike Jellyfin (needs a third-party plugin + a UI-minted API key) or Nextcloud 
 
 If Kavita's own hostname/ingress ever changes, re-verify this the same way: attempt a login, capture the failing `redirect_uri=` query param from the browser URL bar, and make sure it still matches the blueprint's registered value exactly (`matching_mode: strict`).
 
+### Logout — "the request is malformed" in Authentik (fixed 2026-09-27)
+
+Logging out of Kavita (not logging in) produced Authentik's generic **"the request is malformed"** error. Root cause: Kavita's `/oidc/logout` route (`Kavita.Server/Controllers/OidcController.cs`'s `Logout` action) calls ASP.NET Core's `SignOut(..., OpenIdConnect)` with `RedirectUri` set to `https://books.huybrechts.xyz/login` — this becomes the `post_logout_redirect_uri` sent to Authentik's `end_session_endpoint`. Authentik validates that value against the **same** `redirect_uris` list used for login callbacks, and only `.../signin-oidc` had ever been registered — the logout redirect had no matching entry, so Authentik rejected the end-session request outright.
+
+**Fix**: added a second `redirect_uris` entry for `https://books.huybrechts.xyz/login` to the Kavita OAuth2Provider in `deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2`. Takes effect on the next `22 - Hearth - Config` run.
+
 ### One-time manual step — enable account provisioning
 
 Getting past the redirect_uri check isn't the whole story — the first real login attempt then failed with **"no matching account found"**. Root cause: Kavita has a **second, database-backed OIDC settings block** (`ServerSettingDto.OidcConfig`, configured through Kavita's own admin UI — Settings → OIDC — not through `appsettings.json`), separate from the `Authority`/`ClientId`/`Secret` block we automate. Per `Kavita.Services/OidcService.cs`'s `LoginOrCreate` flow: a login only succeeds if there's a matching local user by OIDC ID, by exact email match (against an account with no `OidcId` set yet), or if `OidcConfig.ProvisionAccounts` is enabled (allows auto-creating a new local account from the SSO login). This setting defaults to off and nothing in the CI automation touches it, since it's a runtime admin preference, not infrastructure config.
@@ -103,7 +109,14 @@ This is a genuinely manual, one-time step (no stable Kavita AuthKey exists yet t
 
 Kavita has an `OidcConfig.DisablePasswordAuthentication` flag (confirmed in `AccountController.Login`), but it's a **global** switch — enabling it blocks password-based login for *every* account, admin included, with no per-role exception. The only bypass when it's on is logging in via an **Auth Key** instead of a password (`Settings → Manage Auth Keys`).
 
-In practice this repo doesn't need that toggle: SSO-auto-provisioned accounts are created with **no password set at all** (`userManager.CreateAsync(user)`, no password argument), so family members created through SSO already can't fall back to a password unless someone manually sets one for them. The original local admin account (from [First login](#first-login)) keeps its normal password as the recovery path if Authentik is ever down. If you do want the blunt global lock later, create an Auth Key for the admin account first — otherwise there's no recovery path left if Authentik goes down.
+SSO-auto-provisioned accounts are created with **no password set at all** (`userManager.CreateAsync(user)`, no password argument), so family members created through SSO already can't fall back to a password regardless of this toggle. The local admin account (from [First login](#first-login)) is the only account with a real password, so it's the only one this toggle actually affects.
+
+**Decision: enable it.** This is a runtime setting stored in Kavita's own database (`config` PVC), not anything in this repo's Helm/strata config — **redeploying neither sets nor reverts it**, and reverting later is just flipping the same checkbox back off, no pipeline involved either way.
+
+**Steps (order matters — the Auth Key first, or there's no recovery path left if Authentik ever goes down)**:
+1. Log in as the local admin → **Settings → Manage Auth Keys** → create a new Auth Key → save it in Vaultwarden. This is the break-glass login (`https://books.huybrechts.xyz/login?apiKey=<key>`), unaffected by the toggle below.
+2. **Settings → OIDC** → enable **Disable Password Authentication** → Save.
+3. Verify: log out, confirm the admin's password is now rejected, and confirm the Auth Key URL from step 1 still logs in.
 
 ---
 

@@ -126,9 +126,24 @@ a.raised.emby-button {
 .disclaimerContainer {
   display: block;
 }
+
+/* Hide every path to the standard username/password login — cosmetic only
+   (security through obscurity), see note below. Deliberately does NOT touch
+   .readOnlyContent itself or .loginDisclaimerContainer — the SSO button
+   above lives nested inside .readOnlyContent, so hiding that whole
+   container would also hide the SSO button. */
+.btnManual,
+.btnForgotPassword,
+.btnQuick,
+.btnSelectServer,
+.visualLoginForm {
+  display: none !important;
+}
 ```
 
-Save, then reload the Jellyfin login page — the button appears alongside the normal login form and redirects through Authentik.
+Save, then reload the Jellyfin login page — only the SSO button is visible; the standard username/password form, the "Manual Login"/"Forgot Password"/"Quick Connect"/"Change Server" buttons, and the public-user quick-select avatar grid are all hidden.
+
+> **This is cosmetic (security through obscurity), not access control.** `.manualLoginForm` (the actual username/password inputs) is already hidden-by-default until `.btnManual` is clicked — hiding that button, plus the public-user picker (`.visualLoginForm`/`#divUsers`) and the other buttons, just removes every visible path to reach standard login in the **web client** specifically. It does **not** disable Jellyfin's password authentication server-side: the API still accepts username/password logins from anyone who knows a valid one (e.g. via `/Users/authenticatebyname`), and any other client with its own native login screen (mobile apps, Kodi, etc.) is entirely unaffected — Custom CSS only ships to the web client, and a user can always bypass this by opening browser dev tools or disabling CSS. If you want a real server-side lock (matching what was done for [Immich](./immich.md#disabling-password-login-manual-step-optional)), Jellyfin has no built-in equivalent to `immich-admin disable-password-login`; the closest real control is disabling/removing each local user account's password entirely (Dashboard → Users), which is a heavier, per-user change rather than a global toggle.
 
 ---
 
