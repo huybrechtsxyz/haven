@@ -2,11 +2,11 @@
 # config/forge/modules/kavita.yaml).
 image:
   # LinuxServer.io's actively-maintained Kavita image (PUID/PGID/TZ
-  # convention). TODO: verify current tag against
-  # https://docs.linuxserver.io/images/docker-kavita/ before first deploy —
-  # could not be confirmed via automated fetch when this module was authored.
+  # convention). Pinned 2026-09-27 against
+  # https://github.com/linuxserver/docker-kavita/pkgs/container/kavita
+  # (multi-arch tag, published 5 days prior) — re-verify there before bumping.
   repository: lscr.io/linuxserver/kavita
-  tag: latest
+  tag: v0.9.1.4-ls125
 
 env:
   PUID: "1000"

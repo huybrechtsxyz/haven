@@ -2,10 +2,11 @@
 # config/forge/modules/firefly.yaml).
 image:
   repository: fireflyiii/core
-  # TODO: verify current stable tag against https://hub.docker.com/r/fireflyiii/core/tags
-  # before first deploy — could not be confirmed via automated fetch when this
-  # module was authored (same caveat as kavita.yaml's image tag).
-  tag: latest
+  # Pinned 2026-09-27 against the firefly-iii/firefly-iii GitHub release page
+  # (v6.7.4, released 2 days prior) using Firefly's documented `version-X.Y.Z`
+  # Docker Hub tag convention — re-verify against
+  # https://github.com/firefly-iii/firefly-iii/releases before bumping.
+  tag: version-6.7.4
 
 env:
   APP_ENV: production

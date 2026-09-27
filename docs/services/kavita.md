@@ -12,11 +12,11 @@ Kavita runs on **Forge** (Hetzner CPX41, k3s), in the shared `documents` Kuberne
 
 ## What gets deployed
 
-| Item      | Value                                                                                                                                               |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Image     | `lscr.io/linuxserver/kavita` (LinuxServer.io's actively-maintained image) — **tag not yet verified against a live source, see "Still open" below**  |
-| Namespace | `documents` (Kubernetes), module file `config/forge/modules/kavita.yaml`                                                                            |
-| Ingress   | Traefik (`className: traefik`), host `books.{domain}`, TLS via cert-manager (`letsencrypt-staging` initially — see [TLS](#tls--cert-manager) below) |
+| Item      | Value                                                                                                                                                                      |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Image     | `lscr.io/linuxserver/kavita:v0.9.1.4-ls125` (LinuxServer.io's actively-maintained image, pinned 2026-09-27)                                                                |
+| Namespace | `documents` (Kubernetes), module file `config/forge/modules/kavita.yaml`                                                                                                   |
+| Ingress   | Traefik (`className: traefik`), host `books.{domain}`, TLS via cert-manager (`letsencrypt-prod`, confirmed `Ready: True` 2026-09-07 — see [TLS](#tls--cert-manager) below) |
 
 No official Helm chart exists for Kavita (confirmed via a code search across the `Kareadita` GitHub org — no results) — deployed via a local chart at `services/forge/kavita/`.
 
@@ -32,14 +32,14 @@ Kavita's own config/database is separate, local-disk storage (`persistence.confi
 
 ## TLS — cert-manager
 
-Kavita's chart (`services/forge/kavita/templates/ingress.yaml`) supports `ingress.annotations` and `ingress.tls`, wired up the same way as Jellyfin/Immich/Nextcloud. `config/forge/modules/kavita.yaml` currently sets `cert-manager.io/cluster-issuer: letsencrypt-staging` — `books.huybrechts.xyz` has never had a cert issued before, so it needs its own HTTP-01 challenge to succeed at least once via staging before switching to prod (rate-limited to 5 certs/domain/week).
+Kavita's chart (`services/forge/kavita/templates/ingress.yaml`) supports `ingress.annotations` and `ingress.tls`, wired up the same way as Jellyfin/Immich/Nextcloud. `config/forge/modules/kavita.yaml` was flipped from `letsencrypt-staging` to `letsencrypt-prod` on 2026-09-07 after confirming the HTTP-01 challenge for `books.huybrechts.xyz` succeeded via staging first — this is now done, not pending.
 
-**Rollout steps** (same staging-first pattern as every other Forge app):
+**Rollout steps taken** (staging-first pattern, same as every other Forge app):
 
-1. Deploy with `letsencrypt-staging` (already the current setting).
-2. Confirm `kubectl describe certificate books-tls -n documents` shows `Ready: True`.
-3. Switch the annotation in `config/forge/modules/kavita.yaml` to `letsencrypt-prod` and redeploy.
-4. Re-verify `Ready: True` against the prod issuer before considering this done.
+1. Deployed with `letsencrypt-staging` first.
+2. Confirmed `kubectl describe certificate books-tls -n documents` showed `Ready: True`.
+3. Switched the annotation in `config/forge/modules/kavita.yaml` to `letsencrypt-prod` and redeployed.
+4. Re-verified `Ready: True` against the prod issuer — confirmed.
 
 ---
 
@@ -109,7 +109,7 @@ In practice this repo doesn't need that toggle: SSO-auto-provisioned accounts ar
 
 ## Verification checklist
 
-- [ ] `https://books.{domain}` — Kavita loads over TLS (staging cert initially — browser will warn until switched to `letsencrypt-prod`)
+- [ ] `https://books.{domain}` — Kavita loads over TLS (`letsencrypt-prod` cert, confirmed `Ready: True`)
 - [ ] `kubectl describe certificate books-tls -n documents` shows `Ready: True`
 - [ ] Library scan picks up files under `/mnt/haven-data-docs/books`
 - [ ] Confirm the actual current LinuxServer.io image tag before first deploy
@@ -121,7 +121,5 @@ In practice this repo doesn't need that toggle: SSO-auto-provisioned accounts ar
 
 ## Still open
 
-- TLS is on `letsencrypt-staging` pending a live `Ready: True` confirmation — switch to `letsencrypt-prod` once verified (see [TLS](#tls--cert-manager) above)
-- Image tag needs a live-source verification pass (LinuxServer.io's docs site and the Kavita wiki both failed to render via automated fetch when this module was authored — used well-established general knowledge instead of a live-verified source)
 - SSO redirect_uri is now `https://` (confirmed correct 2026-08-29, see [SSO](#sso--authentik-oidc-native)) — pending a follow-up login test after redeploying `22 - Hearth - Config` with the fixed blueprint, to confirm the "Redirect URI Error" is actually resolved
 - `Provision Accounts` is a manual, per-instance admin-UI toggle (Settings → OIDC) — not automated by CI. If Kavita's config PVC is ever recreated from scratch, this must be re-enabled manually before SSO logins work again. **Default Roles and Default Libraries must be set in the same screen** — leaving them empty silently creates roleless/library-less accounts that look "disabled" (see [SSO's one-time manual step](#one-time-manual-step--enable-account-provisioning)).

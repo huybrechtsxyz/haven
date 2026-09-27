@@ -15,7 +15,7 @@ Firefly III runs on **Forge** (Hetzner CPX41, k3s), in its own `finance` Kuberne
 | Item      | Value                                                                                                                                                                                           |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Chart     | `firefly` — local chart (`services/forge/firefly`), no official upstream Helm chart exists for Firefly III                                                                                      |
-| Image     | `fireflyiii/core` (official image) — pin the tag before first deploy, see the chart's `values.yaml` TODO                                                                                        |
+| Image     | `fireflyiii/core:version-6.7.4` (official image, pinned 2026-09-27 — see the chart's `values.yaml` comment for the source)                                                                      |
 | Namespace | `finance` (Kubernetes), module file `config/forge/modules/firefly.yaml`                                                                                                                         |
 | Database  | PostgreSQL — own single-pod instance (`firefly-postgres` module), same pattern as Immich/Nextcloud                                                                                              |
 | Storage   | A single `local-path` PVC for file uploads/attachments — no Storage Box mount needed (no shared-file use case like Nextcloud/Kavita/Jellyfin)                                                   |
@@ -112,7 +112,6 @@ No SSO client secret is needed — forward auth has no app-side OAuth client (se
 
 ## Still open
 
-- Confirm the actual current `fireflyiii/core` image tag before first deploy (`values.yaml` currently pins `latest` with a TODO, same caveat as Kavita's image tag when it was first authored).
 - SMTP is not wired up yet (`MAIL_MAILER: log`) — Firefly can email bill reminders/reports once configured; reuse the shared Infomaniak mailbox credentials the same way Nextcloud/Vaultwarden/Gatus do, via a small `firefly-secrets` chart if the flat `env:` dict approach isn't sufficient once real SMTP fields are added.
 - The `firefly.png` icon reference in the Authentik blueprint hasn't been confirmed to exist in `homarr-labs/dashboard-icons` — verify or swap via Authentik's UI icon upload.
 
