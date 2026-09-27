@@ -32,6 +32,10 @@ haven (workspace)
 │   ├── Jellyfin       — media streaming   → media.{domain}
 │   ├── Nextcloud      — document archive  → docs.{domain}
 │   ├── Kavita         — EPUB/PDF library  → books.{domain}
+│   ├── Grimoire       — TTRPG library     → grimoire.{domain}
+│   ├── FoundryVTT     — VTT server        → foundry.{domain}
+│   ├── Firefly III    — personal finance  → finance.{domain}
+│   ├── Gatus          — health dashboard  → status.{domain}
 │   ├── Homarr         — family dashboard  → home.{domain}
 │   └── Apps           — home-grown        → custom subdomains
 │
@@ -92,6 +96,10 @@ graph TB
         Jellyfin[Jellyfin<br/>Media Streaming]
         Nextcloud[Nextcloud<br/>Document Archive]
         Kavita[Kavita<br/>EPUB / PDF Library]
+        Grimoire[Grimoire<br/>TTRPG Library Manager]
+        FoundryVTT[FoundryVTT<br/>Virtual Tabletop]
+        Firefly[Firefly III<br/>Personal Finance]
+        Gatus[Gatus<br/>Health Dashboard]
         Homarr[Homarr<br/>Family Dashboard]
         Apps[Home-grown Apps<br/>Helm]
     end
@@ -133,6 +141,10 @@ graph TB
     Authentik -.->|OIDC SSO| Jellyfin
     Authentik -.->|OIDC SSO| Nextcloud
     Authentik -.->|OIDC SSO| Homarr
+    Authentik -.->|OIDC SSO| Gatus
+    Authentik -.->|OIDC SSO, native| Grimoire
+    Authentik -.->|forwardAuth, no native OIDC| FoundryVTT
+    Authentik -.->|forwardAuth, no native OIDC| Firefly
     Authentik -.->|OIDC SSO| Apps
     InfisicalCloud -.->|resolved at deploy time by strata| GitHub
 
@@ -169,6 +181,9 @@ graph TB
 | Media streaming    | Jellyfin                        | Hetzner CPX41 VPS (DE 🇩🇪)                                          | Open-source Plex alternative; no account required; OIDC via Authentik; library stored on Storage Box (SMB mount) — fixed cost, unlimited traffic, low latency, sequential reads                                                                                                                                                                    |
 | Document archive   | Nextcloud                       | Hetzner CPX41 VPS (DE 🇩🇪)                                          | Family document archive/browsing layer (not the live sync drive — that's Infomaniak kDrive); OIDC via Authentik; storage on Storage Box (SMB mount), External Storage app configured against the same mount                                                                                                                                        |
 | EPUB/PDF library   | Kavita                          | Hetzner CPX41 VPS (DE 🇩🇪)                                          | Reads the same shared documents tree as Nextcloud (read-only) from the Storage Box (SMB mount)                                                                                                                                                                                                                                                     |
+| TTRPG library      | Grimoire                        | Hetzner CPX41 VPS (DE 🇩🇪)                                          | TTRPG PDF/book library manager; native OIDC via Authentik (`gaming` group); shares the Storage Box `docs` sub-account with Nextcloud/Kavita, scoped to a `books/ttrpg` subfolder                                                                                                                                                                    |
+| Virtual tabletop   | FoundryVTT                      | Hetzner CPX41 VPS (DE 🇩🇪)                                          | Licensed VTT server for running TTRPG sessions; no native OIDC — gated via Traefik forwardAuth to Authentik (`gaming` group); own local-path PVC (live world data, not Storage Box)                                                                                                                                                              |
+| Personal finance   | Firefly III                     | Hetzner CPX41 VPS (DE 🇩🇪)                                          | Budgeting/accounting app; no native OIDC — gated via Traefik forwardAuth to Authentik, with a separate unauthenticated `/api` path so Personal Access Token API clients (e.g. Abacus) still work; own local-path PVC + Postgres                                                                                                                   |
 | Family dashboard   | Homarr                          | Hetzner CPX41 VPS (DE 🇩🇪)                                          | Family-facing landing page linking to every deployed service; real per-user boards — group/permission sync from Authentik (admins/parents/members), unlike Authentik's own shared application launcher                                                                                                                                             |
 | Object storage     | Hetzner S3 (eu-central)         | Hetzner (S3-compatible, eu-central)                               | Three buckets provisioned (`haven-photos`, `haven-media`, `haven-docs`) but **currently unused** — none of the apps above have native S3 API support, so Storage Box (SMB) serves all of them instead; kept in reserve for a future app that genuinely needs the S3 API                                                                            |
 | Passwords          | Vaultwarden                     | Hetzner VPS (DE 🇩🇪)                                                | Bitwarden-compatible; same Firefox extension + iPhone app for family                                                                                                                                                                                                                                                                               |
@@ -177,12 +192,12 @@ graph TB
 | State backend      | Terraform Cloud                 | app.terraform.io (☁️ free)                                         | Remote Terraform/OpenTofu state; no local state files or S3 backend required                                                                                                                                                                                                                                                                       |
 | Identity (SSO)     | Authentik                       | Hetzner VPS (DE 🇩🇪)                                                | OIDC/OAuth2 for all VPS services; 2FA enforcement; user lifecycle                                                                                                                                                                                                                                                                                  |
 | Compute — Core     | Docker Compose                  | Hetzner CX23 VPS (DE 🇩🇪)                                           | Authentik, Vaultwarden, Caddy — stable core; deployment credentials sourced from Bitwarden Cloud; never experiments run here                                                                                                                                                                                                                       |
-| Compute — Workload | k3s (single-node)               | Hetzner CPX41 VPS (DE 🇩🇪)                                          | Immich, Jellyfin, Nextcloud, Kavita, home-grown apps via Helm; expendable — destroy/rebuild freely; secrets resolved directly by strata from Infisical Cloud at deploy time (no in-cluster secrets operator)                                                                                                                                       |
+| Compute — Workload | k3s (single-node)               | Hetzner CPX41 VPS (DE 🇩🇪)                                          | Immich, Jellyfin, Nextcloud, Kavita, Grimoire, FoundryVTT, Firefly III, Gatus, home-grown apps via Helm; expendable — destroy/rebuild freely; secrets resolved directly by strata from Infisical Cloud at deploy time (no in-cluster secrets operator)                                                                                                                                       |
 | IaC — tool         | strata (Python CLI)             | [`huybrechtsxyz/strata`](https://github.com/huybrechtsxyz/strata) | Own Terragrunt alternative; orchestrates OpenTofu + Ansible against `haven` config                                                                                                                                                                                                                                                                 |
 | IaC — config       | haven (config repo)             | [`huybrechtsxyz/haven`](https://github.com/huybrechtsxyz/haven)   | All infra + app declarations: OpenTofu .tf, Ansible vars, Docker Compose, Helm values                                                                                                                                                                                                                                                              |
 | Reverse proxy      | Caddy                           | Hetzner VPS (DE 🇩🇪)                                                | Automatic Let's Encrypt TLS, HSTS, subdomain routing                                                                                                                                                                                                                                                                                               |
 | Backups            | Two-tier backups                | Hetzner + Infomaniak                                              | **Tier 1:** Hearth + Forge system state (configs, DB dumps) via BorgBackup → the dedicated `haven-backup` Storage Box (1 TB, daily, encrypted — separate product from `haven-data`). **Tier 2:** both Storage Boxes (`haven-backup` + `haven-data`) synced to dedicated Infomaniak kDrive 3 TB once a day via rclone — offsite cross-provider copy |
-| Monitoring         | Healthchecks.io + UptimeRobot   | External (free tiers)                                             | Healthchecks.io: BorgBackup dead-man's switch; UptimeRobot: public endpoint availability. A per-service health dashboard (e.g. Gatus) is not yet built                                                                                                                                                                                             |
+| Monitoring         | Gatus + Healthchecks.io + UptimeRobot | Hetzner CPX41 VPS (DE 🇩🇪) + external (free tiers)               | Gatus: per-service health dashboard on Forge (`status.{domain}`), members-only via Authentik OIDC; Healthchecks.io: BorgBackup dead-man's switch; UptimeRobot: public endpoint availability                                                                                                                                                        |
 | DNS registration   | INWX                            | INWX (DE 🇩🇪)                                                       | Domain registration for active domains                                                                                                                                                                                                                                                                                                             |
 | DNS hosting        | INWX built-in NS                | INWX (DE 🇩🇪)                                                       | MX, SPF, DKIM, DMARC, A/CNAME records per domain                                                                                                                                                                                                                                                                                                   |
 | Container mgmt     | Portainer                       | Hetzner VPS (DE 🇩🇪)                                                | Web UI for Docker Compose container management and monitoring                                                                                                                                                                                                                                                                                      |
@@ -217,7 +232,11 @@ graph TB
 | `photos.{domain}`    | Immich          | Forge      | Authentik OIDC                                               | Photo library, face recognition, shared albums |
 | `media.{domain}`     | Jellyfin        | Forge      | Authentik OIDC                                               | Media streaming                                |
 | `docs.{domain}`      | Nextcloud       | Forge      | Authentik OIDC                                               | Document archive/browsing layer                |
-| `books.{domain}`     | Kavita          | Forge      | Authentik OIDC (native)                                      | EPUB/PDF library                               |
+| `books.{domain}`     | Kavita          | Forge      | Authentik OIDC (native)                                       | EPUB/PDF library                               |
+| `grimoire.{domain}`  | Grimoire        | Forge      | Authentik OIDC (native)                                       | TTRPG library manager                          |
+| `foundry.{domain}`   | FoundryVTT      | Forge      | Authentik forwardAuth (no native OIDC)                        | Virtual tabletop server                        |
+| `finance.{domain}`   | Firefly III     | Forge      | Authentik forwardAuth (no native OIDC), `/api` bypass for PATs | Personal finance/budgeting                     |
+| `status.{domain}`    | Gatus           | Forge      | Authentik OIDC                                                | Per-service health/status dashboard            |
 | `home.{domain}`      | Homarr          | Forge      | Authentik OIDC                                               | Family dashboard/landing page                  |
 
 ---
@@ -291,7 +310,7 @@ Runs all family apps. Can be destroyed and rebuilt at any time without affecting
 | SSD           | 240 GB                                                                                       |
 | Network       | 20 TB/mo included                                                                            |
 | Orchestration | k3s (single-node) + Helm + cert-manager                                                      |
-| Services      | Immich (photos), Jellyfin (media), Nextcloud (documents), Kavita (EPUB/PDF), home-grown apps |
+| Services      | Immich (photos), Jellyfin (media), Nextcloud (documents), Kavita (EPUB/PDF), Grimoire (TTRPG library), FoundryVTT (VTT server), Firefly III (finance), Gatus (health dashboard), home-grown apps |
 | Cost          | ~€26/mo                                                                                      |
 | IaC secrets   | **Infisical Cloud** — resolved directly by strata from GitHub Actions at deploy time         |
 
@@ -303,7 +322,7 @@ Runs all family apps. Can be destroyed and rebuilt at any time without affecting
 
 | Comparison point | Core VPS (Docker Compose)                                | Workload VPS (k3s)                                      |
 | ---------------- | -------------------------------------------------------- | ------------------------------------------------------- |
-| Services         | Caddy, Authentik, Vaultwarden, Portainer, WUD            | Immich, Jellyfin, Nextcloud, Kavita, apps, cert-manager |
+| Services         | Caddy, Authentik, Vaultwarden, Portainer, WUD            | Immich, Jellyfin, Nextcloud, Kavita, Grimoire, FoundryVTT, Firefly III, Gatus, apps, cert-manager |
 | Stability goal   | Never breaks                                             | Expendable — rebuild freely                             |
 | Secrets source   | Bitwarden Cloud (deploy creds) → Infisical Cloud runtime | Infisical Cloud, resolved by strata at deploy time      |
 | Upgrade strategy | `docker compose pull && up -d`                           | `helm upgrade`, rolling restarts                        |
