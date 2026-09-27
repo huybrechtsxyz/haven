@@ -52,7 +52,7 @@ This strategy ensures:
 | Hearth | `/opt/haven/etc`                         | Caddyfile, docker-compose.yml, .env files                                                                                                                                                                                            |
 | Forge  | `/etc/rancher/k3s/`                      | k3s cluster configuration                                                                                                                                                                                                            |
 | Forge  | `/opt/haven/var/backup/forge/datastore/` | Online `sqlite3 .backup` of k3s's SQLite/kine datastore (`state.db`) plus the node `token` and `tls/` CA material. **Not** `k3s etcd-snapshot` — this cluster runs without `--cluster-init`, so it is SQLite-backed, not etcd-backed |
-| Forge  | `/opt/haven/var/backup/forge/postgres/`  | `pg_dumpall` logical dumps of `immich-postgres` + `nextcloud-postgres`, taken via `kubectl exec` — safe/consistent, unlike a raw file copy of a live DB's data directory                                                             |
+| Forge  | `/opt/haven/var/backup/forge/postgres/`  | `pg_dumpall` logical dumps of `immich-postgres` + `nextcloud-postgres` + `firefly-postgres`, taken via `kubectl exec` — safe/consistent, unlike a raw file copy of a live DB's data directory                                        |
 | Forge  | `/opt/haven/var/backup/forge/pvc/`       | Tarred `local-path` PVC directories for every **non-database** app volume (Jellyfin config, Kavita config, Gatus history, ...) — discovered dynamically via `kubectl get pv`                                                         |
 
 > The Forge staging directory is recreated at 0700 on each run and deleted again once the borg archive is written, so plaintext database dumps and cluster CA material never persist on the node between runs.
@@ -128,7 +128,7 @@ rclone sync --verbose \
 
 **Restore testing:** Monthly restore to a temporary VM (see [Risk & Mitigation](../design.md#risk--mitigation))
 
-### Option 1b: Restore Forge Postgres Databases / App Config (Immich, Nextcloud, Jellyfin, Kavita, Gatus)
+### Option 1b: Restore Forge Postgres Databases / App Config (Immich, Nextcloud, Firefly III, Jellyfin, Kavita, Gatus)
 
 **When to use:** Corrupted Postgres data, or accidental deletion of a `local-path` PVC (Jellyfin/Kavita config, Gatus history), on an *existing, still-running* Forge cluster.
 
@@ -148,13 +148,16 @@ rclone sync --verbose \
    borg extract $BORG_REPO::forge-2026-09-01T02:30
    ```
 
-2. **Restore a Postgres database** (Immich or Nextcloud) — pipe the logical dump back in via `psql`, not a raw file copy:
+2. **Restore a Postgres database** (Immich, Nextcloud, or Firefly III) — pipe the logical dump back in via `psql`, not a raw file copy:
    ```bash
    kubectl exec -i -n immich deploy/immich-postgres -- \
      psql -U immich < opt/haven/var/backup/forge/postgres/immich-postgres.sql
 
    kubectl exec -i -n documents deploy/nextcloud-postgres -- \
      psql -U nextcloud < opt/haven/var/backup/forge/postgres/nextcloud-postgres.sql
+
+   kubectl exec -i -n finance deploy/firefly-postgres -- \
+     psql -U firefly < opt/haven/var/backup/forge/postgres/firefly-postgres.sql
    ```
 
 3. **Restore a `local-path` PVC's app config/state** (Jellyfin, Kavita, Gatus) — scale the workload to zero first so nothing is writing to the volume, untar the matching archive back onto the PV's directory, then scale back up:
@@ -233,11 +236,11 @@ rclone sync --verbose \
 
 Each job below pings a **distinct** Healthchecks.io check (`HEALTHCHECK_PING_KSUITE`, `HEALTHCHECK_PING_HEARTH`, `HEALTHCHECK_PING_FORGE` — see [Secrets & Credentials](#secrets--credentials)). Configure each check in **Cron** schedule mode (not "Simple"), using the exact cron expression below in UTC — this lets Healthchecks.io flag a run that's late *relative to its own schedule*, rather than just "no ping in the last N hours" (which is a much weaker signal for jobs sequenced this tightly, 30 minutes apart).
 
-| Job                    | Trigger     | Cron (UTC)   | Suggested grace period | Why                                                                                                                                                                                                                     |
-| ---------------------- | ----------- | ------------ | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| kSuite backup (Hearth) | On-VPS cron | `30 1 * * *` | 25 min                 | Must finish before Hearth's Borg run at 02:00 UTC so Borg archives a complete mirror, not one mid-sync — a grace period longer than the 30-minute gap to the next job would defeat that ordering guarantee              |
-| Borg backup (Hearth)   | On-VPS cron | `0 2 * * *`  | 60 min                 | Small dataset (Authentik/Vaultwarden/config/kSuite mirror) — generous headroom for `borg compact` as the repo grows, while still catching a genuinely stuck run same-morning                                            |
-| Borg backup (Forge)    | On-VPS cron | `30 2 * * *` | 90 min                 | Does the most work of the three: SQLite datastore backup, two `pg_dumpall`s, dynamic PVC discovery + tar, then `borg create`/`prune`/`compact` — budget more time, especially as Immich/Nextcloud's Postgres data grows |
+| Job                    | Trigger     | Cron (UTC)   | Suggested grace period | Why                                                                                                                                                                                                                                     |
+| ---------------------- | ----------- | ------------ | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| kSuite backup (Hearth) | On-VPS cron | `30 1 * * *` | 25 min                 | Must finish before Hearth's Borg run at 02:00 UTC so Borg archives a complete mirror, not one mid-sync — a grace period longer than the 30-minute gap to the next job would defeat that ordering guarantee                              |
+| Borg backup (Hearth)   | On-VPS cron | `0 2 * * *`  | 60 min                 | Small dataset (Authentik/Vaultwarden/config/kSuite mirror) — generous headroom for `borg compact` as the repo grows, while still catching a genuinely stuck run same-morning                                                            |
+| Borg backup (Forge)    | On-VPS cron | `30 2 * * *` | 90 min                 | Does the most work of the three: SQLite datastore backup, three `pg_dumpall`s (Immich, Nextcloud, Firefly III), dynamic PVC discovery + tar, then `borg create`/`prune`/`compact` — budget more time, especially as Postgres data grows |
 
 | Manual/periodic check | Tool          | Frequency | Alert             | Escalation                    |
 | --------------------- | ------------- | --------- | ----------------- | ----------------------------- |

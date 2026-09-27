@@ -114,5 +114,6 @@ No SSO client secret is needed — forward auth has no app-side OAuth client (se
 
 - Confirm the actual current `fireflyiii/core` image tag before first deploy (`values.yaml` currently pins `latest` with a TODO, same caveat as Kavita's image tag when it was first authored).
 - SMTP is not wired up yet (`MAIL_MAILER: log`) — Firefly can email bill reminders/reports once configured; reuse the shared Infomaniak mailbox credentials the same way Nextcloud/Vaultwarden/Gatus do, via a small `firefly-secrets` chart if the flat `env:` dict approach isn't sufficient once real SMTP fields are added.
-- No DB backup/export strategy specific to Firefly yet — falls under whatever the platform's general Postgres backup story ends up being (not yet designed for any of the Forge Postgres instances).
 - The `firefly.png` icon reference in the Authentik blueprint hasn't been confirmed to exist in `homarr-labs/dashboard-icons` — verify or swap via Authentik's UI icon upload.
+
+**Resolved (2026-09-27)**: `firefly-postgres` is now covered by Forge's daily Borg backup — added as a third `pg_dumpall` target in `deploy/ansible-forge/templates/backup.sh.j2` (alongside Immich/Nextcloud) and excluded from the generic local-path PVC tar sweep (it was previously falling through to that naive tar path, the same "torn copy" risk class flagged for RPGKeeper's SQLite file). See [backup.md](../guides/backup.md#tier-1--local-backups).

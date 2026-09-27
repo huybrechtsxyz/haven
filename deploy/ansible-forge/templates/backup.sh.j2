@@ -8,7 +8,8 @@
 #   1. k3s datastore   — SQLite/kine snapshot (or etcd snapshot if embedded
 #                        etcd is ever enabled), plus the node token and TLS
 #                        CA material needed to rebuild the cluster identity.
-#   2. Postgres dumps  — pg_dumpall run INSIDE each DB pod (consistent).
+#   2. Postgres dumps  — pg_dumpall run INSIDE each DB pod (consistent),
+#                        covering Immich, Nextcloud, and Firefly III.
 #   3. local-path PVCs — tarred hostPath dirs for non-database app volumes
 #                        (Jellyfin/Kavita config, Gatus history, ...).
 #
@@ -129,7 +130,7 @@ for ITEM in token tls; do
 done
 
 # =============================================================================
-# 2. PostgreSQL logical dumps (Immich, Nextcloud)
+# 2. PostgreSQL logical dumps (Immich, Nextcloud, Firefly III)
 # =============================================================================
 # A datastore snapshot and PVC tars only capture Kubernetes objects and raw
 # files — a live Postgres data directory copied as plain files is NOT a
@@ -141,6 +142,7 @@ done
 PG_TARGETS=(
   "immich|immich-postgres|immich"
   "documents|nextcloud-postgres|nextcloud"
+  "finance|firefly-postgres|firefly"
 )
 
 for TARGET in "${PG_TARGETS[@]}"; do
@@ -180,6 +182,7 @@ if ! kubectl get pv -o json 2>/dev/null |
     | select(.spec.claimRef != null)
     | select(.spec.claimRef.name != "immich-postgres")
     | select(.spec.claimRef.name != "nextcloud-postgres")
+    | select(.spec.claimRef.name != "firefly-postgres")
     | [ .spec.claimRef.namespace,
         .spec.claimRef.name,
         (.spec.hostPath.path // .spec.local.path // "") ]
