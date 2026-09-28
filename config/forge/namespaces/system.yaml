@@ -25,6 +25,9 @@ spec:
     - name: gatus
       description: Health/status dashboard for every family service — members-only, real OIDC login via Authentik
       file: config/forge/modules/gatus.yaml
+    - name: pgadmin
+      description: pgAdmin4 — direct Postgres admin access for every Haven database (Immich, Nextcloud, Firefly III), admin-only OIDC login via Authentik
+      file: config/forge/modules/pgadmin.yaml
     # homarr-secrets listed before homarr: renders the K8s Secrets
     # (OIDC client secret, DB encryption key) that homarr.yaml references
     # via envSecrets.*.existingSecret — same ordering reason as

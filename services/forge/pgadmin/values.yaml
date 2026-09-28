@@ -1,0 +1,50 @@
+# Defaults — override via the strata module's spec.configuration (see
+# config/forge/modules/pgadmin.yaml).
+image:
+  repository: dpage/pgadmin4
+  # Pinned per pgAdmin's own docs (never use :latest — the config database,
+  # pgadmin4.db, migrates forward-only and destructively across versions).
+  # Verified against https://hub.docker.com/r/dpage/pgadmin4/tags 2026-09-27.
+  tag: "9.14"
+
+# Secret substitution requires a literal top-level `env:` dict — strata's
+# Helm secret substitution only resolves ${TOKEN} inside a node keyed
+# literally "env" (any nesting depth) — see nextcloud-secrets.yaml's module
+# comment for the full writeup of this constraint. PGADMIN_OAUTH2_CLIENT_SECRET
+# isn't a container env var (pgAdmin reads it from config_local.py, not the
+# environment) — it's read out of here by templates/configmap.yaml instead.
+env:
+  PGADMIN_DEFAULT_EMAIL: admin@huybrechts.xyz
+  # Real value injected by strata at deploy time — never written here.
+  PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_DEFAULT_PASSWORD}"
+  PGADMIN_OAUTH2_CLIENT_SECRET: "${PGADMIN_SSO_CLIENT_SECRET}"
+
+persistence:
+  # /var/lib/pgadmin — session data, user files, and the config database
+  # (pgadmin4.db). The official image runs as a fixed UID/GID 5050 (not
+  # configurable like LinuxServer's PUID/PGID), so the Pod's securityContext
+  # sets fsGroup/runAsUser 5050 to keep this volume writable.
+  storageClass: local-path
+  size: 2Gi
+
+service:
+  port: 80
+
+ingress:
+  enabled: true
+  className: traefik
+  host: pgadmin.huybrechts.xyz
+  # Staging-first cert-manager pattern, same as every other brand-new
+  # hostname in this repo (Kavita/Grimoire/Jellyfin) — pgadmin.huybrechts.xyz
+  # has never had a cert issued before, so it needs its own HTTP-01
+  # challenge to succeed at least once via staging before switching to prod
+  # (rate-limited to 5 certs/domain/week). Unlike Firefly/FoundryVTT/RPGKeeper,
+  # pgAdmin uses real native OAuth2 (browser redirects only) — no
+  # forwardAuth server-to-server HTTPS call back to this host, so there's no
+  # reason to skip straight to prod here.
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+  tls:
+    - hosts:
+        - pgadmin.huybrechts.xyz
+      secretName: pgadmin-tls

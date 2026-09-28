@@ -1,0 +1,54 @@
+# config_local.py — mounted into the container at /pgadmin4/config_local.py.
+# This is where the OAuth2 wiring lives, per pgAdmin's own container docs —
+# there's no admin-UI toggle for this, it's a Python config file read once
+# at process startup (a plain ConfigMap change alone won't take effect until
+# the pod restarts, same category of "file, not API" config as Kavita's
+# appsettings.json OIDC block).
+#
+# Authentik side: OAuth2Provider "pgAdmin" (client_id: pgadmin, per_provider
+# issuer_mode, gated to policy-group-admins) — see
+# deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2.
+#
+# Endpoint URLs below use Authentik's real, provider-agnostic OAuth2 paths
+# (/application/o/authorize|token|userinfo/) plus the per-provider issuer
+# for discovery/end-session — same convention already confirmed working for
+# Immich/Grimoire/Kavita/Gatus's native OIDC integrations. Not yet
+# live-tested for pgAdmin specifically; if the first login attempt fails,
+# check pgAdmin's own logs (`kubectl logs -n system deploy/pgadmin`) for the
+# exact OAuth2 error, same troubleshooting pattern as every other app here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config-local
+  labels:
+    app: {{ .Release.Name }}
+data:
+  config_local.py: |
+    AUTHENTICATION_SOURCES = ['oauth2', 'internal']
+
+    OAUTH2_CONFIG = [
+        {
+            'OAUTH2_NAME': 'authentik',
+            'OAUTH2_DISPLAY_NAME': 'Authentik',
+            'OAUTH2_CLIENT_ID': 'pgadmin',
+            'OAUTH2_CLIENT_SECRET': '{{ .Values.env.PGADMIN_OAUTH2_CLIENT_SECRET }}',
+            'OAUTH2_TOKEN_URL': 'https://auth.huybrechts.xyz/application/o/token/',
+            'OAUTH2_AUTHORIZATION_URL': 'https://auth.huybrechts.xyz/application/o/authorize/',
+            'OAUTH2_SERVER_METADATA_URL': 'https://auth.huybrechts.xyz/application/o/pgadmin/.well-known/openid-configuration',
+            'OAUTH2_API_BASE_URL': 'https://auth.huybrechts.xyz/application/o/',
+            'OAUTH2_USERINFO_ENDPOINT': 'https://auth.huybrechts.xyz/application/o/userinfo/',
+            'OAUTH2_SCOPE': 'openid email profile',
+            'OAUTH2_USERNAME_CLAIM': 'preferred_username',
+            'OAUTH2_ICON': 'fa-shield-alt',
+            'OAUTH2_BUTTON_COLOR': '#fd4b2d',
+            'OAUTH2_LOGOUT_URL': 'https://auth.huybrechts.xyz/application/o/pgadmin/end-session/',
+        }
+    ]
+
+    # After OAuth2 authentication, auto-add the user to pgAdmin's own SQLite
+    # user store. Access is already gated to the `admins` Authentik group by
+    # policy-group-admins on the Application side (see the blueprint) — this
+    # just controls whether pgAdmin itself needs a manual per-user add step
+    # on top of that gate. Auto-create keeps it consistent with every other
+    # native-OIDC app in this repo.
+    OAUTH2_AUTO_CREATE_USER = True

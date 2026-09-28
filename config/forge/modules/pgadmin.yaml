@@ -1,0 +1,49 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: pgadmin
+  annotations:
+    description: pgAdmin 4 — web-based PostgreSQL administration for every Postgres instance in Haven (Immich, Nextcloud, Firefly III). Admin-only, native OIDC via Authentik.
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, system, postgres, pgadmin]
+spec:
+  type: helm
+  source:
+    repository: haven
+    source_path: services/forge/pgadmin
+  kubernetes_namespace: system
+  references:
+    secrets:
+      - PGADMIN_DEFAULT_PASSWORD
+      - PGADMIN_SSO_CLIENT_SECRET
+  configuration:
+    image:
+      repository: dpage/pgadmin4
+      tag: "9.14"
+    env:
+      PGADMIN_DEFAULT_EMAIL: admin@huybrechts.xyz
+      # Real values injected by strata at deploy time — never written here.
+      PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_DEFAULT_PASSWORD}"
+      PGADMIN_OAUTH2_CLIENT_SECRET: "${PGADMIN_SSO_CLIENT_SECRET}"
+    persistence:
+      storageClass: local-path
+      size: 2Gi
+    service:
+      port: 80
+    # Staging-first cert-manager pattern — pgadmin.huybrechts.xyz has never
+    # had a cert issued before. Switch to letsencrypt-prod once
+    # `kubectl describe certificate pgadmin-tls -n system` shows Ready: True.
+    # See services/forge/pgadmin/values.yaml's comment for why this app
+    # doesn't need the forwardAuth staging-skip Firefly/FoundryVTT/RPGKeeper
+    # needed (real native OAuth2 here, no server-to-server HTTPS call back).
+    ingress:
+      enabled: true
+      className: traefik
+      host: pgadmin.huybrechts.xyz
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-staging
+      tls:
+        - hosts:
+            - pgadmin.huybrechts.xyz
+          secretName: pgadmin-tls

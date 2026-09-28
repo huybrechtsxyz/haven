@@ -204,6 +204,22 @@ spec:
         type: urlsafe
         length: 48
 
+    # Application secrets — pgAdmin (Forge, system namespace)
+    - key: PGADMIN_DEFAULT_PASSWORD
+      store: infisical
+      value: PGADMIN_DEFAULT_PASSWORD
+      description: pgAdmin's own built-in admin account password — break-glass login, used regardless of OAuth2 SSO
+      generate:
+        type: urlsafe
+        length: 32
+    - key: PGADMIN_SSO_CLIENT_SECRET
+      store: infisical
+      value: PGADMIN_SSO_CLIENT_SECRET
+      description: OIDC client secret for pgAdmin SSO via Authentik
+      generate:
+        type: urlsafe
+        length: 48
+
     # Application secrets — Homarr (Forge, system namespace)
     - key: HOMARR_SSO_CLIENT_SECRET
       store: infisical
