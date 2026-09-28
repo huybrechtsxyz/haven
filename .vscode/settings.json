@@ -16,9 +16,23 @@
     "editor.formatOnSave": true
   },
   "files.associations": {
+    "**/templates/**/*.yaml": "plaintext",
+    "**/templates/**/*.yml": "plaintext",
+    "**/templates/**/*.tpl": "plaintext",
     "services/**/templates/**/*.yaml": "plaintext",
     "services/**/templates/**/*.tpl": "plaintext"
   },
+  // NOTE: the files.associations glob above has repeatedly failed to stick
+  // for services/forge/pgadmin/templates/service.yaml (corrupted back to
+  // "{ { .Release.Name } }" by an autosave/formatter pass at least 6 times
+  // in one session, 2026-09-28) — root cause not fully confirmed (possibly a
+  // stale editor buffer re-saving old content, possibly the "**" mid-glob not
+  // matching reliably in this VS Code version). Belt-and-suspenders fix below
+  // disables the YAML extension's OWN formatter outright, so even if a file
+  // still resolves to YAML language mode, formatOnSave can't mangle "{{ }}"
+  // into "{ { } }" — validation/schema features are unaffected, only
+  // formatting is turned off.
+  "yaml.format.enable": false,
   "python.testing.pytestEnabled": true,
   "python.testing.pytestArgs": [
     "tests"
