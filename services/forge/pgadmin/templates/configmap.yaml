@@ -24,7 +24,15 @@ metadata:
     app: {{ .Release.Name }}
 data:
   config_local.py: |
-    AUTHENTICATION_SOURCES = ['oauth2', 'internal']
+    # OIDC-only login (2026-09-28 decision) — local username/password login
+    # form is hidden. PGADMIN_DEFAULT_EMAIL/PASSWORD env vars are still
+    # required below (pgAdmin's container refuses to start without them,
+    # regardless of AUTHENTICATION_SOURCES), but they're no longer usable to
+    # actually log in through the UI. This removes the break-glass path if
+    # Authentik is ever down — the real fallback in that case is direct
+    # `kubectl exec` + `psql` into the target Postgres pod, or temporarily
+    # reverting this line to ['oauth2', 'internal'] and redeploying.
+    AUTHENTICATION_SOURCES = ['oauth2']
 
     OAUTH2_CONFIG = [
         {

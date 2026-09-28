@@ -20,7 +20,7 @@
 | Chart     | `pgadmin` — local chart (`services/forge/pgadmin`). No official pgadmin-org Helm chart exists; community ones aren't maintained by the project itself. |
 | Image     | `dpage/pgadmin4:9.14` (official image, pinned — see [Image versioning](#image-versioning-never-use-latest) below)                                      |
 | Namespace | `system` (Kubernetes), module file `config/forge/modules/pgadmin.yaml`                                                                                 |
-| Ingress   | Traefik (`className: traefik`), host `pgadmin.{domain}`, TLS via cert-manager (`letsencrypt-staging` initially — see [TLS](#tls--cert-manager) below)  |
+| Ingress   | Traefik (`className: traefik`), host `pgadmin.{domain}`, TLS via cert-manager (`letsencrypt-prod`)                                                     |
 | Storage   | `persistence` PVC, `local-path`, 2Gi — pgAdmin's session data, user files, and its own config database (`pgadmin4.db`)                                 |
 
 ---
@@ -47,14 +47,9 @@ The container also runs as a **fixed UID/GID 5050** (not configurable like Linux
 
 ## TLS — cert-manager
 
-Staging-first pattern, same as every other brand-new hostname in this repo — `pgadmin.huybrechts.xyz` has never had a cert issued before. `config/forge/modules/pgadmin.yaml` sets `cert-manager.io/cluster-issuer: letsencrypt-staging`.
+Staging-first pattern, same as every other brand-new hostname in this repo. `pgadmin.huybrechts.xyz`'s `letsencrypt-staging` HTTP-01 challenge succeeded first (confirmed `Ready: True`), then switched to `letsencrypt-prod` (2026-09-28) — `config/forge/modules/pgadmin.yaml` now sets `cert-manager.io/cluster-issuer: letsencrypt-prod`.
 
-**Rollout steps:**
-1. Deploy with `letsencrypt-staging` (already the current setting).
-2. Confirm `kubectl describe certificate pgadmin-tls -n system` shows `Ready: True`.
-3. Switch the annotation to `letsencrypt-prod` and redeploy.
-
-Unlike Firefly III/FoundryVTT/RPGKeeper, pgAdmin doesn't need to skip straight to `letsencrypt-prod` — it uses real native OAuth2 (browser redirects only), not a forwardAuth middleware making a server-to-server HTTPS call back to this host, so there's no certificate-trust chicken-and-egg problem here.
+Unlike Firefly III/FoundryVTT/RPGKeeper, pgAdmin didn't need to skip straight to `letsencrypt-prod` — it uses real native OAuth2 (browser redirects only), not a forwardAuth middleware making a server-to-server HTTPS call back to this host, so there was no certificate-trust chicken-and-egg problem here.
 
 ---
 
@@ -72,15 +67,20 @@ pgAdmin's OAuth2 module (Flask/authlib-based) uses a callback path that can vary
 
 ### Break-glass — `PGADMIN_DEFAULT_PASSWORD`
 
-Unlike Kavita/Immich, this one didn't need a deliberate design discussion: pgAdmin's container **requires** `PGADMIN_DEFAULT_EMAIL`/`PGADMIN_DEFAULT_PASSWORD` at launch regardless of `AUTHENTICATION_SOURCES` — there's no way to omit the local admin account. That's convenient here: it's the built-in recovery path if Authentik is ever down, no extra setup needed (unlike Immich, where disabling password auth was a deliberate one-way admin action).
+pgAdmin's container **requires** `PGADMIN_DEFAULT_EMAIL`/`PGADMIN_DEFAULT_PASSWORD` at launch regardless of `AUTHENTICATION_SOURCES` — there's no way to omit the local admin account from the container's startup, even though it's no longer usable to log in (see below).
+
+**Decision (2026-09-28): OIDC-only, local login disabled.** `AUTHENTICATION_SOURCES` is set to `['oauth2']` only (`services/forge/pgadmin/templates/configmap.yaml`) — the local username/password login form no longer appears at all, even though the account technically still exists in pgAdmin's database. This is a deliberate tradeoff: **if Authentik is ever down, there is no way to log into pgAdmin's UI.** The real fallback in that scenario is either:
+1. `kubectl exec` directly into the target Postgres pod and use `psql`, bypassing pgAdmin entirely, or
+2. Temporarily edit `configmap.yaml` back to `AUTHENTICATION_SOURCES = ['oauth2', 'internal']` and redeploy to restore the local login form.
 
 ---
 
 ## Verification checklist
 
-- [ ] `https://pgadmin.{domain}` — pgAdmin loads over TLS (staging cert initially — browser will warn until switched to `letsencrypt-prod`)
+- [ ] `https://pgadmin.{domain}` — pgAdmin loads over TLS with a trusted `letsencrypt-prod` certificate
 - [ ] `kubectl describe certificate pgadmin-tls -n system` shows `Ready: True`
 - [ ] `kubectl get pods -n system` shows the pgAdmin pod healthy
+- [ ] Local username/password login form does **not** appear on the login page (confirms `AUTHENTICATION_SOURCES = ['oauth2']` took effect)
 - [ ] "Login with Authentik" button appears on the login page and a real login round-trips successfully (watch for a redirect_uri mismatch on the first attempt — see [Redirect URI](#redirect-uri--not-yet-confirmed-live) above)
 - [ ] Login is rejected for a non-`admins` account (confirms `policy-group-admins` gating works)
 - [ ] Add Immich/Nextcloud/Firefly III's Postgres instances as pgAdmin "Servers" (host = the in-cluster Service DNS name, e.g. `immich-postgres.immich.svc.cluster.local`)

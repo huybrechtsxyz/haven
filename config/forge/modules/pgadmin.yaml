@@ -31,18 +31,17 @@ spec:
       size: 2Gi
     service:
       port: 80
-    # Staging-first cert-manager pattern — pgadmin.huybrechts.xyz has never
-    # had a cert issued before. Switch to letsencrypt-prod once
-    # `kubectl describe certificate pgadmin-tls -n system` shows Ready: True.
+    # Switched to letsencrypt-prod (2026-09-28) — letsencrypt-staging's
+    # HTTP-01 challenge succeeded and pgadmin-tls showed Ready: True first.
     # See services/forge/pgadmin/values.yaml's comment for why this app
-    # doesn't need the forwardAuth staging-skip Firefly/FoundryVTT/RPGKeeper
+    # didn't need the forwardAuth staging-skip Firefly/FoundryVTT/RPGKeeper
     # needed (real native OAuth2 here, no server-to-server HTTPS call back).
     ingress:
       enabled: true
       className: traefik
       host: pgadmin.huybrechts.xyz
       annotations:
-        cert-manager.io/cluster-issuer: letsencrypt-staging
+        cert-manager.io/cluster-issuer: letsencrypt-prod
       tls:
         - hosts:
             - pgadmin.huybrechts.xyz

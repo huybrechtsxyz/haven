@@ -34,16 +34,14 @@ ingress:
   enabled: true
   className: traefik
   host: pgadmin.huybrechts.xyz
-  # Staging-first cert-manager pattern, same as every other brand-new
-  # hostname in this repo (Kavita/Grimoire/Jellyfin) — pgadmin.huybrechts.xyz
-  # has never had a cert issued before, so it needs its own HTTP-01
-  # challenge to succeed at least once via staging before switching to prod
-  # (rate-limited to 5 certs/domain/week). Unlike Firefly/FoundryVTT/RPGKeeper,
-  # pgAdmin uses real native OAuth2 (browser redirects only) — no
-  # forwardAuth server-to-server HTTPS call back to this host, so there's no
-  # reason to skip straight to prod here.
+  # Switched to letsencrypt-prod (2026-09-28) — the letsencrypt-staging
+  # HTTP-01 challenge succeeded first, confirmed via `kubectl describe
+  # certificate pgadmin-tls -n system` showing Ready: True. pgAdmin uses
+  # real native OAuth2 (browser redirects only) — no forwardAuth
+  # server-to-server HTTPS call back to this host, so there was no reason
+  # to skip straight to prod on the first deploy.
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-staging
+    cert-manager.io/cluster-issuer: letsencrypt-prod
   tls:
     - hosts:
         - pgadmin.huybrechts.xyz
