@@ -131,6 +131,34 @@ generation that makes Bevel useful has no good self-hosted equivalent yet, so re
 worth it. If the Grafana stack gets deployed anyway for infra monitoring, piping Apple Health data
 into it as a bonus dashboard is low-effort; don't build a whole stack just for this.
 
+### Study & Learning (Nibomo-style flashcards)
+
+**[Nibomo](https://github.com/kirill-markin/flashcards-open-source-app)** (formerly "Flashcards
+Open Source App") — AI-powered, FSRS spaced-repetition flashcards app, iOS/Android/web,
+local-first/offline-first. Researched 2026-09-29, **not a straightforward self-host** like the
+rest of Haven's apps:
+
+- No published Docker image — it's a monorepo (`auth`/`backend`/`web`/`admin` + iOS/Android), built
+  and deployed via its own AWS CDK stack (CloudFront, API Gateway, RDS, Secrets Manager). Real
+  Dockerfiles *do* exist for `apps/backend` and `apps/auth` (plain Node, non-Lambda — genuinely
+  containerizable), but `apps/web` is a static SPA with no Dockerfile (would need our own
+  nginx/Caddy wrapper for the built assets).
+- Auth is **AWS Cognito-specific**, not generic OIDC — no Authentik-compatible issuer/client-secret
+  flow. The only alternative is `AUTH_MODE=none`, documented as a local-dev shortcut.
+- `AUTH_MODE=none` maps **every** request to one single hardcoded `userId=local` — unlike Firefly
+  III (where one shared household ledger is the *correct* model), a flashcards app under this mode
+  would merge every family member onto one shared deck/review-queue/progress history, with no
+  per-person distinction. Gating it with Traefik forwardAuth (the Firefly pattern) would correctly
+  restrict *who* can reach it, but not *which* family member is using it once inside.
+- Real per-user separation would require forking the auth middleware to trust
+  forwardAuth-injected headers instead of Cognito — an ongoing-maintenance code change diverging
+  from upstream, not just config.
+
+Realistic path: fine as a **single-user tool** (one person's own study deck) using the Firefly
+forwardAuth pattern; **not currently viable** for genuine per-family-member separate progress
+without a real fork. Revisit only if upstream ever ships a generic OIDC/header-auth mode, or if a
+single-user use case is all that's actually needed.
+
 ## AI / LLM
 
 - **[Ollama](https://github.com/ollama/ollama)** + **[Open WebUI](https://github.com/open-webui/open-webui)**
