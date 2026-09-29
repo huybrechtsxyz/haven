@@ -10,7 +10,7 @@
 - `deploy-forge-init.yml` must have run successfully at least once (k3s + Traefik installed).
 - The `system` namespace's cert-manager must already be deployed.
 - A DNS A record for `family.{domain}` pointing directly at Forge's public IP.
-- An Infomaniak kDrive WebDAV app-specific password and connection URL (see [Still open](#still-open) — not yet confirmed).
+- An Infomaniak kDrive WebDAV app-specific password and connection URL (see [Infomaniak-side setup checklist](#infomaniak-side-setup-checklist)).
 - An Immich API key (Settings → API Keys, `asset.read` + `asset.view` permissions).
 
 ---
@@ -86,6 +86,22 @@ WebDAV base URL format (confirmed 2026-09-28): `https://<kdrive-id>.connect.kdri
 ## Immich photo screensaver
 
 `IMMICH_URL=https://photos.huybrechts.xyz` + `IMMICH_API_KEY` (create via Immich's own UI: Settings → API Keys, `asset.read` + `asset.view` permissions) enables Yuvomi's "wall mode" tablet display and Immich-backed screensaver when idle. `IMMICH_SCREENSAVER_ALBUM_ID` is left empty (whole library) — set it later to a specific album if desired.
+
+Create the API key under Immich's **admin** account, not a specific family member's — same reasoning as the kDrive WebDAV account: this is a shared household display feature, not scoped to one person's photo view, and a key created under a non-admin member only sees albums that member has access to.
+
+---
+
+## Infomaniak-side setup checklist
+
+Everything below happens in the Infomaniak Manager / kSuite, **not** in this repo — none of these values are ever written to git, only to Infisical.
+
+- [ ] **kDrive WebDAV app-specific password** — generate one (Infomaniak Manager → Security → App passwords, or a dedicated WebDAV/synchronization setting under kDrive itself). **Not** your main account login password. → `YUVOMI_WEBDAV_PASSWORD`.
+- [ ] **WebDAV username** — the Infomaniak **admin/primary kSuite account** login/email (not a personal family member's account) — this storage holds shared family data consumed by an unattended background service, same reasoning as the admin-tier pattern used for WUD/Portainer elsewhere in this repo. → `YUVOMI_WEBDAV_USERNAME`.
+- [ ] **WebDAV URL** — confirmed format `https://<kdrive-id>.connect.kdrive.infomaniak.com` (the numeric **kDrive ID**, e.g. `3190994` — distinct from the org/account ID, e.g. `2019363`, which appears in the web-app URL instead). → `YUVOMI_WEBDAV_URL`.
+- [ ] **Pre-create two folders in kDrive** (recommended — WebDAV `MKCOL`-on-upload support for auto-creating missing directories isn't guaranteed): `apps/yuvomi` (documents) and `backups/yuvomi` (backups).
+- [ ] **No new mailbox needed** — SMTP reuses the existing shared `INFOMANIAK_EMAIL__*` secrets already configured for Gatus/Vaultwarden. `EMAIL_FROM_ADDRESS=yuvomi@huybrechts.xyz` doesn't need its own real kSuite mailbox — same pattern as `gatus@huybrechts.xyz` (Infomaniak's SMTP relay accepts any From address on a verified domain).
+- [ ] **Immich API key** — not an Infomaniak item, but the other remaining blocker: create under Immich's **admin** account (Settings → API Keys, `asset.read` + `asset.view`) — not a personal family member's account, same reasoning as the kDrive WebDAV account above. → `YUVOMI_IMMICH_API_KEY`.
+- [ ] *(Optional, post-deploy, not needed to go live)* Calendar/Contacts CalDAV/CardDAV sync to kSuite — no Infomaniak-side prep beyond each family member's existing kSuite login; configured per-user inside Yuvomi's own UI after first login, not at deploy time.
 
 ---
 

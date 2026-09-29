@@ -64,7 +64,7 @@ spec:
       DOCUMENT_STORAGE_WEBDAV_URL: "${YUVOMI_WEBDAV_URL}"
       DOCUMENT_STORAGE_WEBDAV_USERNAME: "${YUVOMI_WEBDAV_USERNAME}"
       DOCUMENT_STORAGE_WEBDAV_PASSWORD: "${YUVOMI_WEBDAV_PASSWORD}"
-      DOCUMENT_STORAGE_WEBDAV_PATH: yuvomi-documents
+      DOCUMENT_STORAGE_WEBDAV_PATH: apps/yuvomi
 
       # Local (Borg-swept) + offsite (kDrive) backup mirror — see
       # values.yaml's comment for why Borg tars /backups, not /data.
@@ -73,7 +73,7 @@ spec:
       WEBDAV_BACKUP_URL: "${YUVOMI_WEBDAV_URL}"
       WEBDAV_BACKUP_USERNAME: "${YUVOMI_WEBDAV_USERNAME}"
       WEBDAV_BACKUP_PASSWORD: "${YUVOMI_WEBDAV_PASSWORD}"
-      WEBDAV_BACKUP_PATH: /yuvomi/backups/
+      WEBDAV_BACKUP_PATH: backups/yuvomi
 
       # Shared Infomaniak mailbox — same secrets Gatus/Vaultwarden reuse.
       EMAIL_SMTP_HOST: "${INFOMANIAK_EMAIL__HOST}"

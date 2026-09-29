@@ -51,7 +51,7 @@ env:
   DOCUMENT_STORAGE_WEBDAV_URL: ""
   DOCUMENT_STORAGE_WEBDAV_USERNAME: ""
   DOCUMENT_STORAGE_WEBDAV_PASSWORD: ""
-  DOCUMENT_STORAGE_WEBDAV_PATH: yuvomi-documents
+  DOCUMENT_STORAGE_WEBDAV_PATH: apps/yuvomi
 
   # --- Backups: local (Borg-swept) + offsite mirror to kDrive -----------
   # BACKUP_ENABLED writes consistent snapshots to /backups on Yuvomi's own
@@ -64,7 +64,7 @@ env:
   WEBDAV_BACKUP_URL: ""
   WEBDAV_BACKUP_USERNAME: ""
   WEBDAV_BACKUP_PASSWORD: ""
-  WEBDAV_BACKUP_PATH: /yuvomi/backups/
+  WEBDAV_BACKUP_PATH: backups/yuvomi
 
   # --- Email / SMTP (reuses the shared Infomaniak mailbox) --------------
   EMAIL_SMTP_HOST: ""
