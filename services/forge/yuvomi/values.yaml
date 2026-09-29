@@ -105,11 +105,11 @@ ingress:
   enabled: true
   className: traefik
   host: family.huybrechts.xyz
-  # Staging-first cert-manager pattern, same as every other brand-new
-  # hostname in this repo — family.huybrechts.xyz has never had a cert
-  # issued before.
+  # Switched to letsencrypt-prod (2026-09-29) — the letsencrypt-staging
+  # HTTP-01 challenge succeeded first, confirmed via `kubectl describe
+  # certificate family-tls -n family` showing Ready: True.
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-staging
+    cert-manager.io/cluster-issuer: letsencrypt-prod
   tls:
     - hosts:
         - family.huybrechts.xyz

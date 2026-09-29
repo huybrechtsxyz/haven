@@ -100,15 +100,15 @@ spec:
         size: 2Gi
     service:
       port: 3000
-    # Staging-first cert-manager pattern — family.huybrechts.xyz has never
-    # had a cert issued before. Switch to letsencrypt-prod once
-    # `kubectl describe certificate family-tls -n family` shows Ready: True.
+    # Switched to letsencrypt-prod (2026-09-29) — letsencrypt-staging's
+    # HTTP-01 challenge succeeded first, confirmed via `kubectl describe
+    # certificate family-tls -n family` showing Ready: True.
     ingress:
       enabled: true
       className: traefik
       host: family.huybrechts.xyz
       annotations:
-        cert-manager.io/cluster-issuer: letsencrypt-staging
+        cert-manager.io/cluster-issuer: letsencrypt-prod
       tls:
         - hosts:
             - family.huybrechts.xyz
