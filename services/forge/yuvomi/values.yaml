@@ -6,9 +6,16 @@
 # time, never written here.
 image:
   repository: ghcr.io/ulsklyc/yuvomi
-  # Pinned — never :latest (this repo's convention for every app). Verify
-  # https://github.com/ulsklyc/yuvomi/releases is still current before bumping.
-  tag: "v2.69.1"
+  # CONFIRMED directly against GHCR's package page (2026-09-29) — this
+  # project does NOT publish semver tags (no "v2.69.1"-style tag exists
+  # upstream, despite matching a real GitHub Release). Only `main` (moving,
+  # overwritten on every merge), per-commit `sha-<hash>` tags (immutable),
+  # and cosign `.sig` signature tags are actually published. Pin to a
+  # `sha-<hash>` tag, never `main`/`latest` — re-verify against
+  # https://github.com/ulsklyc/yuvomi/pkgs/container/yuvomi before bumping.
+  # A first deploy attempt using "v2.69.1" failed: ImagePullBackOff ->
+  # `helm upgrade --wait` hung waiting for readiness -> killed (returncode -9).
+  tag: "sha-e69964d"
 
 env:
   TZ: Europe/Brussels

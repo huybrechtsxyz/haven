@@ -29,7 +29,9 @@
 
 ## Image versioning
 
-Pinned to `v2.69.1` (latest at time of writing — this project ships releases every few days, re-verify against [github.com/ulsklyc/yuvomi/releases](https://github.com/ulsklyc/yuvomi/releases) before bumping). Never use `:latest` — same rule as every other app in this repo.
+**No semver tags exist upstream** — confirmed directly against [GHCR's package page](https://github.com/ulsklyc/yuvomi/pkgs/container/yuvomi) (2026-09-29). Despite GitHub Releases showing version numbers like `v2.69.1`, the actual published container tags are only `main` (moving, overwritten on every merge), per-commit `sha-<hash>` tags (immutable), and cosign `.sig` signature tags — **no `vX.Y.Z`-style tag is ever pushed to the registry.**
+
+First deploy attempt used `v2.69.1` (assumed from the GitHub Release, never checked against the registry) and failed: `ImagePullBackOff` → `helm upgrade --wait` hung waiting for the pod to become ready → the process was eventually killed (`returncode -9`). Fixed by pinning to a verified `sha-<hash>` tag instead — re-verify against the GHCR package page before ever bumping this, and never use `main`/`latest` (moving tags, same reproducibility risk this repo avoids everywhere else).
 
 **Deployment strategy is `Recreate`, not `RollingUpdate`** — single SQLite file (`yuvomi.db`) on a `ReadWriteOnce` PVC with forward-only migrations, same reasoning as pgAdmin.
 

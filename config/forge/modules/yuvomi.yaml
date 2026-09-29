@@ -29,7 +29,10 @@ spec:
   configuration:
     image:
       repository: ghcr.io/ulsklyc/yuvomi
-      tag: "v2.69.1"
+      # See services/forge/yuvomi/values.yaml's comment — no semver tags
+      # exist upstream on GHCR, only main/sha-<hash>/.sig. Pinned to a
+      # verified sha-<hash> tag (2026-09-29), not main/latest.
+      tag: "sha-e69964d"
     env:
       TZ: Europe/Brussels
       NODE_ENV: production

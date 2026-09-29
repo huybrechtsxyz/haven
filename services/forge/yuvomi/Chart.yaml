@@ -6,4 +6,4 @@ description: >
   chart exists upstream (Docker-first project) — local chart, same pattern as
   pgadmin/filebrowser.
 version: "0.1.0"
-appVersion: "v2.69.1"
+appVersion: "sha-e69964d"
