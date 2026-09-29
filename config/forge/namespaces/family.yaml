@@ -1,0 +1,15 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: namespace
+meta:
+  name: family
+  annotations:
+    description: Yuvomi — self-hosted family organizer (tasks, calendar, shopping, meals, budget, documents, and more). Own local-path PVCs only, no shared-storage dependency.
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, k3s, family, yuvomi]
+spec:
+  type: shared
+  modules:
+    - name: yuvomi
+      description: Yuvomi — self-hosted family organizer, OIDC-only via Authentik, documents/backups mirrored to Infomaniak kDrive over WebDAV
+      file: config/forge/modules/yuvomi.yaml

@@ -1,0 +1,112 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: yuvomi
+  annotations:
+    description: Yuvomi — self-hosted family organizer (tasks, calendar, shopping, meals, budget, pantry, inventory, documents, health, and more). OIDC-only via Authentik, documents + offsite backups mirrored to Infomaniak kDrive over WebDAV.
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, family, yuvomi]
+spec:
+  type: helm
+  source:
+    repository: haven
+    source_path: services/forge/yuvomi
+  kubernetes_namespace: family
+  references:
+    secrets:
+      - YUVOMI_SESSION_SECRET
+      - YUVOMI_DB_ENCRYPTION_KEY
+      - YUVOMI_SSO_CLIENT_SECRET
+      - YUVOMI_WEBDAV_URL
+      - YUVOMI_WEBDAV_USERNAME
+      - YUVOMI_WEBDAV_PASSWORD
+      - YUVOMI_IMMICH_API_KEY
+      - INFOMANIAK_EMAIL__HOST
+      - INFOMANIAK_EMAIL__PORT
+      - INFOMANIAK_EMAIL__USERNAME
+      - INFOMANIAK_EMAIL__PASSWORD
+  configuration:
+    image:
+      repository: ghcr.io/ulsklyc/yuvomi
+      tag: "v2.69.1"
+    env:
+      TZ: Europe/Brussels
+      NODE_ENV: production
+      PORT: "3000"
+      DB_PATH: /data/yuvomi.db
+
+      # Real values injected by strata at deploy time — never written here.
+      SESSION_SECRET: "${YUVOMI_SESSION_SECRET}"
+      SESSION_SECURE: "true"
+      TRUST_PROXY: "1"
+
+      # SQLCipher AES-256 at rest — matches every other Haven database.
+      # WARNING: cannot be changed once set; a lost key permanently locks
+      # the database. See docs/services/yuvomi.md.
+      DB_ENCRYPTION_KEY: "${YUVOMI_DB_ENCRYPTION_KEY}"
+
+      BASE_URL: "https://family.huybrechts.xyz"
+
+      # OIDC-only login (2026-09-28 decision) — no local username/password.
+      # See docs/services/yuvomi.md for the required bootstrap sequence
+      # before AUTH_ALLOW_PASSWORD_LOGIN actually takes effect.
+      OIDC_ISSUER: "https://auth.huybrechts.xyz/application/o/yuvomi/"
+      OIDC_CLIENT_ID: yuvomi
+      OIDC_CLIENT_SECRET: "${YUVOMI_SSO_CLIENT_SECRET}"
+      OIDC_REDIRECT_URI: "https://family.huybrechts.xyz/api/v1/auth/oidc/callback"
+      AUTH_ALLOW_PASSWORD_LOGIN: "false"
+
+      # Documents → Infomaniak kDrive (WebDAV). YUVOMI_WEBDAV_URL/USERNAME
+      # are placeholders until confirmed against the real Infomaniak
+      # manager — see docs/services/yuvomi.md's "Still open" section.
+      DOCUMENT_STORAGE_WEBDAV_ENABLED: "true"
+      DOCUMENT_STORAGE_WEBDAV_URL: "${YUVOMI_WEBDAV_URL}"
+      DOCUMENT_STORAGE_WEBDAV_USERNAME: "${YUVOMI_WEBDAV_USERNAME}"
+      DOCUMENT_STORAGE_WEBDAV_PASSWORD: "${YUVOMI_WEBDAV_PASSWORD}"
+      DOCUMENT_STORAGE_WEBDAV_PATH: yuvomi-documents
+
+      # Local (Borg-swept) + offsite (kDrive) backup mirror — see
+      # values.yaml's comment for why Borg tars /backups, not /data.
+      BACKUP_ENABLED: "true"
+      WEBDAV_BACKUP_ENABLED: "true"
+      WEBDAV_BACKUP_URL: "${YUVOMI_WEBDAV_URL}"
+      WEBDAV_BACKUP_USERNAME: "${YUVOMI_WEBDAV_USERNAME}"
+      WEBDAV_BACKUP_PASSWORD: "${YUVOMI_WEBDAV_PASSWORD}"
+      WEBDAV_BACKUP_PATH: /yuvomi/backups/
+
+      # Shared Infomaniak mailbox — same secrets Gatus/Vaultwarden reuse.
+      EMAIL_SMTP_HOST: "${INFOMANIAK_EMAIL__HOST}"
+      EMAIL_SMTP_PORT: "${INFOMANIAK_EMAIL__PORT}"
+      EMAIL_SMTP_SECURE: starttls
+      EMAIL_SMTP_USER: "${INFOMANIAK_EMAIL__USERNAME}"
+      EMAIL_SMTP_PASS: "${INFOMANIAK_EMAIL__PASSWORD}"
+      EMAIL_FROM_ADDRESS: yuvomi@huybrechts.xyz
+      EMAIL_FROM_NAME: Yuvomi
+
+      # Immich photo screensaver / wall mode — Immich's already deployed.
+      IMMICH_URL: "https://photos.huybrechts.xyz"
+      IMMICH_API_KEY: "${YUVOMI_IMMICH_API_KEY}"
+      IMMICH_SCREENSAVER_ALBUM_ID: ""
+    persistence:
+      data:
+        storageClass: local-path
+        size: 2Gi
+      backups:
+        storageClass: local-path
+        size: 2Gi
+    service:
+      port: 3000
+    # Staging-first cert-manager pattern — family.huybrechts.xyz has never
+    # had a cert issued before. Switch to letsencrypt-prod once
+    # `kubectl describe certificate family-tls -n family` shows Ready: True.
+    ingress:
+      enabled: true
+      className: traefik
+      host: family.huybrechts.xyz
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-staging
+      tls:
+        - hosts:
+            - family.huybrechts.xyz
+          secretName: family-tls

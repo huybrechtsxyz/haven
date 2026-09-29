@@ -1,0 +1,109 @@
+# Defaults — override via the strata module's spec.configuration (see
+# config/forge/modules/yuvomi.yaml). Every key strata's module sets must be
+# declared here (even as an empty placeholder) so the chart's own
+# values.yaml recognizes it — same convention as filebrowser/values.yaml and
+# homarr-secrets/values.yaml. Real values are injected by strata at deploy
+# time, never written here.
+image:
+  repository: ghcr.io/ulsklyc/yuvomi
+  # Pinned — never :latest (this repo's convention for every app). Verify
+  # https://github.com/ulsklyc/yuvomi/releases is still current before bumping.
+  tag: "v2.69.1"
+
+env:
+  TZ: Europe/Brussels
+  NODE_ENV: production
+  # The app inside the container always listens on this port — matches
+  # service.port/containerPort below. Do not change one without the other.
+  PORT: "3000"
+  DB_PATH: /data/yuvomi.db
+
+  # --- Session / security ----------------------------------------------
+  SESSION_SECRET: ""
+  # true — Traefik terminates TLS in front of this pod (see ingress below).
+  SESSION_SECURE: "true"
+  # 1 — trust exactly one reverse-proxy hop (Traefik), matches Yuvomi's own
+  # documented default for this topology.
+  TRUST_PROXY: "1"
+
+  # --- Database encryption (SQLCipher AES-256) --------------------------
+  # Every other Haven database is encrypted at rest — matching that here.
+  # WARNING: this key cannot be changed once set; a lost key means a
+  # permanently unrecoverable database. See docs/services/yuvomi.md.
+  DB_ENCRYPTION_KEY: ""
+
+  # --- Base URL (password-reset/invite emails, calendar export feeds) --
+  BASE_URL: ""
+
+  # --- OIDC / SSO (Authentik, OIDC-only — no local login) ---------------
+  OIDC_ISSUER: ""
+  OIDC_CLIENT_ID: yuvomi
+  OIDC_CLIENT_SECRET: ""
+  OIDC_REDIRECT_URI: ""
+  # Local username/password login disabled (2026-09-28 decision) — only
+  # takes effect once all four OIDC_* values above are set AND at least one
+  # admin account has actually been linked to Authentik. See the bootstrap
+  # sequence in docs/services/yuvomi.md before assuming this is live.
+  AUTH_ALLOW_PASSWORD_LOGIN: "false"
+
+  # --- Documents → Infomaniak kDrive (WebDAV) ---------------------------
+  DOCUMENT_STORAGE_WEBDAV_ENABLED: "true"
+  DOCUMENT_STORAGE_WEBDAV_URL: ""
+  DOCUMENT_STORAGE_WEBDAV_USERNAME: ""
+  DOCUMENT_STORAGE_WEBDAV_PASSWORD: ""
+  DOCUMENT_STORAGE_WEBDAV_PATH: yuvomi-documents
+
+  # --- Backups: local (Borg-swept) + offsite mirror to kDrive -----------
+  # BACKUP_ENABLED writes consistent snapshots to /backups on Yuvomi's own
+  # schedule — Forge's Borg script tars /backups (safe: only ever contains
+  # completed snapshot files, never a live-written DB), same reasoning as
+  # avoiding a raw tar of /data directly. WEBDAV_BACKUP_* additionally
+  # mirrors each backup straight to kDrive for genuine offsite redundancy.
+  BACKUP_ENABLED: "true"
+  WEBDAV_BACKUP_ENABLED: "true"
+  WEBDAV_BACKUP_URL: ""
+  WEBDAV_BACKUP_USERNAME: ""
+  WEBDAV_BACKUP_PASSWORD: ""
+  WEBDAV_BACKUP_PATH: /yuvomi/backups/
+
+  # --- Email / SMTP (reuses the shared Infomaniak mailbox) --------------
+  EMAIL_SMTP_HOST: ""
+  EMAIL_SMTP_PORT: ""
+  EMAIL_SMTP_SECURE: starttls
+  EMAIL_SMTP_USER: ""
+  EMAIL_SMTP_PASS: ""
+  EMAIL_FROM_ADDRESS: yuvomi@huybrechts.xyz
+  EMAIL_FROM_NAME: Yuvomi
+
+  # --- Immich photo screensaver (wall-mode tablet display) --------------
+  IMMICH_URL: "https://photos.huybrechts.xyz"
+  IMMICH_API_KEY: ""
+  IMMICH_SCREENSAVER_ALBUM_ID: ""
+
+persistence:
+  # SQLite DB (yuvomi.db) — the important one.
+  data:
+    storageClass: local-path
+    size: 2Gi
+  # Yuvomi's own consistent backup snapshots — see the BACKUP_ENABLED
+  # comment above for why Borg sweeps this path instead of /data directly.
+  backups:
+    storageClass: local-path
+    size: 2Gi
+
+service:
+  port: 3000
+
+ingress:
+  enabled: true
+  className: traefik
+  host: family.huybrechts.xyz
+  # Staging-first cert-manager pattern, same as every other brand-new
+  # hostname in this repo — family.huybrechts.xyz has never had a cert
+  # issued before.
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+  tls:
+    - hosts:
+        - family.huybrechts.xyz
+      secretName: family-tls

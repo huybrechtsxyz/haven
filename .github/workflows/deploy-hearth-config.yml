@@ -130,7 +130,7 @@ jobs:
           # kSuite backup secrets (HEALTHCHECK_PING_KSUITE, KSUITE_BACKUP_*)
           # deliberately omitted from this call — feature disabled for now,
           # see config/environment.yaml's commented-out declarations.
-          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_HEARTH VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET JELLYFIN_SSO_CLIENT_SECRET NEXTCLOUD_SSO_CLIENT_SECRET IMMICH_SSO_CLIENT_SECRET KAVITA_SSO_CLIENT_SECRET GRIMOIRE_SSO_CLIENT_SECRET GATUS_SSO_CLIENT_SECRET PGADMIN_SSO_CLIENT_SECRET HOMARR_SSO_CLIENT_SECRET FILEBROWSER_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_HEARTH VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET JELLYFIN_SSO_CLIENT_SECRET NEXTCLOUD_SSO_CLIENT_SECRET IMMICH_SSO_CLIENT_SECRET KAVITA_SSO_CLIENT_SECRET GRIMOIRE_SSO_CLIENT_SECRET GATUS_SSO_CLIENT_SECRET PGADMIN_SSO_CLIENT_SECRET HOMARR_SSO_CLIENT_SECRET FILEBROWSER_SSO_CLIENT_SECRET YUVOMI_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
           STATUS=$?
           set -e
           if [ $STATUS -ne 0 ]; then
@@ -151,6 +151,7 @@ jobs:
           PGADMIN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.PGADMIN_SSO_CLIENT_SECRET')
           HOMARR_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.HOMARR_SSO_CLIENT_SECRET')
           FILEBROWSER_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.FILEBROWSER_SSO_CLIENT_SECRET')
+          YUVOMI_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.YUVOMI_SSO_CLIENT_SECRET')
           # kSuite backup disabled for now — extraction commented out too.
           # KSUITE_HEALTHCHECK_URL=$(echo "$VALUES" | jq -r '.data.results.HEALTHCHECK_PING_KSUITE // empty')
           # KSUITE_VINCENT=$(echo "$VALUES" | jq -r '.data.results.KSUITE_BACKUP_VINCENT // empty')
@@ -174,6 +175,7 @@ jobs:
           pgadmin_sso_client_secret: "$PGADMIN_SSO_SECRET"
           homarr_sso_client_secret: "$HOMARR_SSO_SECRET"
           filebrowser_sso_client_secret: "$FILEBROWSER_SSO_SECRET"
+          yuvomi_sso_client_secret: "$YUVOMI_SSO_SECRET"
           # kSuite backup disabled for now — healthcheck_ping_url_ksuite and
           # ksuite_mailboxes commented out (hearth-config.yml's tasks are
           # already gated on configure_ksuite_backup, which no longer gets

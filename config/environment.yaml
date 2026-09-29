@@ -386,3 +386,53 @@ spec:
       generate:
         type: urlsafe
         length: 32
+
+    # Application secrets — Yuvomi (Forge, family namespace)
+    - key: YUVOMI_SESSION_SECRET
+      store: infisical
+      value: YUVOMI_SESSION_SECRET
+      description: Yuvomi's SESSION_SECRET — app refuses to start without a real value; changing it later just signs everyone out once
+      generate:
+        type: urlsafe
+        length: 48
+    # WARNING: cannot be changed once set — a lost/changed key permanently
+    # locks the database (SQLCipher AES-256), not just this key. Every other
+    # Haven database is encrypted at rest, matching that here per design
+    # decision (2026-09-28). Back this up out-of-band, not just in Infisical.
+    - key: YUVOMI_DB_ENCRYPTION_KEY
+      store: infisical
+      value: YUVOMI_DB_ENCRYPTION_KEY
+      description: Yuvomi's DB_ENCRYPTION_KEY (SQLCipher AES-256) — irreversible once set, see docs/services/yuvomi.md
+      generate:
+        type: urlsafe
+        length: 48
+    - key: YUVOMI_SSO_CLIENT_SECRET
+      store: infisical
+      value: YUVOMI_SSO_CLIENT_SECRET
+      description: OIDC client secret for Yuvomi SSO via Authentik
+      generate:
+        type: urlsafe
+        length: 48
+    # NOTE: these three are NOT strata-generated — real Infomaniak kDrive
+    # WebDAV connection details, entered directly into Infisical (no
+    # `generate:` block), same pattern as FOUNDRY_USERNAME. Not yet
+    # confirmed — see docs/services/yuvomi.md's "Still open" section.
+    - key: YUVOMI_WEBDAV_URL
+      store: infisical
+      value: YUVOMI_WEBDAV_URL
+      description: Infomaniak kDrive WebDAV base URL — confirmed format https://<kdrive-id>.connect.kdrive.infomaniak.com (kdrive ID, not org ID), see docs/services/yuvomi.md
+    - key: YUVOMI_WEBDAV_USERNAME
+      store: infisical
+      value: YUVOMI_WEBDAV_USERNAME
+      description: Infomaniak account username/email for the kDrive WebDAV connection
+    - key: YUVOMI_WEBDAV_PASSWORD
+      store: infisical
+      value: YUVOMI_WEBDAV_PASSWORD
+      description: Infomaniak app-specific password for the kDrive WebDAV connection (not the account login password) — used for both document storage and offsite backup mirroring
+    # NOT strata-generated — created manually in Immich's own UI (Settings
+    # -> API Keys) with asset.read + asset.view permissions, after Immich
+    # already has photos to show.
+    - key: YUVOMI_IMMICH_API_KEY
+      store: infisical
+      value: YUVOMI_IMMICH_API_KEY
+      description: Immich API key for Yuvomi's photo screensaver / wall mode — create via Immich UI (Settings -> API Keys), asset.read + asset.view permissions

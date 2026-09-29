@@ -81,6 +81,7 @@ Application access is gated by binding the appropriate policy to each applicatio
 | Gatus       | `policy-group-members` | Everyone (all groups)                                                                                                  |
 | Homarr      | `policy-group-members` | Everyone (all groups)                                                                                                  |
 | FileBrowser | `policy-group-members` | Everyone (all groups)                                                                                                  |
+| Yuvomi      | `policy-group-members` | Everyone (all groups)                                                                                                  |
 | pgAdmin     | `policy-group-admins`  | Admins only — direct access to every Postgres instance in Haven                                                        |
 
 ---
@@ -105,19 +106,20 @@ Verify after deploy: Admin Interface → Flows & Stages → Flows → `default-a
 
 Not all services use Authentik SSO. SSO creates a dependency — if Authentik is down, SSO-protected services become inaccessible. The rule is:
 
-| Service         | Auth method                  | Reason                                                                                                                                  |
-| --------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| **Vaultwarden** | Authentik SSO (OIDC)         | Family-facing — ease of access for all users                                                                                            |
-| **WUD**         | Authentik SSO (OIDC)         | Admin tool, already working and low-friction                                                                                            |
-| **Immich**      | Authentik SSO (OIDC)         | Family photo library — family members need access                                                                                       |
-| **Jellyfin**    | Authentik SSO (OIDC, plugin) | Family media — family members need access                                                                                               |
-| **Nextcloud**   | Authentik SSO (OIDC)         | Family file sync — family members need access                                                                                           |
-| **Kavita**      | Authentik SSO (OIDC, native) | Family document/TTRPG library — now wired up alongside Nextcloud/Jellyfin                                                               |
-| **Gatus**       | Authentik SSO (OIDC)         | Members-only status dashboard — family-wide visibility into service health                                                              |
-| **Homarr**      | Authentik SSO (OIDC)         | Family-facing dashboard/landing page — per-user boards synced from Authentik groups                                                     |
-| **FileBrowser** | Authentik SSO (OIDC)         | Family-facing Storage Box browser — everyone needs direct file access                                                                   |
-| **pgAdmin**     | Authentik SSO (OIDC, native) | Admin tool — direct Postgres access, same trust tier as WUD (own built-in admin account is break-glass, not a fallback for regular use) |
-| **Portainer**   | Local credentials + TOTP MFA | Admin tool — must stay accessible if Authentik is down                                                                                  |
+| Service         | Auth method                                     | Reason                                                                                                                                  |
+| --------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Vaultwarden** | Authentik SSO (OIDC)                            | Family-facing — ease of access for all users                                                                                            |
+| **WUD**         | Authentik SSO (OIDC)                            | Admin tool, already working and low-friction                                                                                            |
+| **Immich**      | Authentik SSO (OIDC)                            | Family photo library — family members need access                                                                                       |
+| **Jellyfin**    | Authentik SSO (OIDC, plugin)                    | Family media — family members need access                                                                                               |
+| **Nextcloud**   | Authentik SSO (OIDC)                            | Family file sync — family members need access                                                                                           |
+| **Kavita**      | Authentik SSO (OIDC, native)                    | Family document/TTRPG library — now wired up alongside Nextcloud/Jellyfin                                                               |
+| **Gatus**       | Authentik SSO (OIDC)                            | Members-only status dashboard — family-wide visibility into service health                                                              |
+| **Homarr**      | Authentik SSO (OIDC)                            | Family-facing dashboard/landing page — per-user boards synced from Authentik groups                                                     |
+| **FileBrowser** | Authentik SSO (OIDC)                            | Family-facing Storage Box browser — everyone needs direct file access                                                                   |
+| **Yuvomi**      | Authentik SSO (OIDC, OIDC-only, no local login) | Family organizer — tasks, calendar, shopping, meals, budget, documents                                                                  |
+| **pgAdmin**     | Authentik SSO (OIDC, native)                    | Admin tool — direct Postgres access, same trust tier as WUD (own built-in admin account is break-glass, not a fallback for regular use) |
+| **Portainer**   | Local credentials + TOTP MFA                    | Admin tool — must stay accessible if Authentik is down                                                                                  |
 
 > ⚠️ **Do not configure SSO for Portainer.** If Authentik fails, Portainer is your recovery tool.
 
@@ -139,6 +141,7 @@ Full SSO configuration details live in each service's own doc. This table summar
 | Gatus       | `per_provider`     | OIDC                                 | `GATUS_SSO_CLIENT_SECRET`            | [gatus.md](gatus.md)             |
 | Homarr      | `per_provider`     | OIDC                                 | `HOMARR_SSO_CLIENT_SECRET`           | [homarr.md](homarr.md)           |
 | FileBrowser | `per_provider`     | OIDC                                 | `FILEBROWSER_SSO_CLIENT_SECRET`      | *(no dedicated doc yet)*         |
+| Yuvomi      | `per_provider`     | OIDC (OIDC-only, no local login)     | `YUVOMI_SSO_CLIENT_SECRET`           | [yuvomi.md](yuvomi.md)           |
 | pgAdmin     | `per_provider`     | OIDC (native)                        | `PGADMIN_SSO_CLIENT_SECRET`          | [pgadmin.md](pgadmin.md)         |
 | Firefly III | n/a (forward auth) | Traefik forwardAuth (Proxy Provider) | none — no client secret in this mode | [firefly.md](firefly.md)         |
 | FoundryVTT  | n/a (forward auth) | Traefik forwardAuth (Proxy Provider) | none — no client secret in this mode | [foundryvtt.md](foundryvtt.md)   |

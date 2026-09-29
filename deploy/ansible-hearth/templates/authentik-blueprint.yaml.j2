@@ -1363,6 +1363,72 @@ entries:
       timeout: 30
 
   # ---------------------------------------------------------------------------
+  # Yuvomi — OAuth2/OIDC Provider + Application
+  # ---------------------------------------------------------------------------
+  # Runs on Forge (k3s), in its own `family` namespace — family organizer
+  # (tasks, calendar, shopping, meals, budget, documents, health). Family-wide
+  # access (policy-group-members, not admin-only) — same trust tier as
+  # Nextcloud/Immich/Kavita. OIDC-only login (AUTH_ALLOW_PASSWORD_LOGIN=false
+  # in config/forge/modules/yuvomi.yaml) — see docs/services/yuvomi.md for
+  # the required bootstrap sequence (create the first admin via /setup with
+  # a password, link that account to Authentik SSO, THEN the local login
+  # form disappears — it's not skippable on first deploy).
+  - model: authentik_providers_oauth2.oauth2provider
+    state: present
+    identifiers:
+      name: Yuvomi
+    id: provider-yuvomi
+    attrs:
+      name: Yuvomi
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      client_type: confidential
+      client_id: yuvomi
+      client_secret: "{{ yuvomi_sso_client_secret }}"
+      redirect_uris:
+        - matching_mode: strict
+          # Confirmed via Yuvomi's own .env.example — fixed API path, not
+          # app-specific/configurable elsewhere.
+          url: "https://family.huybrechts.xyz/api/v1/auth/oidc/callback"
+      grant_types:
+        - authorization_code
+        - refresh_token
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, "authentik Self-signed Certificate"]]
+      sub_mode: hashed_user_id
+      # per_provider, not global — same issuer-mismatch reasoning as every
+      # other app in this blueprint.
+      issuer_mode: per_provider
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: yuvomi
+    attrs:
+      name: Yuvomi
+      slug: yuvomi
+      provider: !KeyOf provider-yuvomi
+      meta_launch_url: https://family.huybrechts.xyz
+      # TODO: verify this icon filename actually exists in homarr-labs/dashboard-icons
+      meta_icon: https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/png/yuvomi.png
+
+  - model: authentik_policies.policybinding
+    state: present
+    identifiers:
+      target: !Find [authentik_core.application, [slug, yuvomi]]
+      order: 0
+    attrs:
+      target: !Find [authentik_core.application, [slug, yuvomi]]
+      policy: !KeyOf policy-group-members
+      order: 0
+      enabled: true
+      negate: false
+      timeout: 30
+
+  # ---------------------------------------------------------------------------
   # Bootstrap / infrastructure management — admin-only dashboard launcher links
   # ---------------------------------------------------------------------------
   # Same dashboard-only "Application" pattern as the Infomaniak kSuite tiles

@@ -87,5 +87,12 @@ spec:
         - FIREFLY_IMPORTER_ACCESS_TOKEN
         - FILEBROWSER_SSO_CLIENT_SECRET
         - FILEBROWSER_ADMIN_PASSWORD
+        - YUVOMI_SESSION_SECRET
+        - YUVOMI_DB_ENCRYPTION_KEY
+        - YUVOMI_SSO_CLIENT_SECRET
+        - YUVOMI_WEBDAV_URL
+        - YUVOMI_WEBDAV_USERNAME
+        - YUVOMI_WEBDAV_PASSWORD
+        - YUVOMI_IMMICH_API_KEY
       depends_on: infrastructure_forge
       on_failure: stop

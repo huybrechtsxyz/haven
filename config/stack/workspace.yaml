@@ -52,6 +52,8 @@ spec:
       file: config/forge/namespaces/finance.yaml # 5th — Firefly III, no shared-storage dependency (own local-path PVC only)
     - name: gaming
       file: config/forge/namespaces/gaming.yaml # 6th — FoundryVTT, own local-path PVC only, no shared-storage dependency
+    - name: family
+      file: config/forge/namespaces/family.yaml # 7th — Yuvomi (family organizer), own local-path PVCs only, no shared-storage dependency
 
   topology:
     - name: hetzner_hearth
@@ -85,6 +87,7 @@ spec:
         - namespace: documents
         - namespace: finance
         - namespace: gaming
+        - namespace: family
       volumes:
         - name: k3s
           type: local

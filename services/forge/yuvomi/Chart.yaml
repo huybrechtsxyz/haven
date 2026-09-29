@@ -1,0 +1,9 @@
+apiVersion: v2
+name: yuvomi
+description: >
+  Yuvomi — self-hosted family organizer (tasks, calendar, shopping, meals,
+  budget, pantry, inventory, documents, health, and more). No official Helm
+  chart exists upstream (Docker-first project) — local chart, same pattern as
+  pgadmin/filebrowser.
+version: "0.1.0"
+appVersion: "v2.69.1"
