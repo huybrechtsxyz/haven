@@ -10,7 +10,6 @@
 - `deploy-forge-init.yml` must have run successfully at least once (k3s + Traefik installed).
 - The `system` namespace's cert-manager must already be deployed.
 - A DNS A record for `family.{domain}` pointing directly at Forge's public IP.
-- An Infomaniak kDrive WebDAV app-specific password and connection URL (see [Infomaniak-side setup checklist](#infomaniak-side-setup-checklist)).
 - An Immich API key (Settings → API Keys, `asset.read` + `asset.view` permissions).
 
 ---
@@ -76,12 +75,15 @@ So the actual first-deploy sequence is:
 
 ---
 
-## Documents & backups → Infomaniak kDrive (WebDAV)
+## Documents & backups — local storage (kDrive WebDAV blocked by plan)
 
-WebDAV base URL format (confirmed 2026-09-28): `https://<kdrive-id>.connect.kdrive.infomaniak.com` — the numeric kDrive ID (distinct from the Infomaniak org/account ID), not the `ksuite.infomaniak.com/<org-id>/kdrive` web-app URL. The real value lives in Infisical (`YUVOMI_WEBDAV_URL`), never written into this repo.
+**⚠️ Infomaniak kDrive WebDAV is disabled (2026-09-30) — not available on this account's plan tier.** Confirmed live: an authenticated `PROPFIND` against the WebDAV URL (`https://<kdrive-id>.connect.kdrive.infomaniak.com`) returns `403 Forbidden` on every path tested, including the bare root — ruling out a URL-format or credentials problem. kDrive's WebDAV access itself requires a plan this account doesn't have.
 
-- **Documents module**: `DOCUMENT_STORAGE_WEBDAV_ENABLED=true`, stores uploaded family documents directly on kDrive instead of a local PVC.
-- **Backups**: Yuvomi's own `BACKUP_ENABLED=true` writes consistent scheduled snapshots to the `/backups` PVC — Forge's Borg script safely tars this path (it only ever contains completed snapshot files, unlike a raw tar of the live `/data` SQLite file, which carries the same "torn copy" risk class already flagged for Kavita/RPGKeeper). `WEBDAV_BACKUP_*` additionally mirrors each backup straight to kDrive for genuine offsite redundancy, on top of Haven's own Storage Box Borg repo.
+**Current setup — local storage only:**
+- **Documents module**: `DOCUMENT_STORAGE_LOCAL_ENABLED=true`, `DOCUMENT_STORAGE_LOCAL_PATH=/documents` — stores uploaded family documents on a dedicated `documents` PVC (`local-path`, 2Gi) instead of kDrive.
+- **Backups**: Yuvomi's own `BACKUP_ENABLED=true` writes consistent scheduled snapshots to the `/backups` PVC — Forge's Borg script safely tars this path (it only ever contains completed snapshot files, unlike a raw tar of the live `/data` SQLite file, which carries the same "torn copy" risk class already flagged for Kavita/RPGKeeper). `WEBDAV_BACKUP_*` (the kDrive offsite mirror) is disabled for the same plan-tier reason — Haven's own Storage Box Borg repo is the only backup destination for now.
+
+**If the kSuite plan is ever upgraded** to include WebDAV: flip `DOCUMENT_STORAGE_LOCAL_ENABLED`/`DOCUMENT_STORAGE_WEBDAV_ENABLED` and `WEBDAV_BACKUP_ENABLED` back in `config/forge/modules/yuvomi.yaml` (the `YUVOMI_WEBDAV_*` secrets are already in Infisical and referenced in the module, just currently unused) — existing documents on the local PVC would need a manual migration since Yuvomi doesn't auto-migrate between storage backends.
 
 ---
 

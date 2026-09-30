@@ -53,21 +53,23 @@ env:
   # sequence in docs/services/yuvomi.md before assuming this is live.
   AUTH_ALLOW_PASSWORD_LOGIN: "false"
 
-  # --- Documents → Infomaniak kDrive (WebDAV) ---------------------------
-  DOCUMENT_STORAGE_WEBDAV_ENABLED: "true"
+  # --- Documents — local storage fallback (2026-09-30) ----------------
+  # Infomaniak kDrive WebDAV requires a plan tier this account doesn't have
+  # (confirmed: PROPFIND returns 403 on every path, including the bare
+  # root — not a config/URL problem). Disabled for now; local storage on
+  # the documents PVC instead. Revisit if the kSuite plan is ever upgraded.
+  DOCUMENT_STORAGE_LOCAL_ENABLED: "true"
+  DOCUMENT_STORAGE_LOCAL_PATH: /documents
+  DOCUMENT_STORAGE_WEBDAV_ENABLED: "false"
   DOCUMENT_STORAGE_WEBDAV_URL: ""
   DOCUMENT_STORAGE_WEBDAV_USERNAME: ""
   DOCUMENT_STORAGE_WEBDAV_PASSWORD: ""
   DOCUMENT_STORAGE_WEBDAV_PATH: apps/yuvomi
 
-  # --- Backups: local (Borg-swept) + offsite mirror to kDrive -----------
-  # BACKUP_ENABLED writes consistent snapshots to /backups on Yuvomi's own
-  # schedule — Forge's Borg script tars /backups (safe: only ever contains
-  # completed snapshot files, never a live-written DB), same reasoning as
-  # avoiding a raw tar of /data directly. WEBDAV_BACKUP_* additionally
-  # mirrors each backup straight to kDrive for genuine offsite redundancy.
+  # --- Backups: local (Borg-swept) only, kDrive mirror disabled ---------
+  # See the DOCUMENT_STORAGE note above — same plan-tier blocker.
   BACKUP_ENABLED: "true"
-  WEBDAV_BACKUP_ENABLED: "true"
+  WEBDAV_BACKUP_ENABLED: "false"
   WEBDAV_BACKUP_URL: ""
   WEBDAV_BACKUP_USERNAME: ""
   WEBDAV_BACKUP_PASSWORD: ""
@@ -95,6 +97,11 @@ persistence:
   # Yuvomi's own consistent backup snapshots — see the BACKUP_ENABLED
   # comment above for why Borg sweeps this path instead of /data directly.
   backups:
+    storageClass: local-path
+    size: 2Gi
+  # Local document storage fallback — see the DOCUMENT_STORAGE_LOCAL_ENABLED
+  # comment above (kDrive WebDAV blocked by plan tier).
+  documents:
     storageClass: local-path
     size: 2Gi
 

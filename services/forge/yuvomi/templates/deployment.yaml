@@ -53,6 +53,8 @@ spec:
               mountPath: /data
             - name: backups
               mountPath: /backups
+            - name: documents
+              mountPath: /documents
       volumes:
         - name: data
           persistentVolumeClaim:
@@ -60,3 +62,6 @@ spec:
         - name: backups
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-backups
+        - name: documents
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-documents

@@ -25,3 +25,17 @@ spec:
   resources:
     requests:
       storage: {{ .Values.persistence.backups.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-documents
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ .Values.persistence.documents.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.documents.size }}

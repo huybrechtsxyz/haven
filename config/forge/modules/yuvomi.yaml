@@ -60,19 +60,26 @@ spec:
       OIDC_REDIRECT_URI: "https://family.huybrechts.xyz/api/v1/auth/oidc/callback"
       AUTH_ALLOW_PASSWORD_LOGIN: "false"
 
-      # Documents → Infomaniak kDrive (WebDAV). YUVOMI_WEBDAV_URL/USERNAME
-      # are placeholders until confirmed against the real Infomaniak
-      # manager — see docs/services/yuvomi.md's "Still open" section.
-      DOCUMENT_STORAGE_WEBDAV_ENABLED: "true"
+      # Documents — local storage fallback (2026-09-30). Infomaniak kDrive
+      # WebDAV requires a plan tier this account doesn't have — confirmed
+      # live: PROPFIND against the WebDAV URL returns 403 Forbidden on
+      # every path tested, including the bare root (not a URL/credentials
+      # problem — kDrive itself rejects WebDAV access for this plan).
+      # Disabled for now; using the documents PVC instead. Revisit if the
+      # kSuite plan is ever upgraded to one that includes WebDAV. See
+      # docs/services/yuvomi.md's "Documents & backups" section.
+      DOCUMENT_STORAGE_LOCAL_ENABLED: "true"
+      DOCUMENT_STORAGE_LOCAL_PATH: /documents
+      DOCUMENT_STORAGE_WEBDAV_ENABLED: "false"
       DOCUMENT_STORAGE_WEBDAV_URL: "${YUVOMI_WEBDAV_URL}"
       DOCUMENT_STORAGE_WEBDAV_USERNAME: "${YUVOMI_WEBDAV_USERNAME}"
       DOCUMENT_STORAGE_WEBDAV_PASSWORD: "${YUVOMI_WEBDAV_PASSWORD}"
       DOCUMENT_STORAGE_WEBDAV_PATH: apps/yuvomi
 
-      # Local (Borg-swept) + offsite (kDrive) backup mirror — see
-      # values.yaml's comment for why Borg tars /backups, not /data.
+      # Local (Borg-swept) backup only — kDrive offsite mirror disabled,
+      # same plan-tier blocker as documents above.
       BACKUP_ENABLED: "true"
-      WEBDAV_BACKUP_ENABLED: "true"
+      WEBDAV_BACKUP_ENABLED: "false"
       WEBDAV_BACKUP_URL: "${YUVOMI_WEBDAV_URL}"
       WEBDAV_BACKUP_USERNAME: "${YUVOMI_WEBDAV_USERNAME}"
       WEBDAV_BACKUP_PASSWORD: "${YUVOMI_WEBDAV_PASSWORD}"
@@ -96,6 +103,9 @@ spec:
         storageClass: local-path
         size: 2Gi
       backups:
+        storageClass: local-path
+        size: 2Gi
+      documents:
         storageClass: local-path
         size: 2Gi
     service:
