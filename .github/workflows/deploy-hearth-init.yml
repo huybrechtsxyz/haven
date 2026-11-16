@@ -84,7 +84,7 @@ jobs:
       # ------------------------------------------------------------------
       - name: Setup strata
         if: ${{ inputs.dry_run != true }}
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.9.3
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v2.6.1
         with:
           # See deploy-infra.yml for the full 1.9.3 bump rationale (ADR-0072
           # breaking change, migrated config/configuration.yaml + deployment.yaml).
