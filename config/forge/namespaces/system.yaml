@@ -3,7 +3,7 @@ kind: namespace
 meta:
   name: system
   annotations:
-    description: Cross-cutting infrastructure add-ons for Forge (k3s) — not tied to any one app layer. rclone's S3 mount, cert-manager + its ClusterIssuers live here; Portainer's Kubernetes agent will join once ready.
+    description: Cross-cutting infrastructure add-ons for Forge (k3s) — not tied to any one app layer. cert-manager + its ClusterIssuers live here, plus Portainer's Kubernetes Edge Agent.
   labels:
     version: "1.0.0"
   tags: [haven, forge, k3s, system]
@@ -22,6 +22,28 @@ spec:
     - name: cert-manager-issuers
       description: Let's Encrypt ClusterIssuers (staging + production), HTTP-01 via Traefik
       file: config/forge/modules/cert-manager-issuers.yaml
-    - name: rclone-mount
-      description: Mounts haven-docs (S3) onto the Forge host filesystem for Nextcloud + Kavita to share
-      file: config/forge/modules/rclone-mount.yaml
+    - name: gatus
+      description: Health/status dashboard for every family service — members-only, real OIDC login via Authentik
+      file: config/forge/modules/gatus.yaml
+    - name: pgadmin
+      description: pgAdmin4 — direct Postgres admin access for every Haven database (Immich, Nextcloud, Firefly III), admin-only OIDC login via Authentik
+      file: config/forge/modules/pgadmin.yaml
+    # homarr-secrets listed before homarr: renders the K8s Secrets
+    # (OIDC client secret, DB encryption key) that homarr.yaml references
+    # via envSecrets.*.existingSecret — same ordering reason as
+    # nextcloud-secrets before nextcloud.
+    - name: homarr-secrets
+      description: K8s Secrets (OIDC client secret, DB encryption key) for Homarr
+      file: config/forge/modules/homarr-secrets.yaml
+    - name: homarr
+      description: Family-facing dashboard/landing page — real per-user boards/permissions synced from Authentik groups
+      file: config/forge/modules/homarr.yaml
+    - name: filebrowser
+      description: FileBrowser Quantum — direct read/write browser access to both haven-data Storage Box shares (media + docs), for every family member
+      file: config/forge/modules/filebrowser.yaml
+    # rclone-mount (haven-docs S3 bucket bridge) removed 2026-08-29 — the
+    # haven-docs bucket has been deleted from Hetzner. Nextcloud/Kavita's
+    # shared documents storage is migrating to the haven-data Storage Box's
+    # docs sub-account (SMB), mounted directly on the Forge host by
+    # forge-init.yml instead of via an in-cluster FUSE mount. That migration
+    # is not yet wired up — see docs/guides/forge.md's Development notes.

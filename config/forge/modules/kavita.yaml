@@ -25,19 +25,35 @@ spec:
       config:
         storageClass: local-path
         size: 5Gi
-    # Same shared haven-docs tree as Nextcloud (mounted by the rclone-mount
-    # module in the system namespace) — Kavita only reads, never
-    # renames/reorganizes, so it's safe to share.
+    # Same haven-data Storage Box docs sub-account tree as Nextcloud, SMB-
+    # mounted on the host at /mnt/haven-data-docs — Kavita only reads, never
+    # renames/reorganizes, so sharing the same tree as Nextcloud is safe.
     library:
-      hostPath: /mnt/haven-docs/books
+      hostPath: /mnt/haven-data-docs/books
     service:
       port: 5000
+    # Staging-first cert-manager pattern, same as Immich/Jellyfin/Nextcloud —
+    # flipped to letsencrypt-prod (2026-09-07) after confirming the HTTP-01
+    # challenge for books.huybrechts.xyz succeeded via staging.
+    #
+    # NOTE: confirmed live (2026-08-29) that Kavita's own ASP.NET Core OIDC
+    # handler sends redirect_uri=https://books.huybrechts.xyz/signin-oidc
+    # even though Traefik terminates TLS and forwards plain HTTP to the pod
+    # — the opposite of what was originally assumed here (that it would
+    # need a Jellyfin-style schemeOverride to avoid staying on http://).
+    # The Authentik blueprint's Kavita redirect_uri is https:// to match.
+    # See docs/services/kavita.md's SSO section for the full writeup.
     ingress:
       enabled: true
       className: traefik
       host: books.huybrechts.xyz
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      tls:
+        - hosts:
+            - books.huybrechts.xyz
+          secretName: books-tls
 
-  # TODO: Kavita supports OIDC natively (per its own README), but the exact
-  # settings/UI flow weren't verified when this module was authored — wire up
-  # Authentik SSO as a follow-up, same category of manual first-boot step as
-  # Jellyfin's plugin registration (see docs/services/jellyfin.md).
+  # SSO: Kavita's native OIDC settings are patched into appsettings.json by
+  # deploy-forge-deploy.yml after every Helm deploy (not part of this Helm
+  # values block) — see docs/services/kavita.md's SSO section.

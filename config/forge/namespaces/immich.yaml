@@ -10,7 +10,7 @@ meta:
 spec:
   modules:
     - name: immich-library
-      description: Static PV/PVC for the photo/video library (Storage Box NFS)
+      description: Static PV/PVC for the photo/video library (Storage Box SMB)
       file: config/forge/modules/immich-library.yaml
     - name: immich-postgres
       description: PostgreSQL (vectorchord-enabled) for Immich

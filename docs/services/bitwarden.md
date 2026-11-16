@@ -15,25 +15,6 @@ Bitwarden is a popular open-source password manager. Vaultwarden is a lightweigh
 3. Create a folder named **Haven** to store all infrastructure credentials and secrets.
 4. Store the critical credentials in Bitwarden cloud (see the Secrets Inventory section in the guide for details on what to store).
 
-
-
-
-
----
-
----------------------------------------------------------------------------------------
-
----
-
-
-
-
-
-
-
-
----
-
 ## Vaultwarden Steps
 
 Set up Vaultwarden on the haven platform to provide password management for the family. It will be accessible at `vault.{domain}` and supports all standard Bitwarden clients (mobile apps, browser extensions, desktop apps) using the same API.
@@ -52,18 +33,10 @@ Set up Vaultwarden on the haven platform to provide password management for the 
    - Save, then test SSO login
 9. Point **Bitwarden Authenticator** app at `vault.{domain}` on family devices so TOTP seeds sync to Vaultwarden
 
-## Vaultwarden Steps
 
-| #   | Task                                          |
-| --- | --------------------------------------------- |
-| 1   | Deploy Vaultwarden via Docker Compose         |
-| 2   | Configure OIDC via Authentik                  |
-| 3   | Import Bitwarden JSON export                  |
-| 4   | Create user accounts for all 5 family members |
-| 5   | Set up Collections: Family / Dev / CI-Infra   |
-| 6   | Reconfigure Bitwarden client on admin devices |
-| 7   | Verify autofill and all entries accessible    |
-| 8   | Roll out to family devices                    |
+
+
+---
 
 ## Vaultwarden vs Bitwarden
 

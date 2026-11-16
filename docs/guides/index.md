@@ -22,17 +22,21 @@ haven (workspace)
 ├── hearth (CX23 — Docker Compose)               ← Core: Authentik, Vaultwarden, Caddy
 │   └── Services: SSO, Passwords, Reverse Proxy
 │
-├── forge (CPX41 — k3s)                          ← Workload: Immich, Jellyfin, Gatus, apps
-│   └── Services: Photos, Media Streaming, Health Dashboard, Home-grown Apps
+├── forge (CPX41 — k3s)                          ← Workload: Immich, Jellyfin, Nextcloud, Kavita, apps
+│   └── Services: Photos, Media Streaming, Document Archive, EPUB/PDF Library, Home-grown Apps
 │
-├── storage box (BX11, 1 TB)                     ← Tier 1 Backups: BorgBackup (encrypted)
-│   └── NFS mount for Jellyfin media library
+├── storage box — haven-backup (BX11, 1 TB)      ← Hearth + Forge BorgBackup repos only
+│   ├── sub1: Hearth backup (encrypted, daily)
+│   └── sub2: Forge backup (encrypted, daily)
 │
-├── object storage (S3, eu-central, 4 buckets)   ← Immich originals, media overflow, archives
-│   └── haven-{photos, media, archive, docs}
+├── storage box — haven-data (1 TB, separate)    ← All live app data (SMB mounts)
+│   ├── media sub-account: Immich
+│   └── docs sub-account: Nextcloud + Kavita + Jellyfin
+│
+├── object storage (S3, eu-central, 3 buckets)   ← Currently unused
 │
 ├── Infomaniak kSuite (Switzerland)              ← Email, Calendar, Contacts, Files, Docs
-│   └── Tier 2 backups: daily rclone sync to kDrive
+│   └── Tier 2 backups: daily rclone sync of both Storage Boxes to kDrive
 │
 └── Cloud services (free tier)                   ← Bootstrap + secrets + state
     ├── Bitwarden Cloud  — deployment credentials (API keys, SSH keys)
@@ -66,19 +70,15 @@ Haven uses **independent GitHub Actions workflows** for independent scheduling a
 
 ## Deployment Phases
 
-| Phase              | Guide                                  | Contents                                                            |
-| ------------------ | -------------------------------------- | ------------------------------------------------------------------- |
-| **Prerequisites**  | [prerequisites.md](prerequisites.md)   | Accounts, MFA, tools — complete before deploying anything           |
-| **Domains**        | [domains.md](domains.md)               | Domain registration, DNS records, email setup                       |
-| **Setup**          | [setup.md](setup.md)                   | Initial setup of cloud services, secrets, and credentials           |
-| **Infrastructure** | [infrastructure.md](infrastructure.md) | Terraform + S3 buckets + SSH keys + DNS                             |
-| **Haven Hearth**   | [hearth.md](hearth.md)                 | Core VPS: Caddy, Authentik, Vaultwarden                             |
-| **Haven Forge**    | [forge.md](forge.md)                   | Workload VPS: k3s, Traefik, per-app namespaces                      |
-| **Onboarding**     | [onboarding.md](onboarding.md)         | Give a family member access — accounts, groups, per-app first login |
+| Phase               | Guide                                  | Contents                                                            |
+| ------------------- | -------------------------------------- | ------------------------------------------------------------------- |
+| **Prerequisites**   | [prerequisites.md](prerequisites.md)   | Accounts, MFA, tools — complete before deploying anything           |
+| **Domains**         | [domains.md](domains.md)               | Domain registration, DNS records, email setup                       |
+| **Setup**           | [setup.md](setup.md)                   | Initial setup of cloud services, secrets, and credentials           |
+| **Infrastructure**  | [infrastructure.md](infrastructure.md) | Terraform + S3 buckets + SSH keys + DNS                             |
+| **Haven Hearth**    | [hearth.md](hearth.md)                 | Core VPS: Caddy, Authentik, Vaultwarden                             |
+| **Haven Forge**     | [forge.md](forge.md)                   | Workload VPS: k3s, Traefik, per-app namespaces                      |
+| **Backup Strategy** | [backup.md](backup.md)                 | Two-tier backup architecture: BorgBackup + offsite kDrive sync      |
+| **Onboarding**      | [onboarding.md](onboarding.md)         | Give a family member access — accounts, groups, per-app first login |
 
-Per-app guides (Immich, Jellyfin, and future self-hosted apps) live under [docs/services/](../services/) — linked from [forge.md](forge.md#what-runs-where).
-
-## TODO
-
-| **Verify**         | [verify.md](verify.md) *(coming soon)*                  | Post-deploy smoke tests + verification checklist                            |
-| **Migration**      | [migration.md](migration.md) *(coming soon)*                     | Migrating from Google Workspace + Bitwarden                                 |
+Per-app guides (Immich, Jellyfin, Nextcloud, Kavita, and future self-hosted apps) live under [docs/services/](../services/) — linked from [forge.md](forge.md#what-runs-where).

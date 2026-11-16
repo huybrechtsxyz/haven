@@ -2,9 +2,10 @@ apiVersion: v2
 name: immich-library
 description: >
   Static PersistentVolume + PersistentVolumeClaim for Immich's photo/video
-  library, backed by the Storage Box NFS share already mounted on the Forge
-  node at /mnt/storagebox (see deploy/ansible-forge/forge-init.yml). hostPath
-  is correct here — this is a single-node k3s cluster, and the NFS mount is
-  already handled at the OS level by Ansible, so k8s just needs a path into it.
+  library, backed by the haven-data Storage Box's media sub-account SMB share
+  already mounted on the Forge node at /mnt/haven-data-media (see
+  deploy/ansible-forge/forge-init.yml). hostPath is correct here — this is a
+  single-node k3s cluster, and the SMB mount is already handled at the OS
+  level by Ansible, so k8s just needs a path into it.
 type: application
 version: "1.0.0"

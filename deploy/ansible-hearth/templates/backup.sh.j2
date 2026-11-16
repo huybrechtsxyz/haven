@@ -39,7 +39,8 @@ borg create \
   "$BORG_REPO::$ARCHIVE" \
   {{ haven_install_path }}/var/data/authentik \
   {{ haven_install_path }}/var/data/vaultwarden \
-  {{ haven_install_path }}/etc
+  {{ haven_install_path }}/etc{% if configure_ksuite_backup | default(false) | bool %} \
+  {{ haven_install_path }}/var/backup/ksuite{% endif %}
 
 echo "$LOG_PREFIX — pruning old archives"
 borg prune \

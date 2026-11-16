@@ -1,0 +1,8 @@
+apiVersion: v2
+name: firefly-postgres
+description: >
+  Minimal single-pod PostgreSQL for Firefly III. No operator, no replication —
+  matches the same pattern as nextcloud-postgres/immich-postgres (a single
+  small family server doesn't need one).
+type: application
+version: "1.0.0"

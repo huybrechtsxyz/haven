@@ -11,7 +11,7 @@ spec:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   # No storageClassName — must be "" to statically bind, since there's no
-  # dynamic provisioner for this path (it's an NFS mount, not local-path).
+  # dynamic provisioner for this path (it's an SMB/CIFS mount, not local-path).
   storageClassName: ""
   hostPath:
     path: {{ .Values.storage.hostPath }}

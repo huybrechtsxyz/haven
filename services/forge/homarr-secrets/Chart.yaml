@@ -1,0 +1,16 @@
+apiVersion: v2
+name: homarr-secrets
+description: >
+  Two Kubernetes Secrets holding Homarr's real credential values (OIDC client
+  secret + database encryption key). Exists because the official Homarr
+  chart routes both of these through `envSecrets.*.existingSecret` (a
+  referenced Secret name + key), never through a literal `env:` dict — and
+  strata's Helm secret substitution only resolves `${TOKEN}` placeholders
+  found inside a dict node keyed literally "env" (see
+  nextcloud-secrets/Chart.yaml for the original full writeup of this
+  constraint, confirmed 2026-08-28). This chart's own values ARE under a
+  literal `env:` dict, so strata substitutes them correctly here, then
+  homarr.yaml references these Secrets via `envSecrets.*.existingSecret`
+  instead of a plaintext value.
+type: application
+version: "1.0.0"

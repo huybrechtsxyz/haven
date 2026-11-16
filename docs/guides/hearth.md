@@ -12,31 +12,6 @@ Hearth is the core VPS. It runs as a single Docker Compose stack on a Hetzner CX
 
 ---
 
-## Design decision — Portainer stays on local auth, not SSO
-
-Portainer is **intentionally not** wired through Authentik SSO. Portainer exists to check on and
-recover other containers (including Authentik itself), so it must stay reachable even when
-Authentik is down, misconfigured, or mid-upgrade — putting it behind the identity provider it may
-need to fix would defeat that purpose. Portainer uses its own local admin account instead (create
-it + enable MFA on first login).
-
-As a secondary consideration, Portainer CE (the free edition used here) doesn't support OAuth/OIDC
-at all — SSO would require upgrading to Portainer Business Edition (free up to 3 nodes / 5 users).
-Not a blocker either way, since local auth is the deliberate choice regardless of edition.
-
-Three Ansible playbooks now live at `deploy/ansible-hearth/` driven by three focused GitHub Actions
-workflows (`deploy-hearth-init.yml`/`deploy-hearth-config.yml`/`deploy-hearth-deploy.yml`, one per
-playbook, sharing the `hetzner-ssh-open`/`hetzner-ssh-close` composite actions for the temporary
-firewall window) that resolve every secret via `strata values get` against Infisical Cloud (machine
-identity auth, same pattern as `deploy-infra.yml`) instead of raw GitHub Secrets. Vaultwarden's
-admin token is fetched pre-hashed as `VAULTWARDEN_ADMIN_ARGON`, and the Storage Box / BorgBackup
-secret names match the per-node naming declared in `environment.yaml`
-(`STORAGEBOX_HEARTH_PASSWORD`, `BORG_PASSPHRASE_HEARTH`).
-The compose stack itself never carried self-hosted Infisical to begin with — `hearth/namespace.yaml`
-only declares `caddy`/`authentik`/`vaultwarden`/`portainer`/`wud`.
-
----
-
 ## What gets deployed
 
 | Service                                        | Purpose                                       | URL                          |
@@ -147,12 +122,21 @@ All secrets referenced by `deploy-hearth-deploy.yml` are declared in [setup.md](
 
 ## Post-deploy configuration
 
-| Service     | Post-deploy steps                                                         | Guide                                                      |
-| ----------- | ------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Authentik   | Create admin account, configure OIDC providers for Vaultwarden/WUD        | [services/infomaniak.md](../services/infomaniak.md) (SMTP) |
-| Vaultwarden | Create admin account, enable SSO, create family accounts                  | [services/bitwarden.md](../services/bitwarden.md)          |
-| Portainer   | Create local admin account, configure MFA (local auth by design, not SSO) | —                                                          |
-| WUD         | Verify container watch list                                               | —                                                          |
+### Portainter setup
+
+Setup [Portainer](../services/portainer.md##initial-setup) to Create local admin account, configure MFA (local auth by design, not SSO).
+
+### Authentik setup
+
+Setup [Authentik](../services/authentik.md##initial-setup) to create the initial admin account and configure OIDC providers for Vaultwarden and WUD.
+
+### WUD setup
+
+Setup [WUD](../services/wud.md##initial-setup) to verify the container watch list and ensure it is monitoring the correct directories.
+
+### Vaultwarden setup
+
+Setup [Vaultwarden](../services/bitwarden.md##vaultwarden-setup) to create the initial admin account, enable SSO, and create family accounts.
 
 ## Verification checklist
 
@@ -162,4 +146,3 @@ All secrets referenced by `deploy-hearth-deploy.yml` are declared in [setup.md](
 - [ ] `https://wud.{domain}` — WUD dashboard loads
 - [ ] BorgBackup cron configured and first backup runs
 - [ ] Healthchecks.io dead-man's switch receives first ping
-

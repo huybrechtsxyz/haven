@@ -3,7 +3,7 @@ kind: module
 meta:
   name: nextcloud
   annotations:
-    description: Nextcloud — family document archive/browsing layer, External Storage over the shared haven-docs S3 bucket (not the live sync drive — that's Infomaniak kDrive)
+    description: Nextcloud — family document archive/browsing layer, External Storage over the shared documents mount (migrating from the deleted haven-docs S3 bucket to the haven-data Storage Box's docs sub-account — not the live sync drive, that's Infomaniak kDrive)
   labels:
     version: "1.0.0"
   tags: [haven, forge, documents, nextcloud, docs]
@@ -41,17 +41,23 @@ spec:
         passwordKey: nextcloud-password
       trustedDomains:
         - docs.huybrechts.xyz
-      # Bridges the shared haven-docs mount (rclone-mount, system namespace)
-      # into the pod. External Storage is configured automatically — see the
-      # post-installation hook below.
+      # Bridges the haven-data Storage Box's docs sub-account (SMB-mounted on
+      # the host at /mnt/haven-data-docs) into the pod. External Storage is
+      # configured automatically — see the post-installation hook below.
+      # Also holds Jellyfin's media folder (/mnt/haven-data-docs/media —
+      # moved here from the media sub-account 2026-08-29, see
+      # jellyfin.yaml's persistence.media comment; named generically
+      # "media/" not "jellyfin/" since it's not tied to any one app) — no
+      # second cross-sub-account mount needed, it's just another subfolder
+      # of this same tree.
       extraVolumes:
-        - name: haven-docs
+        - name: haven-data-docs
           hostPath:
-            path: /mnt/haven-docs
+            path: /mnt/haven-data-docs
             type: DirectoryOrCreate
       extraVolumeMounts:
-        - name: haven-docs
-          mountPath: /mnt/haven-docs
+        - name: haven-data-docs
+          mountPath: /mnt/haven-data-docs
       # Traefik terminates TLS and forwards plain HTTP to the pod (same
       # topology as Jellyfin — see that module's schemeOverride comment for
       # the root-cause writeup). Without telling Nextcloud to trust the
@@ -78,6 +84,41 @@ spec:
             secretKeyRef:
               name: nextcloud-secrets
               key: sso-client-secret
+        # SMTP -- official Nextcloud image's own autoconfig env vars (read
+        # directly by the docker-entrypoint, no `mail:` chart values block
+        # needed). Reuses the same shared Infomaniak mailbox credentials as
+        # Vaultwarden/Authentik/Gatus -- routed through the nextcloud-secrets
+        # K8s Secret since a plain `extraEnv` list entry isn't reachable by
+        # strata's Helm secret substitution (see NEXTCLOUD_SSO_CLIENT_SECRET
+        # comment above for the same constraint).
+        - name: MAIL_FROM_ADDRESS
+          value: "nextcloud"
+        - name: MAIL_DOMAIN
+          value: "huybrechts.xyz"
+        - name: SMTP_AUTHTYPE
+          value: "LOGIN"
+        - name: SMTP_SECURE
+          value: "tls"
+        - name: SMTP_HOST
+          valueFrom:
+            secretKeyRef:
+              name: nextcloud-secrets
+              key: smtp-host
+        - name: SMTP_PORT
+          valueFrom:
+            secretKeyRef:
+              name: nextcloud-secrets
+              key: smtp-port
+        - name: SMTP_NAME
+          valueFrom:
+            secretKeyRef:
+              name: nextcloud-secrets
+              key: smtp-username
+        - name: SMTP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nextcloud-secrets
+              key: smtp-password
       # =========================================================================
       # Fully automated SSO + External Storage setup — runs via Nextcloud's
       # OWN official docker-entrypoint hook mechanism (not a strata/Ansible
@@ -91,6 +132,16 @@ spec:
       # own `occ` CLI needs no separate bootstrap credential — this makes
       # Nextcloud's SSO setup the ONE app this session with ZERO manual
       # steps required at all.
+      #
+      # NOTE: this only fires for a genuinely fresh install. The "Media"
+      # and "Books" External Storage entries (and the "Haven" rename from
+      # the original "Family Documents", 2026-08-30) were added AFTER
+      # Nextcloud's first install already happened in production, so
+      # this hook alone won't create them retroactively — see the
+      # idempotent "Configure Nextcloud External Storage shortcuts" step in
+      # .github/workflows/deploy-forge-deploy.yml, which does (and will keep
+      # applying it on every future fresh install too, redundantly but
+      # harmlessly, since it checks-before-creating).
       # =========================================================================
       hooks:
         post-installation: |
@@ -103,9 +154,21 @@ spec:
             --clientid=nextcloud \
             --clientsecret="$NEXTCLOUD_SSO_CLIENT_SECRET" \
             --discoveryuri=https://auth.huybrechts.xyz/application/o/nextcloud/.well-known/openid-configuration \
-            --group-provisioning=1
-          echo "Configuring External Storage for /mnt/haven-docs..."
-          occ files_external:create "Family Documents" local null::null -c datadir=/mnt/haven-docs
+            --group-provisioning=1 \
+            --group-whitelist-regex='^(admins|parents|members)$'
+          # SSO-only: local username/password login is disabled — admin@huybrechts.xyz
+          # was granted Nextcloud's built-in "admin" group directly (2026-09-15),
+          # confirmed working via SSO login, so local login is no longer needed as
+          # a fallback. Emergency bypass if ever needed again: ?direct=1 on the
+          # login URL (still works even with local login disabled).
+          echo "Disabling local username/password login (SSO-only, admin bypass via ?direct=1)..."
+          occ config:app:set --type=string --value=0 user_oidc allow_multiple_user_backends
+          echo "Configuring External Storage for /mnt/haven-data-docs..."
+          occ files_external:create "Haven" local null::null -c datadir=/mnt/haven-data-docs
+          echo "Configuring External Storage for /mnt/haven-data-docs/media..."
+          occ files_external:create "Media" local null::null -c datadir=/mnt/haven-data-docs/media
+          echo "Configuring External Storage for /mnt/haven-data-docs/books..."
+          occ files_external:create "Books" local null::null -c datadir=/mnt/haven-data-docs/books
 
     # Deliberately NOT using the chart's bundled Bitnami mariadb/postgresql/redis
     # subcharts (same reasoning as Immich) — own small single-pod services instead.
@@ -156,13 +219,13 @@ spec:
     # Staging-first cert-manager pattern, same as Immich/Jellyfin — a
     # brand-new hostname needs its own HTTP-01 challenge to succeed at least
     # once before trusting production (rate-limited to 5 certs/domain/week).
-    # Once `kubectl describe certificate docs-tls -n documents` shows
-    # Ready=True, switch cluster-issuer below to letsencrypt-prod.
+    # docs-tls confirmed Ready=True via letsencrypt-staging — switched to
+    # letsencrypt-prod for a real trusted cert (2026-08-29).
     ingress:
       enabled: true
       className: traefik
       annotations:
-        cert-manager.io/cluster-issuer: letsencrypt-staging
+        cert-manager.io/cluster-issuer: letsencrypt-prod
       hosts:
         - host: docs.huybrechts.xyz
           paths:

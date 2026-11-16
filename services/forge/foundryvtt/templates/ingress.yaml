@@ -1,0 +1,39 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: "{{ .Release.Name }}"
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if .Values.sso.enabled }}
+    # Gates all traffic through the Authentik forwardAuth middleware
+    # (templates/middleware.yaml) — namespace-qualified CRD reference.
+    traefik.ingress.kubernetes.io/router.middlewares: "{{ .Release.Namespace }}-{{ .Release.Name }}-authentik-forwardauth@kubernetescrd"
+    {{- end }}
+spec:
+  ingressClassName: "{{ .Values.ingress.className }}"
+  rules:
+    - host: "{{ .Values.ingress.host }}"
+      http:
+        paths:
+          # Traefik gives longer/more-specific path prefixes higher route
+          # priority automatically, so ingress-outpost.yaml's
+          # /outpost.goauthentik.io prefix (no forwardAuth middleware) always
+          # wins over this catch-all "/" for that one path — the forwardAuth
+          # middleware never gates the outpost's own auth/callback endpoints,
+          # avoiding a redirect loop.
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: "{{ .Release.Name }}"
+                port:
+                  # Hardcoded — see service.yaml's comment; 30000 is fixed.
+                  number: 30000
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

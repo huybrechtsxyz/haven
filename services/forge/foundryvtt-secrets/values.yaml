@@ -1,0 +1,9 @@
+# Credentials MUST live under a literal `env:` dict — strata's Helm secret
+# substitution only resolves `${TOKEN}` placeholders found inside a dict
+# node keyed literally "env" (see nextcloud-secrets/Chart.yaml for the full
+# writeup). Real values injected by strata at deploy time — never written
+# here.
+env:
+  FOUNDRY_USERNAME: ""
+  FOUNDRY_PASSWORD: ""
+  FOUNDRY_ADMIN_KEY: ""

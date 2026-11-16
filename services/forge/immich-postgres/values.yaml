@@ -15,7 +15,8 @@ env:
 persistence:
   # k3s ships local-path-provisioner by default — fine for a single-node
   # cluster's own database storage (NOT the photo/video library — that goes
-  # on the Storage Box NFS mount instead, see the immich-library module).
+  # on the haven-data Storage Box's SMB mount instead, see the
+  # immich-library module).
   storageClass: local-path
   size: 10Gi
 

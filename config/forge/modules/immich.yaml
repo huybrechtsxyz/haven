@@ -51,7 +51,21 @@ spec:
               # only safe fix (rolling the DB itself back would need manual
               # migration-table surgery). Do not revert this to v3.0.0 again
               # without also handling the DB migration state.
-              tag: "v3.1.0"
+              #
+              # v3.1.0 -> v3.2.2 (2026-09-16): forward-only bump, same
+              # migrations-are-one-way rule applies. Checked the v3.2.0
+              # release discussion (github.com/immich-app/immich/discussions/31408)
+              # and open issues before bumping: no reported server-side
+              # migration/crash-loop bugs for this jump. The only known open
+              # bugs (#31514, #31439) are scoped to the new OPT-IN "cluster
+              # groups" cross-user face-sharing feature (requires manually
+              # inviting users + a destructive facial-recognition reset to
+              # use) and a mobile-app-only faces display bug — neither
+              # applies here since this chart doesn't touch that feature.
+              # v3.2.0 also shipped its own safety net (PR #30493): clearer
+              # log hints when a migration mismatch is detected, a direct
+              # response to the kind of incident described above.
+              tag: "v3.2.2"
             env:
               DB_HOSTNAME: immich-postgres
               DB_USERNAME: immich

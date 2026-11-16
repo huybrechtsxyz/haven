@@ -1,0 +1,10 @@
+apiVersion: v2
+name: foundryvtt-secrets
+description: >
+  K8s Secret holding FoundryVTT's real foundryvtt.com account credentials and
+  admin key — referenced by foundryvtt.yaml via a plain secretKeyRef, since
+  FoundryVTT's own chart is hand-authored and this repo's convention keeps
+  real secret values inside a dedicated Secret object rather than inlined as
+  a literal Deployment env value, same pattern as grimoire-secrets.
+type: application
+version: "1.0.0"

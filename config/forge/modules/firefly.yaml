@@ -1,0 +1,86 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: firefly
+  annotations:
+    description: Firefly III — self-hosted personal finance manager (budgets, transactions, recurring bills), family-shared
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, finance, firefly]
+spec:
+  type: helm
+  source:
+    repository: haven
+    source_path: services/forge/firefly
+  kubernetes_namespace: finance
+  references:
+    secrets:
+      - FIREFLY_APP_KEY
+      - FIREFLY_DB_PASSWORD
+  configuration:
+    image:
+      repository: fireflyiii/core
+      tag: latest
+    env:
+      APP_ENV: production
+      APP_URL: https://finance.huybrechts.xyz
+      TZ: Europe/Brussels
+      DEFAULT_LANGUAGE: en_US
+      DEFAULT_LOCALE: equal
+      TRUSTED_PROXIES: "10.42.0.0/16"
+      DB_CONNECTION: pgsql
+      DB_HOST: firefly-postgres
+      DB_PORT: "5432"
+      DB_DATABASE: firefly
+      DB_USERNAME: firefly
+      # Real values injected by strata at deploy time — never written here.
+      DB_PASSWORD: "${FIREFLY_DB_PASSWORD}"
+      APP_KEY: "${FIREFLY_APP_KEY}"
+      CACHE_DRIVER: file
+      SESSION_DRIVER: file
+      COOKIE_SECURE: "true"
+      COOKIE_SAMESITE: lax
+      MAIL_MAILER: log
+      # SSO via Traefik forwardAuth -> Authentik (see services/forge/firefly's
+      # templates/middleware.yaml + docs/services/firefly.md).
+      # IMPORTANT: Firefly's RemoteUserGuard reads this via a literal
+      # request()->server($header) call — i.e. a raw $_SERVER lookup, NOT a
+      # normalized HTTP header lookup. PHP only exposes HTTP headers in
+      # $_SERVER as "HTTP_" + uppercase + underscores (standard CGI
+      # convention) — the guard was really designed for Apache's own
+      # REMOTE_USER variable (set directly by Apache, no HTTP_ prefix). So
+      # this MUST be the transformed $_SERVER key, not the literal header name.
+      AUTHENTICATION_GUARD: remote_user_guard
+      AUTHENTICATION_GUARD_HEADER: HTTP_X_AUTHENTIK_EMAIL
+    # Master switch for the Traefik forwardAuth middleware, the Authentik
+    # outpost Ingress/ExternalName Service, and the ingress annotation that
+    # attaches the middleware. Set to false (plus AUTHENTICATION_GUARD: web)
+    # to run Firefly on its own login screen and isolate app problems from
+    # Authentik wiring problems.
+    sso:
+      enabled: true
+    persistence:
+      upload:
+        storageClass: local-path
+        size: 5Gi
+    service:
+      port: 8080
+    ingress:
+      enabled: true
+      className: traefik
+      host: finance.huybrechts.xyz
+      annotations:
+        # MUST be the production issuer, not staging. The forwardAuth
+        # middleware makes a server-to-server HTTPS call back to this very
+        # host, and Go verifies the certificate against the system trust
+        # store — a staging cert fails with "x509: certificate signed by
+        # unknown authority" and every request 500s (real bug, 2026-09-08).
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      tls:
+        - hosts:
+            - finance.huybrechts.xyz
+          secretName: finance-tls
+    cron:
+      schedule: "0 3 * * *"
+    outpost:
+      authentikHost: auth.huybrechts.xyz

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: foundryvtt
+description: >
+  Foundry Virtual Tabletop — self-hosted VTT server (felddy/foundryvtt-docker
+  image), licensed via the user's own foundryvtt.com account. Own dedicated
+  local-path data volume (worlds, modules, uploaded assets) — deliberately
+  NOT the haven-data Storage Box SMB tree, see values.yaml's comment.
+type: application
+version: "1.0.0"

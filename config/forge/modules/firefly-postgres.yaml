@@ -1,0 +1,32 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: firefly-postgres
+  annotations:
+    description: PostgreSQL for Firefly III — single pod, no operator
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, finance, firefly, postgres, database]
+spec:
+  type: helm
+  source:
+    repository: haven
+    source_path: services/forge/firefly-postgres
+  kubernetes_namespace: finance
+  references:
+    secrets:
+      - FIREFLY_DB_PASSWORD
+  configuration:
+    image:
+      repository: postgres
+      tag: 16-alpine
+    env:
+      POSTGRES_USER: firefly
+      POSTGRES_DB: firefly
+      # Real value injected by strata at deploy time — never written here.
+      POSTGRES_PASSWORD: "${FIREFLY_DB_PASSWORD}"
+    persistence:
+      storageClass: local-path
+      size: 5Gi
+    service:
+      port: 5432

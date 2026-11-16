@@ -26,6 +26,14 @@ on:
         description: "Deploy/refresh the BorgBackup script, cron job, and passphrase file (leave true once Borg has been initialised via deploy-hearth-init.yml)"
         type: boolean
         default: true
+      # kSuite backup (mbsync + vdirsyncer) disabled for now — input commented
+      # out alongside the secret-fetch/heredoc/ansible-playbook wiring below
+      # and the 6 secret declarations in config/environment.yaml. Un-comment
+      # all together when ready to actually provision this feature.
+      # configure_ksuite_backup:
+      #   description: "Deploy/refresh the kSuite email+calendar+contacts backup (mbsync + vdirsyncer) — requires KSUITE_BACKUP_* app passwords to already be in Infisical"
+      #   type: boolean
+      #   default: false
 
 permissions:
   contents: read
@@ -83,11 +91,11 @@ jobs:
       # ------------------------------------------------------------------
       - name: Setup strata
         if: ${{ inputs.dry_run != true }}
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.3
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.9.3
         with:
-          # See deploy-infra.yml for why this is '==1.8.3' — also fixes 'strata
-          # deploy run' crashing unconditionally on every invocation (v1.7.0-1.8.2).
-          strata-version: "==1.8.3"
+          # See deploy-infra.yml for the full 1.9.3 bump rationale (ADR-0072
+          # breaking change, migrated config/configuration.yaml + deployment.yaml).
+          strata-version: "==1.9.3"
         env:
           # See deploy-infra.yml for why this is set — no-op on GitHub-hosted runners.
           UV_INDEX_STRATEGY: unsafe-best-match
@@ -119,7 +127,10 @@ jobs:
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
           set +e
-          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_HEARTH VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET JELLYFIN_SSO_CLIENT_SECRET NEXTCLOUD_SSO_CLIENT_SECRET IMMICH_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          # kSuite backup secrets (HEALTHCHECK_PING_KSUITE, KSUITE_BACKUP_*)
+          # deliberately omitted from this call — feature disabled for now,
+          # see config/environment.yaml's commented-out declarations.
+          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_HEARTH VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET JELLYFIN_SSO_CLIENT_SECRET NEXTCLOUD_SSO_CLIENT_SECRET IMMICH_SSO_CLIENT_SECRET KAVITA_SSO_CLIENT_SECRET GRIMOIRE_SSO_CLIENT_SECRET GATUS_SSO_CLIENT_SECRET PGADMIN_SSO_CLIENT_SECRET HOMARR_SSO_CLIENT_SECRET FILEBROWSER_SSO_CLIENT_SECRET YUVOMI_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
           STATUS=$?
           set -e
           if [ $STATUS -ne 0 ]; then
@@ -134,21 +145,66 @@ jobs:
           JELLYFIN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.JELLYFIN_SSO_CLIENT_SECRET')
           NEXTCLOUD_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.NEXTCLOUD_SSO_CLIENT_SECRET')
           IMMICH_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.IMMICH_SSO_CLIENT_SECRET')
+          KAVITA_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.KAVITA_SSO_CLIENT_SECRET')
+          GRIMOIRE_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.GRIMOIRE_SSO_CLIENT_SECRET')
+          GATUS_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.GATUS_SSO_CLIENT_SECRET')
+          PGADMIN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.PGADMIN_SSO_CLIENT_SECRET')
+          HOMARR_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.HOMARR_SSO_CLIENT_SECRET')
+          FILEBROWSER_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.FILEBROWSER_SSO_CLIENT_SECRET')
+          YUVOMI_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.YUVOMI_SSO_CLIENT_SECRET')
+          # kSuite backup disabled for now — extraction commented out too.
+          # KSUITE_HEALTHCHECK_URL=$(echo "$VALUES" | jq -r '.data.results.HEALTHCHECK_PING_KSUITE // empty')
+          # KSUITE_VINCENT=$(echo "$VALUES" | jq -r '.data.results.KSUITE_BACKUP_VINCENT // empty')
+          # KSUITE_SPOUSE=$(echo "$VALUES" | jq -r '.data.results.KSUITE_BACKUP_SPOUSE // empty')
+          # KSUITE_CHILD1=$(echo "$VALUES" | jq -r '.data.results.KSUITE_BACKUP_CHILD1 // empty')
+          # KSUITE_CHILD2=$(echo "$VALUES" | jq -r '.data.results.KSUITE_BACKUP_CHILD2 // empty')
+          # KSUITE_CHILD3=$(echo "$VALUES" | jq -r '.data.results.KSUITE_BACKUP_CHILD3 // empty')
           cat > /tmp/config_vars.yml << VARSEOF
           borg_passphrase: "$BORG_PASSPHRASE"
-          storagebox_host: "${{ vars.STORAGEBOX_HOST }}"
-          storagebox_subaccount: "${{ vars.STORAGEBOX_SUBACCOUNT_HEARTH }}"
+          storagebox_host: "${{ vars.STORAGEBOX_BACKUP_HOST }}"
+          storagebox_subaccount: "${{ vars.STORAGEBOX_BACKUP_HEARTH_SUB }}"
           healthcheck_ping_url: "$HEALTHCHECK_URL"
           vaultwarden_sso_client_secret: "$VAULTWARDEN_SSO_SECRET"
           wud_sso_client_secret: "$WUD_SSO_SECRET"
           jellyfin_sso_client_secret: "$JELLYFIN_SSO_SECRET"
           nextcloud_sso_client_secret: "$NEXTCLOUD_SSO_SECRET"
           immich_sso_client_secret: "$IMMICH_SSO_SECRET"
+          kavita_sso_client_secret: "$KAVITA_SSO_SECRET"
+          grimoire_sso_client_secret: "$GRIMOIRE_SSO_SECRET"
+          gatus_sso_client_secret: "$GATUS_SSO_SECRET"
+          pgadmin_sso_client_secret: "$PGADMIN_SSO_SECRET"
+          homarr_sso_client_secret: "$HOMARR_SSO_SECRET"
+          filebrowser_sso_client_secret: "$FILEBROWSER_SSO_SECRET"
+          yuvomi_sso_client_secret: "$YUVOMI_SSO_SECRET"
+          # kSuite backup disabled for now — healthcheck_ping_url_ksuite and
+          # ksuite_mailboxes commented out (hearth-config.yml's tasks are
+          # already gated on configure_ksuite_backup, which no longer gets
+          # passed below, so this is belt-and-suspenders).
+          # healthcheck_ping_url_ksuite: "$KSUITE_HEALTHCHECK_URL"
+          # ksuite_mailboxes:
+          #   - name: vincent
+          #     email: vincent@huybrechts.xyz
+          #     password: "$KSUITE_VINCENT"
+          #   - name: spouse
+          #     email: spouse@huybrechts.xyz
+          #     password: "$KSUITE_SPOUSE"
+          #   - name: child1
+          #     email: child1@huybrechts.xyz
+          #     password: "$KSUITE_CHILD1"
+          #   - name: child2
+          #     email: child2@huybrechts.xyz
+          #     password: "$KSUITE_CHILD2"
+          #   - name: child3
+          #     email: child3@huybrechts.xyz
+          #     password: "$KSUITE_CHILD3"
           VARSEOF
 
       - name: Run hearth-config playbook
         if: ${{ inputs.dry_run != true }}
         working-directory: deploy/ansible-hearth
+        # configure_ksuite_backup no longer passed as an -e flag (input
+        # commented out above) — hearth-config.yml's tasks default this to
+        # false anyway, so the kSuite backup feature stays fully disabled.
         run: |
           ansible-playbook hearth-config.yml \
             -i "${{ steps.ssh.outputs.server_ip }}," \

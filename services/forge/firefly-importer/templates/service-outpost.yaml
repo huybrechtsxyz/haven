@@ -1,0 +1,20 @@
+{{- if .Values.sso.enabled }}
+# Cross-host bridge to Authentik's embedded outpost (runs on Hearth, not
+# here on Forge) — identical pattern to
+# services/forge/firefly/templates/service-outpost.yaml. See that file for
+# the full writeup on why this is an ExternalName Service instead of a
+# normal ClusterIP one.
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ .Release.Name }}-authentik-outpost"
+  annotations:
+    traefik.ingress.kubernetes.io/service.serversscheme: https
+spec:
+  type: ExternalName
+  externalName: "{{ .Values.outpost.authentikHost }}"
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+{{- end }}

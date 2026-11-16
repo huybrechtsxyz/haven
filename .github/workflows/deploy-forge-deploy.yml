@@ -85,12 +85,11 @@ jobs:
       # Strata + Helm setup
       # ------------------------------------------------------------------
       - name: Setup strata
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.8.3
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.9.3
         with:
-          # See deploy-infra.yml for why this is '==1.8.3' — also fixes 'strata
-          # deploy run' crashing unconditionally on every invocation (v1.7.0-1.8.2),
-          # which is exactly the command this workflow's deploy step runs.
-          strata-version: "==1.8.3"
+          # See deploy-infra.yml for the full 1.9.3 bump rationale (ADR-0072
+          # breaking change, migrated config/configuration.yaml + deployment.yaml).
+          strata-version: "==1.9.3"
         env:
           UV_INDEX_STRATEGY: unsafe-best-match
 
@@ -136,6 +135,38 @@ jobs:
             -i ~/.ssh/haven_ed25519 root@${{ steps.ssh.outputs.server_ip }}
 
       # =========================================================================
+      # Pre-flight — verify the k3s API is actually ready before touching Helm.
+      # Without this, a control-plane/API outage on Forge (e.g. k3s restarting,
+      # cert-manager losing leader election because it can't reach the
+      # in-cluster kubernetes.default Service) surfaces only as an opaque
+      # `helm upgrade --wait --atomic --timeout` failure or a cert-manager
+      # HTTP-01 self-check timeout, with the real cause buried. Fail fast with
+      # a clear message instead. Retries for ~2 minutes since the tunnel/API
+      # can take a few seconds to settle right after being opened.
+      # =========================================================================
+      - name: Verify Forge Kubernetes API
+        if: ${{ inputs.dry_run != true }}
+        env:
+          KUBECONFIG: /tmp/forge-kubeconfig.yaml
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 12); do
+            if kubectl --request-timeout=10s get --raw='/readyz' >/dev/null 2>&1; then
+              echo "Kubernetes API is ready."
+              kubectl get nodes -o wide
+              exit 0
+            fi
+            if [ "$attempt" -eq 12 ]; then
+              echo "::error::Forge Kubernetes API did not become ready after 2 minutes — aborting before Helm deploy."
+              kubectl --request-timeout=10s get --raw='/readyz?verbose' || true
+              kubectl get nodes -o wide || true
+              exit 1
+            fi
+            echo "Kubernetes API is not ready yet (attempt $attempt/12); retrying in 10s..."
+            sleep 10
+          done
+
+      # =========================================================================
       # Pre-flight safety net — clear any Helm release stuck in a 'pending-*'
       # state (install/upgrade/rollback) before deploying. This happens when a
       # previous `helm upgrade --wait --atomic --timeout Nm` gets killed rather
@@ -168,7 +199,7 @@ jobs:
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
-          strata deploy run --file $DEPLOYMENT_FILE --scope apps --stage applications_forge --force
+          strata deploy run --file $DEPLOYMENT_FILE --scope apps --stage applications_forge --force --verbose
 
       # =========================================================================
       # Jellyfin SSO — (re-)register the Authentik OIDC provider with the
@@ -242,6 +273,283 @@ jobs:
           echo "::warning::Failed to register Jellyfin SSO provider after 5 attempts — not failing the deploy, check manually."
 
       # =========================================================================
+      # Nextcloud SSO — hostAliases patch + occ user_oidc provider
+      # registration. The official nextcloud/nextcloud chart has NO
+      # hostAliases support in its Deployment template (confirmed against
+      # the chart's templates/deployment.yaml — unlike Portainer's Edge
+      # Agent, there's no values.yaml field to set it at install time), so
+      # the pod can't resolve auth.huybrechts.xyz to Hearth's private IP and
+      # instead hairpins out through the public internet — which silently
+      # fails/times out from inside the k3s pod network. This broke the
+      # docker-entrypoint post-installation hook's one-shot
+      # `occ user_oidc:provider authentik ...` call (occ app:install
+      # user_oidc likely succeeded, but the provider registration against
+      # the unreachable discovery URI did not), leaving Nextcloud's OIDC
+      # provider list empty even though the Authentik-side OAuth2
+      # Provider/Application already existed.
+      #
+      # Fixed the same way as the Portainer Edge Agent: patch hostAliases
+      # onto the Deployment after the fact (idempotent kubectl patch), then
+      # (re-)run the occ commands directly via kubectl exec — this also
+      # covers any future redeploy, since the post-installation hook never
+      # fires again once Nextcloud considers itself already installed.
+      # =========================================================================
+      - name: Get Hearth private IP (LAN routing for Forge → Authentik)
+        id: hearth_ip
+        if: ${{ inputs.dry_run != true }}
+        env:
+          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
+        run: |
+          ip=$(curl -sf \
+            -H "Authorization: Bearer $HETZNER_API_TOKEN" \
+            "https://api.hetzner.cloud/v1/servers?name=haven-platform-hearth" \
+            | jq -r '.servers[0].private_net[0].ip // empty')
+          if [ -z "$ip" ]; then
+            echo "::error::Hearth private IP not found. Run deploy-infra.yml first."
+            exit 1
+          fi
+          echo "ip=$ip" >> "$GITHUB_OUTPUT"
+
+      - name: Register Nextcloud SSO provider with Authentik
+        if: ${{ inputs.dry_run != true }}
+        env:
+          KUBECONFIG: /tmp/forge-kubeconfig.yaml
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
+        run: |
+          set +e
+          kubectl patch deployment nextcloud -n documents --type=merge -p \
+            '{"spec":{"template":{"spec":{"hostAliases":[{"ip":"${{ steps.hearth_ip.outputs.ip }}","hostnames":["auth.huybrechts.xyz"]}]}}}}'
+          set -e
+
+          VALUES=$(strata values get NEXTCLOUD_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          NEXTCLOUD_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.NEXTCLOUD_SSO_CLIENT_SECRET // empty')
+          if [ -z "$NEXTCLOUD_SSO_SECRET" ]; then
+            echo "::warning::NEXTCLOUD_SSO_CLIENT_SECRET not resolvable — skipping Nextcloud SSO registration."
+            exit 0
+          fi
+
+          kubectl rollout status deployment/nextcloud -n documents --timeout=180s
+
+          for i in 1 2 3 4 5; do
+            set +e
+            kubectl exec -n documents deploy/nextcloud -c nextcloud -- \
+              php occ app:install user_oidc
+            kubectl exec -n documents deploy/nextcloud -c nextcloud -- \
+              php occ user_oidc:provider authentik \
+                --clientid=nextcloud \
+                --clientsecret="$NEXTCLOUD_SSO_SECRET" \
+                --discoveryuri=https://auth.huybrechts.xyz/application/o/nextcloud/.well-known/openid-configuration \
+                --group-provisioning=1 \
+                --group-whitelist-regex='^(admins|parents|members)$'
+            RC=$?
+            set -e
+            if [ $RC -eq 0 ]; then
+              echo "Nextcloud SSO provider registered successfully."
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "::warning::Failed to register Nextcloud SSO provider after 5 attempts — not failing the deploy, check manually."
+
+      # Nextcloud was already installed before SSO-only was decided, so the
+      # post-installation hook's `occ config:app:set ... allow_multiple_user_backends`
+      # (added to nextcloud.yaml alongside this step) never fired for the
+      # live instance — this retroactively (re-)applies it every deploy.
+      # Idempotent (occ config:app:set is safe to run repeatedly) and
+      # non-fatal if user_oidc isn't installed yet (SSO registration above
+      # runs first in this same job).
+      #
+      # admin@huybrechts.xyz was granted Nextcloud's built-in "admin" group
+      # directly (2026-09-15, confirmed working via SSO login) — the
+      # temporary local-login re-enable is no longer needed, reverted back
+      # to SSO-only. Emergency bypass if ever needed again: ?direct=1.
+      - name: Disable Nextcloud local login (SSO-only)
+        if: ${{ inputs.dry_run != true }}
+        env:
+          KUBECONFIG: /tmp/forge-kubeconfig.yaml
+        run: |
+          set +e
+          kubectl rollout status deployment/nextcloud -n documents --timeout=180s
+          kubectl exec -n documents deploy/nextcloud -c nextcloud -- \
+            php occ config:app:set --type=string --value=0 user_oidc allow_multiple_user_backends
+          RC=$?
+          set -e
+          if [ $RC -eq 0 ]; then
+            echo "Nextcloud local login disabled — SSO via Authentik is now the only login method (admin bypass: ?direct=1)."
+          else
+            echo "::warning::Failed to disable Nextcloud local login — not failing the deploy, check manually."
+          fi
+
+      # =========================================================================
+      # Nextcloud External Storage — "Haven", "Media", and "Books" folders.
+      #
+      # "Haven" is the root of the whole docs sub-account tree
+      # (/mnt/haven-data-docs), mirroring the family's previous Google Drive
+      # layout (Archive, Documents, Games, Projects, Shared, Software,
+      # Templates, Uploading, Family/<person> — Photos deliberately
+      # excluded, that's Immich's own sub-account/app). Renamed from the
+      # original "Family Documents" (2026-08-30) before that name was ever
+      # actually registered in production — no migration needed.
+      #
+      # Jellyfin's media library lives at /mnt/haven-data-docs/media —
+      # moved into the SAME docs sub-account Nextcloud already mounts
+      # (2026-08-29, back when Jellyfin had zero live data, so a free move —
+      # see jellyfin.yaml's persistence.media comment). Named generically
+      # "media/" (not "jellyfin/") since it's not tied to any one app.
+      # Kavita's books/ folder has always lived in this same tree too, but
+      # previously had no dedicated shortcut — only reachable by digging
+      # into "Haven". Added a "Books" shortcut alongside "Media"
+      # for consistency (2026-08-29). No second cross-sub-account
+      # extraVolume needed on Nextcloud's side for any of these — all are
+      # just subfolders (or the root) of the tree it already has. Nextcloud's
+      # post-installation hook runs `occ files_external:create ...` for all
+      # three — but that hook only fires on a genuinely fresh install, and
+      # Nextcloud was already installed before "Media"/"Books" (and the
+      # "Haven" rename) were added. So this step idempotently
+      # (re-)applies all three External Storage mounts on every deploy: checks
+      # `occ files_external:list` first, only creates if missing. Purpose:
+      # family members can upload media/books via Nextcloud's own
+      # iOS/iPadOS app straight into these folders — a far better UX for
+      # kids than mapping an SMB network drive by hand — and files land
+      # exactly where Jellyfin's/Kavita's own library scans already look.
+      # =========================================================================
+      - name: Configure Nextcloud External Storage shortcuts
+        if: ${{ inputs.dry_run != true }}
+        env:
+          KUBECONFIG: /tmp/forge-kubeconfig.yaml
+        run: |
+          set +e
+          kubectl rollout status deployment/nextcloud -n documents --timeout=180s
+          set -e
+
+          for entry in "Haven:/mnt/haven-data-docs" "Media:/mnt/haven-data-docs/media" "Books:/mnt/haven-data-docs/books"; do
+            NAME="${entry%%:*}"
+            PATH_="${entry#*:}"
+
+            set +e
+            # NOTE: `occ files_external:list --output=json` escapes the
+            # mount_point's leading slash as "\/Haven" — a naive
+            # `grep -c "\"$NAME\""` NEVER matches that, so EXISTS was always 0
+            # and this step silently duplicated every mount on every deploy
+            # (confirmed 2026-08-30 — found 6 entries registered for 3
+            # intended mounts). Use jq for an exact mount_point match instead.
+            #
+            # CRITICAL (found 2026-09-15): checking existence BY NAME ONLY is
+            # not enough — if "Media"/"Books" were ever created pointing at a
+            # stale/wrong datadir (e.g. from before this exact path convention
+            # was settled), every subsequent deploy just saw "name already
+            # exists" and skipped forever, silently leaving the wrong path in
+            # place (symptom: "Media" still showed an old test-upload file
+            # instead of Jellyfin's real library). Fixed by also reading the
+            # existing mount's actual `configuration.datadir` (confirmed field
+            # name via Nextcloud server source,
+            # apps/files_external/lib/Command/ListCommand.php) and correcting
+            # it in place via `occ files_external:config` when it doesn't
+            # match — instead of only ever creating-if-absent.
+            MOUNT_JSON=$(kubectl exec -n documents deploy/nextcloud -c nextcloud -- \
+              php occ files_external:list --output=json 2>/dev/null | \
+              jq -c --arg mp "/$NAME" '[.[] | select(.mount_point == $mp)] | first // empty' 2>/dev/null)
+
+            if [ -z "$MOUNT_JSON" ] || [ "$MOUNT_JSON" = "null" ]; then
+              kubectl exec -n documents deploy/nextcloud -c nextcloud -- \
+                php occ files_external:create "$NAME" local null::null -c datadir="$PATH_"
+              RC=$?
+              set -e
+              if [ $RC -eq 0 ]; then
+                echo "Nextcloud External Storage \"$NAME\" created successfully."
+              else
+                echo "::warning::Failed to create Nextcloud External Storage \"$NAME\" — not failing the deploy, check manually."
+              fi
+              continue
+            fi
+
+            MOUNT_ID=$(echo "$MOUNT_JSON" | jq -r '.mount_id')
+            CURRENT_PATH=$(echo "$MOUNT_JSON" | jq -r '.configuration.datadir // empty')
+
+            if [ "$CURRENT_PATH" = "$PATH_" ]; then
+              echo "Nextcloud External Storage \"$NAME\" already points at \"$PATH_\" — skipping."
+              set -e
+              continue
+            fi
+
+            echo "Nextcloud External Storage \"$NAME\" (mount_id=$MOUNT_ID) points at \"$CURRENT_PATH\", expected \"$PATH_\" — correcting."
+            kubectl exec -n documents deploy/nextcloud -c nextcloud -- \
+              php occ files_external:config "$MOUNT_ID" datadir "$PATH_"
+            RC=$?
+            set -e
+            if [ $RC -eq 0 ]; then
+              echo "Nextcloud External Storage \"$NAME\" datadir corrected successfully."
+            else
+              echo "::warning::Failed to correct Nextcloud External Storage \"$NAME\" datadir — not failing the deploy, check manually."
+            fi
+          done
+
+      # =========================================================================
+      # Kavita SSO — native OpenIdConnectSettings in appsettings.json.
+      #
+      # Kavita has no admin-UI OIDC toggle, no plugin, and no REST API for
+      # this — Kavita.Common.Configuration.OidcSettings reads a plain
+      # Authority/ClientId/Secret/CustomScopes block straight out of
+      # config/appsettings.json on the pod's config PVC, once, at process
+      # startup (Kavita.Server.Extensions.IdentityServiceExtensions). So
+      # unlike Jellyfin (needs a UI-minted API key) or Nextcloud (needs an
+      # occ command), this is patched by copying the file out of the running
+      # pod, merging in the OIDC block with jq (on the runner, not inside
+      # the container — the LinuxServer.io image isn't guaranteed to have
+      # jq), copying it back, and only restarting the pod if the file
+      # actually changed (avoids an unnecessary restart on every deploy).
+      # Skips silently if KAVITA_SSO_CLIENT_SECRET isn't set yet.
+      # =========================================================================
+      - name: Register Kavita SSO provider (native appsettings.json)
+        if: ${{ inputs.dry_run != true }}
+        env:
+          KUBECONFIG: /tmp/forge-kubeconfig.yaml
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
+        run: |
+          set +e
+          VALUES=$(strata values get KAVITA_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          set -e
+          KAVITA_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.KAVITA_SSO_CLIENT_SECRET // empty')
+          if [ -z "$KAVITA_SSO_SECRET" ]; then
+            echo "::warning::KAVITA_SSO_CLIENT_SECRET not resolvable — skipping Kavita SSO registration."
+            exit 0
+          fi
+
+          kubectl rollout status deployment/kavita -n documents --timeout=180s
+
+          POD=$(kubectl get pod -n documents -l app=kavita -o jsonpath='{.items[0].metadata.name}')
+          if [ -z "$POD" ]; then
+            echo "::warning::No Kavita pod found — skipping Kavita SSO registration."
+            exit 0
+          fi
+
+          kubectl cp -n documents "$POD:/config/appsettings.json" /tmp/kavita-appsettings-before.json
+          cp /tmp/kavita-appsettings-before.json /tmp/kavita-appsettings-after.json
+
+          jq --arg secret "$KAVITA_SSO_SECRET" \
+            '.OpenIdConnectSettings = {
+              Authority: "https://auth.huybrechts.xyz/application/o/kavita/",
+              ClientId: "kavita",
+              Secret: $secret,
+              CustomScopes: []
+            }' /tmp/kavita-appsettings-before.json > /tmp/kavita-appsettings-after.json
+
+          if diff -q /tmp/kavita-appsettings-before.json /tmp/kavita-appsettings-after.json > /dev/null; then
+            echo "Kavita OIDC settings already up to date — no restart needed."
+            exit 0
+          fi
+
+          kubectl cp -n documents /tmp/kavita-appsettings-after.json "$POD:/config/appsettings.json"
+          kubectl rollout restart deployment/kavita -n documents
+          kubectl rollout status deployment/kavita -n documents --timeout=180s
+          echo "Kavita OIDC settings updated and pod restarted."
+
+      # =========================================================================
       # Diagnostics on failure — the deploy step above uses `helm --wait
       # --atomic --timeout`, which on failure is force-killed by strata's
       # subprocess wrapper rather than exiting cleanly, so its own stderr
@@ -254,7 +562,7 @@ jobs:
         env:
           KUBECONFIG: /tmp/forge-kubeconfig.yaml
         run: |
-          for ns in system immich media documents; do
+          for ns in system immich media documents finance; do
             echo "::group::Pods in namespace: $ns"
             kubectl get pods -n "$ns" -o wide 2>/dev/null || true
             echo "::endgroup::"

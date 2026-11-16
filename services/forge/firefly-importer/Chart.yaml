@@ -1,0 +1,27 @@
+apiVersion: v2
+name: firefly-importer
+description: >
+  Firefly III Data Importer — a companion app (separate from Firefly III
+  core, which has no built-in file-import UI of its own) that imports CSV
+  and camt.053 bank statement files into Firefly III.
+
+  Two pieces:
+  1. An always-on web UI (image tag "latest") used occasionally to do the
+     one-time, per-bank setup: upload a sample export, map its columns, and
+     download a reusable JSON configuration file.
+  2. A CronJob (image tag "latest-cli" — a distinct, purpose-built one-shot
+     image; the plain "latest" tag starts a web server that never exits)
+     that runs `php artisan importer:auto-import /import` on a schedule
+     against a shared directory. Drop a bank's CSV/camt.053 export plus its
+     matching same-basename .json config into that directory (e.g. via
+     FileBrowser, since it's the same haven-data Storage Box mount) and it
+     gets auto-imported on the next run — no manual browser interaction
+     needed after the first-time-per-bank config step.
+
+  Verified directly against the official docs/README (this dev machine
+  cannot reach docs.firefly-iii.org, but a user-provided doc excerpt and
+  https://raw.githubusercontent.com/firefly-iii/data-importer/main/.env.example
+  confirmed the exact env vars, image tags, and CLI commands used here).
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

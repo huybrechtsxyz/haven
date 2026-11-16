@@ -21,21 +21,36 @@ spec:
   # chart itself, so spec.configuration (no module-name prefixing) is used
   # instead of spec.services.
   configuration:
-    # image.tag intentionally left unset — the chart defaults to its own
-    # matching appVersion (10.11.8 for chart 3.2.0) when omitted.
+    # image.tag pinned explicitly (chart 3.2.0's default appVersion is
+    # 10.11.8, which is BELOW the targetAbi (10.11.11.0) required by the
+    # SSO-Auth plugin version installed by the initContainer below — Jellyfin
+    # silently disables any plugin whose targetAbi exceeds the running
+    # server version, which is why /sso/OID/Add/... 404'd (confirmed via
+    # pod logs: "Skipping disabled plugin 5.0.0.0 of SSO Authentication").
+    # Pin >= 10.11.11 to keep the plugin loadable; bump alongside future
+    # plugin manifest updates.
+    image:
+      tag: "10.11.11"
     persistence:
       config:
         enabled: true
         storageClass: local-path
         size: 5Gi
-      # Media library — read-only, backed by the SAME Storage Box NFS mount
-      # forge-init.yml already sets up on the host at /mnt/storagebox (same
-      # hostPath approach as the immich-library module, not a separate
-      # in-pod NFS mount — avoids a second independent NFS auth/mount path).
+      # Media library — read-only, backed by the haven-data Storage Box's
+      # DOCS sub-account (moved 2026-08-29 from the media sub-account —
+      # Jellyfin had zero live data at the time, so this was a free move),
+      # SMB-mounted on the host at /mnt/haven-data-docs (same hostPath
+      # approach as the immich-library module, not a separate in-pod SMB
+      # mount — avoids a second independent SMB auth/mount path). Living in
+      # the same tree Nextcloud already mounts lets family members upload
+      # media via Nextcloud's own iOS/iPadOS app straight into this folder
+      # (see nextcloud.yaml's "Media" External Storage entry). Folder named
+      # generically "media/" (not "jellyfin/") since it's not tied to any
+      # one app.
       media:
         enabled: true
         type: hostPath
-        hostPath: /mnt/storagebox/media
+        hostPath: /mnt/haven-data-docs/media
       cache:
         enabled: false
 

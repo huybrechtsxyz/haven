@@ -1,0 +1,12 @@
+apiVersion: v2
+name: pgadmin
+description: >
+  pgAdmin 4 — web-based PostgreSQL administration, for every Postgres
+  instance across Haven (Immich, Nextcloud, Firefly III, and future apps).
+  Local chart — no official pgadmin-org Helm chart exists; the community
+  ones aren't maintained by the pgAdmin project itself, so a small
+  hand-authored chart gives full control over the config_local.py mount
+  (OAuth2 wiring) and the fsGroup/runAsUser 5050 requirement the official
+  image needs.
+type: application
+version: "1.0.0"

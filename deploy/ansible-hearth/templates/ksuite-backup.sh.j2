@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# =============================================================================
+# Haven Hearth — kSuite backup orchestrator (email + calendar + contacts)
+# Managed by Ansible (hearth-config.yml) — do not edit manually.
+#
+# Runs mbsync (email → Maildir) and vdirsyncer (calendar/contacts → vdir)
+# for every family mailbox. Both tools maintain a LIVE MIRROR, not dated
+# snapshots — historical versions come from Hearth's own daily BorgBackup
+# archive of this same directory tree, not from this script. This script's
+# only job is: pull the latest state from kSuite, fail loudly if it can't,
+# and let backup.sh (run right after this, per cron ordering) archive it.
+# =============================================================================
+set -uo pipefail
+# NOT `set -e` — a single mailbox's transient IMAP/DAV hiccup shouldn't abort
+# every other mailbox's sync. Failures are tracked explicitly (below) and the
+# script exits non-zero (and skips the healthcheck success ping) if any
+# occurred, so a real problem still surfaces via the dead-man's switch.
+
+HEALTHCHECK_URL="{{ healthcheck_ping_url_ksuite | default('') }}"
+LOG_PREFIX="[$(date --utc +%Y-%m-%dT%H:%M:%SZ)] ksuite-backup"
+FAILED=0
+
+if [[ -n "$HEALTHCHECK_URL" ]]; then
+  curl -fsS -m 10 --retry 3 "${HEALTHCHECK_URL}/start" >/dev/null 2>&1 || true
+fi
+
+# =============================================================================
+# Email — mbsync (isync)
+# =============================================================================
+echo "$LOG_PREFIX — starting mbsync (email)"
+if mbsync -c {{ haven_install_path }}/etc/ksuite/mbsyncrc -a; then
+  echo "$LOG_PREFIX — mbsync completed"
+else
+  echo "WARNING: mbsync exited non-zero — email mirror may be incomplete" >&2
+  FAILED=1
+fi
+
+# =============================================================================
+# Calendar + Contacts — vdirsyncer
+# =============================================================================
+export VDIRSYNCER_CONFIG="{{ haven_install_path }}/etc/ksuite/vdirsyncer.conf"
+
+# `discover` is idempotent and cheap (just re-confirms collection URLs) — safe
+# to run every time rather than tracking whether it's "already been done".
+# A discovery failure here (e.g. a mailbox whose DAV URL genuinely differs
+# from the configured default) is exactly the kind of problem that must NOT
+# be silently swallowed — see the config template's verification note.
+echo "$LOG_PREFIX — starting vdirsyncer discover"
+if vdirsyncer discover; then
+  echo "$LOG_PREFIX — vdirsyncer discover completed"
+else
+  echo "WARNING: vdirsyncer discover failed — DAV URL may need to be corrected in ksuite_dav_url (see vdirsyncer.conf.j2 template comment)" >&2
+  FAILED=1
+fi
+
+echo "$LOG_PREFIX — starting vdirsyncer sync"
+if vdirsyncer sync; then
+  echo "$LOG_PREFIX — vdirsyncer sync completed"
+else
+  echo "WARNING: vdirsyncer sync exited non-zero — calendar/contacts mirror may be incomplete" >&2
+  FAILED=1
+fi
+
+# =============================================================================
+# Report
+# =============================================================================
+if [[ -d "{{ haven_install_path }}/var/backup/ksuite" ]]; then
+  TOTAL_SIZE=$(du -sh "{{ haven_install_path }}/var/backup/ksuite" 2>/dev/null | cut -f1)
+  echo "$LOG_PREFIX — mirror size: ${TOTAL_SIZE:-unknown}"
+fi
+
+if [[ "$FAILED" -eq 0 ]]; then
+  echo "$LOG_PREFIX — completed successfully"
+  if [[ -n "$HEALTHCHECK_URL" ]]; then
+    curl -fsS -m 10 --retry 3 "$HEALTHCHECK_URL" >/dev/null 2>&1 || true
+  fi
+  exit 0
+else
+  echo "$LOG_PREFIX — completed with warnings, see above" >&2
+  if [[ -n "$HEALTHCHECK_URL" ]]; then
+    curl -fsS -m 10 --retry 3 "${HEALTHCHECK_URL}/fail" >/dev/null 2>&1 || true
+  fi
+  exit 1
+fi

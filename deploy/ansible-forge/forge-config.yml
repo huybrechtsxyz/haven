@@ -22,6 +22,85 @@
 
   tasks:
     # =========================================================================
+    # System — security updates
+    # =========================================================================
+    # Mirrors hearth-config.yml — forge-init.yml sets this up once at
+    # bootstrap, but drift (a manually edited apt.conf.d file, a missing
+    # package) is only corrected if it's re-enforced on every routine run too.
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Apply security-only upgrades
+      ansible.builtin.apt:
+        upgrade: safe
+      register: apt_upgrade
+
+    - name: Remove unused packages
+      ansible.builtin.apt:
+        autoremove: true
+
+    # =========================================================================
+    # Ensure required packages are present
+    # =========================================================================
+
+    - name: Ensure system packages are present
+      ansible.builtin.apt:
+        name:
+          - curl
+          - wget
+          - gnupg
+          - ca-certificates
+          - apt-transport-https
+          - lsb-release
+          - unattended-upgrades
+          - apt-listchanges
+          - borgbackup
+          - sshpass
+          - htop
+          - ncdu
+          - fail2ban
+          - jq
+          - cifs-utils # required for Storage Box SMB mounts (subaccounts don't support NFS)
+          - open-iscsi # required for k3s iSCSI storage support
+        state: present
+
+    # =========================================================================
+    # Timezone
+    # =========================================================================
+
+    - name: Ensure timezone is {{ haven_timezone }}
+      community.general.timezone:
+        name: "{{ haven_timezone }}"
+
+    # =========================================================================
+    # Unattended security upgrades
+    # =========================================================================
+
+    - name: Ensure unattended-upgrades configuration (security only, no auto-reboot)
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/50unattended-upgrades
+        mode: "0644"
+        content: |
+          Unattended-Upgrade::Allowed-Origins {
+              "${distro_id}:${distro_codename}-security";
+          };
+          Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+          Unattended-Upgrade::MinimalSteps "true";
+          Unattended-Upgrade::Remove-Unused-Dependencies "true";
+          Unattended-Upgrade::Automatic-Reboot "false";
+
+    - name: Ensure unattended-upgrades timer is enabled
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        mode: "0644"
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+
+    # =========================================================================
     # LAN routing — Forge apps must reach Hearth's Authentik over the private
     # network, not hairpin back out through the public internet. Both servers
     # share the same Hetzner private network (deploy/terraform/main.tf's
@@ -51,6 +130,56 @@
         line: "{{ hearth_private_ip }} portainer.huybrechts.xyz"
         state: present
       when: hearth_private_ip is defined
+
+    # =========================================================================
+    # ONE-TIME (2026-08-29): reset immich-library PV/PVC — statically-bound
+    # hostPath PersistentVolume created before the two-Storage-Box split with
+    # spec.hostPath.path=/mnt/storagebox/immich. Kubernetes forbids changing
+    # spec.persistentVolumeSource on an existing PV (immutable after
+    # creation), so `helm upgrade` for the immich-library release now fails:
+    # "PersistentVolume \"immich-library\" is invalid: spec.persistentvolumesource:
+    # Forbidden: spec.persistentvolumesource is immutable after creation".
+    # No data is lost by deleting these objects — the actual photo library
+    # lives on the haven-data Storage Box itself (reclaimPolicy: Retain, and
+    # it's just a hostPath reference into the SMB mount, not the data store).
+    # The next `33 - Forge - Deploy` run's helm upgrade recreates both
+    # cleanly with the correct /mnt/haven-data-media/immich path.
+    #
+    # First attempt at this hung for 9 minutes and then failed with an
+    # "unreachable"/SSH transport error — root cause was the immich-server
+    # Deployment's running pod still mounting the immich-library PVC, so the
+    # PVC's kubernetes.io/pvc-protection finalizer blocked kubectl delete
+    # indefinitely (it waits for the mounting pod to go away, it does not
+    # time out on its own). Deleting the Deployment first and waiting for its
+    # pod(s) to actually terminate releases the mount so the PVC/PV delete
+    # below completes immediately instead of hanging.
+    # ⚠️ REMOVE THIS TASK (all three below) once the next redeploy is
+    # confirmed clean — this must NOT run on every routine forge-config.yml
+    # execution.
+    # =========================================================================
+    - name: "ONE-TIME: delete immich-server Deployment (releases the library PVC mount)"
+      ansible.builtin.command:
+        cmd: kubectl delete deployment/immich-server -n immich --ignore-not-found=true
+      register: immich_server_delete
+      changed_when: "'deleted' in immich_server_delete.stdout"
+
+    - name: "ONE-TIME: wait for immich-server pod(s) to terminate"
+      ansible.builtin.shell:
+        cmd: kubectl get pods -n immich --no-headers 2>/dev/null | grep -c '^immich-server-' || true
+      register: immich_server_pod_count
+      until: immich_server_pod_count.stdout | trim == "0"
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: "ONE-TIME: delete immich-library PVC + PV (stale hostPath from pre-split storagebox mount)"
+      ansible.builtin.command:
+        cmd: "kubectl delete {{ item }} --ignore-not-found=true"
+      loop:
+        - pvc/immich-library -n immich
+        - pv/immich-library
+      register: immich_library_reset
+      changed_when: "'deleted' in immich_library_reset.stdout"
 
     # =========================================================================
     # IMPORTANT: the node-level /etc/hosts edits above only affect processes
@@ -102,7 +231,7 @@
 
     - name: Ensure Immich storage subfolders exist
       ansible.builtin.file:
-        path: /mnt/storagebox/immich/{{ item }}
+        path: /mnt/haven-data-media/immich/{{ item }}
         state: directory
         mode: "0755"
       loop:
@@ -115,8 +244,8 @@
 
     - name: Recreate any missing Immich folder-integrity markers
       ansible.builtin.command:
-        cmd: touch /mnt/storagebox/immich/{{ item }}/.immich
-        creates: /mnt/storagebox/immich/{{ item }}/.immich
+        cmd: touch /mnt/haven-data-media/immich/{{ item }}/.immich
+        creates: /mnt/haven-data-media/immich/{{ item }}/.immich
       loop:
         - upload
         - library
@@ -132,21 +261,31 @@
     # jellyfin/jellyfin-helm templates/deployment.yaml), which REQUIRES the
     # path to already exist — kubelet refuses to auto-create it and fails
     # with "hostPath type check failed: ... is not a directory" if missing.
+    #
+    # Moved from the media sub-account to the docs sub-account (2026-08-29)
+    # — Jellyfin had zero live data at the time, so this was a free move.
+    # Rationale: Jellyfin's folder now lives inside the SAME SMB mount
+    # Nextcloud already has (/mnt/haven-data-docs), letting family members
+    # upload media straight into Jellyfin's library via Nextcloud's own
+    # iOS/iPadOS app (see nextcloud.yaml's "Media" External Storage entry)
+    # without a second cross-sub-account mount. The media sub-account is
+    # now Immich-only. Folder named generically "media/" (not "jellyfin/")
+    # since it's not tied to any one app.
     # =========================================================================
 
     - name: Ensure Jellyfin media hostPath directory exists
       ansible.builtin.file:
-        path: /mnt/storagebox/media
+        path: /mnt/haven-data-docs/media
         state: directory
         mode: "0755"
 
-    # Top-level library subfolders — plain SMB/CIFS mkdir (unlike the S3/FUSE
-    # rclone-mount below), so a normal Ansible file task works fine here.
-    # Add each as its own library in Jellyfin's UI (Dashboard → Libraries →
-    # Add Media Library) with the matching content type (Movies/Shows/Music).
+    # Top-level library subfolders — plain SMB/CIFS mkdir, so a normal
+    # Ansible file task works fine here. Add each as its own library in
+    # Jellyfin's UI (Dashboard → Libraries → Add Media Library) with the
+    # matching content type (Movies/Shows/Music).
     - name: Ensure Jellyfin media library subfolders exist
       ansible.builtin.file:
-        path: /mnt/storagebox/media/{{ item }}
+        path: /mnt/haven-data-docs/media/{{ item }}
         state: directory
         mode: "0755"
       loop:
@@ -154,12 +293,180 @@
         - shows
         - music
 
-    # Kavita library subfolder ("books") — NOT provisioned here. Confirmed
-    # (2026-08-28, real CI run) that a plain host-level mkdir on /mnt/haven-docs
-    # (an rclone FUSE mount over S3) fails with the same raw EIO kubelet hit —
-    # this is an rclone/S3-backend limitation, not a kubelet-bind-mount quirk,
-    # so no Ansible/host-level task can work around it. Fixed properly at the
-    # source instead: rclone-mount's own chart now runs `rclone mkdir` (a real
-    # S3 API call, not a FUSE mkdir) via an initContainer — see
-    # services/forge/rclone-mount/templates/deployment.yaml + values.yaml's
-    # mount.subfolders list.
+    # =========================================================================
+    # Documents storage (Nextcloud + Kavita + Jellyfin) — haven-data Storage
+    # Box, docs sub-account, SMB-mounted at /mnt/haven-data-docs. Unlike the
+    # old rclone-mount/S3 setup (removed 2026-08-29 — the haven-docs bucket
+    # was deleted), plain SMB/CIFS supports a normal Ansible mkdir directly,
+    # no in-cluster initContainer workaround needed.
+    # =========================================================================
+
+    - name: Ensure Kavita library subfolder exists
+      ansible.builtin.file:
+        path: /mnt/haven-data-docs/books
+        state: directory
+        mode: "0755"
+
+    # Each subfolder maps to a separate Kavita library (Comics, Manga,
+    # General, Fiction, Games) added via Kavita's own Settings → Libraries
+    # UI — no API key automation exists yet for library creation (see
+    # kavita.md's "no stable Kavita AuthKey" note, same category of
+    # exception as the OIDC Provision Accounts toggle). "General" replaces
+    # the earlier "non-fiction" naming — catch-all for everything not
+    # already split into its own library. "Games" is deliberately its own
+    # books/ subfolder, separate from the plain top-level games/ folder
+    # further down — that one is a general-purpose catch-all (mirrors the
+    # old Google Drive "Games" folder, arbitrary files, no Kavita library
+    # attached), while books/games/ is curated reading material (game
+    # rulebooks/adventures/character sheets) meant for the Kavita library.
+    - name: Ensure Kavita per-library subfolders exist
+      ansible.builtin.file:
+        path: /mnt/haven-data-docs/books/{{ item }}
+        state: directory
+        mode: "0755"
+      loop:
+        - comics
+        - manga
+        - general
+        - fiction
+        - games
+
+    # Remaining top-level folders mirroring the family's previous Google
+    # Drive layout (Photos deliberately excluded — that's Immich's own
+    # sub-account/app, not part of this docs tree). These are plain
+    # general-purpose folders with no dedicated app reading them, unlike
+    # media/ (Jellyfin) and books/ (Kavita) above — just browsable via
+    # Nextcloud's "Haven" External Storage root.
+    - name: Ensure remaining Haven top-level folders exist
+      ansible.builtin.file:
+        path: /mnt/haven-data-docs/{{ item }}
+        state: directory
+        mode: "0755"
+      loop:
+        - archive
+        - documents
+        - games
+        - projects
+        - shared
+        - software
+        - templates
+        - uploading
+        - family
+
+    # =========================================================================
+    # BorgBackup — backup script + cron (only when configure_borg=true)
+    # =========================================================================
+    # Requires that forge-init.yml has already been run with configure_borg=true
+    # to generate the SSH key and initialise the Borg repo on the Storage Box.
+
+    # backup.sh.j2 shells out to both of these: sqlite3 for the online
+    # .backup of k3s's SQLite/kine datastore, jq for enumerating local-path
+    # PVs. Neither is guaranteed present from forge-init.yml's package list,
+    # and a missing binary would silently degrade the datastore/PVC steps to
+    # warnings rather than failing the run.
+    - name: Ensure backup tooling packages are present
+      ansible.builtin.apt:
+        name:
+          - borgbackup
+          - sqlite3
+          - jq
+        state: present
+      when: configure_borg | bool
+
+    - name: Ensure scripts directory exists
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/scripts"
+        state: directory
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0755"
+      when: configure_borg | bool
+
+    # Staging area the backup script materialises Postgres dumps, the k3s
+    # datastore snapshot, and PVC tars into before handing them to borg.
+    # 0700/root-owned: these hold full database contents and the cluster CA,
+    # so they must not be world-readable while they briefly exist on disk.
+    - name: Ensure backup staging directory exists
+      ansible.builtin.file:
+        path: "{{ haven_install_path }}/var/backup/forge"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      when: configure_borg | bool
+
+    - name: Deploy Forge backup script from template
+      ansible.builtin.template:
+        src: templates/backup.sh.j2
+        dest: "{{ haven_install_path }}/scripts/backup.sh"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0750"
+      when: configure_borg | bool
+
+    - name: Write BorgBackup passphrase to protected file
+      ansible.builtin.copy:
+        content: "{{ borg_passphrase }}"
+        dest: "{{ haven_install_path }}/.borg_passphrase"
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0400"
+      when: configure_borg | bool
+      no_log: true # contains borg_passphrase
+
+    # 02:30 rather than 02:00 so Forge's run doesn't contend with Hearth's on
+    # the same Storage Box, and 03:00's rclone-to-kDrive sync still picks up
+    # both nights' archives.
+    - name: Install BorgBackup cron job (daily at 02:30 UTC)
+      ansible.builtin.cron:
+        name: "haven-borg-backup-forge"
+        user: "root"
+        minute: "30"
+        hour: "2"
+        job: >-
+          {{ haven_install_path }}/scripts/backup.sh
+          >> /var/log/haven-backup-forge.log 2>&1
+        state: present
+      when: configure_borg | bool
+
+    - name: Ensure backup log file exists and is owned by haven user
+      ansible.builtin.file:
+        path: /var/log/haven-backup-forge.log
+        state: touch
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0640"
+        modification_time: preserve
+        access_time: preserve
+      when: configure_borg | bool
+
+    # =========================================================================
+    # containerd image cleanup — scheduled prune of unused images
+    # =========================================================================
+    # Same rationale as Hearth's Docker image prune: every Helm upgrade pulls
+    # a new image tag but never removes the old one from containerd's local
+    # store. `crictl rmi --prune` only removes images with zero containers
+    # referencing them (running OR stopped) — k3s's kubelet also runs its own
+    # implicit image GC once disk pressure crosses a threshold, but this cron
+    # keeps usage low proactively instead of waiting for that to kick in.
+
+    - name: Install containerd image prune cron job (daily at 03:30 UTC)
+      ansible.builtin.cron:
+        name: "haven-containerd-image-prune"
+        user: "root"
+        minute: "30"
+        hour: "3"
+        job: >-
+          /usr/local/bin/k3s crictl rmi --prune
+          >> /var/log/haven-image-prune-forge.log 2>&1
+        state: present
+
+    - name: Ensure image-prune log file exists and is owned by haven user
+      ansible.builtin.file:
+        path: /var/log/haven-image-prune-forge.log
+        state: touch
+        owner: "{{ haven_user }}"
+        group: "{{ haven_group }}"
+        mode: "0640"
+        modification_time: preserve
+        access_time: preserve

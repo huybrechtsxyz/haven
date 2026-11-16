@@ -77,6 +77,12 @@ resource "hcloud_firewall" "hearth" {
 #   what the API reports, and attempts an unwanted resize/reboot on every apply.
 #   To intentionally resize: update server_type in vm-hetzner-hearth.yaml, temporarily
 #   remove ignore_changes, apply once, then restore it.
+#   user_data is ALSO ignored — the hcloud provider treats user_data as a
+#   force-replacement attribute (cloud-init only runs on first boot). Editing
+#   the mkdir list is safe for documentation/new-server bootstrap purposes
+#   only — it has no effect on an already-provisioned server (Ansible owns
+#   ongoing directory management there). Without this ignore, any user_data
+#   edit plans to destroy+recreate this production node.
 
 resource "hcloud_server" "hearth" {
   name        = "${replace(var.workspace_name, "_", "-")}-hearth"
@@ -96,7 +102,7 @@ resource "hcloud_server" "hearth" {
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = [server_type]
+    ignore_changes  = [server_type, user_data]
   }
 }
 
