@@ -1,0 +1,30 @@
+apiVersion: strata.huybrechts.xyz/v2
+kind: attributeconfig
+meta:
+  name: hetzner-virtualmachine-configuration
+  tags: [haven, hetzner]
+spec:
+  target:
+    kind: resource
+    block: configuration
+    view: document
+    selector:
+      spec.provider_type: hetzner
+      spec.resource_type: virtualmachine
+  schema:
+    type: object
+    additionalProperties: false
+    required: [server_type, image, location]
+    properties:
+      server_type:
+        type: string
+        description: Hetzner server type (e.g. cx22, cpx41, cax21)
+        pattern: "^(cx[0-9]+|cpx[0-9]+|cax[0-9]+|ccx[0-9]+)$"
+      image:
+        type: string
+        description: OS image slug (e.g. ubuntu-24.04, debian-12)
+        pattern: "^[a-z0-9][a-z0-9.-]{1,32}$"
+      location:
+        type: string
+        description: Datacenter location (nbg1=Nuremberg, fsn1=Falkenstein, hel1=Helsinki)
+        enum: [nbg1, fsn1, hel1, ash, hil]

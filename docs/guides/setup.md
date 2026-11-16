@@ -89,8 +89,8 @@ Complete list of what goes in GitHub Secrets vs Infisical Cloud.
 **Option 1 — Print a random value only (copy into Bitwarden/Infisical manually):**
 
 ```powershell
-strata secret generate --length 64 --format urlsafe
-strata secret generate --length 64 --format hex
+strata values generate --format urlsafe --length 64
+strata values generate --format hex --length 64
 
 # Or using Python's secrets module (available in all Python installations)
 python -c "from secrets import token_urlsafe, token_hex; print('urlsafe(64):', token_urlsafe(64)); print('hex(32):', token_hex(32))"
@@ -98,10 +98,10 @@ python -c "from secrets import token_urlsafe, token_hex; print('urlsafe(64):', t
 
 **Option 2 — Generate and store in one step:**
 
-For any secret declared in the environment YAML (`spec.secrets`) with an integration-backed store (`infisical`, `azure-keyvault`, `vault`, `bitwarden`) and a `generate:` spec, `strata secret put` creates the value and writes it directly to the store — no manual copy/paste needed:
+For any secret declared in the environment YAML (`spec.secrets`) with an integration-backed store (`infisical` here; `azure-keyvault` also works) and a `generate:` spec, `strata values set ... --generate` creates the value and writes it directly to the store — no manual copy/paste needed. strata also generates it by itself the first time the key is missing from the store:
 
 ```yaml
-# config/env-haven-prd.yaml
+# config/environments/prd.yaml
 spec:
   secrets:
     - key: AUTHENTIK_SECRET_KEY
@@ -113,7 +113,7 @@ spec:
 ```
 
 ```powershell
-strata secret put AUTHENTIK_SECRET_KEY --generate -f config/env-haven-prd.yaml
+strata values set haven_deploy_prd --key AUTHENTIK_SECRET_KEY --generate
 ```
 
 `generate:` is only valid on integration-backed stores — not on `constant`/`environment`/`github`. Still store a copy of the generated value in Bitwarden as backup.
@@ -175,7 +175,7 @@ See [Hetzner Setup](../services/hetzner.md#create-a-hetzner-cloud-storagebox) fo
 Sub-accounts are created in **Hetzner Robot** (not the Cloud Console) — one per box per purpose, each with its own password and hostname. These are externally-created values, so push them to Infisical Cloud via strata with `--value` (no `generate:` spec needed):
 
 ```yaml
-# config/env-haven-prd.yaml
+# config/environments/prd.yaml
 spec:
   secrets:
     - key: STORAGEBOX_BACKUP_HEARTH_PASSWORD
@@ -189,13 +189,13 @@ spec:
 ```
 
 ```powershell
-strata secret put STORAGEBOX_BACKUP_HEARTH_PASSWORD --value "<hearth-sub-account-password>" -f config/env-haven-prd.yaml
-strata secret put STORAGEBOX_BACKUP_FORGE_PASSWORD --value "<forge-backup-sub-account-password>" -f config/env-haven-prd.yaml
-strata secret put STORAGEBOX_DATA_MEDIA_PASSWORD --value "<haven-data-media-sub-account-password>" -f config/env-haven-prd.yaml
-strata secret put STORAGEBOX_DATA_DOCS_PASSWORD --value "<haven-data-docs-sub-account-password>" -f config/env-haven-prd.yaml
+strata values set haven_deploy_prd --key STORAGEBOX_BACKUP_HEARTH_PASSWORD --value "<hearth-sub-account-password>"
+strata values set haven_deploy_prd --key STORAGEBOX_BACKUP_FORGE_PASSWORD --value "<forge-backup-sub-account-password>"
+strata values set haven_deploy_prd --key STORAGEBOX_DATA_MEDIA_PASSWORD --value "<haven-data-media-sub-account-password>"
+strata values set haven_deploy_prd --key STORAGEBOX_DATA_DOCS_PASSWORD --value "<haven-data-docs-sub-account-password>"
 ```
 
-`STORAGEBOX_BACKUP_HOST` (the `haven-backup` box's hostname), `STORAGEBOX_BACKUP_HEARTH_SUB`, `STORAGEBOX_BACKUP_FORGE_SUB`, `STORAGEBOX_DATA_HOST` (the new `haven-data` box's own, different hostname), `STORAGEBOX_DATA_MEDIA_SUB`, and `STORAGEBOX_DATA_DOCS_SUB` are non-secret hostnames/usernames — add them as GitHub Variables (see the table above), not as Infisical secrets or via `strata secret put`.
+`STORAGEBOX_BACKUP_HOST` (the `haven-backup` box's hostname), `STORAGEBOX_BACKUP_HEARTH_SUB`, `STORAGEBOX_BACKUP_FORGE_SUB`, `STORAGEBOX_DATA_HOST` (the new `haven-data` box's own, different hostname), `STORAGEBOX_DATA_MEDIA_SUB`, and `STORAGEBOX_DATA_DOCS_SUB` are non-secret hostnames/usernames — add them as GitHub Variables (see the table above), not as Infisical secrets or via `strata values set`.
 
 ### Secrets for Terraform Cloud API Token
 
@@ -213,18 +213,19 @@ strata secret put STORAGEBOX_DATA_DOCS_PASSWORD --value "<haven-data-docs-sub-ac
 
 > **ACTION:** For each service that requires a random secret, declare the key in the environment YAML with a `generate:` spec. Strata will generate the value and write it directly to Infisical Cloud in one step.
 
-Other services (Authentik, Wud, Vaultwarden) require random secrets for SSO and database access. These are generated automatically via `strata secret put --generate` and stored in Infisical Cloud. No manual steps are required. Strata will create the value and writes them directly to Infisical Cloud in one step (see [Generating Secrets](#generating-secrets) above for the mechanism). Portainer needs no secrets at all — it uses local admin auth by design, not SSO.
+Other services (Authentik, Wud, Vaultwarden) require random secrets for SSO and database access. These are generated automatically via `strata values set haven_deploy_prd --key <KEY> --generate` and stored in Infisical Cloud. No manual steps are required. Strata will create the value and writes them directly to Infisical Cloud in one step (see [Generating Secrets](#generating-secrets) above for the mechanism). Portainer needs no secrets at all — it uses local admin auth by design, not SSO.
 
-**Vaultwarden admin token is automated, hashing is a one-time manual step.** Strata auto-generates the **raw** token (`VAULTWARDEN_ADMIN_TOKEN`) like any other secret. Vaultwarden's container needs the **Argon2 hash** of that token in its own `ADMIN_TOKEN` env var, not the raw value — this hash is precomputed **once**, interactively, via [Cookbook: Storing a Hashed Secret Before Storage](../cookbooks/hash-secret-before-storage.md) (pipes the raw token through `docker run vaultwarden/server /vaultwarden hash --preset owasp`, `scripts/hash_argon2.py` automates that same transform) and stored directly as `VAULTWARDEN_ADMIN_ARGON`. `deploy-hearth-deploy.yml` fetches `VAULTWARDEN_ADMIN_ARGON` directly at deploy time — no hashing happens in the pipeline itself. Still copy the raw token from Infisical into Bitwarden once (you need it to log in and it isn't recoverable from the hash).
+**Vaultwarden admin token is automated, hashing is a one-time manual step.** Strata auto-generates the **raw** token (`VAULTWARDEN_ADMIN_TOKEN`) like any other secret. Vaultwarden's container needs the **Argon2 hash** of that token in its own `ADMIN_TOKEN` env var, not the raw value — this hash is precomputed **once**, interactively, via [Cookbook: Storing a Hashed Secret Before Storage](../cookbooks/hash-secret-before-storage.md) (one pipe: `strata values get ... --format raw | python scripts/hash_argon2.py | strata values set ... --stdin`) and stored directly as `VAULTWARDEN_ADMIN_ARGON`. The Vaultwarden module references `${secret:VAULTWARDEN_ADMIN_ARGON}`, so `deploy-hearth-deploy.yml` fetches it at deploy time — no hashing happens in the pipeline itself. Still copy the raw token from Infisical into Bitwarden once (you need it to log in and it isn't recoverable from the hash).
 
 Every key in the **Infisical Secrets** table above that needs a random value is declared the same way: one entry per key, with a `generate:` spec on it. There's no separate list to maintain here; the table above is the single source of truth for which keys exist, and the environment YAML just adds the `generate:` block to each:
 
 ```yaml
-# config/env-haven-prd.yaml
+# config/environments/prd.yaml
 spec:
   secrets:
     - key: AUTHENTIK_SECRET_KEY
       store: infisical
+      value: AUTHENTIK_SECRET_KEY # the secret's name inside Infisical
       generate:
         type: urlsafe
         length: 64
@@ -232,7 +233,7 @@ spec:
 ```
 
 ```powershell
-strata secret put AUTHENTIK_SECRET_KEY --generate -f config/env-haven-prd.yaml
+strata values set haven_deploy_prd --key AUTHENTIK_SECRET_KEY --generate
 # ...repeat for each key declared with a generate: spec
 ```
 
@@ -240,7 +241,7 @@ Still store a copy of every generated value in Bitwarden as backup.
 
 #### Secrets for Authentik
 
-> **ACTION:** Generated automatically via `strata secret put --generate` (see above). No manual steps required.
+> **ACTION:** Generated automatically via `strata values set haven_deploy_prd --key <KEY> --generate` (see above). No manual steps required.
 
 #### Secrets for Portainer
 
@@ -248,12 +249,12 @@ Still store a copy of every generated value in Bitwarden as backup.
 
 #### Secrets for Wud
 
-> **ACTION:** Generated automatically via `strata secret put --generate` (see above). No manual steps required.
+> **ACTION:** Generated automatically via `strata values set haven_deploy_prd --key <KEY> --generate` (see above). No manual steps required.
 
 #### Secrets for Vaultwarden
 
-> **ACTION:** `VAULTWARDEN_SSO_CLIENT_SECRET` and `VAULTWARDEN_ADMIN_TOKEN` are generated automatically via `strata secret put --generate`. No manual steps required for generation.
+> **ACTION:** `VAULTWARDEN_SSO_CLIENT_SECRET` and `VAULTWARDEN_ADMIN_TOKEN` are generated automatically via `strata values set haven_deploy_prd --key <KEY> --generate`. No manual steps required for generation.
 >
-> The **hash** that Vaultwarden's container actually needs (`VAULTWARDEN_ADMIN_ARGON`) is a one-time manual step, not part of any pipeline — run [Cookbook: Storing a Hashed Secret Before Storage](../cookbooks/hash-secret-before-storage.md) (or `scripts/hash_argon2.py`, which automates the same `docker run vaultwarden/server /vaultwarden hash` transform) once, interactively, and store the result directly as `VAULTWARDEN_ADMIN_ARGON`. `deploy-hearth-deploy.yml` fetches `VAULTWARDEN_ADMIN_ARGON` directly at deploy time via `strata values get` — it does not hash anything itself.
+> The **hash** that Vaultwarden's container actually needs (`VAULTWARDEN_ADMIN_ARGON`) is a one-time manual step, not part of any pipeline — run [Cookbook: Storing a Hashed Secret Before Storage](../cookbooks/hash-secret-before-storage.md) (a one-line pipe through `scripts/hash_argon2.py`) once, interactively, and again after rotating the raw token. `deploy-hearth-deploy.yml` fetches `VAULTWARDEN_ADMIN_ARGON` at deploy time via `strata values get` — it does not hash anything itself.
 >
 > Copy the raw token from Infisical into Bitwarden once (you need it to log in — it cannot be recovered from the hash).

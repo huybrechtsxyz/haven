@@ -1,0 +1,17 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: namespace
+meta:
+  name: gaming
+  annotations:
+    description: Gaming namespace — Foundry Virtual Tabletop (k3s on Forge, CPX41). Own dedicated local-path storage (live campaign data), separate from the read-only reference-content tree shared by documents/media namespaces. Access gated by Authentik's `gaming` group (see config/forge/modules/foundryvtt.yaml and docs/services/authentik.md), not the blanket family policy.
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, gaming, k3s, foundryvtt]
+spec:
+  modules:
+    - name: foundryvtt-secrets
+      description: K8s Secret holding FoundryVTT's real foundryvtt.com account credentials and admin key
+      file: config/forge/modules/foundryvtt-secrets.yaml
+    - name: foundryvtt
+      description: Foundry Virtual Tabletop — self-hosted VTT server
+      file: config/forge/modules/foundryvtt.yaml

@@ -1,0 +1,17 @@
+apiVersion: strata.huybrechts.xyz/v2
+kind: topologyconfig
+meta:
+  name: compose
+  tags: [haven, compose]
+spec:
+  description: >-
+    A single VM running Docker Compose (Hearth - Caddy, Authentik, Vaultwarden,
+    Portainer, WUD).
+  additional_components: false
+  components:
+    - role: node
+      description: The Docker Compose host VM
+      uses_module: false
+      required: true
+      min_count: 1
+      max_count: 1

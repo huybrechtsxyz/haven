@@ -14,16 +14,18 @@
 #     --private-key ~/.ssh/haven_ed25519 \
 #     -e @/tmp/deploy_secrets.yml
 #
-# Required extra-vars (pass via -e @file or -e key=value):
-#   authentik_secret_key
-#   authentik_postgresql_password
-#   vaultwarden_admin_token
-#   vaultwarden_sso_client_secret
-#   wud_sso_client_secret
-#   infomaniak_email_host
-#   infomaniak_email_port
-#   infomaniak_email_username
-#   infomaniak_email_password
+# Required extra-vars (pass via -e @file):
+#   hearth_secrets  — a map of strata secret key -> value, e.g. the
+#                     `.data.results` object of
+#                     `strata values get haven_deploy_prd KEY... --output json`.
+#                     It must hold every key the built docker-compose.yml
+#                     references; the play fails before touching the server
+#                     otherwise. Extra keys are ignored.
+#
+# strata writes each secret into the built docker-compose.yml as
+# `${secret:KEY}` (strata's token). This play rewrites them to Compose's own
+# `${KEY}` while copying, and writes exactly those keys into .env, so the
+# compose file decides which secrets Hearth needs — no list to keep in sync.
 # =============================================================================
 
 - name: Hearth — deploy Docker Compose services
@@ -34,7 +36,53 @@
   vars_files:
     - vars/main.yml
 
+  vars:
+    compose_build_file: "{{ playbook_dir }}/../../build/{{ deployment_name }}/hearth/docker-compose.yml"
+    # strata's secret token, and Compose's own interpolation for the same key.
+    # Single-quoted so YAML keeps the backslashes for the regex.
+    strata_secret_token: '\$\{secret:([A-Za-z0-9_]+)\}'
+    compose_env_reference: '${\1}'
+
   tasks:
+    # =========================================================================
+    # Preflight (local) — read the strata build, check every secret is supplied
+    # =========================================================================
+
+    - name: Read the strata-built docker-compose.yml
+      ansible.builtin.set_fact:
+        compose_source: "{{ lookup('ansible.builtin.file', compose_build_file) }}"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Work out the secrets the compose file needs
+      ansible.builtin.set_fact:
+        compose_secret_keys: "{{ compose_source | regex_findall(strata_secret_token) | unique | sort }}"
+        compose_content: "{{ compose_source | regex_replace(strata_secret_token, compose_env_reference) }}"
+      run_once: true
+
+    - name: Fail if hearth_secrets is missing a key the compose file needs
+      ansible.builtin.assert:
+        that:
+          - hearth_secrets is defined
+          - compose_secret_keys | difference(hearth_secrets | default({}) | list) | length == 0
+        fail_msg: >-
+          hearth_secrets is missing {{ compose_secret_keys | difference(hearth_secrets | default({}) | list) }}
+          (needed by {{ compose_build_file }}).
+        quiet: true
+      run_once: true
+
+    - name: Fail if a strata token survived the rewrite
+      ansible.builtin.assert:
+        that:
+          - "'${secret:' not in compose_content"
+          - "'${var:' not in compose_content"
+          - "'${feature:' not in compose_content"
+        fail_msg: >-
+          The built docker-compose.yml still holds a strata token after the rewrite. Only
+          `${secret:KEY}` is handled here; a `${var:}`/`${feature:}` token needs its own step.
+        quiet: true
+      run_once: true
+
     # =========================================================================
     # Directory structure — ensure service data dirs exist
     # =========================================================================
@@ -94,9 +142,9 @@
     # Sync build artifacts — compose file and Caddyfile
     # =========================================================================
 
-    - name: Copy docker-compose.yml to server
+    - name: Copy docker-compose.yml to server (strata secret tokens rewritten to ${KEY})
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../../build/{{ deployment_name }}/hearth/docker-compose.yml"
+        content: "{{ compose_content }}\n"
         dest: "{{ haven_install_path }}/etc/docker-compose.yml"
         owner: "{{ haven_user }}"
         group: "{{ haven_group }}"
@@ -121,16 +169,11 @@
         owner: "{{ haven_user }}"
         group: "{{ haven_group }}"
         mode: "0600"
+        # Exactly the keys docker-compose.yml references, in a stable order.
         content: |
-          AUTHENTIK_SECRET_KEY={{ authentik_secret_key }}
-          AUTHENTIK_POSTGRESQL__PASSWORD={{ authentik_postgresql_password }}
-          VAULTWARDEN_ADMIN_TOKEN={{ vaultwarden_admin_token }}
-          VAULTWARDEN_SSO_CLIENT_SECRET={{ vaultwarden_sso_client_secret }}
-          WUD_SSO_CLIENT_SECRET={{ wud_sso_client_secret }}
-          INFOMANIAK_EMAIL__HOST={{ infomaniak_email_host }}
-          INFOMANIAK_EMAIL__PORT={{ infomaniak_email_port }}
-          INFOMANIAK_EMAIL__USERNAME={{ infomaniak_email_username }}
-          INFOMANIAK_EMAIL__PASSWORD={{ infomaniak_email_password }}
+          {% for key in compose_secret_keys %}
+          {{ key }}={{ hearth_secrets[key] }}
+          {% endfor %}
       no_log: true
 
     - name: Verify .env keys (values masked)

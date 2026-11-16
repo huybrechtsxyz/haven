@@ -7,17 +7,15 @@ image:
   # Verified against https://hub.docker.com/r/dpage/pgadmin4/tags 2026-09-27.
   tag: "9.14"
 
-# Secret substitution requires a literal top-level `env:` dict — strata's
-# Helm secret substitution only resolves ${TOKEN} inside a node keyed
-# literally "env" (any nesting depth) — see nextcloud-secrets.yaml's module
-# comment for the full writeup of this constraint. PGADMIN_OAUTH2_CLIENT_SECRET
-# isn't a container env var (pgAdmin reads it from config_local.py, not the
-# environment) — it's read out of here by templates/configmap.yaml instead.
+# PGADMIN_OAUTH2_CLIENT_SECRET isn't a container env var (pgAdmin reads it
+# from config_local.py, not the environment) — it's read out of here by
+# templates/configmap.yaml instead.
 env:
   PGADMIN_DEFAULT_EMAIL: admin@huybrechts.xyz
-  # Real value injected by strata at deploy time — never written here.
-  PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_DEFAULT_PASSWORD}"
-  PGADMIN_OAUTH2_CLIENT_SECRET: "${PGADMIN_SSO_CLIENT_SECRET}"
+  # Real values set by the module as `${secret:PGADMIN_DEFAULT_PASSWORD}` /
+  # `${secret:PGADMIN_SSO_CLIENT_SECRET}` — never written here.
+  PGADMIN_DEFAULT_PASSWORD: ""
+  PGADMIN_OAUTH2_CLIENT_SECRET: ""
 
 persistence:
   # /var/lib/pgadmin — session data, user files, and the config database

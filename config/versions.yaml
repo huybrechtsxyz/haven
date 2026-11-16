@@ -1,0 +1,78 @@
+apiVersion: strata.huybrechts.xyz/v2
+kind: version
+meta:
+  name: prd
+  annotations:
+    description: Version pins for the haven production deployment
+  tags: [haven, versions]
+spec:
+  description: >-
+    The single place to change image and chart versions. A pin wins over the
+    version written in the module. Patch/security releases within a pinned
+    major.minor line are bumped directly; anything needing a major jump, a data
+    migration or a chart values.yaml review is marked `held` with its reason.
+    Images are keyed by module service name, charts by module name.
+  pins:
+    images:
+      # Hearth — authentik module
+      db:
+        version: docker.io/library/postgres:16-alpine
+        status: held
+        available: 18.6-alpine
+        reason: Postgres majors need pg_upgrade or a dump/restore; plan as its own migration task.
+        reviewed: 2026-09-08
+      redis:
+        version: docker.io/library/redis:7-alpine
+        status: held
+        available: 8.10.1-alpine
+        reason: Redis 8 is a licensing and behaviour major bump (also carries RCE/OOB fixes); verify Authentik/Immich compatibility first.
+        reviewed: 2026-09-08
+      server:
+        version: ghcr.io/goauthentik/server:2026.5.6
+        available: 2026.8.1
+        reviewed: 2026-09-08
+      worker:
+        version: ghcr.io/goauthentik/server:2026.5.6 # keep in sync with server
+        available: 2026.8.1
+        reviewed: 2026-09-08
+      # Hearth — other modules
+      caddy:
+        version: caddy:2-alpine # floating major tag, resolves to the latest v2
+        reviewed: 2026-09-08
+      portainer:
+        version: portainer/portainer-ce:2.39.7-alpine
+        available: 2.45.0-alpine
+        reviewed: 2026-09-08
+      vaultwarden:
+        version: vaultwarden/server:1.37.2-alpine # SSRF + cross-organization access fixes
+        reviewed: 2026-09-08
+      wud:
+        version: fmartinou/whats-up-docker:6.6.1
+        status: held
+        available: 8.4.0
+        reason: Upstream renamed to getwud/wud and is two majors ahead with breaking changes; needs its own migration task.
+        reviewed: 2026-09-08
+    charts:
+      cert-manager:
+        version: v1.16.2
+        status: held
+        available: v1.21.1
+        reason: v1.21 removes the tokenrequest RBAC and renames the metrics port in the chart values; needs a reviewed upgrade.
+        reviewed: 2026-09-08
+      gatus:
+        version: 1.0.0
+        status: unverified
+        reason: The chart version could not be confirmed against twin.github.io/helm-charts; re-verify before bumping.
+        reviewed: 2026-09-08
+      homarr:
+        version: 8.29.0
+        reviewed: 2026-09-08
+      immich:
+        version: 0.13.1
+        reviewed: 2026-09-08
+      jellyfin:
+        version: 3.2.0
+        reviewed: 2026-09-08
+      nextcloud:
+        version: 9.2.6
+        reviewed: 2026-09-08

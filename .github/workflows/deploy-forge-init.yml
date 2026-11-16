@@ -8,8 +8,7 @@
 # haven-data Storage Box's SMB shares (media + docs libraries — subaccounts
 # don't support NFS), hardens SSH, and generates the BorgBackup SSH key pair.
 # Idempotent (safe to re-run) but normally only needed once per server — routine changes will go
-# through forge-config.yml / forge-deploy.yml once those exist (see
-# deploy-forge.yml).
+# through deploy-forge-config.yml / deploy-forge-deploy.yml.
 #
 # Prerequisites: deploy-infra.yml must have run at least once (VPS exists).
 # ==============================================================================
@@ -45,7 +44,7 @@ permissions:
 
 env:
   STRATA_OUTPUT: json
-  DEPLOYMENT_FILE: "config/deployment.yaml"
+  DEPLOYMENT: haven_deploy_prd
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -94,20 +93,11 @@ jobs:
       # ------------------------------------------------------------------
       # Ansible setup
       # ------------------------------------------------------------------
-      - name: Setup strata
+      - name: Setup tools (VERSIONS.env)
         if: ${{ inputs.dry_run != true }}
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.9.3
+        uses: ./.github/actions/setup-tools
         with:
-          # See deploy-infra.yml for the full 1.9.3 bump rationale (ADR-0072
-          # breaking change, migrated config/configuration.yaml + deployment.yaml).
-          strata-version: "==1.9.3"
-        env:
-          # See deploy-infra.yml for why this is set — no-op on GitHub-hosted runners.
-          UV_INDEX_STRATEGY: unsafe-best-match
-
-      - name: Install Ansible
-        if: ${{ inputs.dry_run != true }}
-        run: pip install ansible-core
+          ansible: "true"
 
       - name: Write deploy SSH private key
         if: ${{ inputs.dry_run != true }}
@@ -135,12 +125,12 @@ jobs:
 
           if [ "${{ inputs.configure_borg }}" = "true" ]; then
             set +e
-            VALUES=$(strata values get STORAGEBOX_BACKUP_FORGE_PASSWORD -f $DEPLOYMENT_FILE --output json)
+            VALUES=$(strata values get "$DEPLOYMENT" STORAGEBOX_BACKUP_FORGE_PASSWORD --output json)
             STATUS=$?
             set -e
             if [ $STATUS -ne 0 ]; then
               echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
-              echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+              echo "$VALUES" | jq -r '.diagnostics[]? | "\(.location // "-"): \(.message)"' 2>/dev/null || echo "(no parseable error detail)"
               exit $STATUS
             fi
             STORAGEBOX_BACKUP_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.STORAGEBOX_BACKUP_FORGE_PASSWORD')
@@ -156,12 +146,12 @@ jobs:
             # but have independent passwords — fetched together since both
             # mounts are gated by the one configure_smb flag.
             set +e
-            SMB_VALUES=$(strata values get STORAGEBOX_DATA_MEDIA_PASSWORD STORAGEBOX_DATA_DOCS_PASSWORD -f $DEPLOYMENT_FILE --output json)
+            SMB_VALUES=$(strata values get "$DEPLOYMENT" STORAGEBOX_DATA_MEDIA_PASSWORD STORAGEBOX_DATA_DOCS_PASSWORD --output json)
             STATUS=$?
             set -e
             if [ $STATUS -ne 0 ]; then
               echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
-              echo "$SMB_VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+              echo "$SMB_VALUES" | jq -r '.diagnostics[]? | "\(.location // "-"): \(.message)"' 2>/dev/null || echo "(no parseable error detail)"
               exit $STATUS
             fi
             STORAGEBOX_DATA_MEDIA_PASSWORD=$(echo "$SMB_VALUES" | jq -r '.data.results.STORAGEBOX_DATA_MEDIA_PASSWORD')
@@ -177,12 +167,12 @@ jobs:
 
           if [ "${{ inputs.configure_borg }}" = "true" ]; then
             set +e
-            BORG_VALUES=$(strata values get BORG_PASSPHRASE_FORGE -f $DEPLOYMENT_FILE --output json)
+            BORG_VALUES=$(strata values get "$DEPLOYMENT" BORG_PASSPHRASE_FORGE --output json)
             STATUS=$?
             set -e
             if [ $STATUS -ne 0 ]; then
               echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
-              echo "$BORG_VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+              echo "$BORG_VALUES" | jq -r '.diagnostics[]? | "\(.location // "-"): \(.message)"' 2>/dev/null || echo "(no parseable error detail)"
               exit $STATUS
             fi
             BORG_PASSPHRASE=$(echo "$BORG_VALUES" | jq -r '.data.results.BORG_PASSPHRASE_FORGE')
@@ -194,21 +184,21 @@ jobs:
 
           if [ "${{ inputs.configure_portainer_agent }}" = "true" ]; then
             set +e
-            EDGE_ID_VALUES=$(strata values get PORTAINER_EDGE_ID -f $DEPLOYMENT_FILE --output json)
+            EDGE_ID_VALUES=$(strata values get "$DEPLOYMENT" PORTAINER_EDGE_ID --output json)
             STATUS=$?
             set -e
             if [ $STATUS -ne 0 ]; then
               echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
-              echo "$EDGE_ID_VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+              echo "$EDGE_ID_VALUES" | jq -r '.diagnostics[]? | "\(.location // "-"): \(.message)"' 2>/dev/null || echo "(no parseable error detail)"
               exit $STATUS
             fi
             set +e
-            EDGE_KEY_VALUES=$(strata values get PORTAINER_EDGE_KEY -f $DEPLOYMENT_FILE --output json)
+            EDGE_KEY_VALUES=$(strata values get "$DEPLOYMENT" PORTAINER_EDGE_KEY --output json)
             STATUS=$?
             set -e
             if [ $STATUS -ne 0 ]; then
               echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
-              echo "$EDGE_KEY_VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+              echo "$EDGE_KEY_VALUES" | jq -r '.diagnostics[]? | "\(.location // "-"): \(.message)"' 2>/dev/null || echo "(no parseable error detail)"
               exit $STATUS
             fi
             EDGE_ID=$(echo "$EDGE_ID_VALUES" | jq -r '.data.results.PORTAINER_EDGE_ID')

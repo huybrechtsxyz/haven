@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ .Release.Name }}"
+  labels:
+    app: "{{ .Release.Name }}"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: "{{ .Release.Name }}"
+  template:
+    metadata:
+      labels:
+        app: "{{ .Release.Name }}"
+    spec:
+      containers:
+        - name: grimoire
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          env:
+            - name: LIBRARY_PATH
+              value: /library
+            - name: DATA_PATH
+              value: /data
+            - name: WORKERS
+              value: "{{ .Values.env.WORKERS }}"
+            - name: BASE_URL
+              value: "{{ .Values.env.BASE_URL }}"
+            - name: OPDS_ENABLED
+              value: "{{ .Values.env.OPDS_ENABLED }}"
+            - name: OIDC_ENABLED
+              value: "{{ .Values.env.OIDC_ENABLED }}"
+            - name: OIDC_ISSUER_URL
+              value: "{{ .Values.env.OIDC_ISSUER_URL }}"
+            - name: OIDC_CLIENT_ID
+              value: "{{ .Values.env.OIDC_CLIENT_ID }}"
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .Values.secrets.name }}"
+                  key: sso-client-secret
+            - name: OIDC_GROUPS_CLAIM
+              value: "{{ .Values.env.OIDC_GROUPS_CLAIM }}"
+            - name: OIDC_PERMISSIONS_CLAIM
+              value: "{{ .Values.env.OIDC_PERMISSIONS_CLAIM }}"
+            - name: OIDC_MATCH_BY
+              value: "{{ .Values.env.OIDC_MATCH_BY }}"
+            - name: OIDC_AUTO_REGISTER
+              value: "{{ .Values.env.OIDC_AUTO_REGISTER }}"
+            - name: OIDC_BUTTON_TEXT
+              value: "{{ .Values.env.OIDC_BUTTON_TEXT }}"
+            - name: OIDC_AUTO_LAUNCH
+              value: "{{ .Values.env.OIDC_AUTO_LAUNCH }}"
+            - name: ALLOW_PASSWORD_AUTHENTICATION
+              value: "{{ .Values.env.ALLOW_PASSWORD_AUTHENTICATION }}"
+          ports:
+            # Hardcoded (not templated) — see service.yaml's comment; 9481
+            # is Grimoire's fixed upstream port.
+            - containerPort: 9481
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: library
+              mountPath: /library
+              readOnly: true
+            - name: library-books
+              mountPath: /library/books
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 9481
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 9481
+            initialDelaySeconds: 20
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: "{{ .Release.Name }}-data"
+        - name: library
+          hostPath:
+            path: "{{ .Values.library.hostPath }}"
+            type: DirectoryOrCreate
+        - name: library-books
+          hostPath:
+            path: "{{ .Values.library.booksHostPath }}"
+            type: DirectoryOrCreate

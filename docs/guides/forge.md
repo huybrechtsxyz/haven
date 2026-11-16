@@ -87,7 +87,7 @@ Run **`33 - Forge - Deploy`** (`deploy-forge-deploy.yml`):
 | `branch`  | *your branch* |                                                                           |
 | `dry_run` | `false`       | `true` runs validate + build only, skips the actual Helm deploy (preview) |
 
-This runs `strata deploy run --scope apps --stage applications_forge` — tunnels to the k3s API over SSH and deploys all active namespaces in `config/stack/workspace.yaml`.
+This runs `strata deploy run haven_deploy_prd --stage applications_forge` — tunnels to the k3s API over SSH and deploys the namespaces listed in the `applications_forge` step of `config/workspace.yaml`, in that order.
 
 
 

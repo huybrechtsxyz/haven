@@ -1,0 +1,356 @@
+{
+  "$defs": {
+    "PlatformKind": {
+      "description": "Enumeration of supported platform kinds.",
+      "enum": [
+        "solution",
+        "configuration",
+        "providerconfig",
+        "topologyconfig",
+        "attributeconfig",
+        "provider",
+        "resource",
+        "dns",
+        "network",
+        "firewall",
+        "module",
+        "namespace",
+        "workspace",
+        "integration",
+        "tenant",
+        "environment",
+        "deployment",
+        "version",
+        "artifact",
+        "asset",
+        "parameterset"
+      ],
+      "type": "string"
+    },
+    "PlatformVersion": {
+      "description": "Enumeration of supported platform versions.",
+      "enum": [
+        "strata.huybrechts.xyz/v2",
+        "strata.omp.com/v2"
+      ],
+      "type": "string"
+    },
+    "TenantMetaModel": {
+      "additionalProperties": false,
+      "description": "Tenant metadata (name, annotations, labels, tags).",
+      "properties": {
+        "name": {
+          "description": "Tenant code \u2014 the unique identifier (e.g. 'contoso')",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "patternProperties": {
+                "^[a-z][a-z0-9_-]*$": {
+                  "anyOf": [
+                    {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "pattern": "^[a-z][a-z0-9_-]*$",
+                      "type": "string",
+                      "x-strata-references": "parameterset"
+                    },
+                    {
+                      "items": {
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "pattern": "^[a-z][a-z0-9_-]*$",
+                        "type": "string",
+                        "x-strata-references": "parameterset"
+                      },
+                      "type": "array"
+                    }
+                  ]
+                }
+              },
+              "propertyNames": {
+                "maxLength": 64,
+                "minLength": 1
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parameter sets this tenant reads, per role: `{tenant: tenant-initech}`, or a list per role merged in order. Any document of the extends chain may name sets: per role they merge root first, leaf last, later winning per leaf key. `${param:<role>.<key>}` in the spec of any document of the chain reads the merged values."
+        },
+        "name_rule": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The name every tenant built on this one must have, with `${param:<role>.<key>}` tokens filled from that tenant's parameter sets (`${param:tenant.code}`). Only `${param:}` tokens are allowed."
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional annotations (key-value pairs for documentation)"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional labels (key-value pairs for classification/filtering)"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional tags (list of values for categorization)"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "TenantSpecModel": {
+      "additionalProperties": false,
+      "description": "A customer or organisation: its display name, the data-residency geographies it may deploy into, and defaults (`environments`, `properties`, `custom`) that every deployment for it inherits.\n\nRules:\n- Geographies must be unique.\n- Environment references must be unique, because a repeat would merge twice.\n- A tenant needs `display_name`. A `partial: true` tenant, or one with `extends`, is exempt because its missing fields come from the base.",
+      "properties": {
+        "partial": {
+          "default": false,
+          "description": "When true this is a base for other tenants (`extends`), not a tenant of its own: `display_name` may be absent, no deployment may name it in `tenant`, and no `${value:}` token may read it.",
+          "type": "boolean"
+        },
+        "extends": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string",
+              "x-strata-references": "tenant"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Name of a base Tenant whose spec is merged into this one when the solution loads. Child always wins: `display_name` and `onboarded` are replaced, `geographies` is replaced by the child's list when it sets one, `environments` is the base's list then the child's, and `properties`, `custom` and `configuration` deep-merge per leaf key. Circular chains are rejected."
+        },
+        "display_name": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/ParamToken"
+            }
+          ],
+          "description": "Human-readable tenant name (e.g. 'Acme Corporation'). The tenant's identifier/code is meta.name (e.g. 'contoso'). Required, unless the tenant is `partial` or gets it through `extends`."
+        },
+        "geographies": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/ParamToken"
+            }
+          ],
+          "description": "Data-residency boundaries this tenant may deploy into, for example `europe`. Each must be the `geography` of some region in a ProviderConfig. A deployment for this tenant is flagged when its provider's region lies in a geography that is not listed here. Omit for no restriction."
+        },
+        "onboarded": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/ParamToken"
+            }
+          ],
+          "description": "ISO date the tenant was onboarded (e.g. 2026-03-15). Informational only."
+        },
+        "environments": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "pattern": "^[a-z][a-z0-9_-]*$",
+                    "type": "string",
+                    "x-strata-references": "environment"
+                  },
+                  {
+                    "$ref": "#/$defs/ParamToken"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/ParamToken"
+            }
+          ],
+          "description": "Names of Environment documents that merge before the deployment's own environments, so the deployment's values win. Use for tenant-wide defaults such as shared variables or feature flags."
+        },
+        "properties": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/ParamToken"
+            }
+          ],
+          "description": "Tenant-wide properties, merged as the base layer into the `properties` of every deployment for this tenant. Deployment values win."
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/ParamToken"
+            }
+          ],
+          "description": "Tenant-specific settings, for example a CRM id or billing code, passed to Terraform as `strata.tenant.configuration`. Not merged into the deployment's properties. Add an `attributeconfig` with `target.kind: tenant` and `target.block: configuration` to validate them."
+        },
+        "custom": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/ParamToken"
+            }
+          ],
+          "description": "Tenant-wide custom values, merged as the base layer into the `custom` values of every deployment for this tenant. Deployment values win."
+        }
+      },
+      "type": "object"
+    },
+    "ParamToken": {
+      "type": "string",
+      "pattern": "\\$\\{param:[A-Za-z0-9_.-]+\\}",
+      "description": "Filled from the document's parameter sets when the solution loads (`${param:<role>.<key>}`)."
+    }
+  },
+  "additionalProperties": false,
+  "description": "A customer or organisation identity. `meta.name` is the tenant code, for example `contoso`. Create one per customer and reference it from a deployment's `tenant`. Typically one per customer directory.\n\nRules:\n- A tenant cannot extend itself; longer extends cycles are rejected when the solution loads.",
+  "properties": {
+    "apiVersion": {
+      "$ref": "#/$defs/PlatformVersion",
+      "default": "strata.huybrechts.xyz/v2",
+      "description": "API version for tenant configuration"
+    },
+    "kind": {
+      "$ref": "#/$defs/PlatformKind",
+      "default": "tenant",
+      "description": "Platform kind (always 'tenant')"
+    },
+    "meta": {
+      "$ref": "#/$defs/TenantMetaModel",
+      "description": "Tenant metadata (name, annotations, labels, tags)"
+    },
+    "spec": {
+      "$ref": "#/$defs/TenantSpecModel",
+      "description": "Tenant specification (identity, geographies, environments, defaults)\n\nRules:\n- Geographies must be unique.\n- Environment references must be unique, because a repeat would merge twice.\n- A tenant needs `display_name`. A `partial: true` tenant, or one with `extends`, is exempt because its missing fields come from the base."
+    }
+  },
+  "required": [
+    "meta",
+    "spec"
+  ],
+  "type": "object",
+  "examples": [
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "tenant",
+      "meta": {
+        "name": "contoso"
+      },
+      "spec": {
+        "display_name": "Acme Corporation"
+      }
+    },
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "tenant",
+      "meta": {
+        "name": "contoso"
+      },
+      "spec": {
+        "display_name": "Acme Corporation",
+        "geographies": [
+          "europe"
+        ],
+        "onboarded": "2026-03-15",
+        "environments": [
+          "tenant-defaults"
+        ],
+        "properties": {
+          "deploy_tier": "prd"
+        },
+        "configuration": {
+          "crm_id": "12345"
+        }
+      }
+    }
+  ]
+}

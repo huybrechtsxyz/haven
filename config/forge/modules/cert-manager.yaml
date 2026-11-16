@@ -1,11 +1,9 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: module
 meta:
   name: cert-manager
   annotations:
     description: cert-manager — automates Let's Encrypt TLS certificate issuance/renewal for Forge's Traefik ingress
-  labels:
-    version: "1.0.0"
   tags: [haven, forge, system, tls, cert-manager, letsencrypt]
 spec:
   type: helm

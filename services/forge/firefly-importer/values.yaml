@@ -1,7 +1,6 @@
 # Defaults — override via the strata module's spec.configuration (see
-# config/forge/modules/firefly-importer.yaml). Every field a template
-# dereferences must be re-declared there too — strata's build does NOT merge
-# this file's defaults into the values it generates for local-chart modules.
+# config/forge/modules/firefly-importer.yaml). The module's values are layered
+# on top of these with Helm `-f`: maps merge, lists are replaced.
 
 image:
   repository: fireflyiii/data-importer
@@ -25,9 +24,9 @@ env:
   # /profile/oauth page ("Remote access and tokens" -> "Personal Access
   # Token" -> "Create new token") AFTER Firefly's first deploy. Manual
   # one-time bootstrap step, same as other apps' first-admin-setup.
-  # Set via ${FIREFLY_IMPORTER_ACCESS_TOKEN} substitution token — never a
+  # Set by the module as `${secret:FIREFLY_IMPORTER_ACCESS_TOKEN}` — never a
   # literal value here.
-  FIREFLY_III_ACCESS_TOKEN: "${FIREFLY_IMPORTER_ACCESS_TOKEN}"
+  FIREFLY_III_ACCESS_TOKEN: ""
   # CONFIRMED from the official .env.example: "TRUSTED_PROXIES is a useful
   # variable when using Docker and/or a reverse proxy. Set it to ** and
   # reverse proxies work just fine." — a different convention than Firefly

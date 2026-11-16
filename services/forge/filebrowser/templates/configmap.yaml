@@ -61,10 +61,8 @@ data:
           adminGroup: {{ .Values.auth.adminGroup | quote }}
           # clientId/clientSecret deliberately NOT set here — supplied via
           # FILEBROWSER_OIDC_CLIENT_ID / FILEBROWSER_OIDC_CLIENT_SECRET pod
-          # env vars instead (see templates/deployment.yaml). A literal
-          # ${TOKEN} placeholder here would never be substituted by strata's
-          # Helm secret substitution, which only resolves ${TOKEN} values
-          # found inside a dict node keyed literally "env" — see
-          # config/forge/modules/filebrowser.yaml's file-level comment.
+          # env vars instead (see templates/deployment.yaml), which the strata
+          # module fills from `${secret:...}` tokens — keeping the secret out
+          # of this ConfigMap.
     frontend:
       name: "Haven Files"

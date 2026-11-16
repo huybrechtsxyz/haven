@@ -1,0 +1,110 @@
+# Immich
+
+> Immich — self-hosted photo and video management, self-hosted on Forge (k3s).
+
+## Overview
+
+Immich runs on **Forge** (Hetzner CPX41, k3s), in its own `immich` Kubernetes namespace — separate from Jellyfin's `media` namespace and any future self-hosted-app namespaces, so apps can be added/changed independently without colliding. See [Forge](../guides/forge.md) for the node-level overview.
+
+**Prerequisites:** `deploy-forge-init.yml` must have run successfully at least once (k3s + Traefik installed, haven-data Storage Box's media sub-account SMB-mounted at `/mnt/haven-data-media`), and a DNS A record for `photos.{domain}` must point directly at Forge's public IP (Forge terminates its own ingress — see [Forge's design decision](../guides/forge.md#design-decision--forge-terminates-its-own-ingress)).
+
+> ✅ Verified end-to-end in production (2026-08-27) — `strata deploy run --scope apps --stage applications_forge` successfully deployed `immich-library`, `immich-postgres`, and `immich` (server, machine-learning, cache) into the live `immich` namespace on Forge.
+
+---
+
+## What gets deployed
+
+Three Helm modules make up the `immich` namespace, in dependency order:
+
+| Module            | Chart / source                                                      | Purpose                                                                       |
+| ----------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `immich-library`  | Local chart, `services/forge/immich-library/`                       | Static PV/PVC for the photo/video library (haven-data Storage Box SMB-backed) |
+| `immich-postgres` | Local chart, `services/forge/immich-postgres/`                      | Single-pod PostgreSQL with the vectorchord extension Immich requires          |
+| `immich`          | `oci://ghcr.io/immich-app/immich-charts` (chart `immich`, `0.13.1`) | Immich server, machine learning, and cache                                    |
+
+`image.tag` for the `immich` module's server/ML containers is pinned to `v3.0.0` — confirmed against chart 0.13.1's own `Chart.yaml` (`appVersion: v3.0.0`) and default `values.yaml`.
+
+> Immich's chart moved to OCI-only distribution (the old HTTP repo is deprecated/frozen) — this required strata 1.8.3+ (OCI `chart_repository` support and the `${KEY}` Helm secret-substitution fix), both confirmed fixed and in use. See the module comments in `config/forge/modules/immich.yaml` for details.
+
+---
+
+## Secrets
+
+| Secret                     | Store     | Used by                                                              |
+| -------------------------- | --------- | -------------------------------------------------------------------- |
+| `IMMICH_DB_PASSWORD`       | Infisical | `immich-postgres`'s `POSTGRES_PASSWORD` + Immich's `DB_PASSWORD`     |
+| `IMMICH_SSO_CLIENT_SECRET` | Infisical | Authentik blueprint's Immich OAuth2 Provider (see SSO section above) |
+
+---
+
+## Initial setup
+
+### Single Sign-On (Authentik)
+
+Immich has **native OIDC support** — unlike Jellyfin (needs a third-party plugin), no plugin/extension is needed on the Immich side.
+
+The Authentik side is **already automated** — `deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2` creates the OAuth2 Provider + Application for Immich (client ID `immich`, `members` group policy) every time `deploy-hearth-config.yml` runs, using the `IMMICH_SSO_CLIENT_SECRET` Infisical secret. Redirect URIs registered: `https://photos.huybrechts.xyz/auth/login`, `https://photos.huybrechts.xyz/user-settings`, and `app.immich:///oauth-callback` (mobile app).
+
+The Immich side is a **one-time manual step** (Immich stores OAuth config in its own database, not env vars/Helm values) — Administration → Settings → OAuth, with:
+
+- **Issuer URL:** `https://auth.huybrechts.xyz/application/o/immich/`
+- **Client ID:** `immich`
+- **Client Secret:** the `IMMICH_SSO_CLIENT_SECRET` value (Infisical)
+- **Scope:** `openid email profile`
+
+---
+
+### Disabling password login (manual step, optional)
+
+Once OAuth is confirmed working end-to-end, password-based login can be disabled entirely so Authentik is the only way in. This is **not** a Helm value or admin-UI toggle — Immich ships a CLI command for it, run inside the live pod:
+
+```powershell
+kubectl exec -n immich deploy/immich-server -- immich-admin disable-password-login
+```
+
+(Run `kubectl get deploy -n immich` first if `immich-server` isn't the exact deployment name — it depends on how the `immich-charts` chart names things.)
+
+**Before disabling:** log out and log back in via "Login with OAuth" at least once to confirm the Authentik integration actually works — password login is the fallback if that ever breaks.
+
+**To revert or recover:**
+- Re-enable password login: `kubectl exec -n immich deploy/immich-server -- immich-admin enable-password-login`
+- Break-glass admin password reset (works regardless of OAuth/password-login state): `kubectl exec -n immich deploy/immich-server -- immich-admin reset-admin-password`
+
+---
+
+### Email notifications (manual setup, optional)
+
+Immich supports SMTP for its own notification emails (album invites, album updates, welcome emails on new user creation) via **Administration → Settings → Notifications**. Unlike SSO, this has no env var / Helm values equivalent at all — it's stored entirely in Immich's own database, configured only through the admin UI.
+
+Reuses the same shared Infomaniak mailbox as Vaultwarden/Authentik/Gatus/Nextcloud. Retrieve the credentials first:
+
+```powershell
+strata values get INFOMANIAK_EMAIL__HOST INFOMANIAK_EMAIL__PORT INFOMANIAK_EMAIL__USERNAME INFOMANIAK_EMAIL__PASSWORD -f config/environment.yaml --output json
+```
+
+Then in Administration → Settings → Notifications:
+
+1. Toggle **Enable SMTP** on.
+2. **Sender Email:** `immich@huybrechts.xyz` (a from-alias — no separate mailbox needed, auth is done as the shared mailbox below).
+3. **Sender Name:** `Immich` (optional).
+4. **Host:** value of `INFOMANIAK_EMAIL__HOST` (`mail.infomaniak.com`).
+5. **Port:** value of `INFOMANIAK_EMAIL__PORT` (`587`).
+6. **Username:** value of `INFOMANIAK_EMAIL__USERNAME`.
+7. **Password:** value of `INFOMANIAK_EMAIL__PASSWORD`.
+8. Leave **Ignore certificate errors** off.
+9. Click **Send Test Email** to confirm, then **Save**.
+
+This is a one-time step — the setting persists in Immich's Postgres database and survives redeploys (only lost on a full database reset).
+
+---
+
+## Architecture decisions
+
+| Component       | Choice                                                                                      | Why                                                                                                                                                                                                                                                                                                      |
+| --------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Postgres        | Single pod, official `ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0` image | Has the vectorchord extension pre-installed; no operator (CNPG) or Bitnami subchart needed for one small family server                                                                                                                                                                                   |
+| Redis           | Plain `redis:7-alpine`, swapped into the chart's bundled `valkey:` dependency slot          | Keeps the chart's automatic `REDIS_HOSTNAME` wiring; simplest single-pod cache. **Note:** the chart's default liveness/readiness/startup probes assume `valkey-cli` (not present in plain redis images) — `immich.yaml` overrides these to use `redis-cli` instead, matching the original probe timings. |
+| Library storage | Static `hostPath` PV/PVC at `/mnt/haven-data-media/immich`                                  | Reuses the *same* haven-data Storage Box SMB mount `forge-init.yml` already sets up on the host — no in-pod CIFS CSI driver needed for a single-node cluster                                                                                                                                             |
+
+---
+

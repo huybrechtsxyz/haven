@@ -2,10 +2,8 @@ image:
   repository: redis
   tag: 7-alpine
 
-# Credentials MUST live under a literal `env:` dict — strata's Helm
-# secret substitution only resolves `${TOKEN}` placeholders found inside a
-# dict node keyed literally "env". Set via ${NEXTCLOUD_REDIS_PASSWORD}
-# substitution token — never a literal value here.
+# Set by the module as `${secret:NEXTCLOUD_REDIS_PASSWORD}` — never a literal
+# value here.
 env:
   NEXTCLOUD_REDIS_PASSWORD: ""
 

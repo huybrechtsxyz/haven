@@ -1,0 +1,49 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: namespace
+meta:
+  name: system
+  annotations:
+    description: Cross-cutting infrastructure add-ons for Forge (k3s) — not tied to any one app layer. cert-manager + its ClusterIssuers live here, plus Portainer's Kubernetes Edge Agent.
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, k3s, system]
+spec:
+  type: shared
+  modules:
+    # Listed before cert-manager-issuers: the issuers module creates
+    # ClusterIssuer custom resources, which requires cert-manager's CRDs to
+    # already be installed. If a first-ever deploy run ever fails on the
+    # issuers module because the CRDs aren't fully established yet, just
+    # re-run the deploy — this is a known cert-manager timing quirk, not a
+    # config bug.
+    - name: cert-manager
+      description: Automates Let's Encrypt TLS certificate issuance/renewal for Forge's Traefik ingress
+      file: config/forge/modules/cert-manager.yaml
+    - name: cert-manager-issuers
+      description: Let's Encrypt ClusterIssuers (staging + production), HTTP-01 via Traefik
+      file: config/forge/modules/cert-manager-issuers.yaml
+    - name: gatus
+      description: Health/status dashboard for every family service — members-only, real OIDC login via Authentik
+      file: config/forge/modules/gatus.yaml
+    - name: pgadmin
+      description: pgAdmin4 — direct Postgres admin access for every Haven database (Immich, Nextcloud, Firefly III), admin-only OIDC login via Authentik
+      file: config/forge/modules/pgadmin.yaml
+    # homarr-secrets listed before homarr: renders the K8s Secrets
+    # (OIDC client secret, DB encryption key) that homarr.yaml references
+    # via envSecrets.*.existingSecret — same ordering reason as
+    # nextcloud-secrets before nextcloud.
+    - name: homarr-secrets
+      description: K8s Secrets (OIDC client secret, DB encryption key) for Homarr
+      file: config/forge/modules/homarr-secrets.yaml
+    - name: homarr
+      description: Family-facing dashboard/landing page — real per-user boards/permissions synced from Authentik groups
+      file: config/forge/modules/homarr.yaml
+    - name: filebrowser
+      description: FileBrowser Quantum — direct read/write browser access to both haven-data Storage Box shares (media + docs), for every family member
+      file: config/forge/modules/filebrowser.yaml
+    # rclone-mount (haven-docs S3 bucket bridge) removed 2026-08-29 — the
+    # haven-docs bucket has been deleted from Hetzner. Nextcloud/Kavita's
+    # shared documents storage is migrating to the haven-data Storage Box's
+    # docs sub-account (SMB), mounted directly on the Forge host by
+    # forge-init.yml instead of via an in-cluster FUSE mount. That migration
+    # is not yet wired up — see docs/guides/forge.md's Development notes.

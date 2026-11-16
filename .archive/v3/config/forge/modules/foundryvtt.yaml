@@ -1,0 +1,64 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: foundryvtt
+  annotations:
+    description: Foundry Virtual Tabletop — self-hosted VTT server, licensed via the user's own foundryvtt.com account
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, gaming, foundryvtt, vtt]
+spec:
+  type: helm
+  source:
+    repository: haven
+    source_path: services/forge/foundryvtt
+  kubernetes_namespace: gaming
+  references:
+    secrets:
+      - FOUNDRY_USERNAME # not read directly — foundryvtt-secrets.yaml renders the actual K8s Secret this module points at via a plain secretKeyRef
+      - FOUNDRY_PASSWORD
+      - FOUNDRY_ADMIN_KEY
+  configuration:
+    image:
+      repository: ghcr.io/felddy/foundryvtt
+      tag: "14"
+    env:
+      FOUNDRY_HOSTNAME: foundry.huybrechts.xyz
+      FOUNDRY_PROXY_SSL: "true"
+      FOUNDRY_PROXY_PORT: "443"
+      FOUNDRY_MINIFY_STATIC_FILES: "true"
+      TZ: Europe/Brussels
+    secrets:
+      name: foundryvtt-secrets
+    persistence:
+      data:
+        storageClass: local-path
+        size: 30Gi
+    # NOT staging-first, unlike every other Forge app — MUST be
+    # letsencrypt-prod from the start. Firefly III (the only other
+    # forwardAuth-protected app in this repo) hit this directly: the
+    # forwardAuth middleware makes a server-to-server HTTPS call back to
+    # this exact host, and Go verifies the cert against the system trust
+    # store — a staging cert is signed by an untrusted CA, so every request
+    # 500s with "x509: certificate signed by unknown authority". The usual
+    # staging-first pattern is actively broken for forward-auth-protected
+    # apps. See docs/services/foundryvtt.md's SSO section.
+    ingress:
+      enabled: true
+      className: traefik
+      host: foundry.huybrechts.xyz
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      tls:
+        - hosts:
+            - foundry.huybrechts.xyz
+          secretName: foundryvtt-tls
+
+    # Authentik forward-auth outpost bypass — Foundry has no native OIDC, so
+    # Traefik forwardAuth gates the ingress instead (same pattern as Firefly
+    # III). See services/forge/foundryvtt/values.yaml's `sso:`/`outpost:`
+    # comment and docs/services/foundryvtt.md's SSO section.
+    sso:
+      enabled: true
+    outpost:
+      authentikHost: auth.huybrechts.xyz

@@ -1,0 +1,328 @@
+{
+  "$defs": {
+    "PlatformKind": {
+      "description": "Enumeration of supported platform kinds.",
+      "enum": [
+        "solution",
+        "configuration",
+        "providerconfig",
+        "topologyconfig",
+        "attributeconfig",
+        "provider",
+        "resource",
+        "dns",
+        "network",
+        "firewall",
+        "module",
+        "namespace",
+        "workspace",
+        "integration",
+        "tenant",
+        "environment",
+        "deployment",
+        "version",
+        "artifact",
+        "asset",
+        "parameterset"
+      ],
+      "type": "string"
+    },
+    "PlatformVersion": {
+      "description": "Enumeration of supported platform versions.",
+      "enum": [
+        "strata.huybrechts.xyz/v2",
+        "strata.omp.com/v2"
+      ],
+      "type": "string"
+    },
+    "RemoteFetch": {
+      "description": "Who materialises a remote on disk: `strata` (default) fetches it, `external` means CI or the developer already checked it out and strata only reads it. Use `external` with the real `type` (for example `git` plus the pinned `reference`) when a pipeline clones the repository itself.",
+      "enum": [
+        "strata",
+        "external"
+      ],
+      "type": "string"
+    },
+    "RemoteType": {
+      "description": "What kind of source a remote is: `git` (a git repository), `oci` (an OCI registry serving images, Helm charts or other artifacts), `helm` (a Helm chart repository index) or `local` (a directory inside the solution). Who fetches the remote is a separate setting, `fetch`.",
+      "enum": [
+        "git",
+        "oci",
+        "helm",
+        "local"
+      ],
+      "type": "string"
+    },
+    "SolutionDiscoveryModel": {
+      "additionalProperties": false,
+      "description": "Tuning for how strata finds documents under the solution root. Only `exclude` exists: add patterns for folders that hold strata-shaped YAML which must not be loaded, such as a `templates/` or `examples/` folder with placeholders.",
+      "properties": {
+        "exclude": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Glob patterns matched against each path relative to the solution root, POSIX-style (e.g. 'templates/**', 'examples', '*.generated.yaml'). A matching directory is not descended into. Added to the loader's built-in ignores, never replacing them. Note: these are fnmatch-style globs, not full gitignore syntax \u2014 there is no negation ('!') and no leading-slash anchoring."
+        }
+      },
+      "type": "object"
+    },
+    "SolutionMetaModel": {
+      "additionalProperties": false,
+      "description": "Solution metadata (name, annotations, labels, tags).",
+      "properties": {
+        "name": {
+          "description": "Unique solution name",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional annotations (key-value pairs for documentation)"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional labels (key-value pairs for classification/filtering)"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional list of tags"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "SolutionRemoteModel": {
+      "additionalProperties": false,
+      "description": "A named remote source of modules, charts or files, referenced elsewhere as `@<name>/<path>` (for example `source: @infra/modules/network`).\n\nA remote only says where the source is, at which ref and how to authenticate. What to take from it is chosen where it is used. Declaring a source once here gives one place to rotate credentials, one place to redirect to a mirror, and a single pinned ref per repository for the whole solution.\n\nRules:\n- Type `git` needs exactly one of `reference` (pin a branch, tag or commit SHA) and `path` (a checkout someone else already placed on disk).\n- `path` is only valid for type `git`. It implies `fetch: external`, so `fetch: strata` and `integration` are not allowed with it. It is resolved from the solution root and may use `..` or be absolute.\n- `reference` is not allowed for type `helm` or `local`; pick chart versions where the chart is used (`chart_version`).\n- For type `oci`, `reference` is required when the remote serves a non-chart artifact (pin one tag or digest) and optional when it only serves charts.\n- Type `local`: `url` is a path relative to the solution root without `..`, and `integration` and a non-default `fetch` are not allowed.\n- `url` must not embed credentials or start with `-`; put credentials in an Integration and name it in `integration`.",
+      "properties": {
+        "name": {
+          "description": "Remote name, used as the `@<name>` prefix wherever the remote is referenced (for example `@infra/modules/network`). Required.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/RemoteType",
+          "description": "What kind of source this is: git, oci, helm, or local"
+        },
+        "url": {
+          "description": "Remote location: a URL for git/oci/helm, or a solution-relative path for 'local'.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The ref every artifact of this remote is taken at: a git branch, tag or commit SHA, or an OCI tag or digest. Required for `git`. For `oci`, required when the remote serves a real image or blob (pinned at one immutable digest) and optional when it only serves Helm charts, where the version is chosen per chart with `chart_version`. Not allowed for `helm` or `local`."
+        },
+        "path": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Where a pipeline or developer already checked this git repository out. Relative to the solution root (the folder holding `strata.yaml`), for example `repos/iac-int-deployment` or, for a checkout beside the solution, `../iac-int-deployment`; or an absolute path. Strata reads it there and never clones it. Use instead of `reference` when the pipeline owns the ref; implies `fetch: external`."
+        },
+        "fetch": {
+          "$ref": "#/$defs/RemoteFetch",
+          "default": "strata",
+          "description": "Who materialises this remote on disk: 'strata' (default) fetches it, 'external' means CI or the developer already checked it out and strata must only read it. Use 'external' instead of misdeclaring the type when a pipeline clones the repo itself."
+        },
+        "integration": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Name of an Integration providing credentials for this remote (must declare the 'sources' capability). Omit for public/unauthenticated remotes and for type 'local'. Credentials are never inline here \u2014 Integration is strata's single credential mechanism."
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional description for documentation purposes"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "url"
+      ],
+      "type": "object"
+    },
+    "SolutionSpecModel": {
+      "additionalProperties": false,
+      "description": "Solution specification: where Configuration lives, and what this solution is composed of.\n\nRules:\n- Remote names must be unique, because the name is how `@<name>/...` references are resolved.",
+      "properties": {
+        "configuration": {
+          "default": "config",
+          "description": "Solution-relative path to the Configuration document(s) \u2014 either a single file or a directory whose 'kind: configuration' documents are all merged. Defaults to 'config', which is what real solutions use. Overridden by the CLI's --config-file/--config-path.",
+          "type": "string"
+        },
+        "discovery": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SolutionDiscoveryModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional discovery tuning (extra exclude patterns)"
+        },
+        "remotes": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/SolutionRemoteModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Named remote artifact sources (git/oci/helm/local), referenced elsewhere as '@<name>/<path>'\n\nRules:\n- Type `git` needs exactly one of `reference` (pin a branch, tag or commit SHA) and `path` (a checkout someone else already placed on disk).\n- `path` is only valid for type `git`. It implies `fetch: external`, so `fetch: strata` and `integration` are not allowed with it. It is resolved from the solution root and may use `..` or be absolute.\n- `reference` is not allowed for type `helm` or `local`; pick chart versions where the chart is used (`chart_version`).\n- For type `oci`, `reference` is required when the remote serves a non-chart artifact (pin one tag or digest) and optional when it only serves charts.\n- Type `local`: `url` is a path relative to the solution root without `..`, and `integration` and a non-default `fetch` are not allowed.\n- `url` must not embed credentials or start with `-`; put credentials in an Integration and name it in `integration`."
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional description for documentation purposes"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The solution manifest, `strata.yaml`, at the root of every strata solution. It names the solution, points to the Configuration (`spec.configuration`) and declares the remotes (git, OCI, Helm or local sources) that other documents reference as `@<name>/<path>`. One per solution.",
+  "properties": {
+    "apiVersion": {
+      "$ref": "#/$defs/PlatformVersion",
+      "default": "strata.huybrechts.xyz/v2",
+      "description": "API version for the solution manifest"
+    },
+    "kind": {
+      "$ref": "#/$defs/PlatformKind",
+      "default": "solution",
+      "description": "Platform kind (always 'solution')"
+    },
+    "meta": {
+      "$ref": "#/$defs/SolutionMetaModel",
+      "description": "Solution metadata (name, annotations, labels, tags)"
+    },
+    "spec": {
+      "$ref": "#/$defs/SolutionSpecModel",
+      "description": "Solution specification (configuration pointer, remotes)\n\nRules:\n- Remote names must be unique, because the name is how `@<name>/...` references are resolved."
+    }
+  },
+  "required": [
+    "meta",
+    "spec"
+  ],
+  "type": "object",
+  "examples": [
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "solution",
+      "meta": {
+        "name": "my-solution"
+      },
+      "spec": {
+        "configuration": "config"
+      }
+    },
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "solution",
+      "meta": {
+        "name": "my-solution"
+      },
+      "spec": {
+        "configuration": "config",
+        "discovery": {
+          "exclude": [
+            "templates/**"
+          ]
+        },
+        "remotes": [
+          {
+            "name": "infra",
+            "type": "git",
+            "url": "https://example.com/org/infra.git",
+            "reference": "v1.0.0"
+          },
+          {
+            "name": "charts",
+            "type": "helm",
+            "url": "https://charts.example.com"
+          }
+        ]
+      }
+    }
+  ]
+}

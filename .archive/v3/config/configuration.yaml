@@ -1,0 +1,131 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: configuration
+meta:
+  name: haven_config
+  annotations:
+    description: Haven family platform configuration — Hetzner Hearth (Docker Compose) + Forge (k3s)
+  labels:
+    version: "1.0.0"
+  tags: [haven, hetzner, configuration, family]
+spec:
+  # ---------------------------------------------------------------------------
+  # Logging
+  # ---------------------------------------------------------------------------
+  logging:
+    file: "config/logging.yaml"
+
+  # ---------------------------------------------------------------------------
+  # Deployment properties schema
+  # ---------------------------------------------------------------------------
+  deployment:
+    additional_properties: false
+    properties:
+      environment:
+        pattern: "^(prd|dev)$"
+        required: true
+        description: "Deployment environment (prd, dev)"
+
+  # ---------------------------------------------------------------------------
+  # Tool integrations
+  # ---------------------------------------------------------------------------
+  integrations:
+    - name: git
+      type: git
+      capabilities: [repository]
+      description: Git version control
+      required: true
+      validation:
+        command: git --version
+        min_version: "2.30.0"
+      authentication:
+        method: cli
+
+    - name: haven_iac
+      type: terraform
+      capabilities: [infrastructure]
+      description: >-
+        OpenTofu / Terraform infrastructure provisioner. Marked required: false
+        deliberately — strata's required-integration check is global (any
+        command touching this config, not just terraform ones), and would
+        otherwise block commands like `strata values get` (used by the Hearth
+        workflows for secret resolution only) on runners that never install
+        Terraform. deploy-infra.yml still installs it explicitly before use.
+      required: false
+      validation:
+        command: tofu version
+        min_version: "1.6.0"
+      authentication:
+        method: cli
+
+    - name: infisical
+      type: infisical
+      capabilities: [secrets]
+      description: >-
+        Infisical secrets manager — Universal Auth machine identity. Marked
+        required: false deliberately, same reasoning as haven_iac above:
+        strata's built-in `is_available()` check only looks for the
+        `infisical` CLI binary in PATH (unused here — we authenticate via
+        INFISICAL_CLIENT_ID/CLIENT_SECRET over the HTTP API, no CLI needed),
+        and the required-integration check is global rather than scoped to
+        the capability a given command actually needs. With required: true
+        this hard-aborted every strata command touching this config on any
+        runner without the CLI installed, even though secret resolution
+        works fine via the API. Genuinely missing/invalid credentials still
+        produce a clear error at actual resolution time (value_controller's
+        own "project ID not configured" / auth check), so no fail-fast
+        safety is lost — only the misleading PATH-based pre-flight check.
+      required: false
+      authentication:
+        method: oauth2
+        oauth2:
+          client_id: INFISICAL_CLIENT_ID
+          client_secret: INFISICAL_CLIENT_SECRET
+
+  # ---------------------------------------------------------------------------
+  # Providers
+  # ---------------------------------------------------------------------------
+  providers:
+    - name: hetzner
+      description: Hetzner Cloud — EU-DE (Nuremberg)
+      additional_regions: false
+      regions:
+        - name: eu-de
+          description: Europe — Nuremberg (nbg1), Falkenstein (fsn1)
+
+      additional_resources: false
+      resources:
+        - name: virtualmachine
+          category: compute
+          subcategory: virtualmachine
+          description: Hetzner Cloud Server
+          additional_configurations: false
+          configuration:
+            server_type:
+              pattern: "^(cx[0-9]+|cpx[0-9]+|cax[0-9]+|ccx[0-9]+)$"
+              required: true
+              description: "Hetzner server type (e.g. cx22, cpx41, cax21)"
+            image:
+              pattern: "^[a-z0-9][a-z0-9\\-\\.]{1,32}$"
+              required: true
+              description: "OS image slug (e.g. ubuntu-24.04, debian-12)"
+            location:
+              pattern: "^(nbg1|fsn1|hel1|ash|hil)$"
+              required: true
+              description: "Datacenter location (nbg1=Nuremberg, fsn1=Falkenstein, hel1=Helsinki)"
+
+  # ---------------------------------------------------------------------------
+  # Topologies
+  # ---------------------------------------------------------------------------
+  additional_topologies: false
+  topologies:
+    - type: single_node
+      description: Single-node Docker Compose host (Hearth — Caddy, Authentik, Vaultwarden, Portainer, WUD)
+      additional_components: false
+      components:
+        - role: node
+          description: Docker Compose host node
+          uses_module: false
+          is_control: true
+          required: true
+          min_count: 1
+          max_count: 1

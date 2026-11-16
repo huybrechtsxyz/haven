@@ -1,0 +1,226 @@
+{
+  "$defs": {
+    "AttributeConfigMetaModel": {
+      "additionalProperties": false,
+      "description": "Attribute config metadata (name, annotations, labels, tags).",
+      "properties": {
+        "name": {
+          "description": "Unique name for this attribute schema document.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional annotations (key-value pairs for documentation)"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional labels (key-value pairs for classification/filtering)"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional list of tags"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "AttributeConfigSpecModel": {
+      "additionalProperties": false,
+      "description": "An attribute schema's target binding plus the real JSON Schema fragment.",
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/AttributeConfigTargetModel",
+          "description": "What this schema validates.\n\nRules:\n- `block: composite` requires `view: effective`.\n- With `view: document`, the block must exist on the targeted kind. Blocks per kind: artifact: configuration, custom, properties; deployment: custom, properties; environment: custom, features, properties, variables; firewall: configuration, custom; integration: configuration, custom; module: configuration, custom; namespace: configuration, custom; parameterset: values; provider: configuration, custom; resource: configuration, custom; tenant: configuration, custom, properties; workspace: configuration, custom, properties.\n- `view: effective` is only valid with `kind: deployment` and a block of composite, custom, features, params, properties, variables, or with `kind: environment` or `tenant` and `block: params`."
+        },
+        "schema": {
+          "additionalProperties": true,
+          "description": "The JSON Schema (2020-12) the block must satisfy, written as ordinary JSON Schema without any strata-specific keywords. A `$ref` to a remote document is not fetched.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "target",
+        "schema"
+      ],
+      "type": "object"
+    },
+    "AttributeConfigTargetModel": {
+      "additionalProperties": false,
+      "description": "What an attribute schema applies to: a `kind`, one free-form `block` of it, optionally narrowed by a `selector`, evaluated in a `view`.\n\nRules:\n- `block: composite` requires `view: effective`.\n- With `view: document`, the block must exist on the targeted kind. Blocks per kind: artifact: configuration, custom, properties; deployment: custom, properties; environment: custom, features, properties, variables; firewall: configuration, custom; integration: configuration, custom; module: configuration, custom; namespace: configuration, custom; parameterset: values; provider: configuration, custom; resource: configuration, custom; tenant: configuration, custom, properties; workspace: configuration, custom, properties.\n- `view: effective` is only valid with `kind: deployment` and a block of composite, custom, features, params, properties, variables, or with `kind: environment` or `tenant` and `block: params`.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/PlatformKind",
+          "description": "The kind of document this schema targets (e.g. 'environment')."
+        },
+        "block": {
+          "description": "Which free-form block of the targeted kind to validate. `composite` (only with `view: effective`) validates one object holding the merged `properties`, `custom`, `variables` and `features` together, for rules that span blocks. `values` is a parameter set's own values (`view: document`). `params` (only with `view: effective`, for a deployment, environment or tenant) is the parameter-set values the document receives once its chain's sets are merged, one top-level key per role. `secrets` is deliberately not allowed, because a failure message could echo the secret value.",
+          "enum": [
+            "properties",
+            "custom",
+            "configuration",
+            "variables",
+            "features",
+            "composite",
+            "values",
+            "params"
+          ],
+          "type": "string"
+        },
+        "selector": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional field-path to required-value constraints, for example `{spec.provider_type: azure}`. Omit to match every document of `kind`. Equality only: no wildcards or regex."
+        },
+        "view": {
+          "description": "Required, no default: the two views check different data. 'document': evaluate each matching document's own block in isolation. 'effective': evaluate the merged `properties`/`custom`/`variables`/`features` of each deployable deployment instead \u2014 only valid for `kind: deployment` \u2014 or, with `block: params`, the merged parameter-set values of each deployable deployment, environment or tenant.",
+          "enum": [
+            "document",
+            "effective"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "block",
+        "view"
+      ],
+      "type": "object"
+    },
+    "PlatformKind": {
+      "description": "Enumeration of supported platform kinds.",
+      "enum": [
+        "solution",
+        "configuration",
+        "providerconfig",
+        "topologyconfig",
+        "attributeconfig",
+        "provider",
+        "resource",
+        "dns",
+        "network",
+        "firewall",
+        "module",
+        "namespace",
+        "workspace",
+        "integration",
+        "tenant",
+        "environment",
+        "deployment",
+        "version",
+        "artifact",
+        "asset",
+        "parameterset"
+      ],
+      "type": "string"
+    },
+    "PlatformVersion": {
+      "description": "Enumeration of supported platform versions.",
+      "enum": [
+        "strata.huybrechts.xyz/v2",
+        "strata.omp.com/v2"
+      ],
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A JSON Schema that validates a free-form block (`properties`, `custom`, `configuration`, `variables` or `features`) of every document of a kind, optionally filtered by a selector. Use it to type-check otherwise free-form values, for example requiring `account_tier` on every Azure storage account resource.",
+  "properties": {
+    "apiVersion": {
+      "$ref": "#/$defs/PlatformVersion",
+      "default": "strata.huybrechts.xyz/v2",
+      "description": "API version for attribute config"
+    },
+    "kind": {
+      "$ref": "#/$defs/PlatformKind",
+      "default": "attributeconfig",
+      "description": "Platform kind (always 'attributeconfig')"
+    },
+    "meta": {
+      "$ref": "#/$defs/AttributeConfigMetaModel",
+      "description": "Attribute config metadata (name, annotations, labels, tags)"
+    },
+    "spec": {
+      "$ref": "#/$defs/AttributeConfigSpecModel",
+      "description": "Attribute config specification (target, schema)"
+    }
+  },
+  "required": [
+    "meta",
+    "spec"
+  ],
+  "type": "object",
+  "examples": [
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "attributeconfig",
+      "meta": {
+        "name": "azure-storage-account-configuration"
+      },
+      "spec": {
+        "target": {
+          "kind": "resource",
+          "block": "configuration",
+          "view": "document",
+          "selector": {
+            "spec.provider_type": "azure",
+            "spec.resource_type": "storage_account"
+          }
+        },
+        "schema": {
+          "type": "object",
+          "required": [
+            "account_tier"
+          ],
+          "properties": {
+            "account_tier": {
+              "type": "string",
+              "enum": [
+                "Standard",
+                "Premium"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}

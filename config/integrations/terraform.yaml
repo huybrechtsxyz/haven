@@ -1,0 +1,14 @@
+apiVersion: strata.huybrechts.xyz/v2
+kind: integration
+meta:
+  name: terraform
+  tags: [haven, iac]
+spec:
+  type: terraform
+  capabilities: [infrastructure]
+  description: >-
+    Terraform for the Hetzner infrastructure (deploy/terraform). CI installs it
+    with hashicorp/setup-terraform; the state backend is Terraform Cloud, whose
+    TF_TOKEN_* credential is read by the CLI itself, not resolved by strata.
+  # Matches required_version in deploy/terraform/versions.tf.
+  version: ">= 1.6"

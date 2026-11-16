@@ -1,0 +1,64 @@
+name: Setup tools
+description: >-
+  Installs the tools this repository needs, at the versions in VERSIONS.env:
+  strata (with Python) by default; Terraform, Helm and ansible-core on request.
+  Also exports every VERSIONS.env key as an environment variable for later steps.
+
+inputs:
+  strata:
+    description: Install Python + strata (STRATA_VERSION)
+    default: "true"
+  terraform:
+    description: Install Terraform (TERRAFORM_VERSION)
+    default: "false"
+  helm:
+    description: Install Helm (HELM_VERSION)
+    default: "false"
+  ansible:
+    description: Install ansible-core (ANSIBLE_CORE_VERSION)
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Load VERSIONS.env
+      shell: bash
+      run: |
+        file="$GITHUB_WORKSPACE/VERSIONS.env"
+        [ -f "$file" ] || { echo "::error::VERSIONS.env not found (check out the repository first)"; exit 1; }
+        # Only KEY=VALUE lines; comments and blank lines are skipped.
+        grep -E '^[A-Z][A-Z0-9_]*=' "$file" | tee -a "$GITHUB_ENV"
+
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      if: inputs.strata == 'true' || inputs.ansible == 'true'
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install strata ${{ env.STRATA_VERSION }}
+      if: inputs.strata == 'true'
+      shell: bash
+      run: |
+        python -m pip install --quiet --upgrade pip
+        python -m pip install --quiet "xyz-strata @ git+https://github.com/huybrechtsxyz/strata.git@v${STRATA_VERSION}"
+        strata --version
+
+    - name: Install Terraform ${{ env.TERRAFORM_VERSION }}
+      if: inputs.terraform == 'true'
+      uses: hashicorp/setup-terraform@v4
+      with:
+        terraform_version: ${{ env.TERRAFORM_VERSION }}
+        terraform_wrapper: false
+
+    - name: Install Helm ${{ env.HELM_VERSION }}
+      if: inputs.helm == 'true'
+      uses: azure/setup-helm@v5
+      with:
+        version: v${{ env.HELM_VERSION }}
+
+    - name: Install ansible-core ${{ env.ANSIBLE_CORE_VERSION }}
+      if: inputs.ansible == 'true'
+      shell: bash
+      run: |
+        python -m pip install --quiet "ansible-core==${ANSIBLE_CORE_VERSION}"
+        ansible --version | head -1

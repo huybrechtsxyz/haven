@@ -1,31 +1,15 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: module
 meta:
   name: yuvomi
   annotations:
     description: Yuvomi — self-hosted family organizer (tasks, calendar, shopping, meals, budget, pantry, inventory, documents, health, and more). OIDC-only via Authentik, documents + offsite backups mirrored to Infomaniak kDrive over WebDAV.
-  labels:
-    version: "1.0.0"
   tags: [haven, forge, family, yuvomi]
 spec:
   type: helm
   source:
-    repository: haven
     source_path: services/forge/yuvomi
   kubernetes_namespace: family
-  references:
-    secrets:
-      - YUVOMI_SESSION_SECRET
-      - YUVOMI_DB_ENCRYPTION_KEY
-      - YUVOMI_SSO_CLIENT_SECRET
-      - YUVOMI_WEBDAV_URL
-      - YUVOMI_WEBDAV_USERNAME
-      - YUVOMI_WEBDAV_PASSWORD
-      - YUVOMI_IMMICH_API_KEY
-      - INFOMANIAK_EMAIL__HOST
-      - INFOMANIAK_EMAIL__PORT
-      - INFOMANIAK_EMAIL__USERNAME
-      - INFOMANIAK_EMAIL__PASSWORD
   configuration:
     image:
       repository: ghcr.io/ulsklyc/yuvomi
@@ -40,14 +24,14 @@ spec:
       DB_PATH: /data/yuvomi.db
 
       # Real values injected by strata at deploy time — never written here.
-      SESSION_SECRET: "${YUVOMI_SESSION_SECRET}"
+      SESSION_SECRET: "${secret:YUVOMI_SESSION_SECRET}"
       SESSION_SECURE: "true"
       TRUST_PROXY: "1"
 
       # SQLCipher AES-256 at rest — matches every other Haven database.
       # WARNING: cannot be changed once set; a lost key permanently locks
       # the database. See docs/services/yuvomi.md.
-      DB_ENCRYPTION_KEY: "${YUVOMI_DB_ENCRYPTION_KEY}"
+      DB_ENCRYPTION_KEY: "${secret:YUVOMI_DB_ENCRYPTION_KEY}"
 
       BASE_URL: "https://family.huybrechts.xyz"
 
@@ -56,7 +40,7 @@ spec:
       # before AUTH_ALLOW_PASSWORD_LOGIN actually takes effect.
       OIDC_ISSUER: "https://auth.huybrechts.xyz/application/o/yuvomi/"
       OIDC_CLIENT_ID: yuvomi
-      OIDC_CLIENT_SECRET: "${YUVOMI_SSO_CLIENT_SECRET}"
+      OIDC_CLIENT_SECRET: "${secret:YUVOMI_SSO_CLIENT_SECRET}"
       OIDC_REDIRECT_URI: "https://family.huybrechts.xyz/api/v1/auth/oidc/callback"
       AUTH_ALLOW_PASSWORD_LOGIN: "false"
 
@@ -71,32 +55,32 @@ spec:
       DOCUMENT_STORAGE_LOCAL_ENABLED: "true"
       DOCUMENT_STORAGE_LOCAL_PATH: /documents
       DOCUMENT_STORAGE_WEBDAV_ENABLED: "false"
-      DOCUMENT_STORAGE_WEBDAV_URL: "${YUVOMI_WEBDAV_URL}"
-      DOCUMENT_STORAGE_WEBDAV_USERNAME: "${YUVOMI_WEBDAV_USERNAME}"
-      DOCUMENT_STORAGE_WEBDAV_PASSWORD: "${YUVOMI_WEBDAV_PASSWORD}"
+      DOCUMENT_STORAGE_WEBDAV_URL: "${secret:YUVOMI_WEBDAV_URL}"
+      DOCUMENT_STORAGE_WEBDAV_USERNAME: "${secret:YUVOMI_WEBDAV_USERNAME}"
+      DOCUMENT_STORAGE_WEBDAV_PASSWORD: "${secret:YUVOMI_WEBDAV_PASSWORD}"
       DOCUMENT_STORAGE_WEBDAV_PATH: apps/yuvomi
 
       # Local (Borg-swept) backup only — kDrive offsite mirror disabled,
       # same plan-tier blocker as documents above.
       BACKUP_ENABLED: "true"
       WEBDAV_BACKUP_ENABLED: "false"
-      WEBDAV_BACKUP_URL: "${YUVOMI_WEBDAV_URL}"
-      WEBDAV_BACKUP_USERNAME: "${YUVOMI_WEBDAV_USERNAME}"
-      WEBDAV_BACKUP_PASSWORD: "${YUVOMI_WEBDAV_PASSWORD}"
+      WEBDAV_BACKUP_URL: "${secret:YUVOMI_WEBDAV_URL}"
+      WEBDAV_BACKUP_USERNAME: "${secret:YUVOMI_WEBDAV_USERNAME}"
+      WEBDAV_BACKUP_PASSWORD: "${secret:YUVOMI_WEBDAV_PASSWORD}"
       WEBDAV_BACKUP_PATH: backups/yuvomi
 
       # Shared Infomaniak mailbox — same secrets Gatus/Vaultwarden reuse.
-      EMAIL_SMTP_HOST: "${INFOMANIAK_EMAIL__HOST}"
-      EMAIL_SMTP_PORT: "${INFOMANIAK_EMAIL__PORT}"
+      EMAIL_SMTP_HOST: "${secret:INFOMANIAK_EMAIL__HOST}"
+      EMAIL_SMTP_PORT: "${secret:INFOMANIAK_EMAIL__PORT}"
       EMAIL_SMTP_SECURE: starttls
-      EMAIL_SMTP_USER: "${INFOMANIAK_EMAIL__USERNAME}"
-      EMAIL_SMTP_PASS: "${INFOMANIAK_EMAIL__PASSWORD}"
+      EMAIL_SMTP_USER: "${secret:INFOMANIAK_EMAIL__USERNAME}"
+      EMAIL_SMTP_PASS: "${secret:INFOMANIAK_EMAIL__PASSWORD}"
       EMAIL_FROM_ADDRESS: yuvomi@huybrechts.xyz
       EMAIL_FROM_NAME: Yuvomi
 
       # Immich photo screensaver / wall mode — Immich's already deployed.
       IMMICH_URL: "https://photos.huybrechts.xyz"
-      IMMICH_API_KEY: "${YUVOMI_IMMICH_API_KEY}"
+      IMMICH_API_KEY: "${secret:YUVOMI_IMMICH_API_KEY}"
       IMMICH_SCREENSAVER_ALBUM_ID: ""
     persistence:
       data:

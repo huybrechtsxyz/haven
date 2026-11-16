@@ -1,35 +1,33 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: namespace
 meta:
   name: documents
   annotations:
     description: Family document/reference library (k3s on Forge) — Kavita (PDF/TTRPG library) + Grimoire (TTRPG library manager) + Nextcloud (document archive/browsing layer), all reading from the haven-data Storage Box's docs sub-account (SMB, /mnt/haven-data-docs). Config-level mount paths are finalized; the Ansible/Terraform layer that provisions the actual SMB mount is not yet updated — see docs/guides/forge.md.
-  labels:
-    version: "1.0.0"
   tags: [haven, forge, documents, k3s, family]
 spec:
   modules:
     - name: kavita
       description: PDF/EPUB/comic library server for TTRPG PDFs and reference material
-      file: config/forge/modules/kavita.yaml
+      module: kavita
     - name: grimoire-secrets
       description: K8s Secret holding Grimoire's real OIDC client secret
-      file: config/forge/modules/grimoire-secrets.yaml
+      module: grimoire-secrets
     - name: grimoire
       description: Self-hosted TTRPG library manager (books, maps, tokens, audio, 3D models) with campaign wiki and VTT tools
-      file: config/forge/modules/grimoire.yaml
+      module: grimoire
     - name: nextcloud-secrets
       description: Shared K8s Secret holding Nextcloud's real credentials (see module comment for why this indirection exists)
-      file: config/forge/modules/nextcloud-secrets.yaml
+      module: nextcloud-secrets
     - name: nextcloud-postgres
       description: PostgreSQL for Nextcloud
-      file: config/forge/modules/nextcloud-postgres.yaml
+      module: nextcloud-postgres
     - name: nextcloud-redis
       description: Redis for Nextcloud memory caching + file locking
-      file: config/forge/modules/nextcloud-redis.yaml
+      module: nextcloud-redis
     - name: nextcloud
       description: Family document archive/browsing layer, External Storage over the haven-data Storage Box docs sub-account (/mnt/haven-data-docs)
-      file: config/forge/modules/nextcloud.yaml
+      module: nextcloud
     - name: nextcloud-scan-cron
       description: Periodic occ files:scan so files added directly via FileBrowser (or any other tool writing to the same mount) show up in Nextcloud
-      file: config/forge/modules/nextcloud-scan-cron.yaml
+      module: nextcloud-scan-cron

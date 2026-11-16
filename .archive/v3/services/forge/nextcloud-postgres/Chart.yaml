@@ -1,0 +1,8 @@
+apiVersion: v2
+name: nextcloud-postgres
+description: >
+  Minimal single-pod PostgreSQL for Nextcloud. No operator, no replication —
+  matches the same pattern as immich-postgres (a single small family server
+  doesn't need one).
+type: application
+version: "1.0.0"

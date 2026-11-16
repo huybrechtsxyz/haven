@@ -1,0 +1,32 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: nextcloud-postgres
+  annotations:
+    description: PostgreSQL for Nextcloud — single pod, no operator
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, documents, nextcloud, postgres, database]
+spec:
+  type: helm
+  source:
+    repository: haven
+    source_path: services/forge/nextcloud-postgres
+  kubernetes_namespace: documents
+  references:
+    secrets:
+      - NEXTCLOUD_DB_PASSWORD
+  configuration:
+    image:
+      repository: postgres
+      tag: 16-alpine
+    env:
+      POSTGRES_USER: nextcloud
+      POSTGRES_DB: nextcloud
+      # Real value injected by strata at deploy time — never written here.
+      POSTGRES_PASSWORD: "${NEXTCLOUD_DB_PASSWORD}"
+    persistence:
+      storageClass: local-path
+      size: 10Gi
+    service:
+      port: 5432

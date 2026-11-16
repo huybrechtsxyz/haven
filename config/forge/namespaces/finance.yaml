@@ -1,20 +1,18 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: namespace
 meta:
   name: finance
   annotations:
     description: Family personal finance tracking (k3s on Forge) — Firefly III, backed by its own PostgreSQL. SSO via Traefik forwardAuth -> Authentik (not native OIDC, see docs/services/firefly.md) — first use of this SSO pattern in the repo, not yet live-verified.
-  labels:
-    version: "1.0.0"
   tags: [haven, forge, finance, k3s, family]
 spec:
   modules:
     - name: firefly-postgres
       description: PostgreSQL for Firefly III
-      file: config/forge/modules/firefly-postgres.yaml
+      module: firefly-postgres
     - name: firefly
       description: Personal finance manager — budgets, transactions, recurring bills
-      file: config/forge/modules/firefly.yaml
+      module: firefly
     - name: firefly-importer
       description: Imports CSV/camt.053 bank statement files into Firefly III — web UI for per-bank config setup + a CronJob that auto-imports from a shared folder
-      file: config/forge/modules/firefly-importer.yaml
+      module: firefly-importer

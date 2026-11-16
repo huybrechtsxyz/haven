@@ -1,5 +1,5 @@
 # Defaults — override via the strata module's spec.configuration (see
-# config/forge/modules/postgres-immich.yaml).
+# config/forge/modules/immich-postgres.yaml).
 image:
   # Official immich-app image — Postgres 14 with the vectorchord extension
   # pre-installed. See https://github.com/immich-app/immich/blob/main/docker/docker-compose.yml
@@ -9,7 +9,7 @@ image:
 env:
   POSTGRES_USER: immich
   POSTGRES_DB: immich
-  # Set via ${IMMICH_DB_PASSWORD} substitution token — never a literal value here.
+  # Set by the module as `${secret:IMMICH_DB_PASSWORD}` — never a literal value here.
   POSTGRES_PASSWORD: ""
 
 persistence:

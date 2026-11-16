@@ -1,0 +1,106 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: grimoire
+  annotations:
+    description: Grimoire — self-hosted TTRPG library manager (books, maps, tokens, audio, 3D models) with campaign wiki and VTT tools
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, documents, grimoire, ttrpg, library]
+spec:
+  type: helm
+  source:
+    repository: haven
+    source_path: services/forge/grimoire
+  kubernetes_namespace: documents
+  references:
+    secrets:
+      - GRIMOIRE_SSO_CLIENT_SECRET # not read directly — grimoire-secrets.yaml renders the actual K8s Secret this module points at via a plain secretKeyRef
+  configuration:
+    image:
+      repository: hunterreadca/grimoire
+      tag: latest
+    env:
+      WORKERS: "2"
+      BASE_URL: https://grimoire.huybrechts.xyz
+      OPDS_ENABLED: "true"
+      # SSO — Grimoire's own built-in OIDC client (OIDC_* env vars pin the
+      # Settings → Authentication fields read-only). issuer_mode:
+      # per_provider on the Authentik side (see authentik-blueprint.yaml.j2),
+      # so this matches the same https://auth.huybrechts.xyz/application/o/
+      # grimoire/ per-app discovery URL every other app in this repo uses.
+      # OIDC_CLIENT_SECRET itself is NOT here — sourced via secretKeyRef
+      # from the grimoire-secrets K8s Secret instead (see deployment.yaml).
+      OIDC_ENABLED: "true"
+      OIDC_ISSUER_URL: https://auth.huybrechts.xyz/application/o/grimoire/
+      OIDC_CLIENT_ID: grimoire
+      # Groups/permissions claims populated by two custom Authentik scope
+      # mappings (Grimoire Groups / Grimoire Permissions) that translate the
+      # dedicated grimoire-admin/grimoire-gm/grimoire-player/nsfw Authentik
+      # groups into the bare admin/gm/player + viewNSFW values Grimoire's
+      # own OIDC_GROUPS_CLAIM/OIDC_PERMISSIONS_CLAIM expect — see
+      # docs/services/grimoire.md's SSO section and
+      # authentik-blueprint.yaml.j2's mapping-grimoire-groups/permissions.
+      OIDC_GROUPS_CLAIM: groups
+      OIDC_PERMISSIONS_CLAIM: permissions
+      OIDC_MATCH_BY: email
+      OIDC_AUTO_REGISTER: "true"
+      OIDC_BUTTON_TEXT: "Sign in with Authentik"
+      # "Everyone goes through Authentik, always" (2026-09-25 decision) — no
+      # local Grimoire accounts, no dead login form to skip past. First-run
+      # admin setup is exempt from ALLOW_PASSWORD_AUTHENTICATION regardless
+      # (Grimoire always requires it for that one-time bootstrap) — keep
+      # that original admin password documented somewhere safe (e.g.
+      # Bitwarden): it's the only recovery path if Authentik itself is ever
+      # down, by temporarily unsetting this var and redeploying.
+      OIDC_AUTO_LAUNCH: "true"
+      ALLOW_PASSWORD_AUTHENTICATION: "false"
+
+    # Name of the K8s Secret grimoire-secrets.yaml renders — must be set
+    # explicitly here (not left to the chart's own values.yaml default),
+    # since this module's configuration block replaces the chart's default
+    # values at deploy time rather than merging on top of them (confirmed
+    # 2026-09-24: a deploy without this key here failed with "nil pointer
+    # evaluating interface {}.name" at deployment.yaml's secretKeyRef.name,
+    # even though a local `helm template` using the chart's own values.yaml
+    # worked fine).
+    secrets:
+      name: grimoire-secrets
+
+    persistence:
+      data:
+        storageClass: local-path
+        size: 10Gi
+    # Same haven-data Storage Box docs sub-account tree as Nextcloud/Kavita,
+    # SMB-mounted on the host at /mnt/haven-data-docs. Mounted read-only,
+    # same "apps only read, Nextcloud is where family uploads happen"
+    # convention used for Kavita — Grimoire's in-app file management
+    # (upload/rename/delete) is intentionally unavailable as a result.
+    library:
+      # Grimoire-only content Kavita has no concept of (maps, tokens, audio,
+      # 3D models) — a dedicated ttrpg/ subfolder, mounted at /library root.
+      hostPath: /mnt/haven-data-docs/ttrpg
+      # A SUBFOLDER of the same physical books/ folder Kavita reads from —
+      # bind-mounted at /library/books so Grimoire indexes only the
+      # TTRPG-specific books under books/ttrpg/, not Kavita's entire
+      # ~20K-book library. See docs/services/grimoire.md's Storage section.
+      booksHostPath: /mnt/haven-data-docs/books/ttrpg
+    # service.port is hardcoded to 9481 directly in the chart's templates —
+    # see services/forge/grimoire/values.yaml's comment for why this isn't
+    # a values key.
+    # Staging-first cert-manager pattern, same as every other Forge app —
+    # grimoire.huybrechts.xyz had never had a cert issued before, so its
+    # HTTP-01 challenge was proven via staging first, then flipped to
+    # letsencrypt-prod (2026-09-24) after confirming
+    # `kubectl describe certificate grimoire-tls -n documents` showed
+    # Ready: True. See docs/services/grimoire.md.
+    ingress:
+      enabled: true
+      className: traefik
+      host: grimoire.huybrechts.xyz
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      tls:
+        - hosts:
+            - grimoire.huybrechts.xyz
+          secretName: grimoire-tls

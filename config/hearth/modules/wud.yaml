@@ -1,25 +1,24 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: module
 meta:
   name: wud
   annotations:
-    description: What's Up Docker — container image update notifications with web UI
-  labels:
-    version: "1.0.0"
+    description: What's Up Docker - container image update notifications with web UI
   tags: [haven, hearth, wud, monitoring, updates]
 spec:
-  source:
-    repository: haven
-    source_path: services/hearth/wud
   type: compose
-  references:
-    secrets:
-      - WUD_SSO_CLIENT_SECRET
+  source:
+    # No files of its own: only the Compose service below is rendered (the
+    # namespace's merged docker-compose.yml). strata needs an existing path.
+    source_path: services/hearth
   services:
     - name: wud
       image: fmartinou/whats-up-docker:6.6.1
       restart: unless-stopped
-      # Cross-module depends_on via configuration block (verbatim merge into compose output)
+      # Wait for Authentik to be *healthy*, not just started. Done through
+      # `configuration` (merged verbatim into the Compose entry) because the
+      # native `depends_on: ["@authentik/server"]` renders a plain list
+      # without a condition.
       configuration:
         depends_on:
           authentik-server:
@@ -34,7 +33,7 @@ spec:
         - key: WUD_AUTH_OIDC_AUTHENTIK_CLIENTID
           value: wud
         - key: WUD_AUTH_OIDC_AUTHENTIK_CLIENTSECRET
-          secret: WUD_SSO_CLIENT_SECRET
+          value: "${secret:WUD_SSO_CLIENT_SECRET}"
         - key: WUD_AUTH_OIDC_AUTHENTIK_DISCOVERY
           value: https://auth.huybrechts.xyz/application/o/wud/.well-known/openid-configuration
         - key: WUD_AUTH_OIDC_AUTHENTIK_REDIRECT

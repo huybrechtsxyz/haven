@@ -1,0 +1,306 @@
+{
+  "$defs": {
+    "PlatformKind": {
+      "description": "Enumeration of supported platform kinds.",
+      "enum": [
+        "solution",
+        "configuration",
+        "providerconfig",
+        "topologyconfig",
+        "attributeconfig",
+        "provider",
+        "resource",
+        "dns",
+        "network",
+        "firewall",
+        "module",
+        "namespace",
+        "workspace",
+        "integration",
+        "tenant",
+        "environment",
+        "deployment",
+        "version",
+        "artifact",
+        "asset",
+        "parameterset"
+      ],
+      "type": "string"
+    },
+    "PlatformVersion": {
+      "description": "Enumeration of supported platform versions.",
+      "enum": [
+        "strata.huybrechts.xyz/v2",
+        "strata.omp.com/v2"
+      ],
+      "type": "string"
+    },
+    "ProviderConfigMetaModel": {
+      "additionalProperties": false,
+      "description": "Provider config metadata (name, annotations, labels, tags).\n\n`name` is the provider type key (e.g. 'kamatera', 'azure') \u2014 matched against a real `Provider` document's `spec.type`.",
+      "properties": {
+        "name": {
+          "description": "Provider type name (e.g. kamatera, azure)",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional annotations (key-value pairs for documentation)"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional labels (key-value pairs for classification/filtering)"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional list of tags"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "ProviderConfigRegionModel": {
+      "additionalProperties": false,
+      "description": "A provider type's supported region, with an optional geography tag.",
+      "properties": {
+        "name": {
+          "description": "Region identifier (e.g. eu-west-1, westeurope)",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "geography": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional compliance boundary this region belongs to (for example `europe` or `us`), declared once here per region. A Tenant lists the geographies it allows, and a deployment's provider region must be inside one of them."
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional description of the region"
+        },
+        "custom": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Free-form key/value pairs stored with the region; strata itself does not read them."
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "ProviderConfigResourceModel": {
+      "additionalProperties": false,
+      "description": "A provider type's supported resource type configuration.",
+      "properties": {
+        "name": {
+          "description": "Unique name for the configuration resource.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Resource category (e.g., compute, storage, networking)"
+        },
+        "subcategory": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Resource subcategory (e.g., virtualmachine, blob, api_gateway)"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Description of the resource type"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "ProviderConfigSpecModel": {
+      "additionalProperties": false,
+      "description": "A provider type's registry entry: valid regions and resource types.\n\nRules:\n- `regions` is required and must be non-empty unless `additional_regions` is true.\n- `resources` is required and must be non-empty unless `additional_resources` is true.\n- Region names must be unique, and resource names must be unique.",
+      "properties": {
+        "description": {
+          "description": "Description of the provider type",
+          "type": "string"
+        },
+        "additional_regions": {
+          "default": false,
+          "description": "Allow regions not listed in the configuration for this provider",
+          "type": "boolean"
+        },
+        "regions": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ProviderConfigRegionModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "List of supported regions for this provider, each a {name, geography, description, custom} entry. 'geography' is an optional tag grouping several regions under a shared compliance/deployment boundary (e.g. Azure's 'geography' concept: {name: eu-west-1, geography: europe}). Geography membership is declared once here, per region, not duplicated on individual Provider documents."
+        },
+        "additional_resources": {
+          "default": false,
+          "description": "Allow resource types not listed in the configuration for this provider",
+          "type": "boolean"
+        },
+        "resources": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ProviderConfigResourceModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "List of supported resource types for this provider"
+        }
+      },
+      "required": [
+        "description"
+      ],
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Registry entry for one provider type (for example `azure`): the regions and resource types that `provider` and `resource` documents of that type may use. Create one per provider type and list its name in the Configuration's `spec.providers`. `meta.name` is matched against a Provider's `spec.type`.",
+  "properties": {
+    "apiVersion": {
+      "$ref": "#/$defs/PlatformVersion",
+      "default": "strata.huybrechts.xyz/v2",
+      "description": "API version for provider config"
+    },
+    "kind": {
+      "$ref": "#/$defs/PlatformKind",
+      "default": "providerconfig",
+      "description": "Platform kind (always 'providerconfig')"
+    },
+    "meta": {
+      "$ref": "#/$defs/ProviderConfigMetaModel",
+      "description": "Provider config metadata (name, annotations, labels, tags)"
+    },
+    "spec": {
+      "$ref": "#/$defs/ProviderConfigSpecModel",
+      "description": "Provider config specification (regions, resources)\n\nRules:\n- `regions` is required and must be non-empty unless `additional_regions` is true.\n- `resources` is required and must be non-empty unless `additional_resources` is true.\n- Region names must be unique, and resource names must be unique."
+    }
+  },
+  "required": [
+    "meta",
+    "spec"
+  ],
+  "type": "object",
+  "examples": [
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "providerconfig",
+      "meta": {
+        "name": "azure"
+      },
+      "spec": {
+        "description": "Microsoft Azure provider type",
+        "regions": [
+          {
+            "name": "westeurope",
+            "geography": "europe"
+          },
+          {
+            "name": "northeurope",
+            "geography": "europe"
+          }
+        ],
+        "resources": [
+          {
+            "name": "storage_account",
+            "category": "storage"
+          },
+          {
+            "name": "key_vault",
+            "category": "security"
+          }
+        ]
+      }
+    }
+  ]
+}

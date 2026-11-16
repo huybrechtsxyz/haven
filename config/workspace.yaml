@@ -1,0 +1,141 @@
+apiVersion: strata.huybrechts.xyz/v2
+kind: workspace
+meta:
+  # Kept as `haven_platform`: the Terraform root derives the live Hetzner names
+  # from it (haven-platform-hearth, haven-platform-fw-forge, ...). Renaming it
+  # renames real servers, firewalls and the network.
+  name: haven_platform
+  annotations:
+    description: Family platform workspace - Hearth VPS (Docker Compose) + Forge VPS (k3s) on Hetzner
+  tags: [haven, hetzner, platform, family]
+spec:
+  # Terraform addresses it as `local.strata.providers.hetzner`.
+  providers:
+    - slot: hetzner
+      provider: hetzner-eu-de
+
+  provisioners:
+    - name: terraform
+      tool: terraform
+      description: Hetzner infrastructure - both VMs, their firewalls, the private network and SSH key.
+      source:
+        source_path: deploy/terraform
+        target_path: terraform
+      # No `backend`: the state lives in Terraform Cloud through the `cloud {}`
+      # block in deploy/terraform/versions.tf (organization huybrechts-xyz,
+      # workspace haven_deploy_prd). The CLI reads TF_TOKEN_app_terraform_io.
+
+    - name: compose
+      tool: compose
+      description: >-
+        Renders Hearth's merged docker-compose.yml at build. Never deployed by
+        strata: strata's compose deployer targets Docker Swarm (`docker stack`),
+        while Hearth runs plain `docker compose`, driven over SSH by
+        deploy-hearth-deploy.yml / deploy/ansible-hearth/hearth-deploy.yml.
+      source:
+        source_path: services/hearth
+
+    - name: helm
+      tool: helm
+      description: Deploys the Helm modules of Forge's k3s namespaces.
+      source:
+        # Each module declares its own chart source (registry chart or local
+        # chart path); this only has to point somewhere valid.
+        source_path: services/forge
+
+  execution:
+    # Both VMs come from one Terraform root (deploy/terraform/main.tf declares
+    # the hearth + forge modules together), so one step, one plan, one state.
+    - name: infrastructure
+      provisioner: terraform
+      topologies: [hearth, forge]
+      scope: infra
+
+    # Build-only: `strata build run` renders build/<deployment>/hearth/docker-compose.yml,
+    # which the Hearth workflow ships to the VM. Never select this step in `deploy run`.
+    - name: applications_hearth
+      provisioner: compose
+      namespaces: [hearth]
+      depends_on: [infrastructure]
+      scope: hearth
+
+    # Forge's Helm modules (k3s), deployed in this order.
+    - name: applications_forge
+      provisioner: helm
+      namespaces:
+        - system    # 1st - cert-manager (other namespaces' ingresses depend on its ClusterIssuers)
+        - immich    # 2nd - self-contained, no shared-storage dependency
+        - media     # 3rd - self-contained, no shared-storage dependency
+        - documents # 4th - blocked on the haven-data Storage Box docs SMB mount migration (see docs/guides/forge.md)
+        - finance   # 5th - Firefly III, own local-path PVC only
+        - gaming    # 6th - FoundryVTT, own local-path PVC only
+        - family    # 7th - Yuvomi (family organizer), own local-path PVCs only
+      depends_on: [infrastructure]
+      scope: apps
+
+  topology:
+    - name: hearth
+      type: compose
+      components:
+        - resource: hearth
+      namespaces:
+        - namespace: hearth
+      volumes:
+        - name: config
+          type: local
+        - name: data
+          type: local
+        - name: logs
+          type: local
+        - name: certs
+          type: local
+
+    - name: forge
+      type: k3s
+      components:
+        - resource: forge
+      namespaces:
+        - namespace: system
+        - namespace: immich
+        - namespace: media
+        - namespace: documents
+        - namespace: finance
+        - namespace: gaming
+        - namespace: family
+      volumes:
+        - name: k3s
+          type: local
+        - name: data
+          type: local
+        - name: data-media
+          type: local # SMB mount managed by Ansible - haven-data Storage Box, media sub-account (Immich + Jellyfin)
+        - name: data-docs
+          type: local # SMB mount managed by Ansible - haven-data Storage Box, docs sub-account (Nextcloud + Kavita)
+
+  # Instance names (`hearth`, `forge`) are what Terraform sees: local.strata.resources.<name>.
+  resources:
+    - name: hearth
+      resource: hearth-vm
+      role: node
+      count: 1
+      firewalls: [hearth-firewall]
+
+    - name: forge
+      resource: forge-vm
+      role: node
+      count: 1
+      firewalls: [forge-firewall]
+
+  firewalls:
+    - hearth-firewall
+    - forge-firewall
+
+  namespaces:
+    - hearth
+    - system
+    - immich
+    - media
+    - documents
+    - finance
+    - gaming
+    - family

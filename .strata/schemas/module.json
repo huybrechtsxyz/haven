@@ -4,13 +4,12 @@
       "additionalProperties": {
         "$ref": "#/$defs/CommonLifecyclePhaseModel"
       },
-      "default": {},
-      "description": "Lifecycle phases for common models.\nMaps phase names to phase configurations.\nPhase names follow pattern: {command}_{action}_{suffix}\nExamples: config_clear, config_fetch, deploy_plan_before, deploy_apply_after",
-      "title": "CommonLifecycleModel",
+      "description": "Lifecycle phases for common models.\n\nMaps phase names to phase configurations. Phase names follow the pattern ``{command}_{action}_{suffix}``, e.g. ``deploy_plan_before``, ``deploy_provision``, ``deploy_destroy_after``, ``config_clear``. This is an open map (any phase name is allowed) rather than a fixed set of fields, since each kind and provisioner type defines its own set of supported phases.",
       "type": "object"
     },
     "CommonLifecyclePhaseModel": {
-      "description": "Model for common lifecycle phase with script validation.",
+      "additionalProperties": false,
+      "description": "Lifecycle phase configuration: a description plus its scripts.",
       "properties": {
         "description": {
           "anyOf": [
@@ -21,9 +20,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional description for documentation purposes",
-          "title": "Description"
+          "description": "Optional description for documentation purposes"
         },
         "scripts": {
           "anyOf": [
@@ -44,14 +41,13 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Scripts"
+          "description": "Scripts to run. Each entry is a path relative to the solution root, with one of the extensions bash, go, js, mjs, ps1, py, sh, or an object with `file`, `scope`, `priority` and `target`."
         }
       },
-      "title": "CommonLifecyclePhaseModel",
       "type": "object"
     },
     "ModuleCheckModel": {
+      "additionalProperties": false,
       "description": "Model for a module health check configuration.",
       "properties": {
         "name": {
@@ -59,7 +55,6 @@
           "maxLength": 64,
           "minLength": 1,
           "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Name",
           "type": "string"
         },
         "label": {
@@ -71,9 +66,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Label for the health check",
-          "title": "Label"
+          "description": "Label for the health check"
         },
         "target": {
           "anyOf": [
@@ -84,9 +77,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Target resource for the health check",
-          "title": "Target"
+          "description": "Target resource for the health check"
         },
         "type": {
           "anyOf": [
@@ -97,9 +88,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Type of health check (e.g., http, tcp, command)",
-          "title": "Type"
+          "description": "Type of health check (e.g., http, tcp, command)"
         },
         "interval": {
           "anyOf": [
@@ -110,9 +99,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Interval between health checks (e.g., '30s')",
-          "title": "Interval"
+          "description": "Interval between health checks (e.g., '30s')"
         },
         "timeout": {
           "anyOf": [
@@ -123,9 +110,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Timeout for each health check (e.g., '5s')",
-          "title": "Timeout"
+          "description": "Timeout for each health check (e.g., '5s')"
         },
         "retries": {
           "anyOf": [
@@ -136,9 +121,18 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Number of retries before marking as unhealthy",
-          "title": "Retries"
+          "description": "Number of retries before marking as unhealthy"
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Endpoint URL for HTTP-type health checks"
         },
         "command": {
           "anyOf": [
@@ -152,18 +146,16 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Command to run for 'command' type health checks",
-          "title": "Command"
+          "description": "Command to run for 'command' type health checks"
         }
       },
       "required": [
         "name"
       ],
-      "title": "ModuleCheckModel",
       "type": "object"
     },
     "ModuleEndpointModel": {
+      "additionalProperties": false,
       "description": "Model for a module endpoint configuration.",
       "properties": {
         "name": {
@@ -178,9 +170,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Name of the endpoint",
-          "title": "Name"
+          "description": "Name of the endpoint"
         },
         "label": {
           "anyOf": [
@@ -191,9 +181,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Label for the endpoint",
-          "title": "Label"
+          "description": "Label for the endpoint"
         },
         "url": {
           "anyOf": [
@@ -204,9 +192,18 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "URL or address of the endpoint",
-          "title": "Url"
+          "description": "URL or address of the endpoint"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Human-readable description of the endpoint"
         },
         "type": {
           "anyOf": [
@@ -217,9 +214,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Type of endpoint (e.g., http, tcp)",
-          "title": "Type"
+          "description": "Type of endpoint (e.g., http, tcp)"
         },
         "port": {
           "anyOf": [
@@ -230,9 +225,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Port number for the endpoint",
-          "title": "Port"
+          "description": "Port number for the endpoint"
         },
         "protocol": {
           "anyOf": [
@@ -243,23 +236,39 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Protocol for the endpoint (e.g., tcp, udp)",
-          "title": "Protocol"
+          "description": "Protocol for the endpoint (e.g., tcp, udp)"
         }
       },
-      "title": "ModuleEndpointModel",
+      "type": "object"
+    },
+    "ModuleFileModel": {
+      "additionalProperties": false,
+      "description": "A file or glob to copy unchanged into the module's build output directory. Accepted and validated, but strata does not copy these files yet.\n\nRules:\n- A glob in `source` requires `target` to be a directory, written with a trailing `/`.\n- `source` and `target` must be relative: no leading `/` and no `..` (a `source` may start with `@<remote>/`).",
+      "properties": {
+        "source": {
+          "description": "Source file path or glob pattern. Supports @repo/ cross-repository references. Examples: 'services/traefik/traefik.yaml', '@infra/configs/*', 'scripts/**/*.sh'",
+          "type": "string"
+        },
+        "target": {
+          "description": "Relative destination path inside the module's build output directory. Use a trailing '/' to indicate a directory (required when source is a glob). Examples: 'traefik.yaml', 'config/', 'conf.d/'",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "target"
+      ],
       "type": "object"
     },
     "ModuleMetaModel": {
-      "description": "Model for module metadata (name, annotations, labels, tags).",
+      "additionalProperties": false,
+      "description": "Module metadata (name, annotations, labels, tags).",
       "properties": {
         "name": {
           "description": "Unique module name",
           "maxLength": 64,
           "minLength": 1,
           "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Name",
           "type": "string"
         },
         "annotations": {
@@ -272,9 +281,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional annotations (key-value pairs for documentation)",
-          "title": "Annotations"
+          "description": "Optional annotations (key-value pairs for documentation)"
         },
         "labels": {
           "anyOf": [
@@ -286,9 +293,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional labels (key-value pairs for classification/filtering)",
-          "title": "Labels"
+          "description": "Optional labels (key-value pairs for classification/filtering)"
         },
         "tags": {
           "anyOf": [
@@ -300,19 +305,17 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional list of tags for the module",
-          "title": "Tags"
+          "description": "Optional list of tags for the module"
         }
       },
       "required": [
         "name"
       ],
-      "title": "ModuleMetaModel",
       "type": "object"
     },
     "ModuleMountModel": {
-      "description": "Model for a module mount configuration.",
+      "additionalProperties": false,
+      "description": "A mount for a module or one of its services. For Compose use `volume_ref` (a named volume); for Kubernetes use `storage_class` to request a PersistentVolumeClaim.\n\nRules:\n- `volume_ref` and `storage_class` are mutually exclusive.\n- `storage_size` is required when `storage_class` is set.",
       "properties": {
         "name": {
           "anyOf": [
@@ -326,9 +329,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Name of the mount",
-          "title": "Name"
+          "description": "Name of the mount"
         },
         "type": {
           "anyOf": [
@@ -339,11 +340,9 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Type of the mount (e.g., volume, bind)",
-          "title": "Type"
+          "description": "Type of the mount (e.g., volume, bind)"
         },
-        "change_mod": {
+        "chmod": {
           "anyOf": [
             {
               "type": "string"
@@ -352,9 +351,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Permissions for the mount (e.g., '755')",
-          "title": "Change Mod"
+          "description": "Permissions for the mount (e.g., '0644', '0600')"
         },
         "target_path": {
           "anyOf": [
@@ -365,9 +362,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Path inside the module",
-          "title": "Target Path"
+          "description": "Path inside the module"
         },
         "source_path": {
           "anyOf": [
@@ -378,9 +373,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Source path of the mount (bind mount host path)",
-          "title": "Source Path"
+          "description": "Source path of the mount (bind mount host path)"
         },
         "description": {
           "anyOf": [
@@ -391,9 +384,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Description of the mount",
-          "title": "Description"
+          "description": "Description of the mount"
         },
         "volume_ref": {
           "anyOf": [
@@ -404,9 +395,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Name of a WorkspaceVolumeModel to mount. Builder emits a Docker named volume. Mutually exclusive with storage_class.",
-          "title": "Volume Ref"
+          "description": "Name of the Compose named volume to mount. Mutually exclusive with `storage_class`."
         },
         "storage_class": {
           "anyOf": [
@@ -417,9 +406,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Kubernetes StorageClass name (e.g. 'standard', 'fast-ssd'). When set, builder generates a PVC. Mutually exclusive with volume_ref.",
-          "title": "Storage Class"
+          "description": "Kubernetes StorageClass name (for example `standard`). A Helm module then gets a `persistence` entry in its values with the class, `access_mode` and `storage_size`. Mutually exclusive with `volume_ref`."
         },
         "access_mode": {
           "anyOf": [
@@ -430,9 +417,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "PVC access mode (e.g. 'ReadWriteOnce', 'ReadWriteMany'). Defaults to 'ReadWriteOnce'.",
-          "title": "Access Mode"
+          "description": "PVC access mode (e.g. 'ReadWriteOnce', 'ReadWriteMany'). Defaults to 'ReadWriteOnce'."
         },
         "storage_size": {
           "anyOf": [
@@ -443,203 +428,40 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "PVC storage size (e.g. '10Gi'). Required when storage_class is set.",
-          "title": "Storage Size"
+          "description": "PVC storage size (e.g. '10Gi'). Required when storage_class is set."
         }
       },
-      "title": "ModuleMountModel",
-      "type": "object"
-    },
-    "ModulePropertiesModel": {
-      "description": "Model for module-specific properties and configurations.",
-      "properties": {
-        "mounts": {
-          "anyOf": [
-            {
-              "items": {
-                "$ref": "#/$defs/ModuleMountModel"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "List of module mount configurations",
-          "title": "Mounts"
-        },
-        "checks": {
-          "anyOf": [
-            {
-              "items": {
-                "$ref": "#/$defs/ModuleCheckModel"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "List of module health check configurations",
-          "title": "Checks"
-        },
-        "endpoints": {
-          "anyOf": [
-            {
-              "items": {
-                "$ref": "#/$defs/ModuleEndpointModel"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "List of module endpoint configurations",
-          "title": "Endpoints"
-        }
-      },
-      "title": "ModulePropertiesModel",
-      "type": "object"
-    },
-    "ModuleReferenceModel": {
-      "description": "References to variables, secrets, and features required by this module.\n\nLists the keys that must be defined in the environment configuration.\nActual values and store backends are defined at environment/workspace level.\n\nSimilar to how SourceModel references repositories by name, this model\nreferences variable/secret/feature keys by name.",
-      "properties": {
-        "variables": {
-          "anyOf": [
-            {
-              "items": {
-                "minLength": 1,
-                "type": "string"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "List of variable keys this module requires from environment",
-          "title": "Variables"
-        },
-        "secrets": {
-          "anyOf": [
-            {
-              "items": {
-                "minLength": 1,
-                "type": "string"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "List of secret keys this module requires from environment",
-          "title": "Secrets"
-        },
-        "features": {
-          "anyOf": [
-            {
-              "items": {
-                "minLength": 1,
-                "type": "string"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "List of feature flag keys this module requires from environment",
-          "title": "Features"
-        }
-      },
-      "title": "ModuleReferenceModel",
       "type": "object"
     },
     "ModuleServiceEnvironmentModel": {
-      "description": "One environment variable on a service container.\n\nExactly one of value / var / secret / feature must be set:\n  - value:   literal string written directly into the artifact\n  - var:     key in module spec.references.variables \u2014 resolved at build time\n  - secret:  key in module spec.references.secrets \u2014 emitted as ${KEY} substitution,\n             injected via .env file (compose) or --set flag (helm) at deploy time\n  - feature: key in module spec.references.features \u2014 resolved to \"true\"/\"false\"\n\nExample::\n\n    environment:\n      - key: POSTGRES_PASSWORD\n        secret: DB_PASSWORD\n      - key: TZ\n        value: Europe/Brussels\n      - key: APP_VERSION\n        var: APP_VERSION",
+      "additionalProperties": false,
+      "description": "One environment variable of a service. `value` is a literal, or contains value tokens such as `${var:KEY}`, `${secret:KEY}` or `${feature:KEY}`, resolved at build or deploy time.",
       "properties": {
         "key": {
           "description": "Environment variable name (e.g. POSTGRES_PASSWORD)",
-          "title": "Key",
           "type": "string"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Literal environment variable value",
-          "title": "Value"
-        },
-        "var": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Variable key from module references.variables \u2014 resolved at build time",
-          "title": "Var"
-        },
-        "secret": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Secret key from module references.secrets \u2014 emitted as ${KEY} substitution",
-          "title": "Secret"
-        },
-        "feature": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Feature flag key from module references.features \u2014 resolved to 'true'/'false'",
-          "title": "Feature"
+          "description": "Literal value, or a string containing '${var:KEY}'/'${secret:KEY}'/'${feature:KEY}' tokens.",
+          "minLength": 1,
+          "type": "string"
         }
       },
       "required": [
-        "key"
+        "key",
+        "value"
       ],
-      "title": "ModuleServiceEnvironmentModel",
       "type": "object"
     },
     "ModuleServiceModel": {
-      "description": "One container (or sub-chart component) within a module.\n\nFor compose modules, each service maps to a Docker Compose service entry.\nFor helm modules, each service maps to a values section / sub-chart configuration.\nService names are prefixed with the module name by the builder to avoid collisions\n(e.g. service 'redis' in module 'authentik' becomes 'authentik-redis' in compose).\nException: if module.name == service.name the prefix is omitted.\n\n``depends_on`` is intra-module only \u2014 list short service names within THIS module.\nThe builder rewrites them to the prefixed form automatically.",
+      "additionalProperties": false,
+      "description": "One container (or sub-chart component) of a module. For Compose each service becomes a Compose service; for Helm each becomes a section of the chart's values.\n\nService names are prefixed with the module name (service `redis` of module `authentik` becomes `authentik-redis`), except when a service has the same name as its module.\n\nRules:\n- `image` and `artifact` are mutually exclusive: use one or the other.",
       "properties": {
         "name": {
           "description": "Service identifier within the module",
           "maxLength": 64,
           "minLength": 1,
           "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Name",
           "type": "string"
         },
         "image": {
@@ -651,9 +473,22 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Container image and tag (e.g. 'postgres:16-alpine'). Omit for Helm charts that define their own image.",
-          "title": "Image"
+          "description": "Container image and tag (e.g. 'postgres:16-alpine'). Omit for Helm charts that define their own image. Mutually exclusive with `artifact`."
+        },
+        "artifact": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string",
+              "x-strata-references": "artifact"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Name of an Artifact document that supplies this service's image (its `image_name` and `image_tag`; a Version document can pin it). Mutually exclusive with `image`: use `image` for a literal, unpinned string. For a Helm module it is a declaration only: write it into the chart's values with an `${artifact:NAME.FIELD}` token in `configuration`."
         },
         "command": {
           "anyOf": [
@@ -667,9 +502,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Override the container entrypoint/command (e.g. ['worker'] for Authentik worker)",
-          "title": "Command"
+          "description": "Override the container entrypoint or command, for example `[worker]`. Used for Compose; Helm ignores it."
         },
         "restart": {
           "anyOf": [
@@ -680,9 +513,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Compose restart policy (e.g. 'unless-stopped'). Ignored by helm/argocd.",
-          "title": "Restart"
+          "description": "Compose restart policy (e.g. 'unless-stopped'). Ignored by helm/argocd."
         },
         "environment": {
           "anyOf": [
@@ -696,9 +527,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Environment variables for this service. Use var/secret/feature refs to avoid plaintext secrets.",
-          "title": "Environment"
+          "description": "Environment variables for this service, used by both Compose and Helm. Use `${secret:KEY}`, `${var:KEY}` or `${feature:KEY}` tokens to keep secrets out of plaintext."
         },
         "ports": {
           "anyOf": [
@@ -712,9 +541,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Port mappings in '\"host:container\"' format (e.g. '8080:80'). Compose only \u2014 ignored by helm/argocd (Kubernetes Services handle exposure).",
-          "title": "Ports"
+          "description": "Port mappings as `host:container`, for example `8080:80`. Used for Compose; Helm and Argo CD expose ports through Kubernetes Services."
         },
         "mounts": {
           "anyOf": [
@@ -728,9 +555,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Volume and bind mounts for this service. Use volume_ref for named volumes, storage_class for Kubernetes PVCs.",
-          "title": "Mounts"
+          "description": "Volume and bind mounts. Use `volume_ref` for Compose named volumes and `storage_class` for Kubernetes persistent volume claims.\n\nRules:\n- `volume_ref` and `storage_class` are mutually exclusive.\n- `storage_size` is required when `storage_class` is set."
         },
         "depends_on": {
           "anyOf": [
@@ -744,9 +569,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Short service names within this module that must start before this service. Intra-module only. Builder rewrites to prefixed names automatically.",
-          "title": "Depends On"
+          "description": "Services that must start first. Use short names for services of this module (for example `redis`), and `@module/service` (or `@module` when the service has the module's name) for another module in the same namespace. Names of this module's services are checked when the document is loaded, cross-module names at build time. Used for Compose; Helm ignores it."
         },
         "healthcheck": {
           "anyOf": [
@@ -757,8 +580,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Health check for this service. Maps to Docker Compose healthcheck or Kubernetes readinessProbe depending on module type."
+          "description": "Health check for this service, rendered as a Compose healthcheck. Helm modules do not use it."
         },
         "configuration": {
           "anyOf": [
@@ -770,35 +592,35 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Deployer-specific overrides merged verbatim. For compose: merged into the service block. For helm: merged into values.{service.name}.",
-          "title": "Configuration"
+          "description": "Extra settings merged verbatim into the output: into the service entry for Compose, and into this service's section of the chart values for Helm."
         }
       },
       "required": [
         "name"
       ],
-      "title": "ModuleServiceModel",
       "type": "object"
     },
     "ModuleSpecModel": {
-      "description": "Model for module spec (lifecycle, modules, validation).",
+      "additionalProperties": false,
+      "description": "What a module deploys and how: its `source`, a deployer `type`, and either `services` (containers or sub-charts) or, for a single service, `mounts`, `checks` and `endpoints`. A namespace references it.\n\nRules:\n- Service names must be unique within the module.\n- `compose_file` and `services` are mutually exclusive.\n- Every short name in `services[].depends_on` must be a service of this module; entries starting with `@` are only syntax-checked here and resolved at build time.\n- `type` may not be a known infrastructure tool. The deployers are argocd, compose, helm, script; any other name is treated as a custom plugin.",
       "properties": {
         "source": {
           "$ref": "#/$defs/SourceModel",
-          "description": "Module deployment configuration"
+          "description": "Where the module's code comes from: a git path or a Helm chart.\n\nRules:\n- Exactly one mode is used: git-based (`source_path`) or chart-based (`chart_name`), never both and never neither.\n- A chart-based source needs exactly one of `remote` or `chart_repository`.\n- `chart_repository` and `chart_version` are only valid for chart-based sources.\n- `source_path` and `target_path` must be relative paths without `..`."
         },
         "type": {
           "anyOf": [
             {
-              "$ref": "#/$defs/ServiceDeployerType"
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Service deployer type for this module (helm, compose, argocd, script). Required for service deployment commands."
+          "description": "Deployer for this module: `helm`, `compose`, `argocd` or `script`, or a custom provisioner plugin name. Required to render the module. Infrastructure tools such as `terraform`, `ansible` and `bicep` are rejected."
         },
         "lifecycle": {
           "anyOf": [
@@ -809,32 +631,49 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Module-specific lifecycle hooks"
+          "description": "Hook scripts per phase name. Accepted and validated, but strata does not run lifecycle hooks yet."
         },
-        "properties": {
+        "mounts": {
           "anyOf": [
             {
-              "$ref": "#/$defs/ModulePropertiesModel"
+              "items": {
+                "$ref": "#/$defs/ModuleMountModel"
+              },
+              "type": "array"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Module-specific properties and configurations"
+          "description": "Mounts for a single-service module, passed to Terraform as `strata.modules.<name>.properties.mounts`. Compose and Helm output is generated from `services` instead.\n\nRules:\n- `volume_ref` and `storage_class` are mutually exclusive.\n- `storage_size` is required when `storage_class` is set."
         },
-        "references": {
+        "checks": {
           "anyOf": [
             {
-              "$ref": "#/$defs/ModuleReferenceModel"
+              "items": {
+                "$ref": "#/$defs/ModuleCheckModel"
+              },
+              "type": "array"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Module references for variable and secret injection"
+          "description": "Health checks for a single-service module, passed to Terraform as `strata.modules.<name>.properties.checks`. Compose and Helm output is generated from `services` instead."
+        },
+        "endpoints": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ModuleEndpointModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Endpoints for a single-service module, passed to Terraform as `strata.modules.<name>.properties.endpoints`. Compose and Helm output is generated from `services` instead."
         },
         "configuration": {
           "anyOf": [
@@ -846,9 +685,47 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Module-specific configuration data",
-          "title": "Configuration"
+          "description": "Free-form settings. For a Helm module they are merged into the chart's `values.yaml`, and a key that a local chart does not declare gives a warning. They are also passed to Terraform as `strata.modules.<name>.configuration`. Strata does not validate the keys itself: add an `attributeconfig` with `target.kind: module` and `target.block: configuration` to do so."
+        },
+        "custom": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Free-form values for your own scripts and Terraform code, passed to Terraform as `strata.modules.<name>.custom`. Strata does not interpret them. Environment variables belong in `services[].environment`."
+        },
+        "default_labels": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Baseline labels for this module, passed to Terraform as `strata.modules.<name>.default_labels`. Strata does not add them to the Helm or Compose output itself."
+        },
+        "custom_labels": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Additional labels on top of `default_labels`, passed to Terraform the same way."
         },
         "services": {
           "anyOf": [
@@ -862,9 +739,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "List of services (containers/sub-charts) that make up this module. When absent, the module is treated as single-service using the properties shape (backward compatible). When present, each entry defines one container (compose) or sub-chart section (helm).",
-          "title": "Services"
+          "description": "Containers (Compose) or sub-chart sections (Helm) that make up this module. Without it the module uses the single-service shape (`mounts`, `checks`, `endpoints`).\n\nRules:\n- `image` and `artifact` are mutually exclusive: use one or the other."
         },
         "compose_file": {
           "anyOf": [
@@ -875,9 +750,21 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Explicit path reference to an external docker-compose.yml file (@repo/path/to/docker-compose.yml or workspace-relative path). When set, ComposeBuilder copies this file verbatim to the build path instead of generating one from spec.services. Mutually exclusive with spec.services.",
-          "title": "Compose File"
+          "description": "Path to an existing docker-compose file (`@<remote>/path` or solution-relative) to use instead of `services`. Not implemented yet: rendering fails with a message to use `services`."
+        },
+        "files": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ModuleFileModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Extra files to copy into the module's build output. Accepted and validated, but strata does not copy them yet.\n\nRules:\n- A glob in `source` requires `target` to be a directory, written with a trailing `/`.\n- `source` and `target` must be relative: no leading `/` and no `..` (a `source` may start with `@<remote>/`)."
         },
         "release_name": {
           "anyOf": [
@@ -888,9 +775,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Helm release name or ArgoCD Application name. Defaults to module.meta.name when not set.",
-          "title": "Release Name"
+          "description": "Helm release name or Argo CD application name. Defaults to the name of the module reference in the namespace. For `type: helm`, the name actually used (this field or the default) must be a valid Helm release name: lowercase letters, digits, '-' and '.', starting and ending with a letter or digit, at most 53 characters. `strata validate` reports any other as an error, and two module references in one workspace that install the same release into the same Kubernetes namespace. Value tokens are not resolved here."
         },
         "kubernetes_namespace": {
           "anyOf": [
@@ -901,60 +786,66 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Kubernetes namespace to deploy this module into. Defaults to the strata namespace name when not set.",
-          "title": "Kubernetes Namespace"
+          "description": "Kubernetes namespace to deploy this module into. Defaults to the strata namespace name when not set. For `type: helm`, the name actually used must be a valid Kubernetes namespace: lowercase letters, digits and '-', starting and ending with a letter or digit, at most 63 characters. Strata namespace names may contain '_', so set this field when the strata namespace name is not a valid Kubernetes one. Value tokens are not resolved here."
         }
       },
       "required": [
         "source"
       ],
-      "title": "ModuleSpecModel",
       "type": "object"
     },
     "PlatformKind": {
       "description": "Enumeration of supported platform kinds.",
       "enum": [
+        "solution",
         "configuration",
-        "deployment",
-        "environment",
+        "providerconfig",
+        "topologyconfig",
+        "attributeconfig",
+        "provider",
+        "resource",
+        "dns",
+        "network",
         "firewall",
         "module",
         "namespace",
-        "platform_model",
-        "provider",
-        "resource",
-        "workspace"
+        "workspace",
+        "integration",
+        "tenant",
+        "environment",
+        "deployment",
+        "version",
+        "artifact",
+        "asset",
+        "parameterset"
       ],
-      "title": "PlatformKind",
       "type": "string"
     },
     "PlatformVersion": {
       "description": "Enumeration of supported platform versions.",
       "enum": [
-        "strata.huybrechts.xyz/v1"
+        "strata.huybrechts.xyz/v2",
+        "strata.omp.com/v2"
       ],
-      "title": "PlatformVersion",
       "type": "string"
     },
     "ScriptPathModel": {
+      "additionalProperties": false,
       "description": "Individual script with scope and execution metadata.",
       "properties": {
         "file": {
           "description": "Path to script file",
-          "title": "File",
           "type": "string"
         },
         "scope": {
           "$ref": "#/$defs/PlatformKind",
-          "description": "Execution scope - determines how many times script runs (deployment, environment, workspace, provider, resource, module, namespace)"
+          "description": "Execution scope - determines how many times the script runs (e.g. deployment, environment, workspace, provider, resource, module, namespace)"
         },
         "priority": {
           "default": 100,
           "description": "Execution order within scope (lower runs first)",
           "maximum": 9999,
           "minimum": 0,
-          "title": "Priority",
           "type": "integer"
         },
         "target": {
@@ -966,9 +857,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional target filter (e.g., 'vm-*', 'azure-*', 'production')",
-          "title": "Target"
+          "description": "Optional target filter (e.g., 'vm-*', 'azure-*', 'production')"
         },
         "description": {
           "anyOf": [
@@ -979,47 +868,33 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional description for documentation purposes",
-          "title": "Description"
+          "description": "Optional description for documentation purposes"
         }
       },
       "required": [
         "file",
         "scope"
       ],
-      "title": "ScriptPathModel",
       "type": "object"
     },
-    "ServiceDeployerType": {
-      "description": "Enumeration of supported service deployer types for module deployment.",
-      "enum": [
-        "helm",
-        "compose",
-        "argocd",
-        "script"
-      ],
-      "title": "ServiceDeployerType",
-      "type": "string"
-    },
     "SourceModel": {
-      "description": "Reusable model for source configuration.\n\nTwo modes (mutually exclusive, validated):\n  1. Git-based: repository + source_path  \u2014 used for Terraform modules, local charts, etc.\n  2. Chart-based: chart_repository + chart_name  \u2014 used for Helm/ArgoCD chart registry pulls.\n\nExample \u2014 git-based:\n    source:\n      repository: my-infra-repo\n      source_path: terraform/modules/vpc\n      target_path: build/vpc\n\nExample \u2014 Helm chart registry:\n    source:\n      chart_name: authentik\n      chart_version: \"2024.12.0\"\n      chart_repository: https://charts.goauthentik.io",
+      "additionalProperties": false,
+      "description": "Where the code of a module or provisioner comes from. Pick one mode:\n\n- Git-based: `source_path`, optionally with `remote`. Omit `remote` for this solution's own repository. Used for Terraform modules, local charts and similar.\n- Chart-based: `chart_name` with exactly one of `remote` (a remote from the solution manifest) or `chart_repository` (an inline URL). Used for Helm and Argo CD charts.\n\nRules:\n- Exactly one mode is used: git-based (`source_path`) or chart-based (`chart_name`), never both and never neither.\n- A chart-based source needs exactly one of `remote` or `chart_repository`.\n- `chart_repository` and `chart_version` are only valid for chart-based sources.\n- `source_path` and `target_path` must be relative paths without `..`.",
       "properties": {
-        "repository": {
+        "remote": {
           "anyOf": [
             {
               "maxLength": 64,
               "minLength": 1,
               "pattern": "^[a-z][a-z0-9_-]*$",
-              "type": "string"
+              "type": "string",
+              "x-strata-remote": true
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Name of the repository from configuration's repositories list",
-          "title": "Repository"
+          "description": "Name of a remote declared in the solution manifest's spec.remotes (strata.yaml). The remote owns the URL, the git/OCI ref and the credentials; this only selects which one to take from. Required for a git-based source with credentials/a pinned ref; for a chart-based source, either this or `chart_repository` is required (mutually exclusive) \u2014 use `remote` when the registry is shared across modules or needs credentials, `chart_repository` otherwise. Omitting both on a git-based source means this solution's own repository."
         },
         "source_path": {
           "anyOf": [
@@ -1031,9 +906,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Path to the source artifacts within the repository (relative path)",
-          "title": "Source Path"
+          "description": "Path to the source artifacts within the repository (relative path)"
         },
         "target_path": {
           "anyOf": [
@@ -1045,9 +918,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Target path where artifacts should be built/deployed (relative to build/deploy directory)",
-          "title": "Target Path"
+          "description": "Target path where artifacts should be built/deployed (relative to build/deploy directory)"
         },
         "description": {
           "anyOf": [
@@ -1058,9 +929,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional description for documentation purposes",
-          "title": "Description"
+          "description": "Optional description for documentation purposes"
         },
         "chart_name": {
           "anyOf": [
@@ -1071,9 +940,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Helm chart name (e.g. 'authentik'). Required when using chart_repository.",
-          "title": "Chart Name"
+          "description": "Helm chart name (e.g. 'authentik'). Selects chart-based mode; requires exactly one of `remote`/`chart_repository`."
         },
         "chart_version": {
           "anyOf": [
@@ -1084,9 +951,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Helm chart version (e.g. '2024.12.0'). Omit to use latest.",
-          "title": "Chart Version"
+          "description": "Helm chart version (e.g. '2024.12.0'). Omit to use latest. Only valid in chart-based mode. Unlike a git ref, this is NOT remote identity \u2014 a chart index legitimately serves many versions, so picking one is selection and belongs here rather than on the remote."
         },
         "chart_repository": {
           "anyOf": [
@@ -1097,26 +962,24 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Helm chart repository URL or OCI reference (e.g. 'https://charts.goauthentik.io' or 'oci://ghcr.io/org/charts').",
-          "title": "Chart Repository"
+          "description": "Inline Helm chart repository URL or OCI reference (for example `https://charts.goauthentik.io` or `oci://ghcr.io/org/charts`), for a chart used by exactly one module that needs no credentials. Only valid in chart-based mode and mutually exclusive with `remote`. Use `remote` once the registry is shared by several modules or needs credentials. The URL is not checked against the solution manifest, so a typo only shows up when Helm fails to add the repository."
         }
       },
-      "title": "SourceModel",
       "type": "object"
     }
   },
-  "description": "Top-level model for a module resource.",
+  "additionalProperties": false,
+  "description": "A deployable workload: a Helm chart, Docker Compose services, an Argo CD application or a script, with its source and settings. Create one per workload and reference it from a namespace's `modules` (or a topology component's `modules`).",
   "properties": {
     "apiVersion": {
       "$ref": "#/$defs/PlatformVersion",
-      "default": "strata.huybrechts.xyz/v1",
+      "default": "strata.huybrechts.xyz/v2",
       "description": "API version for module configuration"
     },
     "kind": {
       "$ref": "#/$defs/PlatformKind",
       "default": "module",
-      "description": "Resource kind (always 'Module')"
+      "description": "Platform kind (always 'module')"
     },
     "meta": {
       "$ref": "#/$defs/ModuleMetaModel",
@@ -1124,13 +987,75 @@
     },
     "spec": {
       "$ref": "#/$defs/ModuleSpecModel",
-      "description": "Module specification (lifecycle, modules, variables, secrets)"
+      "description": "Module specification (source, lifecycle, services, configuration)\n\nRules:\n- Service names must be unique within the module.\n- `compose_file` and `services` are mutually exclusive.\n- Every short name in `services[].depends_on` must be a service of this module; entries starting with `@` are only syntax-checked here and resolved at build time.\n- `type` may not be a known infrastructure tool. The deployers are argocd, compose, helm, script; any other name is treated as a custom plugin."
     }
   },
   "required": [
     "meta",
     "spec"
   ],
-  "title": "ModuleModel",
-  "type": "object"
+  "type": "object",
+  "examples": [
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "module",
+      "meta": {
+        "name": "authentik"
+      },
+      "spec": {
+        "type": "helm",
+        "source": {
+          "chart_repository": "https://charts.goauthentik.io",
+          "chart_name": "authentik",
+          "chart_version": "2024.12.0"
+        }
+      }
+    },
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "module",
+      "meta": {
+        "name": "app"
+      },
+      "spec": {
+        "type": "compose",
+        "source": {
+          "source_path": "modules/app"
+        },
+        "services": [
+          {
+            "name": "redis",
+            "image": "redis:7-alpine"
+          },
+          {
+            "name": "server",
+            "image": "ghcr.io/example/app:1.0.0",
+            "ports": [
+              "8080:80"
+            ],
+            "environment": [
+              {
+                "key": "DB_PASSWORD",
+                "value": "${secret:DB_PASSWORD}"
+              },
+              {
+                "key": "TZ",
+                "value": "Europe/Brussels"
+              }
+            ],
+            "depends_on": [
+              "redis"
+            ],
+            "mounts": [
+              {
+                "name": "data",
+                "volume_ref": "app-data",
+                "target_path": "/data"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }

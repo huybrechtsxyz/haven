@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: kavita
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          env:
+            - name: PUID
+              value: {{ .Values.env.PUID | quote }}
+            - name: PGID
+              value: {{ .Values.env.PGID | quote }}
+            - name: TZ
+              value: {{ .Values.env.TZ | quote }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: library
+              mountPath: /library
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 20
+            periodSeconds: 30
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-config
+        - name: library
+          hostPath:
+            path: {{ .Values.library.hostPath }}
+            type: DirectoryOrCreate

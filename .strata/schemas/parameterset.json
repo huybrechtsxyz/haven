@@ -1,0 +1,174 @@
+{
+  "$defs": {
+    "ParameterSetMetaModel": {
+      "additionalProperties": false,
+      "description": "Parameter set metadata: the name documents use in `meta.params`.",
+      "properties": {
+        "name": {
+          "description": "Unique parameter set name, named in a document's meta.params",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional annotations (key-value pairs for documentation)"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional labels (key-value pairs for classification/filtering). A label such as role: spoke is only for attributeconfig selectors: the role a set's values are read under comes from the meta.params of the document that names it."
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional tags (list of values for categorization)"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "ParameterSetSpecModel": {
+      "additionalProperties": false,
+      "description": "Parameter set specification: the values themselves.\n\nRules:\n- values holds plain YAML only: no ${...} token in any key or value. Write $${...} for the literal text.\n- A parameter set is plain text in git: never put a secret in it. Read secrets with ${secret:} in the document's spec instead.",
+      "properties": {
+        "values": {
+          "additionalProperties": true,
+          "description": "The values: a map of any YAML (scalars, lists and nested maps). A document that names this set under a role in meta.params reads them with ${param:<role>.<key>}; nested maps are walked with dots (${param:spoke.network.cidr}). No ${...} tokens: values are plain.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "values"
+      ],
+      "type": "object"
+    },
+    "PlatformKind": {
+      "description": "Enumeration of supported platform kinds.",
+      "enum": [
+        "solution",
+        "configuration",
+        "providerconfig",
+        "topologyconfig",
+        "attributeconfig",
+        "provider",
+        "resource",
+        "dns",
+        "network",
+        "firewall",
+        "module",
+        "namespace",
+        "workspace",
+        "integration",
+        "tenant",
+        "environment",
+        "deployment",
+        "version",
+        "artifact",
+        "asset",
+        "parameterset"
+      ],
+      "type": "string"
+    },
+    "PlatformVersion": {
+      "description": "Enumeration of supported platform versions.",
+      "enum": [
+        "strata.huybrechts.xyz/v2",
+        "strata.omp.com/v2"
+      ],
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One named set of plain values: the instance data of a spoke, a hub, a customer or a tenant. A deployment, environment or tenant names it under a role in `meta.params`, and its base reads the values with `${param:<role>.<key>}`, so one base serves many instances.",
+  "properties": {
+    "apiVersion": {
+      "$ref": "#/$defs/PlatformVersion",
+      "default": "strata.huybrechts.xyz/v2",
+      "description": "API version for parameter set configuration"
+    },
+    "kind": {
+      "$ref": "#/$defs/PlatformKind",
+      "default": "parameterset",
+      "description": "Platform kind (always 'parameterset')"
+    },
+    "meta": {
+      "$ref": "#/$defs/ParameterSetMetaModel",
+      "description": "Parameter set metadata (name, annotations, labels, tags)"
+    },
+    "spec": {
+      "$ref": "#/$defs/ParameterSetSpecModel",
+      "description": "Parameter set specification (the values)\n\nRules:\n- values holds plain YAML only: no ${...} token in any key or value. Write $${...} for the literal text.\n- A parameter set is plain text in git: never put a secret in it. Read secrets with ${secret:} in the document's spec instead."
+    }
+  },
+  "required": [
+    "meta",
+    "spec"
+  ],
+  "type": "object",
+  "examples": [
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "parameterset",
+      "meta": {
+        "name": "spoke-example-001"
+      },
+      "spec": {
+        "values": {
+          "name": "example-001",
+          "hub": "hub01",
+          "seq": "001"
+        }
+      }
+    },
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "parameterset",
+      "meta": {
+        "name": "spoke-example-002",
+        "labels": {
+          "role": "spoke"
+        }
+      },
+      "spec": {
+        "values": {
+          "name": "example-002",
+          "hub": "hub01",
+          "subscription_id": "00000000-0000-0000-0000-000000000002",
+          "network": {
+            "cidr": "10.2.0.0/16"
+          },
+          "customers": [
+            "example-a",
+            "example-b"
+          ]
+        }
+      }
+    }
+  ]
+}

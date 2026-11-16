@@ -1,0 +1,17 @@
+apiVersion: strata.huybrechts.xyz/v2
+kind: topologyconfig
+meta:
+  name: k3s
+  tags: [haven, k3s, kubernetes]
+spec:
+  description: >-
+    A single VM running k3s as both control plane and worker (Forge - one
+    Kubernetes namespace per app group).
+  additional_components: false
+  components:
+    - role: node
+      description: The k3s server VM (control plane and workloads)
+      uses_module: false
+      required: true
+      min_count: 1
+      max_count: 1

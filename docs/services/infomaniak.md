@@ -244,7 +244,7 @@ Create an app password in Infomaniak:
 
 > Manager → kSuite Mail → mailbox → Security → Application passwords → generate one for "Authentik SMTP"
 
-- Add the configuration values to the Strata module definition (`mod-authentik.yaml`)
+- Add the configuration values to the Strata module definition (`config/hearth/modules/authentik.yaml`)
 - Add the secrets to GitHub Environment Secrets (production)
 
 To enable Authentik to send password reset and notification emails via kSuite SMTP:

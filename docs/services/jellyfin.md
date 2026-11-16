@@ -28,8 +28,8 @@ Jellyfin runs on **Forge** (Hetzner CPX41, k3s), in its own `media` Kubernetes n
 ## Deployment process (in order)
 
 1. Confirm prerequisites above are satisfied (Forge init done, `system` namespace's cert-manager deployed, DNS record exists).
-2. Ensure `media` is uncommented in `config/stack/workspace.yaml`'s `spec.namespaces` list (and its `hetzner_forge` topology `namespaces:` sub-list, kept in lockstep) — already done.
-3. Run **`33 - Forge - Deploy`** (`strata deploy run --scope apps --stage applications_forge`). This deploys the Helm chart, the ingress (TLS via cert-manager), and — after the Helm deploy succeeds — attempts the automated SSO provider registration step (skips silently if `JELLYFIN_API_KEY` isn't set yet).
+2. Ensure `media` is listed in `config/workspace.yaml` — in `spec.namespaces`, the `applications_forge` step's `namespaces`, and the `forge` topology's `namespaces` — already done.
+3. Run **`33 - Forge - Deploy`** (`strata deploy run haven_deploy_prd --stage applications_forge`). This deploys the Helm chart, the ingress (TLS via cert-manager), and — after the Helm deploy succeeds — attempts the automated SSO provider registration step (skips silently if `JELLYFIN_API_KEY` isn't set yet).
 4. **New hostname TLS pattern**: leave the ingress annotation on `letsencrypt-staging` for the very first deploy of a brand-new hostname, confirm `kubectl describe certificate -n media` shows `Ready: True`, then switch to `letsencrypt-prod` and redeploy (already done for `media.{domain}` — see [What gets deployed](#what-gets-deployed) above).
 5. Complete the **one-time manual step** (API key creation, see [SSO](#sso--authentik-oidc-via-k0linjellyfin-plugin-sso) below) — every deploy after that automatically (re-)registers the SSO provider.
 6. Verify with the [checklist](#verification-checklist) below.
@@ -87,7 +87,7 @@ The Jellyfin side is **also automated**, aside from one unavoidable one-time ste
 
 3. **One-time manual step**: `JELLYFIN_API_KEY` can only be minted via the web UI (Dashboard → API Keys), which itself requires the first-run admin setup wizard to have been completed once via the web UI. Once you have a key:
    ```powershell
-   strata secret put JELLYFIN_API_KEY --value "<key>" -f config/environment.yaml
+   strata values set haven_deploy_prd --key JELLYFIN_API_KEY --value "<key>"
    ```
    After that, every future deploy registers/updates the SSO provider automatically — no further manual steps.
 
@@ -98,7 +98,7 @@ See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugi
 **REGRESSION (2026-09-01): SSO silently broken after a routine redeploy** — pod logs showed `Skipping disabled plugin 5.0.0.0 of SSO Authentication`. Root cause: the plugin's `meta.json` requires `targetAbi: 10.11.11.0`, but the chart's default `image.tag` tracked appVersion `10.11.8` — Jellyfin auto-disables any plugin whose `targetAbi` exceeds the running server version, so the plugin's routes (`/sso/OID/Add/...`) never registered (404). Fixed by pinning `image.tag: "10.11.11"` explicitly (see [What gets deployed](#what-gets-deployed) above). This also surfaced a second, unrelated problem: the `JELLYFIN_API_KEY` stored in Infisical no longer matched a valid key in Jellyfin's database (401 on registration) — resolved by wiping the `config` PVC (`kubectl delete pvc jellyfin-config -n media`, then redeploying to recreate it via Helm) and redoing the one-time manual setup from scratch. **Recovery sequence used:**
 1. Run `33 - Forge - Deploy` — recreates the (now-empty) `config` PVC via the Helm chart and reinstalls the SSO plugin via the init container.
 2. Visit `https://media.{domain}` → complete Jellyfin's first-run setup wizard (fresh admin account).
-3. Dashboard → API Keys → generate a new key → `strata secret put JELLYFIN_API_KEY --value "<key>" -f config/environment.yaml`.
+3. Dashboard → API Keys → generate a new key → `strata values set haven_deploy_prd --key JELLYFIN_API_KEY --value "<key>"`.
 4. Run `33 - Forge - Deploy` again — SSO provider registration now succeeds against the fresh install.
 
 **Confirmed fixed (2026-09-01)**: recovery sequence completed — deploy log shows `Jellyfin SSO provider registered successfully (HTTP 200).`, and after adding the login button (see below) a user successfully signed in via SSO end-to-end. Fully working again post-regression.

@@ -23,9 +23,9 @@ env:
   DB_PORT: "5432"
   DB_DATABASE: firefly
   DB_USERNAME: firefly
-  # Set via ${FIREFLY_DB_PASSWORD} substitution token — never a literal value here.
+  # Set by the module as `${secret:FIREFLY_DB_PASSWORD}` — never a literal value here.
   DB_PASSWORD: ""
-  # Set via ${FIREFLY_APP_KEY} substitution token — never a literal value here.
+  # Set by the module as `${secret:FIREFLY_APP_KEY}` — never a literal value here.
   # Exactly 32 chars, alphanumeric only (Firefly's own docs warn against
   # special chars like #, < and > in this value).
   APP_KEY: ""

@@ -1,0 +1,123 @@
+# Defaults — override via the strata module's spec.configuration (see
+# config/forge/modules/yuvomi.yaml). Every key strata's module sets must be
+# declared here (even as an empty placeholder) so the chart's own
+# values.yaml recognizes it — same convention as filebrowser/values.yaml and
+# homarr-secrets/values.yaml. Real values are injected by strata at deploy
+# time, never written here.
+image:
+  repository: ghcr.io/ulsklyc/yuvomi
+  # CONFIRMED directly against GHCR's package page (2026-09-29) — this
+  # project does NOT publish semver tags (no "v2.69.1"-style tag exists
+  # upstream, despite matching a real GitHub Release). Only `main` (moving,
+  # overwritten on every merge), per-commit `sha-<hash>` tags (immutable),
+  # and cosign `.sig` signature tags are actually published. Pin to a
+  # `sha-<hash>` tag, never `main`/`latest` — re-verify against
+  # https://github.com/ulsklyc/yuvomi/pkgs/container/yuvomi before bumping.
+  # A first deploy attempt using "v2.69.1" failed: ImagePullBackOff ->
+  # `helm upgrade --wait` hung waiting for readiness -> killed (returncode -9).
+  tag: "sha-e69964d"
+
+env:
+  TZ: Europe/Brussels
+  NODE_ENV: production
+  # The app inside the container always listens on this port — matches
+  # service.port/containerPort below. Do not change one without the other.
+  PORT: "3000"
+  DB_PATH: /data/yuvomi.db
+
+  # --- Session / security ----------------------------------------------
+  SESSION_SECRET: ""
+  # true — Traefik terminates TLS in front of this pod (see ingress below).
+  SESSION_SECURE: "true"
+  # 1 — trust exactly one reverse-proxy hop (Traefik), matches Yuvomi's own
+  # documented default for this topology.
+  TRUST_PROXY: "1"
+
+  # --- Database encryption (SQLCipher AES-256) --------------------------
+  # Every other Haven database is encrypted at rest — matching that here.
+  # WARNING: this key cannot be changed once set; a lost key means a
+  # permanently unrecoverable database. See docs/services/yuvomi.md.
+  DB_ENCRYPTION_KEY: ""
+
+  # --- Base URL (password-reset/invite emails, calendar export feeds) --
+  BASE_URL: ""
+
+  # --- OIDC / SSO (Authentik, OIDC-only — no local login) ---------------
+  OIDC_ISSUER: ""
+  OIDC_CLIENT_ID: yuvomi
+  OIDC_CLIENT_SECRET: ""
+  OIDC_REDIRECT_URI: ""
+  # Local username/password login disabled (2026-09-28 decision) — only
+  # takes effect once all four OIDC_* values above are set AND at least one
+  # admin account has actually been linked to Authentik. See the bootstrap
+  # sequence in docs/services/yuvomi.md before assuming this is live.
+  AUTH_ALLOW_PASSWORD_LOGIN: "false"
+
+  # --- Documents — local storage fallback (2026-09-30) ----------------
+  # Infomaniak kDrive WebDAV requires a plan tier this account doesn't have
+  # (confirmed: PROPFIND returns 403 on every path, including the bare
+  # root — not a config/URL problem). Disabled for now; local storage on
+  # the documents PVC instead. Revisit if the kSuite plan is ever upgraded.
+  DOCUMENT_STORAGE_LOCAL_ENABLED: "true"
+  DOCUMENT_STORAGE_LOCAL_PATH: /documents
+  DOCUMENT_STORAGE_WEBDAV_ENABLED: "false"
+  DOCUMENT_STORAGE_WEBDAV_URL: ""
+  DOCUMENT_STORAGE_WEBDAV_USERNAME: ""
+  DOCUMENT_STORAGE_WEBDAV_PASSWORD: ""
+  DOCUMENT_STORAGE_WEBDAV_PATH: apps/yuvomi
+
+  # --- Backups: local (Borg-swept) only, kDrive mirror disabled ---------
+  # See the DOCUMENT_STORAGE note above — same plan-tier blocker.
+  BACKUP_ENABLED: "true"
+  WEBDAV_BACKUP_ENABLED: "false"
+  WEBDAV_BACKUP_URL: ""
+  WEBDAV_BACKUP_USERNAME: ""
+  WEBDAV_BACKUP_PASSWORD: ""
+  WEBDAV_BACKUP_PATH: backups/yuvomi
+
+  # --- Email / SMTP (reuses the shared Infomaniak mailbox) --------------
+  EMAIL_SMTP_HOST: ""
+  EMAIL_SMTP_PORT: ""
+  EMAIL_SMTP_SECURE: starttls
+  EMAIL_SMTP_USER: ""
+  EMAIL_SMTP_PASS: ""
+  EMAIL_FROM_ADDRESS: yuvomi@huybrechts.xyz
+  EMAIL_FROM_NAME: Yuvomi
+
+  # --- Immich photo screensaver (wall-mode tablet display) --------------
+  IMMICH_URL: "https://photos.huybrechts.xyz"
+  IMMICH_API_KEY: ""
+  IMMICH_SCREENSAVER_ALBUM_ID: ""
+
+persistence:
+  # SQLite DB (yuvomi.db) — the important one.
+  data:
+    storageClass: local-path
+    size: 2Gi
+  # Yuvomi's own consistent backup snapshots — see the BACKUP_ENABLED
+  # comment above for why Borg sweeps this path instead of /data directly.
+  backups:
+    storageClass: local-path
+    size: 2Gi
+  # Local document storage fallback — see the DOCUMENT_STORAGE_LOCAL_ENABLED
+  # comment above (kDrive WebDAV blocked by plan tier).
+  documents:
+    storageClass: local-path
+    size: 2Gi
+
+service:
+  port: 3000
+
+ingress:
+  enabled: true
+  className: traefik
+  host: family.huybrechts.xyz
+  # Switched to letsencrypt-prod (2026-09-29) — the letsencrypt-staging
+  # HTTP-01 challenge succeeded first, confirmed via `kubectl describe
+  # certificate family-tls -n family` showing Ready: True.
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  tls:
+    - hosts:
+        - family.huybrechts.xyz
+      secretName: family-tls

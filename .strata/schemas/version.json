@@ -1,0 +1,427 @@
+{
+  "$defs": {
+    "PlatformKind": {
+      "description": "Enumeration of supported platform kinds.",
+      "enum": [
+        "solution",
+        "configuration",
+        "providerconfig",
+        "topologyconfig",
+        "attributeconfig",
+        "provider",
+        "resource",
+        "dns",
+        "network",
+        "firewall",
+        "module",
+        "namespace",
+        "workspace",
+        "integration",
+        "tenant",
+        "environment",
+        "deployment",
+        "version",
+        "artifact",
+        "asset",
+        "parameterset"
+      ],
+      "type": "string"
+    },
+    "PlatformVersion": {
+      "description": "Enumeration of supported platform versions.",
+      "enum": [
+        "strata.huybrechts.xyz/v2",
+        "strata.omp.com/v2"
+      ],
+      "type": "string"
+    },
+    "VersionMetaModel": {
+      "additionalProperties": false,
+      "description": "Metadata for a version document.",
+      "properties": {
+        "name": {
+          "description": "Unique version-document name, referenced by 'Deployment.spec.version'. Typically the ring or channel it represents (e.g. 'prd').",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional free-form annotations"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional labels (key-value pairs for classification)"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional tags (list of values for categorization)"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "VersionPinModel": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "version": {
+              "description": "The pinned value: image reference, chart version, or git ref",
+              "minLength": 1,
+              "type": "string"
+            },
+            "status": {
+              "$ref": "#/$defs/VersionPinStatus",
+              "default": "current",
+              "description": "Why the pin sits here: current, held, or unverified"
+            },
+            "available": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version known to be available upstream. Refresh tooling may rewrite this field freely; it must never rewrite 'reason'."
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Why this pin is held or unverified. Required for those states \u2014 an unexplained hold is the knowledge loss this model exists to prevent."
+            },
+            "reviewed": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Date a human last reviewed this pin (ISO 8601)"
+            }
+          },
+          "required": [
+            "version"
+          ],
+          "type": "object"
+        }
+      ],
+      "description": "One pinned version, with the reasoning that a machine rewrite must preserve. A bare string is shorthand for `{version: <string>}`.\n\nRules:\n- A pin with status `held` or `unverified` needs a `reason` that explains why."
+    },
+    "VersionPinStatus": {
+      "description": "Why a pin sits at the version it does.\n\nThe vocabulary is taken from the real file's own comments, which already used exactly these three states in prose (\"HELD \u2014\", \"UNVERIFIED \u2014\", and plain bumps/\"already latest\").",
+      "enum": [
+        "current",
+        "held",
+        "unverified"
+      ],
+      "type": "string"
+    },
+    "VersionPinsModel": {
+      "additionalProperties": false,
+      "description": "Pins grouped by what they target. The key is always the target's own name. A pin may only target something strata itself materialises.\n\n- `images`: a module service's whole `image`; the key is the service name. The value is a whole image reference with a tag, a digest or both, never a tag alone.\n- `charts`: a Helm module's `chart_version`; the key is the module name.\n- `remotes`: a remote's `reference`; the key is the remote name. Only for remotes with `fetch: strata`; a pin on an `external` remote is rejected.\n- `artifacts`: an Artifact's `image_tag`; the key is the artifact name. `image_name` is never pinned.\n- `assets`: the `reference` of an asset's own `location`; the key is the asset name. Only with `fetch: strata`. An asset that uses a manifest remote is pinned through `remotes`.",
+      "properties": {
+        "images": {
+          "anyOf": [
+            {
+              "patternProperties": {
+                "^[a-z][a-z0-9_-]*$": {
+                  "$ref": "#/$defs/VersionPinModel"
+                }
+              },
+              "propertyNames": {
+                "maxLength": 64,
+                "minLength": 1
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Container image pins. The key is the module service name. Each value replaces the service's whole `image`, so it is a whole reference with a tag, a digest or both (`docker.io/library/postgres:16-alpine`), never a tag alone; `strata validate` reports another value as `image_pin_invalid`."
+        },
+        "charts": {
+          "anyOf": [
+            {
+              "patternProperties": {
+                "^[a-z][a-z0-9_-]*$": {
+                  "$ref": "#/$defs/VersionPinModel"
+                }
+              },
+              "propertyNames": {
+                "maxLength": 64,
+                "minLength": 1
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Helm chart version pins. Key = Module document name."
+        },
+        "remotes": {
+          "anyOf": [
+            {
+              "patternProperties": {
+                "^[a-z][a-z0-9_-]*$": {
+                  "$ref": "#/$defs/VersionPinModel"
+                }
+              },
+              "propertyNames": {
+                "maxLength": 64,
+                "minLength": 1
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Git or OCI ref pins. The key is the remote name. Only valid for remotes that strata fetches itself (`fetch: strata`)."
+        },
+        "artifacts": {
+          "anyOf": [
+            {
+              "patternProperties": {
+                "^[a-z][a-z0-9_-]*$": {
+                  "$ref": "#/$defs/VersionPinModel"
+                }
+              },
+              "propertyNames": {
+                "maxLength": 64,
+                "minLength": 1
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Artifact image tag pins. Key = ArtifactModel.meta.name; overlays spec.image_tag only (image_name is identity, never pinned)."
+        },
+        "assets": {
+          "anyOf": [
+            {
+              "patternProperties": {
+                "^[a-z][a-z0-9_-]*$": {
+                  "$ref": "#/$defs/VersionPinModel"
+                }
+              },
+              "propertyNames": {
+                "maxLength": 64,
+                "minLength": 1
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Git ref pins for an asset's own location. Key = AssetModel.meta.name; overlays spec.location.reference. Only valid for an asset with a location and fetch: strata."
+        }
+      },
+      "type": "object"
+    },
+    "VersionPromotionModel": {
+      "additionalProperties": false,
+      "description": "Optional rollout tags that let `strata promote status` show where a version is across rings. Omit for a product with no multi-ring rollout.\n\nRules:\n- `wave` requires `ring`.\n- `ring` requires `order`.",
+      "properties": {
+        "ring": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Which ring this document represents (e.g. 'dev', 'qas', 'prd')"
+        },
+        "order": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Sequence position in the rollout (e.g. dev=1, qas=2, prd=3) \u2014 required whenever 'ring' is set"
+        },
+        "wave": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Distinguishes documents sharing the same (ring, order) \u2014 e.g. 'canary'/'general'. Required whenever set alongside a 'ring'; requires 'ring' to be set at all."
+        }
+      },
+      "type": "object"
+    },
+    "VersionSpecModel": {
+      "additionalProperties": false,
+      "description": "Specification for a version document. It names no workspace: the deployments that list it in `spec.version` decide where it applies.",
+      "properties": {
+        "promotion": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VersionPromotionModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional rollout tags (`ring`, `order`, `wave`). Omit for a product with no multi-ring rollout.\n\nRules:\n- `wave` requires `ring`.\n- `ring` requires `order`."
+        },
+        "pins": {
+          "$ref": "#/$defs/VersionPinsModel",
+          "default": {
+            "images": null,
+            "charts": null,
+            "remotes": null,
+            "artifacts": null,
+            "assets": null
+          },
+          "description": "Version pins grouped by target category. May be empty \u2014 a new document with nothing pinned yet is valid."
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional description for documentation purposes"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The single place to change to upgrade: it pins container images, Helm chart versions, remote refs, artifact tags and asset refs, each with a status and the reason it is held. A deployment selects it with `version`. Typically one per ring or channel, for example `prd`.",
+  "properties": {
+    "apiVersion": {
+      "$ref": "#/$defs/PlatformVersion",
+      "default": "strata.huybrechts.xyz/v2",
+      "description": "API version for version configuration"
+    },
+    "kind": {
+      "$ref": "#/$defs/PlatformKind",
+      "default": "version",
+      "description": "Platform kind (always 'version')"
+    },
+    "meta": {
+      "$ref": "#/$defs/VersionMetaModel",
+      "description": "Version metadata"
+    },
+    "spec": {
+      "$ref": "#/$defs/VersionSpecModel",
+      "description": "Version specification"
+    }
+  },
+  "required": [
+    "meta",
+    "spec"
+  ],
+  "type": "object",
+  "examples": [
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "version",
+      "meta": {
+        "name": "prd"
+      },
+      "spec": {
+        "pins": {
+          "images": {
+            "caddy": "caddy:2-alpine"
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "version",
+      "meta": {
+        "name": "prd"
+      },
+      "spec": {
+        "promotion": {
+          "ring": "prd",
+          "order": 3
+        },
+        "pins": {
+          "images": {
+            "db": {
+              "version": "docker.io/library/postgres:16-alpine",
+              "status": "held",
+              "available": "18.6-alpine",
+              "reason": "postgres majors need pg_upgrade or a dump and restore",
+              "reviewed": "2026-09-08"
+            }
+          },
+          "charts": {
+            "authentik": "2024.12.0"
+          },
+          "artifacts": {
+            "api": "1.4.2"
+          }
+        }
+      }
+    }
+  ]
+}

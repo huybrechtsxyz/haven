@@ -1,0 +1,20 @@
+apiVersion: strata.huybrechts.xyz/v2
+kind: providerconfig
+meta:
+  name: hetzner
+  tags: [haven, hetzner]
+spec:
+  description: Hetzner Cloud
+  additional_regions: false
+  regions:
+    - name: eu-de
+      geography: europe
+      description: Europe - Nuremberg (nbg1), Falkenstein (fsn1)
+  additional_resources: false
+  resources:
+    - name: virtualmachine
+      category: compute
+      subcategory: virtualmachine
+      description: Hetzner Cloud Server
+      # The allowed `configuration` keys of a virtualmachine resource are checked
+      # by the `hetzner-virtualmachine-configuration` attributeconfig.

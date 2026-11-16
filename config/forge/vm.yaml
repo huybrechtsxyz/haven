@@ -1,18 +1,16 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: resource
 meta:
-  name: haven_vm_hetzner_forge
+  name: forge-vm
   annotations:
-    description: Hetzner CPX41 — Forge VPS (k3s single-node cluster)
-  labels:
-    version: "1.0.0"
+    description: Hetzner CPX41 - Forge VPS (k3s single-node cluster)
   tags: [haven, hetzner, vm, forge, family]
 spec:
-  lifecycle: null
-  properties:
-    provider_type: hetzner
-    resource_type: virtualmachine
-    unit_cost: 25.99 # EUR per month (CPX41)
+  provider_type: hetzner
+  resource_type: virtualmachine
+  category: compute
+  subcategory: virtualmachine
+  unit_cost: 25.99 # EUR per month (CPX41)
   configuration:
     image: ubuntu-24.04
     server_type: cpx41
@@ -25,6 +23,6 @@ spec:
       - name: data
         path: /opt/haven/var/data
       - name: data-media
-        path: /mnt/haven-data-media
+        path: /mnt/haven-data-media # SMB mount (Ansible) - haven-data Storage Box, media sub-account (Immich + Jellyfin)
       - name: data-docs
-        path: /mnt/haven-data-docs
+        path: /mnt/haven-data-docs # SMB mount (Ansible) - haven-data Storage Box, docs sub-account (Nextcloud + Kavita)

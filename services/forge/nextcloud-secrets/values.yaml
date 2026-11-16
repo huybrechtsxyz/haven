@@ -1,8 +1,6 @@
-# Credentials MUST live under a literal `env:` dict — strata's Helm secret
-# substitution only resolves `${TOKEN}` placeholders found inside a dict
-# node keyed literally "env" (see Chart.yaml / nextcloud.yaml's module
-# comment for the full writeup). Real values injected by strata at deploy
-# time — never written here.
+# Real values come from the strata module (config/forge/modules/nextcloud-secrets.yaml)
+# as `${secret:...}` tokens, resolved at deploy time and handed to Helm on
+# stdin — never written here or to the build output.
 env:
   NEXTCLOUD_ADMIN_PASSWORD: ""
   NEXTCLOUD_DB_PASSWORD: ""

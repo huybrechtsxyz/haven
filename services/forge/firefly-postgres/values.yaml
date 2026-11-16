@@ -5,7 +5,7 @@ image:
 env:
   POSTGRES_USER: firefly
   POSTGRES_DB: firefly
-  # Set via ${FIREFLY_DB_PASSWORD} substitution token — never a literal value here.
+  # Set by the module as `${secret:FIREFLY_DB_PASSWORD}` — never a literal value here.
   POSTGRES_PASSWORD: ""
 
 persistence:

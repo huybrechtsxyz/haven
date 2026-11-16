@@ -1,0 +1,330 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Dispatches to the matching per-kind schema in this same directory, based on the document's own 'kind:' field.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "solution"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "solution.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "configuration"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "configuration.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "providerconfig"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "providerconfig.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "topologyconfig"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "topologyconfig.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "attributeconfig"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "attributeconfig.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "provider"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "provider.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "resource"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "resource.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "dns"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "dns.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "network"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "network.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "firewall"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "firewall.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "module"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "module.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "namespace"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "namespace.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "workspace"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "workspace.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "integration"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "integration.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "tenant"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "tenant.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "environment"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "environment.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "deployment"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "deployment.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "version"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "version.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "artifact"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "artifact.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "asset"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "asset.json"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "parameterset"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "$ref": "parameterset.json"
+      }
+    }
+  ]
+}

@@ -1,16 +1,13 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: module
 meta:
   name: kavita
   annotations:
     description: Kavita — PDF/EPUB/comic library server for TTRPG PDFs and family reference material
-  labels:
-    version: "1.0.0"
   tags: [haven, forge, documents, kavita, library]
 spec:
   type: helm
   source:
-    repository: haven
     source_path: services/forge/kavita
   kubernetes_namespace: documents
   configuration:

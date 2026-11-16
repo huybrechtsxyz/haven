@@ -53,9 +53,9 @@ Homepage would just be another centrally-maintained YAML file (like the Authenti
 
 ### Why a separate `homarr-secrets` module
 
-The official Homarr chart routes its two credential fields (OIDC client secret, DB encryption key) through `envSecrets.*.existingSecret` — a **referenced** Kubernetes Secret name + key, never a literal `env:` value. strata's Helm secret substitution only resolves `${TOKEN}` placeholders found inside a dict node keyed literally `env` — so these two fields aren't directly reachable from `homarr.yaml`.
+The official Homarr chart only accepts its two credential fields (OIDC client secret, DB encryption key) through `envSecrets.*.existingSecret` — a **referenced** Kubernetes Secret name + key, never a literal value — so `homarr.yaml` cannot hand them over directly.
 
-Same fix pattern as `nextcloud-secrets`/`rclone-mount` earlier in this repo: a small local chart (`services/forge/homarr-secrets`) whose own values ARE `env:`-shaped (so strata substitutes them correctly), rendering nothing but two `kind: Secret` objects. `homarr.yaml` then points at them via `envSecrets.authOidcCredentials.existingSecret` / `envSecrets.dbCredentials.existingSecret` — using the chart's own default Secret/key names (`homarr-auth-oidc-secret`/`homarr-db-secret`, `oidc-client-id`/`oidc-client-secret`/`db-encryption-key`) so no extra overrides are needed beyond pointing at the right Secret name.
+Same pattern as `nextcloud-secrets` in this repo: a small local chart (`services/forge/homarr-secrets`) whose module fills its values from `${secret:...}` tokens at deploy time, rendering nothing but two `kind: Secret` objects. `homarr.yaml` then points at them via `envSecrets.authOidcCredentials.existingSecret` / `envSecrets.dbCredentials.existingSecret` — using the chart's own default Secret/key names (`homarr-auth-oidc-secret`/`homarr-db-secret`, `oidc-client-id`/`oidc-client-secret`/`db-encryption-key`) so no extra overrides are needed beyond pointing at the right Secret name.
 
 ---
 

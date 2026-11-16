@@ -2,59 +2,40 @@
 # Module: Forge — Input Variables
 # =============================================================================
 
-variable "resource_config" {
-  description = "VM resource definition from strata build output"
-  type = object({
-    type        = string
-    provider    = string
-    category    = string
-    subcategory = string
-    unit_cost   = number
-    description = optional(string, "")
-    labels      = optional(map(string), {})
-    tags        = optional(list(string), [])
-    configuration = object({
-      server_type = string
-      image       = string
-      location    = string
-      type        = optional(string)
-    })
-    storage = optional(object({
-      install_path = string
-      volumes = optional(list(object({
-        name = string
-        path = string
-      })), [])
-    }))
-    firewall = optional(string)
-  })
+variable "name_prefix" {
+  description = "Prefix for Hetzner resource names (RFC 1123, e.g. haven-platform)"
+  type        = string
 }
 
-variable "firewall_config" {
-  description = "Firewall definition from strata build output"
-  type = object({
-    description = optional(string, "")
-    labels      = optional(map(string), {})
-    tags        = optional(list(string), [])
-    rules = object({
-      reset = bool
-      defaults = list(object({
-        direction  = string
-        permission = string
-        comment    = optional(string, "")
-      }))
-      deny = list(any)
-      allow = list(object({
-        direction = string
-        proto     = optional(string)
-        port      = optional(list(number))
-        from      = optional(string)
-        to        = optional(string)
-        interface = optional(string)
-        comment   = optional(string, "")
-      }))
-    })
-  })
+variable "server_type" {
+  description = "Hetzner server type (e.g. cpx41) — ignored after creation, see main.tf"
+  type        = string
+}
+
+variable "image" {
+  description = "OS image slug (e.g. ubuntu-24.04)"
+  type        = string
+}
+
+variable "location" {
+  description = "Hetzner datacenter location (e.g. nbg1)"
+  type        = string
+}
+
+variable "install_path" {
+  description = "Base directory created by cloud-init on first boot (e.g. /opt/haven)"
+  type        = string
+}
+
+variable "firewall_rules" {
+  description = "Allow rules for the cloud firewall. ports: one entry (\"443\", \"80:90\") or a list whose first and last entry bound a range."
+  type = list(object({
+    direction   = string
+    protocol    = string
+    ports       = list(string)
+    cidrs       = list(string)
+    description = string
+  }))
 }
 
 variable "ssh_key_id" {
@@ -71,9 +52,4 @@ variable "labels" {
   description = "Common labels applied to all resources"
   type        = map(string)
   default     = {}
-}
-
-variable "workspace_name" {
-  description = "Workspace name — used as resource name prefix"
-  type        = string
 }

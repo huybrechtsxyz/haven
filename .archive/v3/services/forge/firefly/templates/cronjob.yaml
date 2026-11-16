@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-cron
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  schedule: {{ .Values.cron.schedule | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: {{ .Release.Name }}-cron
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: firefly-cron
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              command: ["php", "artisan", "firefly-iii:cron"]
+              env:
+                {{- range $key, $value := .Values.env }}
+                - name: {{ $key }}
+                  value: {{ $value | quote }}
+                {{- end }}

@@ -1,0 +1,26 @@
+apiVersion: strata.huybrechts.xyz/v2
+kind: namespace
+meta:
+  name: hearth
+  annotations:
+    description: Hearth namespace - Caddy, Authentik, Vaultwarden, Portainer, WUD (Docker Compose on CX23)
+  tags: [haven, hearth, docker-compose, family]
+spec:
+  # Rendered as one Compose project. Service names are `<module>-<service>`
+  # (or `<service>` when both names match), e.g. authentik-db, caddy.
+  modules:
+    - name: caddy
+      module: caddy
+      description: Reverse proxy with automatic TLS (ACME)
+    - name: authentik
+      module: authentik
+      description: Identity provider and SSO (OIDC / OAuth2)
+    - name: vaultwarden
+      module: vaultwarden
+      description: Bitwarden-compatible password manager
+    - name: portainer
+      module: portainer
+      description: Docker container management UI with console access
+    - name: wud
+      module: wud
+      description: Container image update notifications with web UI

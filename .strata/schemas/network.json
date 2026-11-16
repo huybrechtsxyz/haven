@@ -1,0 +1,403 @@
+{
+  "$defs": {
+    "NetworkDefinitionModel": {
+      "additionalProperties": false,
+      "description": "One virtual network: its address space, subnets and optional peerings. Each network is its own cloud resource, so its configuration, custom values and tags are set here; one document can hold several networks.\n\nRules:\n- Subnet names must be unique within the network.\n- Peering names must be unique within the network, and a network cannot peer with itself.\n- Subnets must not overlap each other and must fit inside the network's address space. This is only checked when all the CIDRs involved are literals rather than tokens.",
+      "properties": {
+        "name": {
+          "description": "Unique network name within the spec",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional description of the network"
+        },
+        "address_space": {
+          "description": "One or more CIDRs for this network's address space (literal or '${var:KEY}'/'${secret:KEY}'/'${feature:KEY}' Value bindings)",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "subnets": {
+          "description": "At least one subnet required per network",
+          "items": {
+            "$ref": "#/$defs/SubnetModel"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "peerings": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/PeeringReferenceModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional peering references to other networks"
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Free-form provisioner settings for this network, passed to Terraform as `strata.networks.<name>.networks.<network>.configuration`. Strata does not validate them."
+        },
+        "custom": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Free-form values for your own scripts and Terraform code, passed to Terraform as `strata.networks.<name>.networks.<network>.custom`. Strata does not interpret them."
+        },
+        "default_tags": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Baseline cloud tags for this network (for example `cost-center`, `environment`, `owner`), passed to Terraform as `strata.networks.<name>.networks.<network>.default_tags`. Not the same as `meta.tags`, which is a free-form list for documentation. Strata does not limit the number of tags, so stay within your cloud provider's limit."
+        },
+        "custom_tags": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Additional cloud tags on top of `default_tags`, for one-off needs."
+        }
+      },
+      "required": [
+        "name",
+        "address_space",
+        "subnets"
+      ],
+      "type": "object"
+    },
+    "NetworkMetaModel": {
+      "additionalProperties": false,
+      "description": "Network metadata including name, annotations, labels, and tags.",
+      "properties": {
+        "name": {
+          "description": "Unique name for the network resource",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional annotations (key-value pairs for documentation)"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional labels (key-value pairs for classification/filtering)"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional list of tags for the network resource"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "NetworkSpecModel": {
+      "additionalProperties": false,
+      "description": "The networks declared by this document.\n\nRules:\n- Network names must be unique within the document.\n- Every peering `target` must name a network in the same document.\n- Peered networks must not have overlapping address spaces. This is only checked for literal CIDRs.",
+      "properties": {
+        "networks": {
+          "description": "List of network definitions (at least one required)\n\nRules:\n- Subnet names must be unique within the network.\n- Peering names must be unique within the network, and a network cannot peer with itself.\n- Subnets must not overlap each other and must fit inside the network's address space. This is only checked when all the CIDRs involved are literals rather than tokens.",
+          "items": {
+            "$ref": "#/$defs/NetworkDefinitionModel"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "networks"
+      ],
+      "type": "object"
+    },
+    "PeeringReferenceModel": {
+      "additionalProperties": false,
+      "description": "Lightweight peering reference \u2014 name + target network only.",
+      "properties": {
+        "name": {
+          "description": "Unique peering name within the network",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "target": {
+          "description": "Name of the target network (must exist in same spec)",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "target"
+      ],
+      "type": "object"
+    },
+    "PlatformKind": {
+      "description": "Enumeration of supported platform kinds.",
+      "enum": [
+        "solution",
+        "configuration",
+        "providerconfig",
+        "topologyconfig",
+        "attributeconfig",
+        "provider",
+        "resource",
+        "dns",
+        "network",
+        "firewall",
+        "module",
+        "namespace",
+        "workspace",
+        "integration",
+        "tenant",
+        "environment",
+        "deployment",
+        "version",
+        "artifact",
+        "asset",
+        "parameterset"
+      ],
+      "type": "string"
+    },
+    "PlatformVersion": {
+      "description": "Enumeration of supported platform versions.",
+      "enum": [
+        "strata.huybrechts.xyz/v2",
+        "strata.omp.com/v2"
+      ],
+      "type": "string"
+    },
+    "SubnetModel": {
+      "additionalProperties": false,
+      "description": "A subnet of a network: a `name` and a `cidr`, either a literal CIDR such as `10.0.1.0/24` or a string with value tokens such as `${var:KEY}`.",
+      "properties": {
+        "name": {
+          "description": "Unique subnet name within the network",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional description of the subnet"
+        },
+        "cidr": {
+          "description": "Literal CIDR (e.g. '10.0.1.0/24'), or a string containing '${var:KEY}'/'${secret:KEY}'/'${feature:KEY}' tokens.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Free-form provisioner settings for this subnet (for example delegations, service endpoints or a security group association), passed to Terraform as `strata.networks.<name>.networks.<network>.subnets.<subnet>.configuration`. Strata does not validate them."
+        },
+        "custom": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Free-form values for your own scripts and Terraform code, passed to Terraform as `strata.networks.<name>.networks.<network>.subnets.<subnet>.custom`. Strata does not interpret them."
+        }
+      },
+      "required": [
+        "name",
+        "cidr"
+      ],
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Virtual networks with their address spaces, subnets and peerings. A workspace uses it by listing the document in `networks`, and a workspace resource can be placed on one of its subnets.",
+  "properties": {
+    "apiVersion": {
+      "$ref": "#/$defs/PlatformVersion",
+      "default": "strata.huybrechts.xyz/v2",
+      "description": "API version for network configuration"
+    },
+    "kind": {
+      "$ref": "#/$defs/PlatformKind",
+      "default": "network",
+      "description": "Platform kind (always 'network')"
+    },
+    "meta": {
+      "$ref": "#/$defs/NetworkMetaModel",
+      "description": "Network metadata (name, annotations, labels, tags)"
+    },
+    "spec": {
+      "$ref": "#/$defs/NetworkSpecModel",
+      "description": "Network specification (network definitions)\n\nRules:\n- Network names must be unique within the document.\n- Every peering `target` must name a network in the same document.\n- Peered networks must not have overlapping address spaces. This is only checked for literal CIDRs."
+    }
+  },
+  "required": [
+    "meta",
+    "spec"
+  ],
+  "type": "object",
+  "examples": [
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "network",
+      "meta": {
+        "name": "main"
+      },
+      "spec": {
+        "networks": [
+          {
+            "name": "hub",
+            "address_space": [
+              "10.0.0.0/16"
+            ],
+            "subnets": [
+              {
+                "name": "default",
+                "cidr": "10.0.1.0/24"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "network",
+      "meta": {
+        "name": "main"
+      },
+      "spec": {
+        "networks": [
+          {
+            "name": "hub",
+            "address_space": [
+              "10.0.0.0/16"
+            ],
+            "subnets": [
+              {
+                "name": "app",
+                "cidr": "10.0.1.0/24"
+              },
+              {
+                "name": "data",
+                "cidr": "10.0.2.0/24"
+              }
+            ],
+            "peerings": [
+              {
+                "name": "hub-to-spoke",
+                "target": "spoke"
+              }
+            ],
+            "default_tags": {
+              "environment": "prd"
+            }
+          },
+          {
+            "name": "spoke",
+            "address_space": [
+              "10.1.0.0/16"
+            ],
+            "subnets": [
+              {
+                "name": "app",
+                "cidr": "10.1.1.0/24"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

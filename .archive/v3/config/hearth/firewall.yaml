@@ -1,0 +1,96 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: firewall
+meta:
+  name: haven_fw_hetzner_hearth
+  annotations:
+    description: Firewall for Hearth VPS — public HTTPS only; SSH from private network only
+  labels:
+    version: "1.0.0"
+  tags: [haven, firewall, hearth, family]
+spec:
+  reset: true
+  defaults:
+    - direction: in
+      permission: deny
+      comment: Deny all incoming traffic by default
+    - direction: out
+      permission: deny
+      comment: Deny all outgoing traffic by default
+  deny:
+  allow:
+    # Essential system services
+    - direction: out
+      proto: udp
+      port: [53]
+      comment: DNS (UDP)
+    - direction: out
+      proto: tcp
+      port: [53]
+      comment: DNS (TCP)
+    - direction: out
+      proto: udp
+      port: [123]
+      comment: NTP
+    - direction: in
+      interface: lo
+      comment: Loopback IN
+    - direction: out
+      interface: lo
+      comment: Loopback OUT
+    # Package management
+    - direction: out
+      proto: tcp
+      port: [20, 21]
+      comment: FTP (apt)
+    - direction: out
+      proto: tcp
+      port: [11371]
+      comment: GPG keyserver
+    # BorgBackup — Hetzner Storage Box uses SSH on port 23
+    - direction: out
+      proto: tcp
+      port: [23]
+      comment: SSH to Storage Box (BorgBackup)
+    # Public web ingress
+    - direction: in
+      proto: tcp
+      port: [80]
+      comment: HTTP (redirect to HTTPS)
+    - direction: in
+      proto: tcp
+      port: [443]
+      comment: HTTPS
+    # Portainer Kubernetes Edge Agent tunnel — Forge dials in on this port for
+    # live-connect features (console, live logs/stats). Routed over the
+    # private network via forge-config.yml's /etc/hosts override, so this
+    # only needs to accept from the private network, never the public
+    # internet — same convention as SSH/k3s-API/Flannel below.
+    - direction: in
+      proto: tcp
+      port: [8000]
+      from: 10.0.0.0/8
+      comment: Portainer Edge Agent tunnel (private network only)
+    - direction: out
+      proto: tcp
+      port: [80]
+      comment: HTTP outbound (image pulls, ACME)
+    - direction: out
+      proto: tcp
+      port: [443]
+      comment: HTTPS outbound
+    # SMTP (STARTTLS) — outbound to Infomaniak's mail server, used by
+    # Vaultwarden/Authentik for invitation/notification/password-reset
+    # emails. Without this rule, Hetzner's Cloud Firewall silently drops
+    # outbound port 587 traffic — confirmed live 2026-09-06 as "Network
+    # unreachable (os error 101)" once DNS/SMTP_HOST were fixed (same class
+    # of missing-egress-rule bug as Forge's port 445/SMB fix).
+    - direction: out
+      proto: tcp
+      port: [587]
+      comment: SMTP STARTTLS outbound (Infomaniak mail server)
+    # SSH — private network only (Hetzner private network or Tailscale CGNAT)
+    - direction: in
+      proto: tcp
+      port: [22]
+      from: 10.0.0.0/8
+      comment: SSH (private network only)

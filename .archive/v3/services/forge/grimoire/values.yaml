@@ -1,0 +1,72 @@
+# Defaults — override via the strata module's spec.configuration (see
+# config/forge/modules/grimoire.yaml).
+image:
+  # Default (non -slim) tag ships Tesseract OCR so scanned/image-only PDFs
+  # are still full-text searchable — see
+  # https://hub.docker.com/r/hunterreadca/grimoire.
+  repository: hunterreadca/grimoire
+  tag: latest
+
+env:
+  WORKERS: "2"
+  BASE_URL: https://grimoire.huybrechts.xyz
+  OPDS_ENABLED: "true"
+  # SSO — see config/forge/modules/grimoire.yaml for the real values;
+  # OIDC_ENABLED defaults to "false" here so a bare `helm template`/local
+  # render of this chart (no module overrides) never advertises SSO.
+  OIDC_ENABLED: "false"
+  OIDC_ISSUER_URL: ""
+  OIDC_CLIENT_ID: ""
+  OIDC_GROUPS_CLAIM: ""
+  OIDC_PERMISSIONS_CLAIM: ""
+  OIDC_MATCH_BY: email
+  OIDC_AUTO_REGISTER: "false"
+  OIDC_BUTTON_TEXT: "Sign in with Authentik"
+  # Safe defaults for a bare chart render — module config overrides both
+  # once SSO is the only intended login path (see grimoire.yaml).
+  OIDC_AUTO_LAUNCH: "false"
+  ALLOW_PASSWORD_AUTHENTICATION: "true"
+
+# Name of the K8s Secret (rendered by the grimoire-secrets module/chart)
+# holding the real OIDC client secret under key `sso-client-secret`.
+secrets:
+  name: grimoire-secrets
+
+persistence:
+  # Grimoire's database, search index, and rendered thumbnails — local disk,
+  # not shared (see docs/services/grimoire.md).
+  data:
+    storageClass: local-path
+    size: 10Gi
+
+# Paths on the haven-data Storage Box's docs sub-account SMB mount where the
+# TTRPG library files live. Mounted read-only — same "apps only read,
+# Nextcloud is where family uploads happen" convention already used for
+# Kavita — so Grimoire's in-app file management (upload/rename/delete) is
+# intentionally unavailable.
+library:
+  # Grimoire-only content Kavita has no concept of (maps, tokens, audio, 3D
+  # models) — a dedicated ttrpg/ subfolder, mounted at Grimoire's /library
+  # root.
+  hostPath: /mnt/haven-data-docs/ttrpg
+  # A SUBFOLDER of the same physical books/ folder Kavita reads from —
+  # bind-mounted at /library/books (per hunter-read/grimoire's own
+  # docs/faq.md scanner-folder-structure note) so Grimoire indexes only the
+  # TTRPG-specific books living under books/ttrpg/, not Kavita's entire
+  # ~20K-book library. Deliberately scoped narrower than the whole books/
+  # tree — see docs/services/grimoire.md's Storage section.
+  booksHostPath: /mnt/haven-data-docs/books/ttrpg
+
+# service.port is intentionally NOT a values key — hardcoded to 9481
+# directly in the chart templates (service.yaml/deployment.yaml/
+# ingress.yaml) since it's Grimoire's fixed upstream port and templating
+# a bare numeric field is repeatedly corrupted by the VS Code YAML
+# formatter (see check-helm-braces.ps1 / nextcloud-scan-cron's identical
+# fix for the same class of bug).
+
+ingress:
+  enabled: true
+  className: traefik
+  host: grimoire.huybrechts.xyz
+  annotations: {}
+  tls: []

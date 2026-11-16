@@ -1,0 +1,243 @@
+{
+  "$defs": {
+    "ArtifactMetaModel": {
+      "additionalProperties": false,
+      "description": "Artifact metadata (name, annotations, labels, tags).",
+      "properties": {
+        "name": {
+          "description": "Unique artifact name, referenced from a variable or a module service",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional annotations (key-value pairs for documentation)"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional labels (key-value pairs for classification/filtering)"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional tags (list of values for categorization)"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "ArtifactSpecModel": {
+      "additionalProperties": false,
+      "description": "Artifact specification: the pinnable reference itself, plus optional passthrough data.",
+      "properties": {
+        "image_name": {
+          "description": "The full image path the container runtime pulls, registry host included (e.g. 'ghcr.io/example/scheduler-api'; no host means Docker Hub). Identity \u2014 never overridden by a kind: version pin, only image_tag is.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "image_tag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What to deploy: a tag (`1.4.2`), a digest (`sha256:<hex>`) or both (`1.4.2@sha256:<hex>`). Optional: omit it when a kind: version pin always supplies it; with neither, the tag is blank. Overridden by kind: version's pins.artifacts[name] when set."
+        },
+        "registry": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Registry host, for documentation only (for example `registry.example.com`). Strata never pulls the image and never adds this to the reference: the container runtime pulls `image_name` as written, so put the host there too. `strata validate` warns when the two differ."
+        },
+        "integration": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string",
+              "x-strata-references": "integration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The Integration that holds this image's registry credentials. `strata deploy images` reports its name, so a pipeline that copies the image knows which credentials to use; strata resolves nothing from it and never logs in."
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional description for documentation purposes"
+        },
+        "properties": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Free-form descriptive data (e.g. owning team, cost center) \u2014 never merged anywhere"
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Raw passthrough data for whatever consumes this artifact"
+        },
+        "custom": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Custom user-defined data for scripts or extensions"
+        }
+      },
+      "required": [
+        "image_name"
+      ],
+      "type": "object"
+    },
+    "PlatformKind": {
+      "description": "Enumeration of supported platform kinds.",
+      "enum": [
+        "solution",
+        "configuration",
+        "providerconfig",
+        "topologyconfig",
+        "attributeconfig",
+        "provider",
+        "resource",
+        "dns",
+        "network",
+        "firewall",
+        "module",
+        "namespace",
+        "workspace",
+        "integration",
+        "tenant",
+        "environment",
+        "deployment",
+        "version",
+        "artifact",
+        "asset",
+        "parameterset"
+      ],
+      "type": "string"
+    },
+    "PlatformVersion": {
+      "description": "Enumeration of supported platform versions.",
+      "enum": [
+        "strata.huybrechts.xyz/v2",
+        "strata.omp.com/v2"
+      ],
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A named, pinnable reference to something external that strata does not fetch or deploy itself: today a container image. Reference it from a `store: artifact` variable or a module service's `artifact`; a Version document can pin its tag.",
+  "properties": {
+    "apiVersion": {
+      "$ref": "#/$defs/PlatformVersion",
+      "default": "strata.huybrechts.xyz/v2",
+      "description": "API version for artifact configuration"
+    },
+    "kind": {
+      "$ref": "#/$defs/PlatformKind",
+      "default": "artifact",
+      "description": "Platform kind (always 'artifact')"
+    },
+    "meta": {
+      "$ref": "#/$defs/ArtifactMetaModel",
+      "description": "Artifact metadata (name, annotations, labels, tags)"
+    },
+    "spec": {
+      "$ref": "#/$defs/ArtifactSpecModel",
+      "description": "Artifact specification (image reference, optional passthrough data)"
+    }
+  },
+  "required": [
+    "meta",
+    "spec"
+  ],
+  "type": "object",
+  "examples": [
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "artifact",
+      "meta": {
+        "name": "api"
+      },
+      "spec": {
+        "image_name": "example/api"
+      }
+    },
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "artifact",
+      "meta": {
+        "name": "api"
+      },
+      "spec": {
+        "image_name": "registry.example.com/example/api",
+        "image_tag": "1.4.2",
+        "registry": "registry.example.com",
+        "description": "The public API image"
+      }
+    }
+  ]
+}

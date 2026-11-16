@@ -12,8 +12,9 @@
 #   - Helm chart template guard (spaced Go-template braces, a recurring bug
 #     in this repo — see scripts/check-helm-braces.ps1)
 #   - helm lint on every local chart under services/
-#   - strata validate --deep + strata build run (catches config/schema
+#   - strata validate --strict + strata build run (catches config/schema
 #     errors and Helm/Terraform template rendering bugs)
+#   Tool versions for every job come from VERSIONS.env (.github/actions/setup-tools).
 #   - terraform fmt -check + terraform validate (no backend, no credentials)
 #   - actionlint on this repo's own GitHub Actions workflow files
 #     (currently disabled — see lint-workflows job)
@@ -33,7 +34,7 @@ permissions:
 env:
   STRATA_OUTPUT: json
   STRATA_WORK_PATH: ${{ github.workspace }}
-  DEPLOYMENT_FILE: "config/deployment.yaml"
+  DEPLOYMENT: haven_deploy_prd
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -48,8 +49,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Setup Helm
-        uses: azure/setup-helm@v5
+      - name: Setup tools (VERSIONS.env)
+        uses: ./.github/actions/setup-tools
+        with:
+          strata: "false"
+          helm: "true"
 
       - name: Guard against spaced Go-template braces
         shell: pwsh
@@ -79,22 +83,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Setup strata
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.9.3
+      - name: Setup tools (VERSIONS.env)
+        uses: ./.github/actions/setup-tools
         with:
-          # See deploy-infra.yml for the full 1.9.3 bump rationale.
-          strata-version: "==1.9.3"
-        env:
-          UV_INDEX_STRATEGY: unsafe-best-match
-
-      - name: Setup Helm
-        uses: azure/setup-helm@v5
+          helm: "true"
 
       - name: Validate deployment file
-        run: strata validate -f $DEPLOYMENT_FILE --deep
+        run: strata validate --strict
 
       - name: Build platform artifacts
-        run: strata build run --file $DEPLOYMENT_FILE
+        run: strata build run "$DEPLOYMENT"
 
   # ------------------------------------------------------------------
   # Terraform — format + validate (no backend, no credentials)
@@ -107,10 +105,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Install Terraform
-        uses: hashicorp/setup-terraform@v4
+      - name: Setup tools (VERSIONS.env)
+        uses: ./.github/actions/setup-tools
         with:
-          terraform_wrapper: false
+          strata: "false"
+          terraform: "true"
 
       - name: Terraform fmt check
         working-directory: deploy/terraform

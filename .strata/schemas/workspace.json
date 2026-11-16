@@ -1,16 +1,124 @@
 {
   "$defs": {
+    "CheckovPolicyModel": {
+      "additionalProperties": false,
+      "description": "Gate for `build run` on Checkov static security findings in a workspace's rendered IaC. `framework` selects what to scan, `severity_gate` is the lowest severity that fails the build, and `scope` selects which provisioners or namespaces are scanned.",
+      "properties": {
+        "framework": {
+          "default": "terraform",
+          "description": "IaC framework to scan",
+          "enum": [
+            "terraform",
+            "bicep",
+            "ansible",
+            "helm"
+          ],
+          "type": "string"
+        },
+        "severity_gate": {
+          "default": "high",
+          "description": "Fail when any finding at or above this severity is present",
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low"
+          ],
+          "type": "string"
+        },
+        "scope": {
+          "default": "staged",
+          "description": "For terraform, bicep and ansible: `staged` (default: provisioners that have their own execution step), `all` (every declared provisioner of that framework) or the name of one execution step. For helm: `staged` and `all` both mean every namespace the workspace references, or give the name of one namespace.",
+          "type": "string"
+        },
+        "skip_checks": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Check IDs to suppress (mutually exclusive with include_checks)"
+        },
+        "include_checks": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When set, run ONLY these check IDs"
+        },
+        "custom_checks_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Extra custom-checks directory, if any"
+        },
+        "config_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Checkov config file (e.g. `.checkov.yaml`), relative to the root of the repository each scanned provisioner or Helm module comes from. `build run` copies it into the build output and passes it as `--config-file`; a target whose repository has no such file is handled by `on_missing_data`."
+        },
+        "timeout": {
+          "default": 120,
+          "description": "Scan subprocess timeout in seconds (default 120)",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "enforcement": {
+          "default": "deny",
+          "description": "deny fails the build; warn reports and continues",
+          "enum": [
+            "deny",
+            "warn"
+          ],
+          "type": "string"
+        },
+        "on_missing_data": {
+          "default": "block",
+          "description": "What to do when the targeted provisioner has no materialised source to scan: `skip`, `warn` or `block` (default). The default is `block` so that \"never scanned\" cannot be mistaken for \"scanned, nothing found\".",
+          "enum": [
+            "skip",
+            "warn",
+            "block"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "CommonLifecycleModel": {
       "additionalProperties": {
         "$ref": "#/$defs/CommonLifecyclePhaseModel"
       },
-      "default": {},
-      "description": "Lifecycle phases for common models.\nMaps phase names to phase configurations.\nPhase names follow pattern: {command}_{action}_{suffix}\nExamples: config_clear, config_fetch, deploy_plan_before, deploy_apply_after",
-      "title": "CommonLifecycleModel",
+      "description": "Lifecycle phases for common models.\n\nMaps phase names to phase configurations. Phase names follow the pattern ``{command}_{action}_{suffix}``, e.g. ``deploy_plan_before``, ``deploy_provision``, ``deploy_destroy_after``, ``config_clear``. This is an open map (any phase name is allowed) rather than a fixed set of fields, since each kind and provisioner type defines its own set of supported phases.",
       "type": "object"
     },
     "CommonLifecyclePhaseModel": {
-      "description": "Model for common lifecycle phase with script validation.",
+      "additionalProperties": false,
+      "description": "Lifecycle phase configuration: a description plus its scripts.",
       "properties": {
         "description": {
           "anyOf": [
@@ -21,9 +129,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional description for documentation purposes",
-          "title": "Description"
+          "description": "Optional description for documentation purposes"
         },
         "scripts": {
           "anyOf": [
@@ -44,249 +150,410 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Scripts"
+          "description": "Scripts to run. Each entry is a path relative to the solution root, with one of the extensions bash, go, js, mjs, ps1, py, sh, or an object with `file`, `scope`, `priority` and `target`."
         }
       },
-      "title": "CommonLifecyclePhaseModel",
+      "type": "object"
+    },
+    "CveMaxSeverityPolicyModel": {
+      "additionalProperties": false,
+      "description": "Gate for `build run` on the CVE findings in the SBOM it just generated: the build fails when the findings at or above `max_severity` outnumber `max_count`.\n\nRules:\n- `severity_threshold` must be `max_severity` or a lower severity (CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN).",
+      "properties": {
+        "max_severity": {
+          "description": "Fail when findings at or above this severity exceed max_count",
+          "enum": [
+            "CRITICAL",
+            "HIGH",
+            "MEDIUM",
+            "LOW"
+          ],
+          "type": "string"
+        },
+        "max_count": {
+          "default": 0,
+          "description": "Fail when the breaching count exceeds this (default 0)",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "severity_threshold": {
+          "anyOf": [
+            {
+              "enum": [
+                "CRITICAL",
+                "HIGH",
+                "MEDIUM",
+                "LOW",
+                "UNKNOWN"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Minimum severity passed to the scanner. Defaults to `max_severity`. It may be lower (more inclusive) but never higher, because the scanner would then hide findings the policy needs to count."
+        },
+        "enforcement": {
+          "default": "deny",
+          "description": "deny fails the build; warn reports and continues",
+          "enum": [
+            "deny",
+            "warn"
+          ],
+          "type": "string"
+        },
+        "on_missing_data": {
+          "default": "block",
+          "description": "What to do when no SBOM or scanner is available: `skip`, `warn` or `block` (default). The default is `block` so that \"never scanned\" cannot be mistaken for \"scanned, nothing found\".",
+          "enum": [
+            "skip",
+            "warn",
+            "block"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "max_severity"
+      ],
+      "type": "object"
+    },
+    "ImageGatePolicyModel": {
+      "additionalProperties": false,
+      "description": "Gate a deploy on a platform's open issues for the container images in `sbom.json`.",
+      "properties": {
+        "integration": {
+          "description": "Integration document declaring the 'image_findings' capability that lists the issues",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string",
+          "x-strata-references": "integration"
+        },
+        "enforcement": {
+          "default": "deny",
+          "description": "'deny' stops the deploy on a breach; 'warn' reports and continues",
+          "enum": [
+            "deny",
+            "warn"
+          ],
+          "type": "string"
+        },
+        "on_missing_data": {
+          "default": "block",
+          "description": "When the issues cannot be obtained (no sbom.json or credential, outage). 'block' by default, for the same reason as release_gate_policy.",
+          "enum": [
+            "skip",
+            "warn",
+            "block"
+          ],
+          "type": "string"
+        },
+        "max_severity": {
+          "default": "HIGH",
+          "description": "Issues at or above this severity count against max_count (same vocabulary as cve_policy)",
+          "enum": [
+            "CRITICAL",
+            "HIGH",
+            "MEDIUM",
+            "LOW"
+          ],
+          "type": "string"
+        },
+        "max_count": {
+          "default": 0,
+          "description": "Counted issues allowed across all images",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "on_unknown_image": {
+          "default": "warn",
+          "description": "When the platform does not know an image strata is about to deploy",
+          "enum": [
+            "skip",
+            "warn",
+            "block"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "integration"
+      ],
+      "type": "object"
+    },
+    "ImageTagAllowEntryModel": {
+      "additionalProperties": false,
+      "description": "One image exempt from the image tag policy. `name` and `reason` are required; add `expires` (an ISO date) to stop honouring the entry after that day.",
+      "properties": {
+        "name": {
+          "description": "The image to exempt: the name of an artifact, or of a module service, as `strata deploy images` lists it, or `REFERENCE/CONTAINER` for an image a rendered chart runs (`whoami/shipper`)",
+          "minLength": 1,
+          "type": "string"
+        },
+        "reason": {
+          "description": "Why this image may break the policy",
+          "minLength": 1,
+          "type": "string"
+        },
+        "expires": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "ISO date after which this entry is ignored (e.g. '2026-12-31')"
+        }
+      },
+      "required": [
+        "name",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "ImageTagPolicyModel": {
+      "additionalProperties": false,
+      "description": "Fails `build run` and `deploy run` when an image a deployment runs has no tag, has a floating tag, or does not have the tag shape you require. `image_tag_policy: {}` is already a useful policy: every image needs a tag, and the mutable aliases are rejected.\n\nRules:\n- Names in `allow` must be unique.",
+      "properties": {
+        "enforcement": {
+          "default": "deny",
+          "description": "'deny' stops the run on a breach; 'warn' reports and continues",
+          "enum": [
+            "deny",
+            "warn"
+          ],
+          "type": "string"
+        },
+        "origins": {
+          "anyOf": [
+            {
+              "items": {
+                "enum": [
+                  "artifact",
+                  "module-service",
+                  "chart"
+                ],
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Which images the policy covers: `artifact` for a `kind: artifact` image, `module-service` for a service image a module declares, `chart` for an image a Helm chart runs, read from the build's `sbom.json` unless the workspace sets `sbom.render_charts: false`. Omit to cover all three."
+        },
+        "require_tag": {
+          "default": true,
+          "description": "Fail an image that has no tag and no `kind: version` pin to take one from. A digest (`sha256:...`) counts as a tag here: it pins the image even more firmly.",
+          "type": "boolean"
+        },
+        "require_digest": {
+          "default": false,
+          "description": "Fail an image whose reference has no digest (`name@sha256:...` or `name:tag@sha256:...`), so what runs is fixed byte for byte, not by a tag a registry can move",
+          "type": "boolean"
+        },
+        "reject_tags": {
+          "anyOf": [
+            {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Tags that are not allowed, compared without regard to case. Omit to reject the mutable aliases `latest`, `main`, `master`, `dev`, `develop`, `staging`, `edge`, `nightly` and `canary`. Set an empty list to reject none. A digest is never rejected, and neither is a tag that merely is not a semantic version, such as a build number. With `tag@digest` only the tag is compared."
+        },
+        "tag_pattern": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Regular expression a tag must match, searched anywhere in the tag (anchor it with `^` and `$`). A digest is not checked against it; with `tag@digest` the tag is."
+        },
+        "require_pin": {
+          "default": false,
+          "description": "Require the tag to come from a `kind: version` pin (or `--pin`), so what a ring runs is always decided by its version document. Not applied to a `chart` image: strata cannot pin an image inside a chart; the chart's own pin fixes it.",
+          "type": "boolean"
+        },
+        "rings": {
+          "anyOf": [
+            {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Apply the policy only to deployments whose version document is in one of these rings (`spec.promotion.ring`). Omit to apply it to every deployment. A deployment with no ring is always evaluated."
+        },
+        "allow": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ImageTagAllowEntryModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Images exempt from the policy, each with a reason and an optional expiry"
+        },
+        "on_unknown_image": {
+          "default": "warn",
+          "description": "What to do about a Helm module that declares no service `image` or `artifact`: strata does not know the images its chart deploys, so it cannot judge them. 'block' stops the run, 'warn' reports and continues, 'skip' only notes it in verbose and JSON output. Independent of `enforcement`; `allow` does not exempt a module. Applies when `origins` covers `module-service` or `chart` (or is omitted). Declare the chart's images under the module's `services` to have them judged.",
+          "enum": [
+            "skip",
+            "warn",
+            "block"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "ModuleReferenceModel": {
+      "additionalProperties": false,
+      "description": "A reference to a Module document with placement options. Used in a namespace's `modules` and in a topology component's `modules`.\n\n`name` is the reference's own name and `module` the Module document it points at, so one module can be referenced several times under different names.",
+      "properties": {
+        "name": {
+          "description": "Unique module reference name within its parent",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "module": {
+          "description": "Name of the Module document this reference points at (its meta.name, resolved by discovery)",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string",
+          "x-strata-references": "module"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional description of what this module provides"
+        },
+        "slot_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "main",
+          "description": "Deployment slot type: `main` (default), `staging`, `canary`, `sidecar` or `init`. Other values are allowed but give a warning. Strata only uses it for the rule that exactly one of several enabled modules on a resource must be `main`."
+        },
+        "enabled": {
+          "default": true,
+          "description": "Whether this module is enabled/deployed",
+          "type": "boolean"
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Settings for this reference only. Accepted and validated, but strata does not apply them yet; put settings on the Module document instead."
+        }
+      },
+      "required": [
+        "name",
+        "module"
+      ],
+      "type": "object"
+    },
+    "OutputModel": {
+      "additionalProperties": false,
+      "description": "Replaces the default Terraform output with a file rendered from a Jinja2 template, for cases the default output does not cover. Valid for any tool. `build run` only validates the template; it cannot render it because not every value is resolved at build time.",
+      "properties": {
+        "template": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Path of a Jinja2 template rendered in place of the default output. `@<remote>/` paths are not supported."
+        }
+      },
       "type": "object"
     },
     "PlatformKind": {
       "description": "Enumeration of supported platform kinds.",
       "enum": [
+        "solution",
         "configuration",
-        "deployment",
-        "environment",
+        "providerconfig",
+        "topologyconfig",
+        "attributeconfig",
+        "provider",
+        "resource",
+        "dns",
+        "network",
         "firewall",
         "module",
         "namespace",
-        "platform_model",
-        "provider",
-        "resource",
-        "workspace"
+        "workspace",
+        "integration",
+        "tenant",
+        "environment",
+        "deployment",
+        "version",
+        "artifact",
+        "asset",
+        "parameterset"
       ],
-      "title": "PlatformKind",
       "type": "string"
     },
     "PlatformVersion": {
       "description": "Enumeration of supported platform versions.",
       "enum": [
-        "strata.huybrechts.xyz/v1"
+        "strata.huybrechts.xyz/v2",
+        "strata.omp.com/v2"
       ],
-      "title": "PlatformVersion",
       "type": "string"
     },
-    "ProvisionerType": {
-      "description": "Enumeration of supported provisioner names.",
-      "enum": [
-        "terraform",
-        "ansible",
-        "script",
-        "compose",
-        "helm"
-      ],
-      "title": "ProvisionerType",
-      "type": "string"
-    },
-    "ScriptPathModel": {
-      "description": "Individual script with scope and execution metadata.",
-      "properties": {
-        "file": {
-          "description": "Path to script file",
-          "title": "File",
-          "type": "string"
-        },
-        "scope": {
-          "$ref": "#/$defs/PlatformKind",
-          "description": "Execution scope - determines how many times script runs (deployment, environment, workspace, provider, resource, module, namespace)"
-        },
-        "priority": {
-          "default": 100,
-          "description": "Execution order within scope (lower runs first)",
-          "maximum": 9999,
-          "minimum": 0,
-          "title": "Priority",
-          "type": "integer"
-        },
-        "target": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Optional target filter (e.g., 'vm-*', 'azure-*', 'production')",
-          "title": "Target"
-        },
-        "description": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Optional description for documentation purposes",
-          "title": "Description"
-        }
-      },
-      "required": [
-        "file",
-        "scope"
-      ],
-      "title": "ScriptPathModel",
-      "type": "object"
-    },
-    "SourceModel": {
-      "description": "Reusable model for source configuration.\n\nTwo modes (mutually exclusive, validated):\n  1. Git-based: repository + source_path  \u2014 used for Terraform modules, local charts, etc.\n  2. Chart-based: chart_repository + chart_name  \u2014 used for Helm/ArgoCD chart registry pulls.\n\nExample \u2014 git-based:\n    source:\n      repository: my-infra-repo\n      source_path: terraform/modules/vpc\n      target_path: build/vpc\n\nExample \u2014 Helm chart registry:\n    source:\n      chart_name: authentik\n      chart_version: \"2024.12.0\"\n      chart_repository: https://charts.goauthentik.io",
-      "properties": {
-        "repository": {
-          "anyOf": [
-            {
-              "maxLength": 64,
-              "minLength": 1,
-              "pattern": "^[a-z][a-z0-9_-]*$",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Name of the repository from configuration's repositories list",
-          "title": "Repository"
-        },
-        "source_path": {
-          "anyOf": [
-            {
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Path to the source artifacts within the repository (relative path)",
-          "title": "Source Path"
-        },
-        "target_path": {
-          "anyOf": [
-            {
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Target path where artifacts should be built/deployed (relative to build/deploy directory)",
-          "title": "Target Path"
-        },
-        "description": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Optional description for documentation purposes",
-          "title": "Description"
-        },
-        "chart_name": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Helm chart name (e.g. 'authentik'). Required when using chart_repository.",
-          "title": "Chart Name"
-        },
-        "chart_version": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Helm chart version (e.g. '2024.12.0'). Omit to use latest.",
-          "title": "Chart Version"
-        },
-        "chart_repository": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Helm chart repository URL or OCI reference (e.g. 'https://charts.goauthentik.io' or 'oci://ghcr.io/org/charts').",
-          "title": "Chart Repository"
-        }
-      },
-      "title": "SourceModel",
-      "type": "object"
-    },
-    "WorkspaceComponentModel": {
-      "description": "Component model - simple resource name reference.",
-      "properties": {
-        "resource": {
-          "description": "Resource name reference (must match a resource defined in spec.resources)",
-          "minLength": 1,
-          "title": "Resource",
-          "type": "string"
-        }
-      },
-      "required": [
-        "resource"
-      ],
-      "title": "WorkspaceComponentModel",
-      "type": "object"
-    },
-    "WorkspaceFirewallModel": {
-      "description": "Model for a workspace firewall.",
-      "properties": {
-        "name": {
-          "description": "Unique firewall name",
-          "maxLength": 64,
-          "minLength": 1,
-          "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Name",
-          "type": "string"
-        },
-        "file": {
-          "description": "File reference for the firewall configuration",
-          "title": "File",
-          "type": "string"
-        }
-      },
-      "required": [
-        "name",
-        "file"
-      ],
-      "title": "WorkspaceFirewallModel",
-      "type": "object"
-    },
-    "WorkspaceIacAnsiblePropertiesModel": {
-      "description": "Typed properties for an Ansible provisioner entry.",
+    "ProvisionerAnsiblePropertiesModel": {
+      "additionalProperties": false,
+      "description": "Typed Ansible properties. Only valid when a Provisioner's `tool` is 'ansible'.",
       "properties": {
         "playbook": {
           "anyOf": [
@@ -297,9 +564,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Playbook file to run, relative to the playbook directory (default: site.yml)",
-          "title": "Playbook"
+          "description": "Playbook file to run, relative to the playbook directory (default: site.yml)"
         },
         "inventory": {
           "anyOf": [
@@ -310,9 +575,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Static inventory file path, relative to the playbook directory",
-          "title": "Inventory"
+          "description": "Static inventory file path, relative to the playbook directory"
         },
         "ssh_private_key_secret": {
           "anyOf": [
@@ -323,9 +586,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Name of the secret holding the SSH private key (default: ssh_private_key)",
-          "title": "Ssh Private Key Secret"
+          "description": "Name of the secret holding the SSH private key (default: ssh_private_key)"
         },
         "extra_vars": {
           "anyOf": [
@@ -339,27 +600,23 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Extra variables passed to ansible-playbook via --extra-vars",
-          "title": "Extra Vars"
+          "description": "Extra variables passed to ansible-playbook via --extra-vars"
         }
       },
-      "title": "WorkspaceIacAnsiblePropertiesModel",
       "type": "object"
     },
-    "WorkspaceIacBackendModel": {
-      "description": "Model for IaC backend configuration (state storage).",
+    "ProvisionerBackendModel": {
+      "additionalProperties": false,
+      "description": "IaC state backend configuration. Only valid when a Provisioner's `tool` is 'terraform' or 'opentofu'.",
       "properties": {
         "type": {
-          "description": "Backend type (e.g., 'terraform_cloud', 's3', 'azurerm', 'gcs', 'local', 'remote')",
+          "description": "Backend type (e.g. 'terraform_cloud', 's3', 'azurerm', 'gcs', 'local')",
           "minLength": 1,
-          "title": "Type",
           "type": "string"
         },
         "configuration": {
           "additionalProperties": true,
-          "description": "Backend-specific configuration (supports either a constant value or references like ${var:tf_org}, ${secret:tf_token}, ${feat:enable_encryption})",
-          "title": "Configuration",
+          "description": "Backend settings, each passed to `terraform init` as one `-backend-config key=value`. Values may contain `${var:}`, `${secret:}`, `${feature:}`, `${output:STEP.KEY}`, `${artifact:NAME.FIELD}` and the deployment's own `${deployment:name}` / `${deployment:tenant}` tokens, resolved when `deploy run` starts the step. A non-string value is converted with Python's `str()`, so write a boolean as a quoted string (`\"true\"`).",
           "type": "object"
         }
       },
@@ -367,16 +624,118 @@
         "type",
         "configuration"
       ],
-      "title": "WorkspaceIacBackendModel",
       "type": "object"
     },
-    "WorkspaceIacModel": {
+    "ProvisionerGitOpsModel": {
+      "additionalProperties": false,
+      "description": "Where a GitOps provisioner (`argocd` or `flux`) pushes the file it renders: an already-declared git `remote` and the `output_file` path inside it. The Argo CD Application or Flux Kustomization that watches that repository is set up separately and is outside strata.",
       "properties": {
-        "name": {
+        "remote": {
+          "description": "The already-declared git remote (strata.yaml spec.remotes) holding the GitOps config repo.",
           "maxLength": 64,
           "minLength": 1,
           "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Name",
+          "type": "string",
+          "x-strata-remote": true
+        },
+        "output_file": {
+          "description": "Path inside the remote's repository of the file this provisioner renders and pushes. Relative, without `..`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "remote",
+        "output_file"
+      ],
+      "type": "object"
+    },
+    "ProvisionerLockAllowEntryModel": {
+      "additionalProperties": false,
+      "description": "One provisioner exempt from the provisioner lock policy. `provisioner` and `reason` are required; add `expires` (an ISO date) to stop honouring the entry after that day.",
+      "properties": {
+        "provisioner": {
+          "description": "The provisioner to exempt, by its name in `provisioners`",
+          "minLength": 1,
+          "type": "string"
+        },
+        "reason": {
+          "description": "Why this provisioner may ship without a complete lock file",
+          "minLength": 1,
+          "type": "string"
+        },
+        "expires": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "ISO date after which this entry is ignored (e.g. '2026-12-31')"
+        }
+      },
+      "required": [
+        "provisioner",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "ProvisionerLockPolicyModel": {
+      "additionalProperties": false,
+      "description": "Fails `build run` when a Terraform or OpenTofu provisioner has no `.terraform.lock.hcl`, or one that does not lock every provider its source declares. Without the lock file those providers are listed in the SBOM without a version, so a scanner cannot check them. `provisioner_lock_policy: {}` is already a useful policy.\n\nRules:\n- Provisioners in `allow` must be unique.",
+      "properties": {
+        "enforcement": {
+          "default": "deny",
+          "description": "'deny' stops the run on a breach; 'warn' reports and continues",
+          "enum": [
+            "deny",
+            "warn"
+          ],
+          "type": "string"
+        },
+        "rings": {
+          "anyOf": [
+            {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Apply the policy only to deployments whose version document is in one of these rings (`spec.promotion.ring`). Omit to apply it to every deployment. A deployment with no ring is always evaluated."
+        },
+        "allow": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ProvisionerLockAllowEntryModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Provisioners exempt from the policy, each with a reason and an optional expiry"
+        }
+      },
+      "type": "object"
+    },
+    "ProvisionerModel": {
+      "additionalProperties": false,
+      "description": "A tool definition: which `tool` runs, where its code is (`source`) and its tool-specific settings. A provisioner does not say what it acts on: an `execution` step binds it to targets.\n\nRules:\n- `source` is required unless `tool` is `argocd` or `flux`, which render from the platform artifact.\n- Tool-specific blocks are rejected for other known tools: `backend` only for terraform and opentofu, `properties` only for ansible, `gitops` only for argocd and flux, `script` only for script. A custom tool name is never rejected.\n- `script` is required when `tool` is `script`.\n- A provisioner cannot depend on itself.",
+      "properties": {
+        "name": {
+          "description": "Unique provisioner name",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
           "type": "string"
         },
         "description": {
@@ -388,41 +747,69 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional description of the provisioner for documentation purposes",
-          "title": "Description"
+          "description": "Optional description for documentation purposes"
         },
-        "provisioner": {
-          "$ref": "#/$defs/ProvisionerType",
-          "description": "IaC tool used for provisioning"
+        "tool": {
+          "description": "Tool this provisioner runs: terraform, opentofu, ansible, bicep, script, helm, compose, argocd or flux, or a custom provisioner plugin name.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
         },
         "source": {
-          "$ref": "#/$defs/SourceModel",
-          "description": "IaC deployment configuration (file path, variables, secrets)"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Source location for this provisioner's IaC/chart code. Required unless `tool` is a known sync/GitOps type (argocd, flux), which render from the platform artifact instead.\n\nRules:\n- Exactly one mode is used: git-based (`source_path`) or chart-based (`chart_name`), never both and never neither.\n- A chart-based source needs exactly one of `remote` or `chart_repository`.\n- `chart_repository` and `chart_version` are only valid for chart-based sources.\n- `source_path` and `target_path` must be relative paths without `..`."
         },
         "backend": {
           "anyOf": [
             {
-              "$ref": "#/$defs/WorkspaceIacBackendModel"
+              "$ref": "#/$defs/ProvisionerBackendModel"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Backend configuration for state storage (e.g., Terraform Cloud, S3, Azure Storage)"
+          "description": "State backend configuration. Only valid when tool is 'terraform' or 'opentofu'."
         },
         "properties": {
           "anyOf": [
             {
-              "$ref": "#/$defs/WorkspaceIacAnsiblePropertiesModel"
+              "$ref": "#/$defs/ProvisionerAnsiblePropertiesModel"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Provisioner-specific typed properties (currently supported: ansible)"
+          "description": "Typed Ansible properties. Only valid when tool is 'ansible'."
+        },
+        "gitops": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProvisionerGitOpsModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "GitOps push destination. Only valid when tool is a sync type ('argocd', 'flux')."
+        },
+        "script": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProvisionerScriptModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Script file + args to run. Required when tool is 'script'.\n\nRules:\n- `args` are used by `deploy run` (the apply). `plan_args` are used only when a preview is requested (`--dry-run`, `deploy plan`), and `destroy_args` only by `deploy destroy`.\n- Without `plan_args`, a preview never executes the script; it only prints what would run.\n- Without `destroy_args`, the step cannot be destroyed.\n- strata cannot check that the script is free of side effects when it runs with `plan_args`. Every run sets `STRATA_PHASE` to `plan`, `apply` or `destroy`, so the script can refuse an action that does not fit the phase.\n- Without `values`, `STRATA_VALUES` holds every resolved value. With it, only the listed keys (and the `deployment:` entries). `args`, `plan_args` and `destroy_args` still resolve any token."
         },
         "configuration": {
           "anyOf": [
@@ -434,28 +821,751 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Tool-specific configuration (e.g. playbook, inventory, ssh_private_key_secret for Ansible; backend overrides for Terraform).",
-          "title": "Configuration"
+          "description": "Tool-specific passthrough configuration, not validated by strata."
+        },
+        "integration": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string",
+              "x-strata-references": "integration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Name of an Integration document this provisioner binds to, supplying the tool's expected version, transport and authentication. When unset, strata binds the single compatible registered Integration and reports an error, rather than guessing, when several match. Valid for any tool."
+        },
+        "output": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OutputModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Replace the default output with a rendered Jinja2 template. Valid for any tool; `build run` only validates it."
+        },
+        "depends_on": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Names of other provisioners in this workspace whose `source` must be materialised before this one's, so this provisioner's code can use their files (for example a relative Terraform module path). A dependency needs no execution step of its own. It does not imply an execution order: use a step's `depends_on` for that."
         }
       },
       "required": [
         "name",
-        "provisioner",
-        "source"
+        "tool"
       ],
-      "title": "WorkspaceIacModel",
       "type": "object"
     },
+    "ProvisionerScriptModel": {
+      "additionalProperties": false,
+      "description": "What a `script` provisioner runs: a `file` relative to the provisioner's `source` directory, and the arguments for each phase it can run in.\n\nRules:\n- `args` are used by `deploy run` (the apply). `plan_args` are used only when a preview is requested (`--dry-run`, `deploy plan`), and `destroy_args` only by `deploy destroy`.\n- Without `plan_args`, a preview never executes the script; it only prints what would run.\n- Without `destroy_args`, the step cannot be destroyed.\n- strata cannot check that the script is free of side effects when it runs with `plan_args`. Every run sets `STRATA_PHASE` to `plan`, `apply` or `destroy`, so the script can refuse an action that does not fit the phase.\n- Without `values`, `STRATA_VALUES` holds every resolved value. With it, only the listed keys (and the `deployment:` entries). `args`, `plan_args` and `destroy_args` still resolve any token.",
+      "properties": {
+        "file": {
+          "description": "Script path, relative to this provisioner's 'source' directory",
+          "type": "string"
+        },
+        "args": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Arguments passed to the script by `deploy run` (the apply). Value tokens are resolved. The rendered `output.template` path, if any, is appended as the last argument."
+        },
+        "plan_args": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Arguments for a preview run (`--dry-run`, `deploy plan`). When set, a preview runs the script with these arguments, so the script must not change anything in that mode; the environment variable `STRATA_PHASE` is `plan`. A real `deploy run` never runs them. When unset, a preview only prints what would run."
+        },
+        "destroy_args": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Arguments for `deploy destroy --force`. When set, the step can be destroyed and the script runs with these arguments and `STRATA_PHASE=destroy`; `deploy destroy --dry-run` only prints what would run. When unset, the step cannot be destroyed."
+        },
+        "values": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Keys the script may read from the environment variable `STRATA_VALUES`: variable, secret and feature keys, and `<step>.<key>` outputs of earlier steps. When unset, the script receives every resolved value; when set (an empty list is allowed), only these, plus the `deployment:name` and `deployment:tenant` entries. It limits `STRATA_VALUES` only: arguments can still use any token, and a secret in an argument is visible in the process list. A listed key that does not resolve fails the step."
+        }
+      },
+      "required": [
+        "file"
+      ],
+      "type": "object"
+    },
+    "ProvisioningStepModel": {
+      "additionalProperties": false,
+      "description": "One step of the execution recipe: run a provisioner against its targets, after the steps in `depends_on`.\n\nTargets are `resources`, `namespaces`, `topologies` (every resource and namespace the topology groups) and `dns_zones`, `firewalls` and `networks` (to own their `${output:...}` values). `assets` lists input files to materialise before the provisioner runs.\n\nRules:\n- A name may appear only once in each target list.\n- A step needs at least one of `resources`, `namespaces`, `topologies`, `dns_zones`, `firewalls` or `networks`.\n- A step cannot depend on itself.",
+      "properties": {
+        "name": {
+          "description": "Unique step name",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "provisioner": {
+          "description": "Name of a provisioner declared in this workspace's `provisioners`.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "resources": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Resource name references this step acts on directly"
+        },
+        "namespaces": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Namespace name references this step acts on directly"
+        },
+        "topologies": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Topology name references \u2014 this step acts on every resource/namespace that topology groups (expanded at the Workspace container level, not declared redundantly here)."
+        },
+        "dns_zones": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Names of DNS documents this step owns, which allows `${output:STEP.KEY}` tokens in them. Use it when none of the step's resources references the document."
+        },
+        "firewalls": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Names of firewall documents this step owns, which allows `${output:STEP.KEY}` tokens in them. Use it when none of the step's resources references the document."
+        },
+        "networks": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Names of network documents this step owns, which allows `${output:STEP.KEY}` tokens in them. Use it when none of the step's resources references the document."
+        },
+        "assets": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Asset slot names (from the workspace's `assets`) whose files are materialised into the build output before the provisioner runs. An asset is input the step consumes, not a target it acts on."
+        },
+        "depends_on": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Names of other ProvisioningSteps that must complete before this one runs"
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Free-form label for filtering steps on the command line (`strata deploy run --scope <label>`), for example `infra` or `apps`. Several steps may share a label."
+        }
+      },
+      "required": [
+        "name",
+        "provisioner"
+      ],
+      "type": "object"
+    },
+    "ReleaseGatePolicyModel": {
+      "additionalProperties": false,
+      "description": "Gate a deploy on a platform's verdict for the solution repository at the deployed commit.\n\nRules:\n- `poll_interval` must be smaller than `timeout`.",
+      "properties": {
+        "integration": {
+          "description": "Integration document declaring the 'release_gate' capability that gives the verdict",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string",
+          "x-strata-references": "integration"
+        },
+        "repository": {
+          "description": "The repository as the platform knows it (id or name)",
+          "minLength": 1,
+          "type": "string"
+        },
+        "enforcement": {
+          "default": "deny",
+          "description": "'deny' stops the deploy on a failed gate; 'warn' reports and continues",
+          "enum": [
+            "deny",
+            "warn"
+          ],
+          "type": "string"
+        },
+        "on_missing_data": {
+          "default": "block",
+          "description": "When no verdict can be obtained (no credential or commit, outage, timeout). 'block' by default, as cve_policy: 'skip' would make 'never checked' look the same as 'checked, clean'.",
+          "enum": [
+            "skip",
+            "warn",
+            "block"
+          ],
+          "type": "string"
+        },
+        "timeout": {
+          "default": 900,
+          "description": "Total seconds to wait for the verdict",
+          "maximum": 7200,
+          "minimum": 30,
+          "type": "integer"
+        },
+        "poll_interval": {
+          "default": 10,
+          "description": "Seconds between checks while waiting",
+          "maximum": 300,
+          "minimum": 2,
+          "type": "integer"
+        },
+        "commit": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-fA-F]{40}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Pin the commit to judge; normally resolved from CI variables or git (design D6)"
+        }
+      },
+      "required": [
+        "integration",
+        "repository"
+      ],
+      "type": "object"
+    },
+    "ScriptPathModel": {
+      "additionalProperties": false,
+      "description": "Individual script with scope and execution metadata.",
+      "properties": {
+        "file": {
+          "description": "Path to script file",
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/PlatformKind",
+          "description": "Execution scope - determines how many times the script runs (e.g. deployment, environment, workspace, provider, resource, module, namespace)"
+        },
+        "priority": {
+          "default": 100,
+          "description": "Execution order within scope (lower runs first)",
+          "maximum": 9999,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional target filter (e.g., 'vm-*', 'azure-*', 'production')"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional description for documentation purposes"
+        }
+      },
+      "required": [
+        "file",
+        "scope"
+      ],
+      "type": "object"
+    },
+    "SourceModel": {
+      "additionalProperties": false,
+      "description": "Where the code of a module or provisioner comes from. Pick one mode:\n\n- Git-based: `source_path`, optionally with `remote`. Omit `remote` for this solution's own repository. Used for Terraform modules, local charts and similar.\n- Chart-based: `chart_name` with exactly one of `remote` (a remote from the solution manifest) or `chart_repository` (an inline URL). Used for Helm and Argo CD charts.\n\nRules:\n- Exactly one mode is used: git-based (`source_path`) or chart-based (`chart_name`), never both and never neither.\n- A chart-based source needs exactly one of `remote` or `chart_repository`.\n- `chart_repository` and `chart_version` are only valid for chart-based sources.\n- `source_path` and `target_path` must be relative paths without `..`.",
+      "properties": {
+        "remote": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string",
+              "x-strata-remote": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Name of a remote declared in the solution manifest's spec.remotes (strata.yaml). The remote owns the URL, the git/OCI ref and the credentials; this only selects which one to take from. Required for a git-based source with credentials/a pinned ref; for a chart-based source, either this or `chart_repository` is required (mutually exclusive) \u2014 use `remote` when the registry is shared across modules or needs credentials, `chart_repository` otherwise. Omitting both on a git-based source means this solution's own repository."
+        },
+        "source_path": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Path to the source artifacts within the repository (relative path)"
+        },
+        "target_path": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Target path where artifacts should be built/deployed (relative to build/deploy directory)"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional description for documentation purposes"
+        },
+        "chart_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Helm chart name (e.g. 'authentik'). Selects chart-based mode; requires exactly one of `remote`/`chart_repository`."
+        },
+        "chart_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Helm chart version (e.g. '2024.12.0'). Omit to use latest. Only valid in chart-based mode. Unlike a git ref, this is NOT remote identity \u2014 a chart index legitimately serves many versions, so picking one is selection and belongs here rather than on the remote."
+        },
+        "chart_repository": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Inline Helm chart repository URL or OCI reference (for example `https://charts.goauthentik.io` or `oci://ghcr.io/org/charts`), for a chart used by exactly one module that needs no credentials. Only valid in chart-based mode and mutually exclusive with `remote`. Use `remote` once the registry is shared by several modules or needs credentials. The URL is not checked against the solution manifest, so a typo only shows up when Helm fails to add the repository."
+        }
+      },
+      "type": "object"
+    },
+    "TopologyComponentModel": {
+      "additionalProperties": false,
+      "description": "A resource that belongs to a topology, optionally with modules (application code) attached directly to it, for example function code on an Azure Function App.\n\nRules:\n- Module reference names must be unique within the component.\n- When several modules are enabled on one resource, exactly one must have `slot_type: main`.",
+      "properties": {
+        "resource": {
+          "description": "Resource name reference (must exist in this workspace's spec.resources)",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "modules": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ModuleReferenceModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Modules (application code) attached directly to this resource"
+        }
+      },
+      "required": [
+        "resource"
+      ],
+      "type": "object"
+    },
+    "TopologyNamespaceReferenceModel": {
+      "additionalProperties": false,
+      "description": "A namespace reference belonging to a topology.",
+      "properties": {
+        "namespace": {
+          "description": "Namespace name reference (must exist in this workspace's spec.namespaces)",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "namespace"
+      ],
+      "type": "object"
+    },
+    "TopologySpecModel": {
+      "additionalProperties": false,
+      "description": "A named grouping of resources and namespaces that belong together, for example a Kubernetes cluster with its storage and key vault. Used for documentation, diagrams and placement. It has no provider or provisioner: which tool builds it, and in what order, is defined by provisioners and execution steps.\n\nRules:\n- A resource may appear only once in `components`, a namespace only once in `namespaces`, and a volume name only once in `volumes`.",
+      "properties": {
+        "name": {
+          "description": "Unique topology name within this workspace",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "type": {
+          "description": "Topology type, for example `kubernetes`, `dockerswarm` or `azure-native`. Should be registered by a TopologyConfig listed in the Configuration, unless the Configuration allows additional topologies.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "components": {
+          "description": "Resource references that belong to this topology\n\nRules:\n- Module reference names must be unique within the component.\n- When several modules are enabled on one resource, exactly one must have `slot_type: main`.",
+          "items": {
+            "$ref": "#/$defs/TopologyComponentModel"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "namespaces": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/TopologyNamespaceReferenceModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Namespace references deployed on this topology"
+        },
+        "volumes": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/TopologyVolumeModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Topology volumes"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "components"
+      ],
+      "type": "object"
+    },
+    "TopologyVolumeModel": {
+      "additionalProperties": false,
+      "description": "Model for a topology volume.",
+      "properties": {
+        "name": {
+          "description": "Unique volume name within the topology",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "type": {
+          "default": "local",
+          "description": "Volume storage type (e.g., local, replicated, distributed, nfs, iscsi, etc.)",
+          "type": "string"
+        },
+        "size": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Volume capacity (e.g., '10Gi', '500Mi', '1Ti')"
+        },
+        "mount_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Mount path for the volume (e.g., '/data', '/mnt/shared')"
+        },
+        "access_mode": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Volume access mode - concurrency pattern at container level (e.g., 'ReadWriteOnce', 'ReadWriteMany', 'ReadOnlyMany')"
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Filesystem permissions within the volume (e.g., '0755' octal, 'rw', 'ro')"
+        },
+        "driver": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Storage driver or CSI plugin (e.g., 'nfs.csi.k8s.io', 'local-path')"
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Driver-specific configuration (e.g., server, share, secretRef)"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "WorkspaceAssetModel": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "slot": {
+              "description": "Stable slot name; steps select it and IaC addresses strata.assets.<slot>",
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string"
+            },
+            "asset": {
+              "description": "Name of the Asset document bound to this slot by default",
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string",
+              "x-strata-references": "asset"
+            }
+          },
+          "required": [
+            "slot",
+            "asset"
+          ],
+          "type": "object"
+        }
+      ],
+      "description": "A named asset slot with its default Asset document. A step selects the slot in its `assets`, and IaC code addresses the files as `strata.assets.<slot>`. A bare string is shorthand for a slot named after its own document."
+    },
     "WorkspaceMetaModel": {
-      "description": "Model for workspace metadata (name, annotations, labels, tags).",
+      "additionalProperties": false,
+      "description": "Workspace metadata (name, annotations, labels, tags).",
       "properties": {
         "name": {
           "description": "Unique workspace name",
           "maxLength": 64,
           "minLength": 1,
           "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Name",
           "type": "string"
         },
         "annotations": {
@@ -468,9 +1578,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional annotations (key-value pairs for documentation)",
-          "title": "Annotations"
+          "description": "Optional annotations (key-value pairs for documentation)"
         },
         "labels": {
           "anyOf": [
@@ -482,9 +1590,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional labels (key-value pairs for classification/filtering)",
-          "title": "Labels"
+          "description": "Optional labels (key-value pairs for classification/filtering)"
         },
         "tags": {
           "anyOf": [
@@ -496,165 +1602,87 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional tags (list of values for categorization)",
-          "title": "Tags"
+          "description": "Optional tags (list of values for categorization)"
         }
       },
       "required": [
         "name"
       ],
-      "title": "WorkspaceMetaModel",
-      "type": "object"
-    },
-    "WorkspaceModuleReferenceModel": {
-      "description": "Module reference for a resource - links code/app to infrastructure.",
-      "properties": {
-        "name": {
-          "description": "Unique module name within this resource",
-          "maxLength": 64,
-          "minLength": 1,
-          "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Name",
-          "type": "string"
-        },
-        "file": {
-          "description": "File reference to the module configuration (module YAML file)",
-          "title": "File",
-          "type": "string"
-        },
-        "slot_type": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "main",
-          "description": "Deployment slot type: 'main' (primary/production), 'staging', 'canary', 'sidecar', 'init'. Defaults to 'main'. Custom values allowed but may generate warnings.",
-          "title": "Slot Type"
-        },
-        "enabled": {
-          "default": true,
-          "description": "Whether this module is enabled/deployed",
-          "title": "Enabled",
-          "type": "boolean"
-        },
-        "configuration": {
-          "anyOf": [
-            {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Module-specific configuration overrides for this workspace",
-          "title": "Configuration"
-        }
-      },
-      "required": [
-        "name",
-        "file"
-      ],
-      "title": "WorkspaceModuleReferenceModel",
-      "type": "object"
-    },
-    "WorkspaceNamespaceModel": {
-      "description": "Model for a workspace namespace.",
-      "properties": {
-        "name": {
-          "description": "Unique namespace name",
-          "maxLength": 64,
-          "minLength": 1,
-          "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Name",
-          "type": "string"
-        },
-        "file": {
-          "description": "File reference for the namespace configuration",
-          "title": "File",
-          "type": "string"
-        }
-      },
-      "required": [
-        "name",
-        "file"
-      ],
-      "title": "WorkspaceNamespaceModel",
-      "type": "object"
-    },
-    "WorkspaceNamespaceReferenceModel": {
-      "description": "Namespace reference within a topology - links a namespace to this topology.",
-      "properties": {
-        "namespace": {
-          "description": "Namespace name reference (must match a namespace defined in spec.namespaces)",
-          "minLength": 1,
-          "title": "Namespace",
-          "type": "string"
-        }
-      },
-      "required": [
-        "namespace"
-      ],
-      "title": "WorkspaceNamespaceReferenceModel",
       "type": "object"
     },
     "WorkspaceProviderModel": {
-      "properties": {
-        "name": {
-          "description": "Unique provider name",
+      "anyOf": [
+        {
           "maxLength": 64,
           "minLength": 1,
           "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Name",
           "type": "string"
         },
-        "file": {
-          "description": "Path to the provider configuration file",
-          "title": "File",
-          "type": "string"
-        },
-        "description": {
-          "anyOf": [
-            {
+        {
+          "additionalProperties": false,
+          "properties": {
+            "slot": {
+              "description": "Stable slot name; IaC addresses the provider as strata.providers.<slot>",
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
               "type": "string"
             },
-            {
-              "type": "null"
+            "provider": {
+              "description": "Name of the Provider document bound to this slot by default",
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string",
+              "x-strata-references": "provider"
             }
+          },
+          "required": [
+            "slot",
+            "provider"
           ],
-          "default": null,
-          "description": "Optional description of the provider for documentation purposes",
-          "title": "Description"
+          "type": "object"
         }
-      },
-      "required": [
-        "name",
-        "file"
       ],
-      "title": "WorkspaceProviderModel",
-      "type": "object"
+      "description": "A named provider slot with its default Provider document. IaC code addresses the provider as `strata.providers.<slot>`, and a deployment can rebind the slot to another Provider. A bare string is shorthand for a slot named after its own document."
     },
     "WorkspaceResourceModel": {
-      "description": "Model for workspace resource definition (gluing layer).",
+      "additionalProperties": false,
+      "description": "An instance of a Resource in this workspace, with workspace-specific overrides. `name` is the instance name and `resource` names the Resource document it is built from, so one Resource can be instantiated several times.\n\nRules:\n- Set exactly one of `resource` (a Resource document name) or `managed_by: provisioner`.",
       "properties": {
         "name": {
           "description": "Unique resource name",
           "maxLength": 64,
           "minLength": 1,
           "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Name",
           "type": "string"
         },
-        "file": {
-          "description": "Path to the resource configuration file",
-          "title": "File",
-          "type": "string"
+        "resource": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string",
+              "x-strata-references": "resource"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Name of the Resource document this instance is built from (its meta.name, resolved by discovery). Required unless managed_by is set. `name` above is the workspace-local *instance* name and may differ \u2014 one Resource class can be instantiated several times under different names."
+        },
+        "managed_by": {
+          "anyOf": [
+            {
+              "const": "provisioner",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Indicates the resource is fully managed externally and no Resource document is needed (e.g. resource details defined entirely in Terraform/Ansible)."
         },
         "description": {
           "anyOf": [
@@ -665,28 +1693,12 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional description of the resource for documentation purposes",
-          "title": "Description"
+          "description": "Optional description for documentation purposes"
         },
         "enabled": {
           "default": true,
-          "description": "Whether this resource is enabled/deployed in this workspace",
-          "title": "Enabled",
+          "description": "Whether this resource is deployed. Set false to leave it out of the build, and so out of every provisioner that uses it.",
           "type": "boolean"
-        },
-        "condition": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Conditional expression for resource inclusion (e.g., '${environment} == production')",
-          "title": "Condition"
         },
         "role": {
           "anyOf": [
@@ -700,16 +1712,13 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Role of the resource (e.g., networking, database, api)",
-          "title": "Role"
+          "description": "Role of the resource (for example `control-plane` or `worker`), matched against the component roles of the TopologyConfig for its topology's type. Also passed to Terraform."
         },
         "count": {
           "default": 1,
-          "description": "Number of resource instances (must be greater than 0)",
+          "description": "Number of instances, 1 to 100, passed to Terraform as `strata.resources.<name>.count`.",
           "maximum": 100,
           "minimum": 1,
-          "title": "Count",
           "type": "integer"
         },
         "depends_on": {
@@ -724,25 +1733,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "List of resource names this resource depends on (workspace-specific gluing)",
-          "title": "Depends On"
-        },
-        "references": {
-          "anyOf": [
-            {
-              "additionalProperties": {
-                "type": "string"
-              },
-              "type": "object"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Cross-resource value references (e.g., {'storage_connection': 'contoso_storage.connection_string'})",
-          "title": "References"
+          "description": "Names of other resources in this workspace this one depends on. Documentation only for now: strata does not order or enforce it. Use a step's `depends_on` for ordering."
         },
         "firewalls": {
           "anyOf": [
@@ -756,9 +1747,32 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "References to firewall/NSG resource names for network security",
-          "title": "Firewalls"
+          "description": "Names of firewall documents (from the workspace's `firewalls`) applied to this resource, passed to Terraform as `strata.resources.<name>.firewalls`."
+        },
+        "dns_zones": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Names of DNS documents (from the workspace's `dns_zones`) associated with this resource, passed to Terraform as `strata.resources.<name>.dns_zones`. A step that provisions this resource can use `${output:STEP.KEY}` tokens in those documents."
+        },
+        "subnet": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorkspaceResourceSubnetModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Structured reference to a subnet within one of this workspace's networks"
         },
         "configuration": {
           "anyOf": [
@@ -770,9 +1784,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Workspace-specific configuration overrides (merged with resource file configuration)",
-          "title": "Configuration"
+          "description": "Overrides and additions to the Resource document's `configuration` (workspace values win), passed to Terraform as `strata.resources.<name>.configuration`."
         },
         "custom": {
           "anyOf": [
@@ -784,25 +1796,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional additional properties for the resource (key-value pairs)",
-          "title": "Custom"
-        },
-        "modules": {
-          "anyOf": [
-            {
-              "items": {
-                "$ref": "#/$defs/WorkspaceModuleReferenceModel"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Optional module references (code/apps) - links apps to infrastructure (e.g., web app code on Azure Web App, function code on Function App, containers on AKS)",
-          "title": "Modules"
+          "description": "Overrides and additions to the Resource document's `custom` values (workspace values win), passed to Terraform as `strata.resources.<name>.custom`."
         },
         "labels": {
           "anyOf": [
@@ -814,9 +1808,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional labels (key-value pairs for classification/filtering)",
-          "title": "Labels"
+          "description": "Optional labels (key-value pairs for classification)"
         },
         "tags": {
           "anyOf": [
@@ -828,20 +1820,82 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional tags (list of values for categorization)",
-          "title": "Tags"
+          "description": "Optional tags (list of values for categorization)"
+        },
+        "default_tags": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cloud tags merged over the Resource document's `default_tags` (workspace values win). Not the same as `meta.tags`, which is a free-form list for documentation."
+        },
+        "custom_tags": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cloud tags merged over the Resource document's `custom_tags` (workspace values win)."
         }
       },
       "required": [
-        "name",
-        "file"
+        "name"
       ],
-      "title": "WorkspaceResourceModel",
+      "type": "object"
+    },
+    "WorkspaceResourceSubnetModel": {
+      "additionalProperties": false,
+      "description": "A subnet for a resource: `network` names one of the workspace's networks and `subnet` a subnet inside that Network document.",
+      "properties": {
+        "network": {
+          "description": "Network reference name (must exist in this workspace's spec.networks)",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "subnet": {
+          "description": "Subnet name inside that Network document; checked against the document's subnets when the solution is validated.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "network",
+        "subnet"
+      ],
+      "type": "object"
+    },
+    "WorkspaceSbomModel": {
+      "additionalProperties": false,
+      "description": "What `build run` puts in `sbom.json` beyond what it always records.",
+      "properties": {
+        "render_charts": {
+          "default": true,
+          "description": "Render every Helm chart with `helm template` at build (offline, no secret), a local chart or a registry chart the build pinned, and list the images it deploys, sidecars and init containers included, so the CVE and image gates and `image_tag_policy` check what runs instead of only what a module declares. A chart that cannot be rendered (no `helm`, a dependency not vendored, a registry chart not pinned) gets an `info` line and is skipped. Default `true`; set `false` to list only the images modules declare.",
+          "type": "boolean"
+        }
+      },
       "type": "object"
     },
     "WorkspaceSpecModel": {
-      "description": "Workspace specification model.",
+      "additionalProperties": false,
+      "description": "Everything a solution deploys. `providers` say where (target accounts), `provisioners` say with what (tool definitions) and `execution` says what runs in what order. Alongside them are the `resources`, `namespaces`, `firewalls`, `dns_zones`, `networks` and `assets` they use, optional `topology` groupings and the security policies that gate build and deploy.\n\nReferences to other documents are document names, not file paths.\n\nRules:\n- Provider slots, provisioner names, topology names, resource names, namespace names, firewall names, DNS zone names, network names and asset slots must each be unique within their list.\n- Every topology component `resource` must be declared in `resources`, and every topology namespace must be listed in `namespaces`.\n- A resource's `firewalls` must be listed in this workspace's `firewalls`, its `dns_zones` in `dns_zones` and its `subnet.network` in `networks`.\n- Every execution step must name a declared provisioner, and its `resources`, `namespaces`, `topologies`, `dns_zones`, `firewalls`, `networks` and `assets` must exist in the matching list of this workspace.\n- Step names must be unique, a step's `depends_on` must name existing steps, and the steps must have no dependency cycle.\n- Two steps that act on the same target must be ordered by `depends_on`, directly or through other steps. A target is a resource, namespace or topology member, or a firewall, DNS document or network claimed by a step or by a resource it provisions. Otherwise the order is ambiguous and validation fails.\n- A provisioner's `depends_on` must name declared provisioners, with no dependency cycle.\n- Every `provisioner_lock_policy.allow` entry must name a declared provisioner.",
       "properties": {
         "lifecycle": {
           "anyOf": [
@@ -852,8 +1906,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Workspace workflow lifecycle phases"
+          "description": "Hook scripts per phase name. Accepted and validated, but strata does not run lifecycle hooks yet."
         },
         "properties": {
           "anyOf": [
@@ -865,9 +1918,19 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Workspace properties",
-          "title": "Properties"
+          "description": "Base layer of the `properties` that are merged with those of the environments and the deployment, passed to Terraform as `strata.properties`. Strata does not validate the keys itself: add an `attributeconfig` with `target.kind: workspace` and `target.block: properties` to do so."
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Free-form workspace settings, passed to Terraform as `strata.workspace.configuration`. Strata does not validate the keys itself: add an `attributeconfig` with `target.kind: workspace` and `target.block: configuration` to do so."
         },
         "custom": {
           "anyOf": [
@@ -879,36 +1942,106 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional additional properties (key-value pairs)",
-          "title": "Custom"
+          "description": "Base layer of the `custom` values that are merged with those of the environments and the deployment (`strata.custom`); also passed as `strata.workspace.custom`. Strata does not interpret them."
+        },
+        "default_tags": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Solution-wide baseline cloud tags (for example `managed-by: strata`), passed to Terraform as `strata.default_tags`. Useful when a workspace spans several providers. Not the same as `meta.tags`, which is a free-form list for documentation."
         },
         "providers": {
-          "description": "Provider configurations",
+          "description": "Provider slots, at least one: a Provider document name, or `{slot, provider}` to give the slot a stable name. IaC code addresses a provider as `strata.providers.<slot>`, and a deployment can rebind a slot to another Provider.",
           "items": {
             "$ref": "#/$defs/WorkspaceProviderModel"
           },
           "minItems": 1,
-          "title": "Providers",
           "type": "array"
         },
         "provisioners": {
-          "description": "IaC provisioner configurations",
+          "description": "Tool definitions, at least one: which tool runs, where its code is and its tool-specific settings. A provisioner runs against targets only when an `execution` step uses it.\n\nRules:\n- `source` is required unless `tool` is `argocd` or `flux`, which render from the platform artifact.\n- Tool-specific blocks are rejected for other known tools: `backend` only for terraform and opentofu, `properties` only for ansible, `gitops` only for argocd and flux, `script` only for script. A custom tool name is never rejected.\n- `script` is required when `tool` is `script`.\n- A provisioner cannot depend on itself.",
           "items": {
-            "$ref": "#/$defs/WorkspaceIacModel"
+            "$ref": "#/$defs/ProvisionerModel"
           },
           "minItems": 1,
-          "title": "Provisioners",
           "type": "array"
         },
+        "execution": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ProvisioningStepModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The ordered recipe: steps binding a Provisioner to a set of targets. Named 'execution' rather than 'provisioning' so it cannot be confused with the sibling 'provisioners' (tool definitions) or with the 'deployment' kind.\n\nRules:\n- A name may appear only once in each target list.\n- A step needs at least one of `resources`, `namespaces`, `topologies`, `dns_zones`, `firewalls` or `networks`.\n- A step cannot depend on itself."
+        },
+        "output_store": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key/value backend type for keeping step outputs across runs (for example `azure-keyvault`, `azure-appconfig` or `azure-blob`). It binds to the single enabled Integration of that type. Omit to keep step outputs in memory only. When set, the type must be allowed by the Configuration's `spec.security.allowed_key_value_stores`."
+        },
+        "output_store_integration": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string",
+              "x-strata-references": "integration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Explicit Integration document name for the output-store backend, overriding auto-bind \u2014 same precedence as a Provisioner's '.integration' field winning over '.tool'."
+        },
+        "output_store_max_age": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Trust window in seconds for durable cross-run step outputs read back via 'output_store'/'output_store_integration' \u2014 a record older than this is a hard 'deploy run' failure, never a silent stale read. None (default) disables staleness enforcement entirely (today's behavior). 'deploy run --output-max-age' overrides this for a single invocation."
+        },
         "topology": {
-          "description": "Workspace topology configurations",
-          "items": {
-            "$ref": "#/$defs/WorkspaceTopologyModel"
-          },
-          "minItems": 1,
-          "title": "Topology",
-          "type": "array"
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/TopologySpecModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional inline groupings of resources and namespaces (type, components, namespaces, volumes), for documentation, diagrams and placement. A topology has no provider or provisioner; a step can target one with `topologies`.\n\nRules:\n- A resource may appear only once in `components`, a namespace only once in `namespaces`, and a volume name only once in `volumes`."
         },
         "resources": {
           "anyOf": [
@@ -922,15 +2055,17 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Workspace resources with dependencies (gluing layer for topology)",
-          "title": "Resources"
+          "description": "Workspace resource definitions\n\nRules:\n- Set exactly one of `resource` (a Resource document name) or `managed_by: provisioner`."
         },
         "namespaces": {
           "anyOf": [
             {
               "items": {
-                "$ref": "#/$defs/WorkspaceNamespaceModel"
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "type": "string",
+                "x-strata-references": "namespace"
               },
               "type": "array"
             },
@@ -938,15 +2073,17 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Workspace namespaces",
-          "title": "Namespaces"
+          "description": "Namespace document names"
         },
         "firewalls": {
           "anyOf": [
             {
               "items": {
-                "$ref": "#/$defs/WorkspaceFirewallModel"
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "type": "string",
+                "x-strata-references": "firewall"
               },
               "type": "array"
             },
@@ -954,146 +2091,155 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Workspace firewalls",
-          "title": "Firewalls"
+          "description": "Firewall document names"
+        },
+        "dns_zones": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "type": "string",
+                "x-strata-references": "dns"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "DNS document names"
+        },
+        "networks": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "type": "string",
+                "x-strata-references": "network"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Network document names"
+        },
+        "assets": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/WorkspaceAssetModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Asset slots this workspace can materialise into a build: an Asset document name, or `{slot, asset}` to give the slot a stable name. A step lists the slots it needs in its own `assets`."
+        },
+        "cve_policy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CveMaxSeverityPolicyModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Gates `build run` on CVE findings in the SBOM it generates. It lives on the workspace because it is a build concern, not a per-deployment one.\n\nRules:\n- `severity_threshold` must be `max_severity` or a lower severity (CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN)."
+        },
+        "checkov_policy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckovPolicyModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Gates `build run` on Checkov static security findings for this workspace's terraform, bicep and ansible provisioners, or its Helm namespace modules."
+        },
+        "release_gate_policy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReleaseGatePolicyModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Gates `deploy run` on a security platform's verdict for the solution repository at the deployed commit. Runs at deploy preflight, not at build, because it needs the network and resolved credentials.\n\nRules:\n- `poll_interval` must be smaller than `timeout`."
+        },
+        "image_gate_policy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ImageGatePolicyModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Gates `deploy run` on a security platform's open issues for the container images listed in `sbom.json`. Runs at deploy preflight, like `release_gate_policy`."
+        },
+        "image_tag_policy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ImageTagPolicyModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Fails `build run` and `deploy run` when an image the deployment runs has no tag, a floating tag such as `latest`, or a tag that does not match the shape you require. Omit it to accept any tag.\n\nRules:\n- Names in `allow` must be unique."
+        },
+        "provisioner_lock_policy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProvisionerLockPolicyModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Fails `build run` when a Terraform or OpenTofu provisioner has no `.terraform.lock.hcl`, or one that does not lock every provider it declares. Omit it to only get an `info` line in `build run`.\n\nRules:\n- Provisioners in `allow` must be unique."
+        },
+        "sbom": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorkspaceSbomModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What `build run` adds to `sbom.json`. Omitted, it lists the images Helm charts deploy (`render_charts` defaults to `true`); `render_charts: false` lists only the images modules declare."
         }
       },
       "required": [
         "providers",
-        "provisioners",
-        "topology"
+        "provisioners"
       ],
-      "title": "WorkspaceSpecModel",
       "type": "object"
-    },
-    "WorkspaceTopologyModel": {
-      "properties": {
-        "name": {
-          "description": "Unique topology name",
-          "maxLength": 64,
-          "minLength": 1,
-          "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Name",
-          "type": "string"
-        },
-        "provider": {
-          "description": "Provider name used for this topology",
-          "minLength": 1,
-          "title": "Provider",
-          "type": "string"
-        },
-        "provisioner": {
-          "description": "IaC provisioner name reference (must match a provisioner defined in spec.provisioners)",
-          "minLength": 1,
-          "title": "Provisioner",
-          "type": "string"
-        },
-        "type": {
-          "description": "Topology type (e.g., dockerswarm, kubernetes, azure-native)",
-          "maxLength": 64,
-          "minLength": 1,
-          "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Type",
-          "type": "string"
-        },
-        "components": {
-          "description": "Topology components",
-          "items": {
-            "$ref": "#/$defs/WorkspaceComponentModel"
-          },
-          "minItems": 1,
-          "title": "Components",
-          "type": "array"
-        },
-        "namespaces": {
-          "anyOf": [
-            {
-              "items": {
-                "$ref": "#/$defs/WorkspaceNamespaceReferenceModel"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Namespace references deployed on this topology",
-          "title": "Namespaces"
-        },
-        "volumes": {
-          "anyOf": [
-            {
-              "items": {
-                "$ref": "#/$defs/WorkspaceVolumeModel"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Topology volumes",
-          "title": "Volumes"
-        }
-      },
-      "required": [
-        "name",
-        "provider",
-        "provisioner",
-        "type",
-        "components"
-      ],
-      "title": "WorkspaceTopologyModel",
-      "type": "object"
-    },
-    "WorkspaceVolumeModel": {
-      "description": "Model for a workspace volume.",
-      "properties": {
-        "name": {
-          "description": "Unique volume name within the topology",
-          "maxLength": 64,
-          "minLength": 1,
-          "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Name",
-          "type": "string"
-        },
-        "type": {
-          "$ref": "#/$defs/WorkspaceVolumeType",
-          "default": "local",
-          "description": "Type of the volume"
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "title": "WorkspaceVolumeModel",
-      "type": "object"
-    },
-    "WorkspaceVolumeType": {
-      "description": "Supported workspace volume types.",
-      "enum": [
-        "local",
-        "replicated",
-        "distributed"
-      ],
-      "title": "WorkspaceVolumeType",
-      "type": "string"
     }
   },
-  "description": "Root model for a workspace configuration file.",
+  "additionalProperties": false,
+  "description": "The static declaration of everything a solution deploys: providers, provisioners and the ordered execution recipe, plus the resources, namespaces, firewalls, DNS zones, networks and assets they use, and the security policies that gate build and deploy. A deployment runs it against an environment.",
   "properties": {
     "apiVersion": {
       "$ref": "#/$defs/PlatformVersion",
-      "default": "strata.huybrechts.xyz/v1",
+      "default": "strata.huybrechts.xyz/v2",
       "description": "API version for workspace configuration"
     },
     "kind": {
       "$ref": "#/$defs/PlatformKind",
       "default": "workspace",
-      "description": "Platform kind (always 'Workspace')"
+      "description": "Platform kind (always 'workspace')"
     },
     "meta": {
       "$ref": "#/$defs/WorkspaceMetaModel",
@@ -1101,13 +2247,193 @@
     },
     "spec": {
       "$ref": "#/$defs/WorkspaceSpecModel",
-      "description": "Workspace specification (properties, topology, providers, IaC, lifecycle)"
+      "description": "Workspace specification (providers, provisioners, provisioning, topology, resources, ...)\n\nRules:\n- Provider slots, provisioner names, topology names, resource names, namespace names, firewall names, DNS zone names, network names and asset slots must each be unique within their list.\n- Every topology component `resource` must be declared in `resources`, and every topology namespace must be listed in `namespaces`.\n- A resource's `firewalls` must be listed in this workspace's `firewalls`, its `dns_zones` in `dns_zones` and its `subnet.network` in `networks`.\n- Every execution step must name a declared provisioner, and its `resources`, `namespaces`, `topologies`, `dns_zones`, `firewalls`, `networks` and `assets` must exist in the matching list of this workspace.\n- Step names must be unique, a step's `depends_on` must name existing steps, and the steps must have no dependency cycle.\n- Two steps that act on the same target must be ordered by `depends_on`, directly or through other steps. A target is a resource, namespace or topology member, or a firewall, DNS document or network claimed by a step or by a resource it provisions. Otherwise the order is ambiguous and validation fails.\n- A provisioner's `depends_on` must name declared provisioners, with no dependency cycle.\n- Every `provisioner_lock_policy.allow` entry must name a declared provisioner."
     }
   },
   "required": [
     "meta",
     "spec"
   ],
-  "title": "WorkspaceModel",
-  "type": "object"
+  "type": "object",
+  "examples": [
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "workspace",
+      "meta": {
+        "name": "main"
+      },
+      "spec": {
+        "providers": [
+          "azure-main"
+        ],
+        "provisioners": [
+          {
+            "name": "infra",
+            "tool": "terraform",
+            "source": {
+              "source_path": "terraform/main"
+            }
+          }
+        ],
+        "resources": [
+          {
+            "name": "storage",
+            "resource": "storage-account"
+          }
+        ],
+        "execution": [
+          {
+            "name": "infra",
+            "provisioner": "infra",
+            "resources": [
+              "storage"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "workspace",
+      "meta": {
+        "name": "main"
+      },
+      "spec": {
+        "providers": [
+          {
+            "slot": "primary",
+            "provider": "azure-main"
+          }
+        ],
+        "provisioners": [
+          {
+            "name": "infra",
+            "tool": "terraform",
+            "source": {
+              "source_path": "terraform/main"
+            },
+            "backend": {
+              "type": "azurerm",
+              "configuration": {
+                "storage_account_name": "${var:state_account}",
+                "key": "${deployment:name}.tfstate"
+              }
+            }
+          },
+          {
+            "name": "apps",
+            "tool": "argocd",
+            "gitops": {
+              "remote": "gitops",
+              "output_file": "apps/values.yaml"
+            }
+          }
+        ],
+        "resources": [
+          {
+            "name": "cluster",
+            "resource": "aks-cluster",
+            "role": "control-plane"
+          },
+          {
+            "name": "workers",
+            "resource": "aks-nodes",
+            "role": "worker",
+            "count": 3,
+            "firewalls": [
+              "web"
+            ],
+            "subnet": {
+              "network": "main",
+              "subnet": "app"
+            }
+          }
+        ],
+        "namespaces": [
+          "apps"
+        ],
+        "firewalls": [
+          "web"
+        ],
+        "dns_zones": [
+          "example"
+        ],
+        "networks": [
+          "main"
+        ],
+        "topology": [
+          {
+            "name": "aks",
+            "type": "kubernetes",
+            "components": [
+              {
+                "resource": "cluster"
+              },
+              {
+                "resource": "workers"
+              }
+            ],
+            "namespaces": [
+              {
+                "namespace": "apps"
+              }
+            ]
+          }
+        ],
+        "execution": [
+          {
+            "name": "infra",
+            "provisioner": "infra",
+            "resources": [
+              "cluster",
+              "workers"
+            ],
+            "scope": "infra"
+          },
+          {
+            "name": "apps",
+            "provisioner": "apps",
+            "namespaces": [
+              "apps"
+            ],
+            "depends_on": [
+              "infra"
+            ],
+            "scope": "apps"
+          }
+        ],
+        "cve_policy": {
+          "max_severity": "HIGH"
+        },
+        "image_tag_policy": {
+          "enforcement": "deny",
+          "tag_pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "rings": [
+            "acc",
+            "prd"
+          ],
+          "allow": [
+            {
+              "name": "redis",
+              "reason": "third-party image, covered by cve_policy"
+            }
+          ]
+        },
+        "provisioner_lock_policy": {
+          "enforcement": "deny",
+          "rings": [
+            "acc",
+            "prd"
+          ],
+          "allow": [
+            {
+              "provisioner": "infra",
+              "reason": "lock file being added in PR 412",
+              "expires": "2026-12-31"
+            }
+          ]
+        }
+      }
+    }
+  ]
 }

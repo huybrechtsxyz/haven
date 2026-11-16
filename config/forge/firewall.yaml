@@ -1,13 +1,13 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: firewall
 meta:
-  name: haven_fw_hetzner_forge
+  name: forge-firewall
   annotations:
-    description: Firewall for Forge VPS — k3s API + web ingress from private network; SSH from private network only
-  labels:
-    version: "1.0.0"
+    description: Firewall for Forge VPS - k3s API + web ingress from private network; SSH from private network only
   tags: [haven, firewall, forge, family]
 spec:
+  # Rendered as a Hetzner Cloud Firewall (network rules only). No loopback
+  # rules: a cloud firewall never sees `lo` traffic, so they are not modelled.
   reset: true
   defaults:
     - direction: in
@@ -16,7 +16,6 @@ spec:
     - direction: out
       permission: deny
       comment: Deny all outgoing traffic by default
-  deny:
   allow:
     # Essential system services
     - direction: out
@@ -31,12 +30,6 @@ spec:
       proto: udp
       port: [123]
       comment: NTP
-    - direction: in
-      interface: lo
-      comment: Loopback IN
-    - direction: out
-      interface: lo
-      comment: Loopback OUT
     # Package management + image pulls + Helm charts
     - direction: out
       proto: tcp
@@ -54,25 +47,25 @@ spec:
       proto: tcp
       port: [443]
       comment: HTTPS outbound (apt, image pulls, Helm, OCSP)
-    # BorgBackup — Hetzner Storage Box uses SSH on port 23
+    # BorgBackup - Hetzner Storage Box uses SSH on port 23
     - direction: out
       proto: tcp
       port: [23]
       comment: SSH to Storage Box (BorgBackup)
-    # Media library mount — Storage Box subaccounts don't support NFS,
+    # Media library mount - Storage Box subaccounts don't support NFS,
     # only SMB/CIFS + SSH.
     - direction: out
       proto: tcp
       port: [445]
       comment: SMB to Storage Box (media library mount)
-    # Portainer Kubernetes Edge Agent — the regular heartbeat/poll goes over
+    # Portainer Kubernetes Edge Agent - the regular heartbeat/poll goes over
     # HTTPS (443, already allowed above), but Portainer's "live connect"
-    # tunnel (console access, live logs/stats) uses a SEPARATE port — 8000
+    # tunnel (console access, live logs/stats) uses a SEPARATE port - 8000
     # by default, confirmed by decoding this environment's own edge key
     # (format: <portainer_url>|<tunnel_host>:8000|<key>|<version>). Routed
     # over the private network via forge-config.yml's /etc/hosts override
     # (portainer.huybrechts.xyz -> Hearth's private IP), same pattern as
-    # Authentik's LAN routing — scoped to the private network, not public.
+    # Authentik's LAN routing - scoped to the private network, not public.
     - direction: out
       proto: tcp
       port: [8000]
@@ -87,7 +80,7 @@ spec:
       proto: tcp
       port: [443]
       comment: HTTPS
-    # Private network — SSH, k3s API, Flannel VXLAN
+    # Private network - SSH, k3s API, Flannel VXLAN
     - direction: in
       proto: tcp
       port: [22]

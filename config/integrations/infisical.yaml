@@ -1,0 +1,16 @@
+apiVersion: strata.huybrechts.xyz/v2
+kind: integration
+meta:
+  name: infisical
+  tags: [haven, secrets]
+spec:
+  type: infisical
+  capabilities: [variables, secrets]
+  description: >-
+    Infisical secrets manager, reached over its REST API (no CLI needed).
+    Credentials are never set here: strata reads them from the process
+    environment - INFISICAL_CLIENT_ID + INFISICAL_CLIENT_SECRET (Universal Auth
+    machine identity) and INFISICAL_PROJECT_ID, all set by the GitHub workflows
+    from repository secrets/vars. INFISICAL_ENVIRONMENT defaults to `prod`.
+  endpoints:
+    address: https://app.infisical.com

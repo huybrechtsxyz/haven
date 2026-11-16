@@ -1,21 +1,15 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: module
 meta:
   name: immich-postgres
   annotations:
     description: PostgreSQL (vectorchord-enabled) for Immich — single pod, no operator
-  labels:
-    version: "1.0.0"
   tags: [haven, forge, immich, postgres, database]
 spec:
   type: helm
   source:
-    repository: haven
     source_path: services/forge/immich-postgres
   kubernetes_namespace: immich
-  references:
-    secrets:
-      - IMMICH_DB_PASSWORD
   configuration:
     image:
       repository: ghcr.io/immich-app/postgres
@@ -24,7 +18,7 @@ spec:
       POSTGRES_USER: immich
       POSTGRES_DB: immich
       # Real value injected by strata at deploy time — never written here.
-      POSTGRES_PASSWORD: "${IMMICH_DB_PASSWORD}"
+      POSTGRES_PASSWORD: "${secret:IMMICH_DB_PASSWORD}"
     persistence:
       storageClass: local-path
       size: 10Gi

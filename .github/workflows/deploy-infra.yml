@@ -8,7 +8,8 @@
 #   1. deploy-infra.yml   (this file — terraform)
 #   2. deploy-hearth-init.yml / deploy-hearth-config.yml / deploy-hearth-deploy.yml
 #      (server init + config + Docker Compose deploy)
-#   3. deploy-forge.yml   (server init + config + k3s deploy)
+#   3. deploy-forge-init.yml / deploy-forge-config.yml / deploy-forge-deploy.yml
+#      (server init + config + k3s Helm deploy)
 # ==============================================================================
 
 name: 10 - Infra - haven
@@ -31,7 +32,7 @@ permissions:
 env:
   STRATA_OUTPUT: json
   STRATA_WORK_PATH: ${{ github.workspace }}
-  DEPLOYMENT_FILE: "config/deployment.yaml"
+  DEPLOYMENT: haven_deploy_prd
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -68,59 +69,24 @@ jobs:
       # ------------------------------------------------------------------
       # Install tools
       # ------------------------------------------------------------------
-      - name: Setup strata
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.9.3
+      - name: Setup tools (VERSIONS.env)
+        uses: ./.github/actions/setup-tools
         with:
-          # 1.8.2 fixed all bugs found while building Forge's Helm modules this
-          # session: (1) OCI chart_repository support, (2) Helm ${KEY} secret
-          # substitution now matches any nested env: dict (was one-level-only),
-          # (3) HelmBuilder no longer Jinja2-renders a local chart's templates/
-          # dir (was crashing on Go-template syntax like '{{ .Release.Name }}'),
-          # (4) TerraformBuilder's input validator now scopes secret checks to
-          # the resolving provisioner's stage(s) instead of globally sweeping
-          # every secret in environment.yaml (was hard-failing 'build run' for
-          # any multi-provisioner workspace).
-          # 1.8.3 fixes a further regression: 'strata deploy run' crashed
-          # unconditionally on every invocation since v1.7.0 (a stale no-op
-          # _load_related_services() override in RunDeployCommand skipped
-          # loading the environment/workspace services entirely — masked by
-          # 'validate --deep'/'build run' using different loading paths).
-          # All confirmed via source review.
-          #
-          # Bumped 1.8.3 -> 1.9.3 (2026-09-06): ADR-0072 (strata source repo)
-          # replaced spec.layering/spec.layers' old flat {name: value} shape
-          # with a new opt-in spec.paths convention system (follows/segments)
-          # — an intentional breaking change, no backward compatibility.
-          # Haven doesn't need tenants/multi-environment path resolution, so
-          # config/configuration.yaml's spec.layering block and
-          # config/deployment.yaml's spec.layers block were removed entirely
-          # (both fields are optional) rather than migrated to the new shape.
-          strata-version: "==1.9.3"
-        env:
-          # Only matters when multiple package indexes are configured (e.g. a corporate
-          # PyPI mirror in front of public PyPI) — makes uv fall through to a later index
-          # instead of failing when the first index doesn't have the exact pinned version.
-          # No-op on GitHub-hosted runners, which see only the public PyPI index.
-          UV_INDEX_STRATEGY: unsafe-best-match
-
-      - name: Install Terraform
-        uses: hashicorp/setup-terraform@v4
-        with:
-          terraform_wrapper: false
+          terraform: "true"
 
       # ------------------------------------------------------------------
       # Validate
       # ------------------------------------------------------------------
       - name: Validate deployment file
         run: |
-          strata validate -f $DEPLOYMENT_FILE --deep
+          strata validate --strict
 
       # ------------------------------------------------------------------
       # Build
       # ------------------------------------------------------------------
       - name: Build platform artifacts
         run: |
-          strata build run --file $DEPLOYMENT_FILE
+          strata build run "$DEPLOYMENT"
 
       - name: Upload build output
         uses: actions/upload-artifact@v7
@@ -144,19 +110,18 @@ jobs:
           TERRAFORM_API_TOKEN: ${{ secrets.TERRAFORM_API_TOKEN }}
           TF_TOKEN_app_terraform_io: ${{ secrets.TERRAFORM_API_TOKEN }}
           # Infisical Cloud machine identity — lets strata resolve every `store: infisical`
-          # secret declared in config/environment.yaml at deploy time. The terraform deployer
-          # auto-injects each resolved secret as TF_VAR_<key> before plan/apply/destroy — no
-          # manual TF_VAR_* wiring needed here (see strata's inject_tf_vars()).
+          # secret declared in config/environments/prd.yaml at deploy time. strata sets
+          # TF_VAR_<key> for every resolved value; deploy/terraform/strata.tf declares the
+          # ones the root uses. No manual TF_VAR_* wiring needed here.
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
-          # --scope infra restricts this run to stages that declare scope: infra
-          # (infrastructure_hearth, infrastructure_forge) — this workflow is
-          # explicitly API-only (no SSH/kubeconfig setup), so it must never
-          # pick up applications_forge (scope: apps, or any future Helm/Compose
-          # app stage) even when --stage is omitted.
-          ARGS="--file $DEPLOYMENT_FILE --force --scope infra"
+          # --scope infra restricts this run to the `infrastructure` step (the one
+          # Terraform root for both VMs). This workflow is API-only (no
+          # SSH/kubeconfig), so it must never pick up applications_forge
+          # (scope: apps) or applications_hearth (scope: hearth, build-only).
+          ARGS="$DEPLOYMENT --scope infra"
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
           fi

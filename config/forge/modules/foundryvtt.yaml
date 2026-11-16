@@ -1,23 +1,15 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: module
 meta:
   name: foundryvtt
   annotations:
     description: Foundry Virtual Tabletop — self-hosted VTT server, licensed via the user's own foundryvtt.com account
-  labels:
-    version: "1.0.0"
   tags: [haven, forge, gaming, foundryvtt, vtt]
 spec:
   type: helm
   source:
-    repository: haven
     source_path: services/forge/foundryvtt
   kubernetes_namespace: gaming
-  references:
-    secrets:
-      - FOUNDRY_USERNAME # not read directly — foundryvtt-secrets.yaml renders the actual K8s Secret this module points at via a plain secretKeyRef
-      - FOUNDRY_PASSWORD
-      - FOUNDRY_ADMIN_KEY
   configuration:
     image:
       repository: ghcr.io/felddy/foundryvtt

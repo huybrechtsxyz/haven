@@ -1,7 +1,8 @@
 {
   "$defs": {
     "FirewallDefaultsModel": {
-      "description": "Model for a default firewall rule (direction, permission, comment).\nUsed to set baseline allow/deny behavior for inbound/outbound traffic.",
+      "additionalProperties": false,
+      "description": "Model for a default firewall rule (direction, permission, comment).\n\nUsed to set baseline allow/deny behavior for inbound/outbound traffic.",
       "properties": {
         "direction": {
           "$ref": "#/$defs/FirewallDirection",
@@ -20,16 +21,13 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional comment or documentation for the default rule.",
-          "title": "Comment"
+          "description": "Optional comment or documentation for the default rule."
         }
       },
       "required": [
         "direction",
         "permission"
       ],
-      "title": "FirewallDefaultsModel",
       "type": "object"
     },
     "FirewallDirection": {
@@ -38,18 +36,17 @@
         "in",
         "out"
       ],
-      "title": "FirewallDirection",
       "type": "string"
     },
     "FirewallMetaModel": {
-      "description": "Model for firewall resource metadata (name, annotations, labels, tags).",
+      "additionalProperties": false,
+      "description": "Firewall metadata including name, annotations, labels, and tags.",
       "properties": {
         "name": {
-          "description": "Unique name for the firewall resource.",
+          "description": "Unique name for the firewall resource",
           "maxLength": 64,
           "minLength": 1,
           "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Name",
           "type": "string"
         },
         "annotations": {
@@ -62,9 +59,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional annotations (key-value pairs for documentation)",
-          "title": "Annotations"
+          "description": "Optional annotations (key-value pairs for documentation)"
         },
         "labels": {
           "anyOf": [
@@ -76,8 +71,7 @@
               "type": "null"
             }
           ],
-          "description": "Labels for categorization and filtering.",
-          "title": "Labels"
+          "description": "Optional labels (key-value pairs for classification/filtering)"
         },
         "tags": {
           "anyOf": [
@@ -89,16 +83,12 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional list of tags for the firewall resource.",
-          "title": "Tags"
+          "description": "Optional list of tags for the firewall resource"
         }
       },
       "required": [
-        "name",
-        "labels"
+        "name"
       ],
-      "title": "FirewallMetaModel",
       "type": "object"
     },
     "FirewallPermission": {
@@ -107,7 +97,6 @@
         "allow",
         "deny"
       ],
-      "title": "FirewallPermission",
       "type": "string"
     },
     "FirewallProtocol": {
@@ -117,12 +106,34 @@
         "udp",
         "icmp"
       ],
-      "title": "FirewallProtocol",
       "type": "string"
     },
     "FirewallRuleModel": {
-      "description": "Model for an individual firewall rule.\nSupports direction, protocol, port(s), interface, source/destination, and comments.\nValidates IP/CIDR, port formats, and interface names.",
+      "additionalProperties": false,
+      "description": "One firewall rule: `direction`, and optionally `proto`, `port`, `interface`, `from`, `to` and a `comment`. `from` and `to` are a literal IP or CIDR, or a string with value tokens such as `${var:KEY}`, `${secret:KEY}` or `${feature:KEY}`.\n\nRules:\n- `proto` is required when `port` is set.\n- An `icmp` rule cannot set `port`.",
       "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional rule identifier, unique within the ruleset (across `allow` and `deny`) when set. Most clouds require one, for example Azure NSG and GCP firewall rules."
+        },
+        "priority": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional evaluation order, lower first, as in Azure NSG and GCP firewall rules. AWS security groups have no such concept. It does not guarantee precedence over a cloud's own reserved default rules, so pick a value that is safe for your provider."
+        },
         "direction": {
           "$ref": "#/$defs/FirewallDirection",
           "description": "Direction of traffic: 'in' for inbound, 'out' for outbound."
@@ -136,41 +147,34 @@
               "type": "null"
             }
           ],
-          "default": null,
           "description": "Protocol for the rule: 'tcp', 'udp', or 'icmp'. Optional."
         },
         "port": {
           "anyOf": [
             {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "items": {
-                    "anyOf": [
-                      {
-                        "type": "integer"
-                      },
-                      {
-                        "type": "string"
-                      }
-                    ]
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
                   },
-                  "type": "array"
-                }
-              ],
-              "description": "Single port (int), port range (str like '80:90'), or list of ports/ranges. Optional."
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "array"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Port"
+          "description": "Single port (int), port range (str like '80:90'), or list of ports/ranges. Optional."
         },
         "interface": {
           "anyOf": [
@@ -181,9 +185,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Network interface name (e.g., 'eth0', 'lo'). Optional.",
-          "title": "Interface"
+          "description": "Network interface name (e.g., 'eth0', 'lo'). Optional."
         },
         "from": {
           "anyOf": [
@@ -194,9 +196,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Source IP address or CIDR (for inbound rules). Optional.",
-          "title": "From"
+          "description": "Source IP or CIDR (for inbound rules): literal, or a string containing '${var:KEY}'/'${secret:KEY}'/'${feature:KEY}' tokens. Optional."
         },
         "to": {
           "anyOf": [
@@ -207,9 +207,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Destination IP address or CIDR (for outbound rules). Optional.",
-          "title": "To"
+          "description": "Destination IP or CIDR (for outbound rules): literal, or a string containing '${var:KEY}'/'${secret:KEY}'/'${feature:KEY}' tokens. Optional."
         },
         "comment": {
           "anyOf": [
@@ -220,19 +218,29 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional comment or documentation for the rule.",
-          "title": "Comment"
+          "description": "Optional comment or documentation for the rule."
+        },
+        "custom": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Provider-specific values for this rule, for example Azure's \"destination is an Application Security Group\" pattern, passed to Terraform inside the rule. Strata does not validate them."
         }
       },
       "required": [
         "direction"
       ],
-      "title": "FirewallRuleModel",
       "type": "object"
     },
     "FirewallSpecModel": {
-      "description": "Model for a firewall ruleset specification.\nIncludes default rules, allow/deny lists, and validation for uniqueness and conflicts.",
+      "additionalProperties": false,
+      "description": "A firewall ruleset: optional default allow or deny per direction, plus explicit `allow` and `deny` rules. A workspace uses it by listing the document in `firewalls`; a workspace resource can attach it.\n\nRules:\n- Default rules must have unique directions: at most one for `in` and one for `out`.\n- The same rule (direction, proto, port, from and to) must not appear in both `allow` and `deny`.\n- Rule names, where set, must be unique across `allow` and `deny` together.",
       "properties": {
         "reset": {
           "anyOf": [
@@ -244,8 +252,7 @@
             }
           ],
           "default": false,
-          "description": "If true, reset all existing firewall rules before applying these rules.",
-          "title": "Reset"
+          "description": "If true, reset all existing firewall rules before applying these rules."
         },
         "defaults": {
           "anyOf": [
@@ -259,9 +266,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "List of default rules (baseline allow/deny for each direction).",
-          "title": "Defaults"
+          "description": "List of default rules (baseline allow/deny for each direction)."
         },
         "deny": {
           "anyOf": [
@@ -275,9 +280,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "List of explicit deny rules.",
-          "title": "Deny"
+          "description": "List of explicit deny rules.\n\nRules:\n- `proto` is required when `port` is set.\n- An `icmp` rule cannot set `port`."
         },
         "allow": {
           "anyOf": [
@@ -291,65 +294,185 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "List of explicit allow rules.",
-          "title": "Allow"
+          "description": "List of explicit allow rules.\n\nRules:\n- `proto` is required when `port` is set.\n- An `icmp` rule cannot set `port`."
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Free-form provisioner settings (for example Terraform NSG arguments strata does not model), passed to Terraform as `strata.firewalls.<name>.configuration`. Strata does not validate the keys itself: add an `attributeconfig` with `target.kind: firewall` and `target.block: configuration` to do so."
+        },
+        "custom": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Free-form values for your own scripts and Terraform code, passed to Terraform as `strata.firewalls.<name>.custom`. Strata does not interpret them. Validate them with an `attributeconfig` targeting `firewall` and `custom`."
+        },
+        "default_tags": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Baseline cloud tags for this firewall (for example `cost-center`, `environment`, `owner`), passed to Terraform as `strata.firewalls.<name>.default_tags`. Not the same as `meta.tags`, which is a free-form list for documentation. Strata does not limit the number of tags, so stay within your cloud provider's limit."
+        },
+        "custom_tags": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Additional cloud tags on top of `default_tags`, for one-off needs."
         }
       },
-      "title": "FirewallSpecModel",
       "type": "object"
     },
     "PlatformKind": {
       "description": "Enumeration of supported platform kinds.",
       "enum": [
+        "solution",
         "configuration",
-        "deployment",
-        "environment",
+        "providerconfig",
+        "topologyconfig",
+        "attributeconfig",
+        "provider",
+        "resource",
+        "dns",
+        "network",
         "firewall",
         "module",
         "namespace",
-        "platform_model",
-        "provider",
-        "resource",
-        "workspace"
+        "workspace",
+        "integration",
+        "tenant",
+        "environment",
+        "deployment",
+        "version",
+        "artifact",
+        "asset",
+        "parameterset"
       ],
-      "title": "PlatformKind",
       "type": "string"
     },
     "PlatformVersion": {
       "description": "Enumeration of supported platform versions.",
       "enum": [
-        "strata.huybrechts.xyz/v1"
+        "strata.huybrechts.xyz/v2",
+        "strata.omp.com/v2"
       ],
-      "title": "PlatformVersion",
       "type": "string"
     }
   },
-  "description": "Top-level model for a firewall ruleset resource.\nIncludes metadata and specification for validation and orchestration.",
+  "additionalProperties": false,
+  "description": "A firewall or network security group ruleset: default allow or deny per direction and explicit rules with ports, protocols and source or destination addresses. Create one per ruleset and list it in a workspace's `firewalls`.",
   "properties": {
     "apiVersion": {
       "$ref": "#/$defs/PlatformVersion",
-      "default": "strata.huybrechts.xyz/v1",
-      "description": "API version of the firewall resource model."
+      "default": "strata.huybrechts.xyz/v2",
+      "description": "API version for firewall configuration"
     },
     "kind": {
       "$ref": "#/$defs/PlatformKind",
       "default": "firewall",
-      "description": "Resource kind: always 'firewall'."
+      "description": "Platform kind (always 'firewall')"
     },
     "meta": {
       "$ref": "#/$defs/FirewallMetaModel",
-      "description": "Metadata for the firewall resource."
+      "description": "Firewall metadata (name, annotations, labels, tags)"
     },
     "spec": {
       "$ref": "#/$defs/FirewallSpecModel",
-      "description": "Specification for the firewall ruleset."
+      "description": "Firewall specification (defaults, allow, deny rules)\n\nRules:\n- Default rules must have unique directions: at most one for `in` and one for `out`.\n- The same rule (direction, proto, port, from and to) must not appear in both `allow` and `deny`.\n- Rule names, where set, must be unique across `allow` and `deny` together."
     }
   },
   "required": [
     "meta",
     "spec"
   ],
-  "title": "FirewallModel",
-  "type": "object"
+  "type": "object",
+  "examples": [
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "firewall",
+      "meta": {
+        "name": "web"
+      },
+      "spec": {
+        "defaults": [
+          {
+            "direction": "in",
+            "permission": "deny"
+          },
+          {
+            "direction": "out",
+            "permission": "allow"
+          }
+        ],
+        "allow": [
+          {
+            "name": "https",
+            "direction": "in",
+            "proto": "tcp",
+            "port": 443,
+            "from": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "firewall",
+      "meta": {
+        "name": "web"
+      },
+      "spec": {
+        "allow": [
+          {
+            "name": "ssh-admin",
+            "direction": "in",
+            "proto": "tcp",
+            "port": 22,
+            "from": "${var:admin_cidr}"
+          },
+          {
+            "name": "ping",
+            "direction": "in",
+            "proto": "icmp"
+          }
+        ],
+        "deny": [
+          {
+            "name": "block-telnet",
+            "direction": "in",
+            "proto": "tcp",
+            "port": 23
+          }
+        ]
+      }
+    }
+  ]
 }

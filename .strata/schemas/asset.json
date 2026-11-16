@@ -1,0 +1,261 @@
+{
+  "$defs": {
+    "AssetLocationModel": {
+      "additionalProperties": false,
+      "description": "A git repository that holds an asset's files, declared on the asset itself instead of as a remote in the manifest. It lets a small per-customer asset point at that customer's own repository. Only `type: git` is supported.",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/RemoteType",
+          "default": "git",
+          "description": "Only 'git' is supported for an asset location"
+        },
+        "url": {
+          "description": "Git repository URL",
+          "minLength": 1,
+          "type": "string"
+        },
+        "reference": {
+          "description": "Branch, tag or commit SHA the files are taken at. A `pins.assets` entry in a Version document overrides it (only with fetch: strata).",
+          "minLength": 1,
+          "type": "string"
+        },
+        "fetch": {
+          "$ref": "#/$defs/RemoteFetch",
+          "default": "strata",
+          "description": "'strata' clones it; 'external' means CI already checked it out at .strata/assets/<asset name>/<reference> and strata only reads it."
+        },
+        "integration": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string",
+              "x-strata-references": "integration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Name of an Integration providing credentials for cloning this repository (must declare the 'sources' capability). Omit for a public repository or ambient git credentials. Credentials are never inline: the url must not embed a password. Ignored with fetch: external, which clones nothing."
+        }
+      },
+      "required": [
+        "url",
+        "reference"
+      ],
+      "type": "object"
+    },
+    "AssetMetaModel": {
+      "additionalProperties": false,
+      "description": "Asset metadata (name, annotations, labels, tags).",
+      "properties": {
+        "name": {
+          "description": "Unique asset name, referenced from a workspace's spec.assets pool",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional annotations (key-value pairs for documentation)"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional labels (key-value pairs for classification/filtering)"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional tags (list of values for categorization)"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "AssetSpecModel": {
+      "additionalProperties": false,
+      "description": "Where an asset's files live, plus optional documentation. Use `remote` for a remote from the manifest, `location` for a repository declared here, or neither for this solution's own repository.\n\nRules:\n- The files live in one place: set `remote` or `location`, not both.",
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional description for documentation purposes"
+        },
+        "remote": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$",
+              "type": "string",
+              "x-strata-remote": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Name of a remote from the solution manifest that the files live under. Omit for this solution's own repository."
+        },
+        "location": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssetLocationModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The git repository this asset's files live in, declared here rather than as a manifest remote. Mutually exclusive with 'remote'; with neither, the files are in this solution's own repository."
+        },
+        "source_path": {
+          "description": "Path of the file or directory, relative to the root of the resolved remote or location. May contain `{name}` tokens, filled from the deployment's resolved `properties` at build time, and glob wildcards (`*`, `**`, `?`, `[abc]`) to select a subset of files, for example `assets/{deploy_tier}/openapi/*.json`. Brace expansion such as `{a,b}` is not supported. Must be relative and without `..`.",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_path"
+      ],
+      "type": "object"
+    },
+    "PlatformKind": {
+      "description": "Enumeration of supported platform kinds.",
+      "enum": [
+        "solution",
+        "configuration",
+        "providerconfig",
+        "topologyconfig",
+        "attributeconfig",
+        "provider",
+        "resource",
+        "dns",
+        "network",
+        "firewall",
+        "module",
+        "namespace",
+        "workspace",
+        "integration",
+        "tenant",
+        "environment",
+        "deployment",
+        "version",
+        "artifact",
+        "asset",
+        "parameterset"
+      ],
+      "type": "string"
+    },
+    "PlatformVersion": {
+      "description": "Enumeration of supported platform versions.",
+      "enum": [
+        "strata.huybrechts.xyz/v2",
+        "strata.omp.com/v2"
+      ],
+      "type": "string"
+    },
+    "RemoteFetch": {
+      "description": "Who materialises a remote on disk: `strata` (default) fetches it, `external` means CI or the developer already checked it out and strata only reads it. Use `external` with the real `type` (for example `git` plus the pinned `reference`) when a pipeline clones the repository itself.",
+      "enum": [
+        "strata",
+        "external"
+      ],
+      "type": "string"
+    },
+    "RemoteType": {
+      "description": "What kind of source a remote is: `git` (a git repository), `oci` (an OCI registry serving images, Helm charts or other artifacts), `helm` (a Helm chart repository index) or `local` (a directory inside the solution). Who fetches the remote is a separate setting, `fetch`.",
+      "enum": [
+        "git",
+        "oci",
+        "helm",
+        "local"
+      ],
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A named, reusable location of plain input files that are not IaC code, such as an OpenAPI contract, images or a certificate bundle, and whose variant can differ per deployment. A workspace lists it in `assets` as a slot, a step selects the slot, and a deployment can rebind the slot to another Asset.",
+  "properties": {
+    "apiVersion": {
+      "$ref": "#/$defs/PlatformVersion",
+      "default": "strata.huybrechts.xyz/v2",
+      "description": "API version for asset configuration"
+    },
+    "kind": {
+      "$ref": "#/$defs/PlatformKind",
+      "default": "asset",
+      "description": "Platform kind (always 'asset')"
+    },
+    "meta": {
+      "$ref": "#/$defs/AssetMetaModel",
+      "description": "Asset metadata (name, annotations, labels, tags)"
+    },
+    "spec": {
+      "$ref": "#/$defs/AssetSpecModel",
+      "description": "Asset specification (source location, optional remote)\n\nRules:\n- The files live in one place: set `remote` or `location`, not both."
+    }
+  },
+  "required": [
+    "meta",
+    "spec"
+  ],
+  "type": "object",
+  "examples": [
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "asset",
+      "meta": {
+        "name": "api-default"
+      },
+      "spec": {
+        "source_path": "assets/api/openapi.json"
+      }
+    },
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "asset",
+      "meta": {
+        "name": "contoso-api"
+      },
+      "spec": {
+        "location": {
+          "url": "https://example.com/contoso/assets.git",
+          "reference": "main"
+        },
+        "source_path": "assets/{deploy_tier}/openapi/*.json"
+      }
+    }
+  ]
+}

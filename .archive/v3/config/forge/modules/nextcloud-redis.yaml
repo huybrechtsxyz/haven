@@ -1,0 +1,31 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: nextcloud-redis
+  annotations:
+    description: Redis for Nextcloud memory caching + file locking — single pod
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, documents, nextcloud, redis, cache]
+spec:
+  type: helm
+  source:
+    repository: haven
+    source_path: services/forge/nextcloud-redis
+  kubernetes_namespace: documents
+  references:
+    secrets:
+      - NEXTCLOUD_REDIS_PASSWORD
+  configuration:
+    image:
+      repository: redis
+      tag: 7-alpine
+    # Credentials MUST live under a literal `env:` dict — strata's Helm
+    # secret substitution only resolves `${TOKEN}` placeholders found inside
+    # a dict node keyed literally "env" (see rclone-mount's module comment
+    # for the full writeup of this gotcha, confirmed 2026-08-28).
+    env:
+      # Real value injected by strata at deploy time — never written here.
+      NEXTCLOUD_REDIS_PASSWORD: "${NEXTCLOUD_REDIS_PASSWORD}"
+    service:
+      port: 6379

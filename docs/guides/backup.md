@@ -114,7 +114,7 @@ rclone sync --verbose \
    ```bash
    export BORG_REPO="u604953-sub1@u604953.your-storagebox.de:./hearth"
    export BORG_RSH="ssh -i ~/.ssh/haven_ed25519 -p 23"
-   export BORG_PASSPHRASE="<strata values get BORG_PASSPHRASE_HEARTH>"
+   export BORG_PASSPHRASE="<strata values get haven_deploy_prd BORG_PASSPHRASE_HEARTH --format raw>"
 
    borg list $BORG_REPO
    ```
@@ -132,7 +132,7 @@ rclone sync --verbose \
 
 **When to use:** Corrupted Postgres data, or accidental deletion of a `local-path` PVC (Jellyfin/Kavita config, Gatus history), on an *existing, still-running* Forge cluster.
 
-> For a **totally destroyed** Forge (VPS gone, cluster gone), don't start here — go to [Option 3](#option-3-full-disaster-recovery-all-tiers). Restoring these dumps only makes sense once `strata deploy run` has recreated the namespaces/pods/PVCs to restore *into*.
+> For a **totally destroyed** Forge (VPS gone, cluster gone), don't start here — go to [Option 3](#option-3-full-disaster-recovery-all-tiers). Restoring these dumps only makes sense once `strata deploy run haven_deploy_prd --stage applications_forge` has recreated the namespaces/pods/PVCs to restore *into*.
 
 **Prerequisites:** Borg passphrase (`BORG_PASSPHRASE_FORGE` in **Infisical Cloud**) + SSH key to Storage Box + Borg CLI + `kubectl` access to the (running) cluster
 
@@ -142,7 +142,7 @@ rclone sync --verbose \
    ```bash
    export BORG_REPO="u604953-sub2@u604953.your-storagebox.de:./forge"
    export BORG_RSH="ssh -i ~/.ssh/haven_ed25519 -p 23"
-   export BORG_PASSPHRASE="<strata values get BORG_PASSPHRASE_FORGE>"
+   export BORG_PASSPHRASE="<strata values get haven_deploy_prd BORG_PASSPHRASE_FORGE --format raw>"
 
    borg list $BORG_REPO
    borg extract $BORG_REPO::forge-2026-09-01T02:30
@@ -214,7 +214,7 @@ rclone sync --verbose \
 
 3. **Restore Hearth** — this is just [Option 1](#option-1-restore-from-borg-hearthforge-system-state) end to end:
    ```bash
-   export BORG_PASSPHRASE="<strata values get BORG_PASSPHRASE_HEARTH>"
+   export BORG_PASSPHRASE="<strata values get haven_deploy_prd BORG_PASSPHRASE_HEARTH --format raw>"
    borg extract $BORG_REPO::hearth-<latest>
    docker compose up -d
    ```
@@ -222,7 +222,7 @@ rclone sync --verbose \
 
 4. **Restore Forge — recreate first, then restore data, in that order:**
    ```bash
-   strata deploy run --scope apps --stage applications_forge
+   strata deploy run haven_deploy_prd --stage applications_forge
    ```
    This recreates every namespace, Helm release, Postgres pod, and PVC **fresh from this repo's own committed config** — the actual source of truth for Forge's desired state, not the k3s datastore snapshot. Only *after* this succeeds, follow [Option 1b](#option-1b-restore-forge-postgres-databases--app-config-immich-nextcloud-jellyfin-kavita-gatus) to restore the Postgres dumps and PVC tars into the now-existing (but empty) resources.
 

@@ -1,21 +1,15 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: module
 meta:
   name: grimoire
   annotations:
     description: Grimoire — self-hosted TTRPG library manager (books, maps, tokens, audio, 3D models) with campaign wiki and VTT tools
-  labels:
-    version: "1.0.0"
   tags: [haven, forge, documents, grimoire, ttrpg, library]
 spec:
   type: helm
   source:
-    repository: haven
     source_path: services/forge/grimoire
   kubernetes_namespace: documents
-  references:
-    secrets:
-      - GRIMOIRE_SSO_CLIENT_SECRET # not read directly — grimoire-secrets.yaml renders the actual K8s Secret this module points at via a plain secretKeyRef
   configuration:
     image:
       repository: hunterreadca/grimoire

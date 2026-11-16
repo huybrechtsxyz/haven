@@ -1,0 +1,873 @@
+{
+  "$defs": {
+    "APIKeyAuthenticationModel": {
+      "additionalProperties": false,
+      "description": "API key authentication.\n\nUsed by: Generic REST APIs, some cloud services. All fields are key references resolved from environment declarations.",
+      "properties": {
+        "api_key": {
+          "description": "Key reference for API key value",
+          "type": "string"
+        },
+        "api_secret": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for API secret (used alongside the API key)"
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for API endpoint URL"
+        },
+        "header_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for HTTP header name (default: 'X-API-Key')"
+        }
+      },
+      "required": [
+        "api_key"
+      ],
+      "type": "object"
+    },
+    "AWSAuthenticationModel": {
+      "additionalProperties": false,
+      "description": "AWS access key authentication.\n\nAll fields are key references resolved from environment declarations.",
+      "properties": {
+        "access_key_id": {
+          "description": "Key reference for AWS access key ID",
+          "type": "string"
+        },
+        "secret_access_key": {
+          "description": "Key reference for AWS secret access key",
+          "type": "string"
+        },
+        "session_token": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for AWS session token (temporary credentials)"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for AWS region"
+        },
+        "role_arn": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for AWS IAM role ARN for AssumeRole"
+        }
+      },
+      "required": [
+        "access_key_id",
+        "secret_access_key"
+      ],
+      "type": "object"
+    },
+    "AuthenticationModel": {
+      "additionalProperties": false,
+      "description": "How to authenticate to a cloud provider or an integration. `method` selects the scheme and the block of the same name holds its settings.\n\nCredential fields are key references: the names of variables or secrets declared in an Environment, resolved when they are needed. Never put a credential value here.\n\nRules:\n- The block named by `method` must be set (for example `method: oauth2` needs `oauth2`).\n- No other method's block may be set at the same time.",
+      "properties": {
+        "method": {
+          "description": "Authentication method to use",
+          "enum": [
+            "oauth2",
+            "aws",
+            "gcp",
+            "api_key",
+            "certificate",
+            "saml",
+            "cli",
+            "managed_identity",
+            "ssh_key",
+            "token"
+          ],
+          "type": "string"
+        },
+        "oauth2": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OAuth2AuthenticationModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "OAuth2/Service Principal authentication"
+        },
+        "aws": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AWSAuthenticationModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "AWS access key authentication"
+        },
+        "gcp": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GCPAuthenticationModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "GCP service account authentication"
+        },
+        "api_key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/APIKeyAuthenticationModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "API key authentication"
+        },
+        "certificate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CertificateAuthenticationModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Certificate-based authentication (mTLS)"
+        },
+        "saml": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SAMLAuthenticationModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "SAML 2.0 authentication"
+        },
+        "cli": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CLIAuthenticationModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "CLI-based authentication"
+        },
+        "managed_identity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ManagedIdentityAuthenticationModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Managed/Workload Identity authentication"
+        },
+        "ssh_key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SSHKeyAuthenticationModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "SSH private key authentication (git deploy keys)"
+        },
+        "token": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TokenAuthenticationModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Bearer/PAT token authentication (git HTTPS)"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Human-readable description of this authentication configuration and setup instructions"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "type": "object"
+    },
+    "CLIAuthenticationModel": {
+      "additionalProperties": false,
+      "description": "CLI-based authentication using local credentials.\n\nUses existing CLI authentication: az login, gcloud auth, aws configure. No credential references needed - uses ambient credentials.",
+      "properties": {
+        "use_cli": {
+          "default": true,
+          "description": "Use local CLI authentication (az, gcloud, aws)",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "CertificateAuthenticationModel": {
+      "additionalProperties": false,
+      "description": "Certificate-based authentication (mTLS).\n\nAll fields are key references resolved from environment declarations.",
+      "properties": {
+        "certificate_path": {
+          "description": "Key reference for client certificate file path",
+          "type": "string"
+        },
+        "private_key_path": {
+          "description": "Key reference for private key file path",
+          "type": "string"
+        },
+        "ca_bundle_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for CA bundle file path"
+        },
+        "certificate_password": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for certificate password (if encrypted)"
+        }
+      },
+      "required": [
+        "certificate_path",
+        "private_key_path"
+      ],
+      "type": "object"
+    },
+    "GCPAuthenticationModel": {
+      "additionalProperties": false,
+      "description": "Google Cloud Platform service account authentication.\n\nAll fields are key references resolved from environment declarations.",
+      "properties": {
+        "project_id": {
+          "description": "Key reference for GCP project ID",
+          "type": "string"
+        },
+        "credentials_json": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for GCP service account JSON credentials (as string content)"
+        },
+        "credentials_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for path to GCP service account JSON file"
+        },
+        "service_account_email": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for GCP service account email"
+        }
+      },
+      "required": [
+        "project_id"
+      ],
+      "type": "object"
+    },
+    "IntegrationEndpointsModel": {
+      "additionalProperties": false,
+      "description": "A service endpoint address for a networked integration transport.",
+      "properties": {
+        "address": {
+          "description": "Service endpoint URL (e.g. https://consul.example.com:8500)",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "address"
+      ],
+      "type": "object"
+    },
+    "IntegrationLifecycleModel": {
+      "additionalProperties": {
+        "$ref": "#/$defs/IntegrationLifecyclePhaseModel"
+      },
+      "description": "Lifecycle hooks of an integration, keyed by phase name, for example `connect_before` or `teardown`. Accepted and validated, but strata does not run lifecycle hooks yet.",
+      "type": "object"
+    },
+    "IntegrationLifecyclePhaseModel": {
+      "additionalProperties": false,
+      "description": "One lifecycle phase: an optional description and the Python scripts it runs, as paths relative to the solution root. Only Python scripts are accepted for an integration.",
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional description for documentation purposes"
+        },
+        "scripts": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Python script paths for this phase, relative to the solution root"
+        }
+      },
+      "type": "object"
+    },
+    "IntegrationMetaModel": {
+      "additionalProperties": false,
+      "description": "Integration metadata (name, annotations, labels, tags).",
+      "properties": {
+        "name": {
+          "description": "Unique integration name",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional annotations (key-value pairs for documentation)"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional labels (key-value pairs for classification/filtering)"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional list of tags"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "IntegrationSpecModel": {
+      "additionalProperties": false,
+      "description": "What an external tool or service is and what it can do: its `type`, its `capabilities`, how to reach it and how to authenticate. Other documents bind to it by name, for example a provisioner, a remote, an audit sink, a security gate or a value store.\n\nRules:\n- Every capability must be one of audit, container, features, image_findings, infrastructure, key_value, release_gate, scanner, secrets, sources, variables, or start with `x-`.\n- `version` must be a constraint strata can parse, such as `~> 1.9` or `>= 1.17`.",
+      "properties": {
+        "type": {
+          "description": "Type of the tool or service. Built-in types and the capabilities they provide:\n\n- `terraform`: infrastructure. Runs Terraform.\n- `opentofu`: infrastructure. Runs OpenTofu (`tofu`), for a provisioner with `tool: opentofu`.\n- `compose`: container. Docker Compose.\n- `helm`: container. Helm charts.\n- `script`: infrastructure. Runs a script.\n- `argocd`: infrastructure. Pushes rendered configuration to the git repository Argo CD watches.\n- `flux`: infrastructure. Pushes rendered configuration to the git repository Flux watches.\n- `git`: sources. Git credentials for remotes.\n- `infisical`: variables, secrets. Infisical.\n- `azure-keyvault`: secrets, key_value. Azure Key Vault.\n- `azure-appconfig`: variables, features, key_value. Azure App Configuration.\n- `azure-blob`: key_value. Records in Azure Blob Storage.\n- `webhook`: audit. Posts audit events as JSON.\n- `otel`: audit. Sends audit events as OpenTelemetry logs.\n- `sentinel`: audit. Sends audit events to Microsoft Sentinel.\n- `aikido`: release_gate, image_findings. The Aikido security platform.\n- `trivy`: scanner. CVE scanner.\n- `grype`: scanner. CVE scanner.\n- `checkov`: scanner. Static IaC security scanner.\n\nAny other type needs a plugin registered under the `strata.integrations` entry point group.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "capabilities": {
+          "description": "What this integration provides. Core capabilities: `variables`, `secrets` and `features` (value stores), `key_value` (small keyed records with optional compare-and-swap), `infrastructure` (IaC and configuration tools such as terraform), `container` (Compose and Helm), `sources` (credentials for git, OCI and Helm remotes), `audit` (audit event destinations), `scanner` (security scanners), `release_gate` (pass/fail verdict for a repository at a commit) and `image_findings` (open issues for container images). A name starting with `x-` is a custom capability that strata does not dispatch on.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Human-readable description of the integration"
+        },
+        "required": {
+          "default": false,
+          "description": "Whether this integration is required for platform operation",
+          "type": "boolean"
+        },
+        "enabled": {
+          "default": true,
+          "description": "Whether this integration is enabled. A disabled integration is not auto-bound.",
+          "type": "boolean"
+        },
+        "authentication": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthenticationModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Authentication configuration for accessing the integration\n\nRules:\n- The block named by `method` must be set (for example `method: oauth2` needs `oauth2`).\n- No other method's block may be set at the same time."
+        },
+        "transport": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "How the integration is reached, for example `cli`, `http` or `sdk`. Omit to let the integration type choose. It is checked against the transports the type supports when the integration runs, not when the document is loaded."
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Version constraint of the tool or service this integration expects, for example `~> 1.9` or `>= 1.17`. An assertion, not an installation: strata never installs software, so a mismatch fails the preflight check. A provisioner names an integration rather than stating its own version."
+        },
+        "command": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Overrides the integration class's default executable name. Needed for a generic/custom wrapper whose binary isn't known until the document supplies it; a built-in like terraform does not need this."
+        },
+        "endpoints": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IntegrationEndpointsModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Service endpoint, as `address` (a URL). Required by azure-keyvault, azure-appconfig, azure-blob, webhook, otel and sentinel; meaningless for CLI-only integrations such as terraform."
+        },
+        "lifecycle": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IntegrationLifecycleModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Hook scripts per phase name, Python only. Accepted and validated, but strata does not run lifecycle hooks yet."
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Settings read by the integration's own type, not validated by strata. Known keys: `webhook`: `headers`, `token_env_var`, `auth_scheme`; `otel`: `resource_attributes`; `sentinel`: `data_collection_rule_id`, `stream_name`; `infisical`: `project_id`, `environment`; `aikido`: `region`, `release_gate`, `images`. Add an `attributeconfig` with `target.kind: integration` and `target.block: configuration` to validate them."
+        },
+        "custom": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Free-form values for your own scripts. Strata does not deliver them anywhere yet."
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "type": "object"
+    },
+    "ManagedIdentityAuthenticationModel": {
+      "additionalProperties": false,
+      "description": "Managed/Workload Identity authentication.\n\nUses cloud provider managed identity (Azure MSI, GCP Workload Identity, AWS IAM Roles). No credential references needed - uses ambient credentials.",
+      "properties": {
+        "use_managed_identity": {
+          "default": true,
+          "description": "Use cloud provider managed identity",
+          "type": "boolean"
+        },
+        "client_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for user-assigned managed identity client ID (Azure only)"
+        }
+      },
+      "type": "object"
+    },
+    "OAuth2AuthenticationModel": {
+      "additionalProperties": false,
+      "description": "OAuth2/OpenID Connect authentication.\n\nUsed by: Azure (Service Principal), generic OAuth2 providers. All fields are key references resolved from environment declarations.",
+      "properties": {
+        "client_id": {
+          "description": "Key reference for OAuth2 client/application ID",
+          "type": "string"
+        },
+        "client_secret": {
+          "description": "Key reference for OAuth2 client secret",
+          "type": "string"
+        },
+        "tenant_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for tenant/directory ID (Azure AD, Okta, etc.)"
+        },
+        "token_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for OAuth2 token endpoint URL"
+        },
+        "authorization_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for OAuth2 authorization endpoint URL"
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for OAuth2 scopes (space-separated)"
+        }
+      },
+      "required": [
+        "client_id",
+        "client_secret"
+      ],
+      "type": "object"
+    },
+    "PlatformKind": {
+      "description": "Enumeration of supported platform kinds.",
+      "enum": [
+        "solution",
+        "configuration",
+        "providerconfig",
+        "topologyconfig",
+        "attributeconfig",
+        "provider",
+        "resource",
+        "dns",
+        "network",
+        "firewall",
+        "module",
+        "namespace",
+        "workspace",
+        "integration",
+        "tenant",
+        "environment",
+        "deployment",
+        "version",
+        "artifact",
+        "asset",
+        "parameterset"
+      ],
+      "type": "string"
+    },
+    "PlatformVersion": {
+      "description": "Enumeration of supported platform versions.",
+      "enum": [
+        "strata.huybrechts.xyz/v2",
+        "strata.omp.com/v2"
+      ],
+      "type": "string"
+    },
+    "SAMLAuthenticationModel": {
+      "additionalProperties": false,
+      "description": "SAML 2.0 authentication.\n\nAll fields are key references resolved from environment declarations.",
+      "properties": {
+        "idp_entity_id": {
+          "description": "Key reference for SAML Identity Provider entity ID",
+          "type": "string"
+        },
+        "sp_entity_id": {
+          "description": "Key reference for SAML Service Provider entity ID",
+          "type": "string"
+        },
+        "sso_url": {
+          "description": "Key reference for SAML Single Sign-On URL",
+          "type": "string"
+        },
+        "certificate_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for SAML certificate file path"
+        }
+      },
+      "required": [
+        "idp_entity_id",
+        "sp_entity_id",
+        "sso_url"
+      ],
+      "type": "object"
+    },
+    "SSHKeyAuthenticationModel": {
+      "additionalProperties": false,
+      "description": "SSH private key authentication, used for git deploy keys. Every field is a key reference, never the key itself.",
+      "properties": {
+        "private_key": {
+          "description": "Key reference for the SSH private key (PEM/OpenSSH format)",
+          "type": "string"
+        },
+        "passphrase": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for the private key's passphrase, if encrypted"
+        },
+        "known_hosts": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for a known_hosts entry pinning the remote host's key"
+        }
+      },
+      "required": [
+        "private_key"
+      ],
+      "type": "object"
+    },
+    "TokenAuthenticationModel": {
+      "additionalProperties": false,
+      "description": "Bearer or personal access token authentication, used for git over HTTPS. `token` is a key reference; `username` is a literal.",
+      "properties": {
+        "token": {
+          "description": "Key reference for the token/PAT value",
+          "type": "string"
+        },
+        "username": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Literal username to pair with the token \u2014 not a key reference"
+        }
+      },
+      "required": [
+        "token"
+      ],
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A connection to an external tool or service: Terraform, a secrets store, a git host, a scanner, an audit destination. Create one per tool or service and reference it by name where it is needed.",
+  "properties": {
+    "apiVersion": {
+      "$ref": "#/$defs/PlatformVersion",
+      "default": "strata.huybrechts.xyz/v2",
+      "description": "API version for integration configuration"
+    },
+    "kind": {
+      "$ref": "#/$defs/PlatformKind",
+      "default": "integration",
+      "description": "Platform kind (always 'integration')"
+    },
+    "meta": {
+      "$ref": "#/$defs/IntegrationMetaModel",
+      "description": "Integration metadata (name, annotations, labels, tags)"
+    },
+    "spec": {
+      "$ref": "#/$defs/IntegrationSpecModel",
+      "description": "Integration specification (type, capabilities, authentication, ...)\n\nRules:\n- Every capability must be one of audit, container, features, image_findings, infrastructure, key_value, release_gate, scanner, secrets, sources, variables, or start with `x-`.\n- `version` must be a constraint strata can parse, such as `~> 1.9` or `>= 1.17`."
+    }
+  },
+  "required": [
+    "meta",
+    "spec"
+  ],
+  "type": "object",
+  "examples": [
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "integration",
+      "meta": {
+        "name": "terraform"
+      },
+      "spec": {
+        "type": "terraform",
+        "capabilities": [
+          "infrastructure"
+        ]
+      }
+    },
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "integration",
+      "meta": {
+        "name": "azure-keyvault"
+      },
+      "spec": {
+        "type": "azure-keyvault",
+        "capabilities": [
+          "secrets",
+          "key_value"
+        ],
+        "endpoints": {
+          "address": "https://example.vault.azure.net"
+        },
+        "authentication": {
+          "method": "cli",
+          "cli": {}
+        }
+      }
+    }
+  ]
+}

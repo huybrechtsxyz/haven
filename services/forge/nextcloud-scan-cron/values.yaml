@@ -1,9 +1,6 @@
-# Credentials MUST live under a literal `env:` dict — strata's Helm secret
-# substitution only resolves ${TOKEN} placeholders found inside a dict node
-# keyed literally "env" (see nextcloud-secrets/values.yaml's comment for the
-# full writeup). This chart doesn't need any secrets at all though — RBAC
-# authenticates via the in-cluster ServiceAccount token, not a credential we
-# manage — this file only carries the non-secret knobs below.
+# This chart needs no secrets — RBAC authenticates via the in-cluster
+# ServiceAccount token, not a credential we manage — so this file only
+# carries the non-secret knobs below.
 
 image:
   # Verified by user against Docker Hub directly (2026-09-16): official

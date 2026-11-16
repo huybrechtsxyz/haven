@@ -1,11 +1,9 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: module
 meta:
   name: homarr
   annotations:
     description: Homarr — family-facing dashboard/landing page linking to every deployed haven service. Real per-user boards, groups and permissions synced from Authentik (admins/parents/members), drag-and-drop icon picker (11k+ icons) — unlike Authentik's own application launcher (admin-managed only, shared for everyone), each Homarr user can customize their own board.
-  labels:
-    version: "1.0.0"
   tags: [haven, forge, system, homarr, dashboard]
 spec:
   type: helm
@@ -25,10 +23,6 @@ spec:
     # envSecrets.dbEncryption block below, updated to match.
     chart_version: "8.29.0"
   kubernetes_namespace: system
-  references:
-    secrets:
-      - HOMARR_SSO_CLIENT_SECRET # not read directly — homarr-secrets.yaml renders the actual K8s Secret this module points at via envSecrets
-      - HOMARR_DB_ENCRYPTION_KEY # same as above
   configuration:
     env:
       TZ: "Europe/Brussels"

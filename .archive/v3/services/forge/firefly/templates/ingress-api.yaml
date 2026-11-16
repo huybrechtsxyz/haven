@@ -1,0 +1,34 @@
+{{- if and .Values.ingress.enabled .Values.sso.enabled }}
+# Bypasses the Authentik forwardAuth middleware for Firefly's own REST API
+# (/api/*) — same "more-specific path wins" technique as
+# ingress-outpost.yaml, just for a different reason: Firefly's API
+# authenticates callers with its OWN Personal Access Tokens
+# (Authorization: Bearer <token>), completely independent of Authentik.
+# Without this, forwardAuth intercepts every /api request first, finds no
+# Authentik browser session, and rejects/redirects it — so a PAT-based API
+# client (e.g. a budgeting app importing transactions) never reaches
+# Firefly's own token check at all, no matter how valid the token is. See
+# docs/services/firefly.md's SSO section.
+#
+# Safe to leave unauthenticated at the Traefik layer: Firefly's API still
+# requires its own valid Personal Access Token for every request — this
+# only removes the REDUNDANT, incompatible Authentik session check in
+# front of it, it doesn't disable Firefly's own auth.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-api
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}
+                port:
+                  number: {{ .Values.service.port }}
+{{- end }}

@@ -1,0 +1,67 @@
+# =============================================================================
+# Haven Hearth — vdirsyncer configuration for kSuite calendar/contacts backup
+# Managed by Ansible (hearth-config.yml) — do not edit manually.
+#
+# One-way mirror only (kSuite → local vdir) for every family mailbox's
+# calendars and contacts. vdirsyncer performs CalDAV/CardDAV auto-discovery
+# per RFC 6764 (.well-known/caldav, .well-known/carddav) against the base
+# `url` below — this delegates protocol correctness to a mature, widely-used
+# library instead of hand-rolling PROPFIND/REPORT requests, which is exactly
+# the class of mistake the previous (dropped) kSuite backup attempt made.
+#
+# ⚠️ IMPORTANT — verify once before trusting the cron job:
+#   Run `vdirsyncer discover <pair_name>` manually after first deploy and
+#   confirm it actually finds calendar/addressbook collections for each
+#   mailbox. If kSuite's DAV base URL differs from plain
+#   https://mail.infomaniak.com/, override `ksuite_dav_url` in vars/main.yml
+#   with the exact URL from that mailbox's own Account Settings → CalDAV/
+#   CardDAV configuration page (Infomaniak's official FAQ 1701,
+#   "Manually synchronize Contacts & Calendar (macOS apps) using
+#   CardDAV/CalDAV", shows this per-account).
+#
+# Sync direction is one-way (from b), matching mbsync's read-only mirror
+# design above — a local change/deletion must never propagate back and
+# delete something in the real kSuite calendar/address book.
+# =============================================================================
+
+[general]
+status_path = "{{ haven_install_path }}/var/backup/ksuite/.vdirsyncer_status/"
+
+{% for mailbox in ksuite_mailboxes %}
+[pair {{ mailbox.name }}_contacts]
+a = "{{ mailbox.name }}_contacts_local"
+b = "{{ mailbox.name }}_contacts_remote"
+collections = ["from b"]
+conflict_resolution = "b wins"
+
+[storage {{ mailbox.name }}_contacts_local]
+type = "filesystem"
+path = "{{ haven_install_path }}/var/backup/ksuite/contacts/{{ mailbox.name }}/"
+fileext = ".vcf"
+
+[storage {{ mailbox.name }}_contacts_remote]
+type = "carddav"
+url = "{{ ksuite_dav_url | default('https://mail.infomaniak.com/') }}"
+username = "{{ mailbox.email }}"
+password.fetch = ["command", "cat", "{{ haven_install_path }}/.ksuite_secret_{{ mailbox.name }}"]
+read_only = true
+
+[pair {{ mailbox.name }}_calendar]
+a = "{{ mailbox.name }}_calendar_local"
+b = "{{ mailbox.name }}_calendar_remote"
+collections = ["from b"]
+conflict_resolution = "b wins"
+
+[storage {{ mailbox.name }}_calendar_local]
+type = "filesystem"
+path = "{{ haven_install_path }}/var/backup/ksuite/calendars/{{ mailbox.name }}/"
+fileext = ".ics"
+
+[storage {{ mailbox.name }}_calendar_remote]
+type = "caldav"
+url = "{{ ksuite_dav_url | default('https://mail.infomaniak.com/') }}"
+username = "{{ mailbox.email }}"
+password.fetch = ["command", "cat", "{{ haven_install_path }}/.ksuite_secret_{{ mailbox.name }}"]
+read_only = true
+
+{% endfor %}

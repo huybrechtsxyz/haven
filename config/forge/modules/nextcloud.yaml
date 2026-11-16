@@ -1,11 +1,9 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: module
 meta:
   name: nextcloud
   annotations:
     description: Nextcloud — family document archive/browsing layer, External Storage over the shared documents mount (migrating from the deleted haven-docs S3 bucket to the haven-data Storage Box's docs sub-account — not the live sync drive, that's Infomaniak kDrive)
-  labels:
-    version: "1.0.0"
   tags: [haven, forge, documents, nextcloud, docs]
 spec:
   type: helm
@@ -16,12 +14,6 @@ spec:
     chart_name: nextcloud
     chart_version: "9.2.6"
   kubernetes_namespace: documents
-  references:
-    secrets:
-      - NEXTCLOUD_ADMIN_PASSWORD
-      - NEXTCLOUD_DB_PASSWORD
-      - NEXTCLOUD_REDIS_PASSWORD
-      - NEXTCLOUD_SSO_CLIENT_SECRET
   # Raw passthrough — same reasoning as immich.yaml/jellyfin.yaml: this
   # chart's top-level keys are fixed by the chart itself, so spec.configuration
   # (no module-name prefixing) is used instead of spec.services.

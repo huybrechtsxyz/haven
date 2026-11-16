@@ -1,0 +1,16 @@
+image:
+  repository: postgres
+  tag: 16-alpine
+
+env:
+  POSTGRES_USER: nextcloud
+  POSTGRES_DB: nextcloud
+  # Set via ${NEXTCLOUD_DB_PASSWORD} substitution token — never a literal value here.
+  POSTGRES_PASSWORD: ""
+
+persistence:
+  storageClass: local-path
+  size: 10Gi
+
+service:
+  port: 5432

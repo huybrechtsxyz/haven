@@ -1,11 +1,9 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: module
 meta:
   name: gatus
   annotations:
     description: Gatus — health/status dashboard for every family service (Immich, Jellyfin, Nextcloud, Kavita, Grimoire, FoundryVTT, Firefly III, Authentik, Vaultwarden, WUD, Portainer, pgAdmin, Yuvomi). Members-only, no public access — real OIDC login via Authentik.
-  labels:
-    version: "1.0.0"
   tags: [haven, forge, system, monitoring, gatus]
 spec:
   type: helm
@@ -15,29 +13,15 @@ spec:
     chart_name: gatus
     chart_version: "1.0.0"
   kubernetes_namespace: system
-  references:
-    secrets:
-      - GATUS_SSO_CLIENT_SECRET
-      # SMTP — shared Infomaniak mailbox credentials, same secrets Vaultwarden's
-      # SMTP_* env vars reuse (see vaultwarden.yaml). Populated in Infisical
-      # already, just not consumed anywhere until now.
-      - INFOMANIAK_EMAIL__HOST
-      - INFOMANIAK_EMAIL__PORT
-      - INFOMANIAK_EMAIL__USERNAME
-      - INFOMANIAK_EMAIL__PASSWORD
   configuration:
-    # Secret substitution requires a literal top-level `env:` dict (strata's
-    # Helm secret substitution only resolves ${TOKEN} inside a node keyed
-    # literally "env" — see nextcloud-secrets.yaml's module comment for the
-    # full writeup of this constraint). Gatus's own chart already ships a
-    # flat top-level `env: {}` field, so no local chart / secretKeyRef
-    # workaround is needed here, unlike Nextcloud's third-party chart.
+    # Gatus's chart ships a flat top-level `env: {}` field: strata resolves the
+    # `${secret:...}` tokens into real pod env vars at deploy time.
     env:
-      GATUS_OIDC_CLIENT_SECRET: "${GATUS_SSO_CLIENT_SECRET}"
-      GATUS_SMTP_HOST: "${INFOMANIAK_EMAIL__HOST}"
-      GATUS_SMTP_PORT: "${INFOMANIAK_EMAIL__PORT}"
-      GATUS_SMTP_USERNAME: "${INFOMANIAK_EMAIL__USERNAME}"
-      GATUS_SMTP_PASSWORD: "${INFOMANIAK_EMAIL__PASSWORD}"
+      GATUS_OIDC_CLIENT_SECRET: "${secret:GATUS_SSO_CLIENT_SECRET}"
+      GATUS_SMTP_HOST: "${secret:INFOMANIAK_EMAIL__HOST}"
+      GATUS_SMTP_PORT: "${secret:INFOMANIAK_EMAIL__PORT}"
+      GATUS_SMTP_USERNAME: "${secret:INFOMANIAK_EMAIL__USERNAME}"
+      GATUS_SMTP_PASSWORD: "${secret:INFOMANIAK_EMAIL__PASSWORD}"
 
     # Small persistent volume so uptime/history survives pod restarts —
     # otherwise Gatus defaults to in-memory storage (lost on every restart).
@@ -90,27 +74,26 @@ spec:
           # Gatus's OWN runtime env-var substitution (documented:
           # "you can use environment variables directly in the
           # configuration file") reads this from the pod's actual
-          # environment — populated by the `env:` block above via
-          # strata's Helm secret substitution. Two separate substitution
-          # passes composing correctly: strata resolves ${GATUS_SSO_CLIENT_SECRET}
+          # environment — populated by the `env:` block above. Two separate
+          # substitution passes: strata resolves `${secret:GATUS_SSO_CLIENT_SECRET}`
           # into a real pod env var at deploy time; Gatus resolves
           # ${GATUS_OIDC_CLIENT_SECRET} from that same env var at its own
-          # process startup.
-          client-secret: "${GATUS_OIDC_CLIENT_SECRET}"
+          # process startup. `$${...}` is strata's escape for a literal `${...}`.
+          client-secret: "$${GATUS_OIDC_CLIENT_SECRET}"
           scopes: ["openid", "email", "profile"]
 
       # Email alerting — reuses the same shared Infomaniak mailbox as
       # Vaultwarden/Authentik (see vaultwarden.yaml). Same double-substitution
       # pattern as the OIDC client-secret above: strata resolves
-      # ${INFOMANIAK_EMAIL__*} into real pod env vars at deploy time; Gatus's
-      # own runtime env-var substitution then reads those from ${GATUS_SMTP_*}.
+      # `${secret:INFOMANIAK_EMAIL__*}` into real pod env vars at deploy time;
+      # Gatus's own runtime env-var substitution then reads ${GATUS_SMTP_*}.
       alerting:
         email:
           from: gatus@huybrechts.xyz
-          host: "${GATUS_SMTP_HOST}"
-          port: ${GATUS_SMTP_PORT}
-          username: "${GATUS_SMTP_USERNAME}"
-          password: "${GATUS_SMTP_PASSWORD}"
+          host: "$${GATUS_SMTP_HOST}"
+          port: $${GATUS_SMTP_PORT}
+          username: "$${GATUS_SMTP_USERNAME}"
+          password: "$${GATUS_SMTP_PASSWORD}"
           to: "admin@huybrechts.xyz"
           default-alert:
             enabled: true

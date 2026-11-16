@@ -1,33 +1,18 @@
 # =============================================================================
 # Module: Hearth — Hetzner Cloud Resources
 # =============================================================================
-# Provisions the Hearth VPS: CX22 running Docker Compose stack
-# (Caddy, Authentik, Vaultwarden, Infisical)
-#
-# Firewall rules are built dynamically from the strata firewalls config.
-# Loopback/interface rules are filtered out — those are OS-level (nftables).
-# =============================================================================
-
-# =============================================================================
-# Locals — filter firewall rules to hcloud-compatible ones
+# Provisions the Hearth VPS: CX23 running the Docker Compose stack
+# (Caddy, Authentik, Vaultwarden, Portainer, WUD).
 # =============================================================================
 
 locals {
-  # hcloud firewalls only support network rules, not interface rules (lo)
-  # Filter to rules that have proto + port (skip interface-only rules)
-  network_rules = [
-    for rule in var.firewall_config.rules.allow : rule
-    if rule.proto != null && rule.interface == null
-  ]
-
-  inbound_rules = [
-    for rule in local.network_rules : rule
-    if rule.direction == "in"
-  ]
-
-  outbound_rules = [
-    for rule in local.network_rules : rule
-    if rule.direction == "out"
+  # Hetzner wants one port ("443") or a range ("20-21").
+  rules = [
+    for rule in var.firewall_rules : merge(rule, {
+      port = length(rule.ports) == 0 ? null : (
+        length(rule.ports) == 1 ? replace(rule.ports[0], ":", "-") : "${rule.ports[0]}-${rule.ports[length(rule.ports) - 1]}"
+      )
+    })
   ]
 }
 
@@ -36,30 +21,30 @@ locals {
 # =============================================================================
 
 resource "hcloud_firewall" "hearth" {
-  name   = "${replace(var.workspace_name, "_", "-")}-fw-hearth"
+  name   = "${var.name_prefix}-fw-hearth"
   labels = merge(var.labels, { role = "hearth" })
 
   # Inbound rules
   dynamic "rule" {
-    for_each = local.inbound_rules
+    for_each = [for r in local.rules : r if r.direction == "in"]
     content {
-      description = rule.value.comment
+      description = rule.value.description
       direction   = "in"
-      protocol    = rule.value.proto
-      port        = rule.value.port != null ? (length(rule.value.port) == 1 ? tostring(rule.value.port[0]) : "${rule.value.port[0]}-${rule.value.port[length(rule.value.port) - 1]}") : null
-      source_ips  = rule.value.from != null ? [rule.value.from] : ["0.0.0.0/0", "::/0"]
+      protocol    = rule.value.protocol
+      port        = rule.value.port
+      source_ips  = rule.value.cidrs
     }
   }
 
   # Outbound rules
   dynamic "rule" {
-    for_each = local.outbound_rules
+    for_each = [for r in local.rules : r if r.direction == "out"]
     content {
-      description     = rule.value.comment
+      description     = rule.value.description
       direction       = "out"
-      protocol        = rule.value.proto
-      port            = rule.value.port != null ? (length(rule.value.port) == 1 ? tostring(rule.value.port[0]) : "${rule.value.port[0]}-${rule.value.port[length(rule.value.port) - 1]}") : null
-      destination_ips = rule.value.to != null ? [rule.value.to] : ["0.0.0.0/0", "::/0"]
+      protocol        = rule.value.protocol
+      port            = rule.value.port
+      destination_ips = rule.value.cidrs
     }
   }
 }
@@ -75,7 +60,7 @@ resource "hcloud_firewall" "hearth" {
 #   Existing servers keep running under the old name but the API rejects it on new creates.
 #   Without this ignore, Terraform sees a perpetual drift between the declared name and
 #   what the API reports, and attempts an unwanted resize/reboot on every apply.
-#   To intentionally resize: update server_type in vm-hetzner-hearth.yaml, temporarily
+#   To intentionally resize: update server_type in config/hearth/vm.yaml, temporarily
 #   remove ignore_changes, apply once, then restore it.
 #   user_data is ALSO ignored — the hcloud provider treats user_data as a
 #   force-replacement attribute (cloud-init only runs on first boot). Editing
@@ -85,10 +70,10 @@ resource "hcloud_firewall" "hearth" {
 #   edit plans to destroy+recreate this production node.
 
 resource "hcloud_server" "hearth" {
-  name        = "${replace(var.workspace_name, "_", "-")}-hearth"
-  server_type = var.resource_config.configuration.server_type
-  image       = var.resource_config.configuration.image
-  location    = var.resource_config.configuration.location
+  name        = "${var.name_prefix}-hearth"
+  server_type = var.server_type
+  image       = var.image
+  location    = var.location
   ssh_keys    = [var.ssh_key_id]
   labels      = merge(var.labels, { role = "hearth" })
 
@@ -97,7 +82,7 @@ resource "hcloud_server" "hearth" {
   user_data = <<-EOF
     #cloud-config
     runcmd:
-      - mkdir -p ${var.resource_config.storage.install_path}/{etc,var/data,var/logs,var/certs}
+      - mkdir -p ${var.install_path}/{etc,var/data,var/logs,var/certs}
   EOF
 
   lifecycle {

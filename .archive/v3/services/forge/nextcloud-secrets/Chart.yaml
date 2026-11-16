@@ -1,0 +1,15 @@
+apiVersion: v2
+name: nextcloud-secrets
+description: >
+  Single Kubernetes Secret holding Nextcloud's real credential values.
+  Exists because the official nextcloud/nextcloud chart's own
+  password/client-secret fields (nextcloud.password, externalDatabase.password,
+  externalRedis.password, extraEnv) are NOT reachable by strata's Helm
+  secret substitution (only ${TOKEN} placeholders inside a dict node keyed
+  literally "env" get resolved — see nextcloud.yaml's module comment for the
+  full writeup, confirmed 2026-08-28). This chart's own values ARE under a
+  literal `env:` dict, so strata substitutes them correctly here, then
+  nextcloud.yaml/nextcloud-redis.yaml reference this Secret via
+  existingSecret / secretKeyRef instead of a plaintext value.
+type: application
+version: "1.0.0"

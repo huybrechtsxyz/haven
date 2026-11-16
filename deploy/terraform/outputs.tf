@@ -5,9 +5,10 @@
 output "platform" {
   description = "Platform deployment summary"
   value = {
-    workspace   = var.workspace_name
-    environment = var.environment
-    version     = var.workspace_version
+    workspace   = local.workspace_name
+    deployment  = local.deployment_name
+    environment = local.environment
+    version     = local.workspace_ver
   }
 }
 
@@ -33,7 +34,7 @@ output "hearth_server_id" {
   value       = module.hearth.server_id
 }
 
-# --- Forge (Wave 2) ---
+# --- Forge ---
 
 output "forge_public_ip" {
   description = "Forge public IPv4 — DNS A records point here"

@@ -1,0 +1,17 @@
+apiVersion: strata.huybrechts.xyz/v2
+kind: solution
+meta:
+  name: haven
+spec:
+  description: Haven family platform - Hetzner Hearth (Docker Compose) + Forge (k3s)
+  configuration: config
+  discovery:
+    exclude:
+      # v0-v3 archives: strata v1 documents, kept for reference only.
+      - .archive
+      # Helm chart templates are Go-template YAML, not strata documents.
+      - services/*/templates
+  # No remotes yet: in-repo modules omit `remote` (= this repository) and each
+  # third-party chart is used by one module only, so it sets `chart_repository`
+  # inline. Promote a chart registry to a remote here once it is shared by
+  # several modules or needs credentials.

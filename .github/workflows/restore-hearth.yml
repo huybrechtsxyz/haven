@@ -55,7 +55,7 @@ permissions:
 
 env:
   STRATA_OUTPUT: json
-  DEPLOYMENT_FILE: "config/deployment.yaml"
+  DEPLOYMENT: haven_deploy_prd
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -117,13 +117,8 @@ jobs:
       # (Vaultwarden lives on the same Hearth we might be restoring, so it
       # can't be the source of truth for the key needed to restore it).
       # ------------------------------------------------------------------
-      - name: Setup strata
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.9.3
-        with:
-          # See deploy-infra.yml for the full 1.9.3 bump rationale.
-          strata-version: "==1.9.3"
-        env:
-          UV_INDEX_STRATEGY: unsafe-best-match
+      - name: Setup tools (VERSIONS.env)
+        uses: ./.github/actions/setup-tools
 
       - name: Resolve Borg passphrase
         id: secrets
@@ -133,12 +128,12 @@ jobs:
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
           set +e
-          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH -f $DEPLOYMENT_FILE --output json)
+          VALUES=$(strata values get "$DEPLOYMENT" BORG_PASSPHRASE_HEARTH --output json)
           STATUS=$?
           set -e
           if [ $STATUS -ne 0 ]; then
             echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
-            echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+            echo "$VALUES" | jq -r '.diagnostics[]? | "\(.location // "-"): \(.message)"' 2>/dev/null || echo "(no parseable error detail)"
             exit $STATUS
           fi
           BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_HEARTH')

@@ -5,7 +5,7 @@ image:
 env:
   POSTGRES_USER: nextcloud
   POSTGRES_DB: nextcloud
-  # Set via ${NEXTCLOUD_DB_PASSWORD} substitution token — never a literal value here.
+  # Set by the module as `${secret:NEXTCLOUD_DB_PASSWORD}` — never a literal value here.
   POSTGRES_PASSWORD: ""
 
 persistence:

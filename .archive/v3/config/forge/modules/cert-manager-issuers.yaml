@@ -1,0 +1,18 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: cert-manager-issuers
+  annotations:
+    description: Let's Encrypt ClusterIssuers (staging + production) for cert-manager, HTTP-01 via Traefik
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, system, tls, cert-manager, letsencrypt]
+spec:
+  type: helm
+  source:
+    repository: haven
+    source_path: services/forge/cert-manager-issuers
+  kubernetes_namespace: system
+  configuration:
+    acmeEmail: webmaster@huybrechts.xyz
+    ingressClass: traefik

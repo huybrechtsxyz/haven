@@ -10,9 +10,8 @@
 # at least once (VPS exists and is initialised). Pair with
 # deploy-forge-config.yml for routine LAN-routing drift correction.
 #
-# Which Forge namespaces/services actually get deployed is controlled by
-# config/stack/workspace.yaml's spec.namespaces list — see the comments there
-# for the step-by-step activation order (system -> immich/media -> documents).
+# Which Forge namespaces get deployed, and in which order, is the
+# `applications_forge` step's `namespaces` list in config/workspace.yaml.
 # ==============================================================================
 
 name: 33 - Forge - Deploy
@@ -35,7 +34,7 @@ permissions:
 env:
   STRATA_OUTPUT: json
   STRATA_WORK_PATH: ${{ github.workspace }}
-  DEPLOYMENT_FILE: "config/deployment.yaml"
+  DEPLOYMENT: haven_deploy_prd
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -84,17 +83,10 @@ jobs:
       # ------------------------------------------------------------------
       # Strata + Helm setup
       # ------------------------------------------------------------------
-      - name: Setup strata
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.9.3
+      - name: Setup tools (VERSIONS.env)
+        uses: ./.github/actions/setup-tools
         with:
-          # See deploy-infra.yml for the full 1.9.3 bump rationale (ADR-0072
-          # breaking change, migrated config/configuration.yaml + deployment.yaml).
-          strata-version: "==1.9.3"
-        env:
-          UV_INDEX_STRATEGY: unsafe-best-match
-
-      - name: Setup Helm
-        uses: azure/setup-helm@v5
+          helm: "true"
 
       - name: Write deploy SSH private key
         if: ${{ inputs.dry_run != true }}
@@ -114,10 +106,10 @@ jobs:
       # 'https://127.0.0.1:6443', so no rewriting is needed) and forward local
       # port 6443 to the same address on the far end of the SSH connection.
       - name: Validate deployment file
-        run: strata validate -f $DEPLOYMENT_FILE --deep
+        run: strata validate --strict
 
       - name: Build platform artifacts
-        run: strata build run --file $DEPLOYMENT_FILE
+        run: strata build run "$DEPLOYMENT"
 
       - name: Fetch k3s kubeconfig
         if: ${{ inputs.dry_run != true }}
@@ -191,15 +183,16 @@ jobs:
       - name: Deploy Forge Helm apps
         if: ${{ inputs.dry_run != true }}
         env:
+          # The deployment pins kube_context `default` — the context name in the
+          # k3s kubeconfig fetched above; strata stops if it is missing.
           KUBECONFIG: /tmp/forge-kubeconfig.yaml
-          # Which namespaces actually get deployed is controlled by
-          # config/stack/workspace.yaml's spec.namespaces list (pruned to one
-          # at a time for step-by-step activation), not by this stage.
+          # Which namespaces get deployed is the applications_forge step's
+          # `namespaces` list in config/workspace.yaml, not this workflow.
           INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
-          strata deploy run --file $DEPLOYMENT_FILE --scope apps --stage applications_forge --force --verbose
+          strata deploy run "$DEPLOYMENT" --stage applications_forge --verbose
 
       # =========================================================================
       # Jellyfin SSO — (re-)register the Authentik OIDC provider with the
@@ -229,7 +222,7 @@ jobs:
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
           set +e
-          VALUES=$(strata values get JELLYFIN_API_KEY JELLYFIN_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          VALUES=$(strata values get "$DEPLOYMENT" JELLYFIN_API_KEY JELLYFIN_SSO_CLIENT_SECRET --output json)
           set -e
           JELLYFIN_API_KEY=$(echo "$VALUES" | jq -r '.data.results.JELLYFIN_API_KEY // empty')
           JELLYFIN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.JELLYFIN_SSO_CLIENT_SECRET // empty')
@@ -323,7 +316,7 @@ jobs:
             '{"spec":{"template":{"spec":{"hostAliases":[{"ip":"${{ steps.hearth_ip.outputs.ip }}","hostnames":["auth.huybrechts.xyz"]}]}}}}'
           set -e
 
-          VALUES=$(strata values get NEXTCLOUD_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          VALUES=$(strata values get "$DEPLOYMENT" NEXTCLOUD_SSO_CLIENT_SECRET --output json)
           NEXTCLOUD_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.NEXTCLOUD_SSO_CLIENT_SECRET // empty')
           if [ -z "$NEXTCLOUD_SSO_SECRET" ]; then
             echo "::warning::NEXTCLOUD_SSO_CLIENT_SECRET not resolvable — skipping Nextcloud SSO registration."
@@ -512,7 +505,7 @@ jobs:
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
           set +e
-          VALUES=$(strata values get KAVITA_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          VALUES=$(strata values get "$DEPLOYMENT" KAVITA_SSO_CLIENT_SECRET --output json)
           set -e
           KAVITA_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.KAVITA_SSO_CLIENT_SECRET // empty')
           if [ -z "$KAVITA_SSO_SECRET" ]; then

@@ -36,7 +36,7 @@ permissions:
 
 env:
   STRATA_OUTPUT: json
-  DEPLOYMENT_FILE: "config/deployment.yaml"
+  DEPLOYMENT: haven_deploy_prd
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -85,20 +85,11 @@ jobs:
       # ------------------------------------------------------------------
       # Ansible setup
       # ------------------------------------------------------------------
-      - name: Setup strata
+      - name: Setup tools (VERSIONS.env)
         if: ${{ inputs.dry_run != true }}
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.9.3
+        uses: ./.github/actions/setup-tools
         with:
-          # See deploy-infra.yml for the full 1.9.3 bump rationale (ADR-0072
-          # breaking change, migrated config/configuration.yaml + deployment.yaml).
-          strata-version: "==1.9.3"
-        env:
-          # See deploy-infra.yml for why this is set — no-op on GitHub-hosted runners.
-          UV_INDEX_STRATEGY: unsafe-best-match
-
-      - name: Install Ansible
-        if: ${{ inputs.dry_run != true }}
-        run: pip install ansible-core
+          ansible: "true"
 
       - name: Write deploy SSH private key
         if: ${{ inputs.dry_run != true }}
@@ -115,12 +106,12 @@ jobs:
       - name: Validate deployment file
         if: ${{ inputs.dry_run != true }}
         run: |
-          strata validate -f $DEPLOYMENT_FILE --deep
+          strata validate --strict
 
       - name: Build platform artifacts
         if: ${{ inputs.dry_run != true }}
         run: |
-          strata build run --file $DEPLOYMENT_FILE
+          strata build run "$DEPLOYMENT"
 
       # ------------------------------------------------------------------
       # Full restart (optional — clean slate before redeploy)
@@ -155,35 +146,27 @@ jobs:
           INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
+          # The secrets Hearth needs are exactly the `${secret:KEY}` tokens strata
+          # wrote into the built compose file — no list to keep in sync here.
+          COMPOSE="build/$DEPLOYMENT/hearth/docker-compose.yml"
+          mapfile -t KEYS < <(grep -oE '\$\{secret:[A-Za-z0-9_]+\}' "$COMPOSE" | sed -E 's/^\$\{secret:(.*)\}$/\1/' | sort -u)
+          if [ ${#KEYS[@]} -eq 0 ]; then
+            echo "::error::No \${secret:KEY} tokens found in $COMPOSE — did the build run?"
+            exit 1
+          fi
+          echo "Hearth secrets: ${KEYS[*]}"
           set +e
-          VALUES=$(strata values get AUTHENTIK_SECRET_KEY AUTHENTIK_POSTGRESQL__PASSWORD VAULTWARDEN_ADMIN_ARGON VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET INFOMANIAK_EMAIL__HOST INFOMANIAK_EMAIL__PORT INFOMANIAK_EMAIL__USERNAME INFOMANIAK_EMAIL__PASSWORD -f $DEPLOYMENT_FILE --output json)
+          VALUES=$(strata values get "$DEPLOYMENT" "${KEYS[@]}" --output json)
           STATUS=$?
           set -e
           if [ $STATUS -ne 0 ]; then
             echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
-            echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+            echo "$VALUES" | jq -r '.diagnostics[]? | "\(.location // "-"): \(.message)"' 2>/dev/null || echo "(no parseable error detail)"
             exit $STATUS
           fi
-          AUTHENTIK_KEY=$(echo "$VALUES" | jq -r '.data.results.AUTHENTIK_SECRET_KEY')
-          AUTHENTIK_DB_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.AUTHENTIK_POSTGRESQL__PASSWORD')
-          VAULTWARDEN_TOKEN=$(echo "$VALUES" | jq -r '.data.results.VAULTWARDEN_ADMIN_ARGON')
-          VAULTWARDEN_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.VAULTWARDEN_SSO_CLIENT_SECRET')
-          WUD_SSO_SECRET=$(echo "$VALUES" | jq -r '.data.results.WUD_SSO_CLIENT_SECRET')
-          INFOMANIAK_EMAIL_HOST=$(echo "$VALUES" | jq -r '.data.results.INFOMANIAK_EMAIL__HOST')
-          INFOMANIAK_EMAIL_PORT=$(echo "$VALUES" | jq -r '.data.results.INFOMANIAK_EMAIL__PORT')
-          INFOMANIAK_EMAIL_USERNAME=$(echo "$VALUES" | jq -r '.data.results.INFOMANIAK_EMAIL__USERNAME')
-          INFOMANIAK_EMAIL_PASSWORD=$(echo "$VALUES" | jq -r '.data.results.INFOMANIAK_EMAIL__PASSWORD')
-          cat > /tmp/deploy_vars.yml << VARSEOF
-          authentik_secret_key: "$AUTHENTIK_KEY"
-          authentik_postgresql_password: "$AUTHENTIK_DB_PASSWORD"
-          vaultwarden_admin_token: "$VAULTWARDEN_TOKEN"
-          vaultwarden_sso_client_secret: "$VAULTWARDEN_SSO_SECRET"
-          wud_sso_client_secret: "$WUD_SSO_SECRET"
-          infomaniak_email_host: "$INFOMANIAK_EMAIL_HOST"
-          infomaniak_email_port: "$INFOMANIAK_EMAIL_PORT"
-          infomaniak_email_username: "$INFOMANIAK_EMAIL_USERNAME"
-          infomaniak_email_password: "$INFOMANIAK_EMAIL_PASSWORD"
-          VARSEOF
+          # hearth-deploy.yml takes the map as-is (`hearth_secrets`) and writes .env from it.
+          umask 077
+          echo "$VALUES" | jq '{hearth_secrets: .data.results}' > /tmp/deploy_vars.json
 
       - name: Run hearth-deploy playbook
         if: ${{ inputs.dry_run != true }}
@@ -193,11 +176,11 @@ jobs:
             -i "${{ steps.ssh.outputs.server_ip }}," \
             --private-key ~/.ssh/haven_ed25519 \
             -e full_restart=${{ inputs.full_restart }} \
-            -e @/tmp/deploy_vars.yml
+            -e @/tmp/deploy_vars.json
 
       - name: Clean up deploy vars file
         if: ${{ always() && inputs.dry_run != true }}
-        run: rm -f /tmp/deploy_vars.yml
+        run: rm -f /tmp/deploy_vars.json
 
       # ------------------------------------------------------------------
       # Cleanup — always remove temporary SSH rule

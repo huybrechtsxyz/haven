@@ -1,0 +1,37 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: cert-manager
+  annotations:
+    description: cert-manager — automates Let's Encrypt TLS certificate issuance/renewal for Forge's Traefik ingress
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, system, tls, cert-manager, letsencrypt]
+spec:
+  type: helm
+  source:
+    # Official Jetstack OCI chart (HTTP repo https://charts.jetstack.io also
+    # still works, but OCI avoids a separate `helm repo add` step — same
+    # precedent as the immich module).
+    # NOTE: chart_repository is the REGISTRY PARENT path — strata appends
+    # chart_name onto it to form the full OCI ref (same convention as the
+    # immich module: chart_repository=".../immich-charts" + chart_name="immich").
+    # Previously had "cert-manager" duplicated in chart_repository AND
+    # chart_name, producing an invalid double path
+    # (oci://.../charts/cert-manager/cert-manager) that quay.io rejected
+    # with a misleading 401 (not a 404) — confirmed against cert-manager's
+    # own install docs, which use exactly oci://quay.io/jetstack/charts/cert-manager.
+    # Verify this is still current before applying: https://github.com/cert-manager/cert-manager/releases
+    chart_repository: oci://quay.io/jetstack/charts
+    chart_name: cert-manager
+    chart_version: "v1.16.2"
+  kubernetes_namespace: system
+  configuration:
+    # Helm-native CRDs (chart v1.13+) — installs the CustomResourceDefinitions
+    # as part of this release instead of a separate `kubectl apply` step.
+    # NOTE: Helm does NOT upgrade CRDs on subsequent `helm upgrade` runs (a
+    # known, documented Helm limitation) — bumping chart_version later will
+    # require a manual CRD re-apply if the CRDs themselves changed between
+    # versions. See https://cert-manager.io/docs/installation/upgrading/.
+    crds:
+      enabled: true

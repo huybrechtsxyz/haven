@@ -1,0 +1,36 @@
+# Defaults — override via the strata module's spec.configuration (see
+# config/forge/modules/kavita.yaml).
+image:
+  # LinuxServer.io's actively-maintained Kavita image (PUID/PGID/TZ
+  # convention). Pinned 2026-09-27 against
+  # https://github.com/linuxserver/docker-kavita/pkgs/container/kavita
+  # (multi-arch tag, published 5 days prior) — re-verify there before bumping.
+  repository: lscr.io/linuxserver/kavita
+  tag: v0.9.1.4-ls125
+
+env:
+  PUID: "1000"
+  PGID: "1000"
+  TZ: Europe/Brussels
+
+persistence:
+  # Kavita's own database/config — local disk, not shared.
+  config:
+    storageClass: local-path
+    size: 5Gi
+
+# Path on the haven-data Storage Box's docs sub-account SMB mount where the
+# actual library files live. Kavita only needs read access — it never
+# renames or reorganizes what it finds.
+library:
+  hostPath: /mnt/haven-data-docs/books
+
+service:
+  port: 5000
+
+ingress:
+  enabled: true
+  className: traefik
+  host: books.huybrechts.xyz
+  annotations: {}
+  tls: []

@@ -1,32 +1,19 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: module
 meta:
   name: vaultwarden
   annotations:
-    description: Vaultwarden — Bitwarden-compatible password manager for the family
-  labels:
-    version: "1.0.0"
+    description: Vaultwarden - Bitwarden-compatible password manager for the family
   tags: [haven, hearth, vaultwarden, bitwarden, passwords]
 spec:
-  source:
-    repository: haven
-    source_path: services/hearth/vaultwarden
   type: compose
-  references:
-    secrets:
-      - VAULTWARDEN_ADMIN_TOKEN
-      - VAULTWARDEN_SSO_CLIENT_SECRET
-      # SMTP — same shared Infomaniak mailbox credentials Authentik's
-      # (currently disabled) SMTP block references, see authentik.yaml.
-      # Reused here, not duplicated, since these are already declared once
-      # in config/environment.yaml and populated in Infisical.
-      - INFOMANIAK_EMAIL__HOST
-      - INFOMANIAK_EMAIL__PORT
-      - INFOMANIAK_EMAIL__USERNAME
-      - INFOMANIAK_EMAIL__PASSWORD
+  source:
+    # No files of its own: only the Compose service below is rendered (the
+    # namespace's merged docker-compose.yml). strata needs an existing path.
+    source_path: services/hearth
   services:
     - name: vaultwarden
-      # Pinned to 1.37.2 (2026-08-22) — 1.36.0 no longer syncs with Bitwarden
+      # Pinned to 1.37.2 (2026-08-22) - 1.36.0 no longer syncs with Bitwarden
       # clients v2026.8.0+ (iOS app, browser extensions); the 1.37.2 release
       # notes state this explicitly: "This update is required for support
       # with clients with version 2026.8.0+". See
@@ -40,8 +27,10 @@ spec:
           value: "false"
         - key: INVITATIONS_ALLOWED
           value: "true"
+        # The Argon2 hash, not the raw token (VAULTWARDEN_ADMIN_TOKEN is what
+        # you type at /admin; Vaultwarden itself only needs the hash).
         - key: ADMIN_TOKEN
-          secret: VAULTWARDEN_ADMIN_TOKEN
+          value: "${secret:VAULTWARDEN_ADMIN_ARGON}"
         - key: WEBSOCKET_ENABLED
           value: "true"
         - key: TZ
@@ -52,7 +41,7 @@ spec:
           value: https://vault.huybrechts.xyz
         # Caddy's reverse_proxy sends its own default proxy headers
         # (X-Forwarded-For/-Proto/-Host), not X-Real-IP (that's an nginx
-        # convention) — Vaultwarden's own default ip_header is X-Real-IP,
+        # convention) - Vaultwarden's own default ip_header is X-Real-IP,
         # so without this override every login/audit-log entry and the
         # rate-limiter see the internal Docker network IP instead of the
         # real client IP (confirmed via the diagnostics page's failing
@@ -68,25 +57,23 @@ spec:
         - key: SSO_CLIENT_ID
           value: vaultwarden
         - key: SSO_CLIENT_SECRET
-          secret: VAULTWARDEN_SSO_CLIENT_SECRET
-        # SMTP — required for organization invitation emails, password hint
-        # emails, and new-device login notifications. Reuses the same
-        # shared Infomaniak mailbox credentials as Authentik's (currently
-        # disabled) SMTP block — see infomaniak.md's SMTP Server
-        # Configuration section for the source values (mail.infomaniak.com,
-        # port 587, STARTTLS).
+          value: "${secret:VAULTWARDEN_SSO_CLIENT_SECRET}"
+        # SMTP - required for organization invitation emails, password hint
+        # emails, and new-device login notifications. Shared Infomaniak
+        # mailbox credentials (mail.infomaniak.com, port 587, STARTTLS), the
+        # same ones Authentik's (currently disabled) SMTP block uses.
         - key: SMTP_HOST
-          secret: INFOMANIAK_EMAIL__HOST
+          value: "${secret:INFOMANIAK_EMAIL__HOST}"
         - key: SMTP_PORT
-          secret: INFOMANIAK_EMAIL__PORT
+          value: "${secret:INFOMANIAK_EMAIL__PORT}"
         - key: SMTP_SECURITY
           value: starttls
         - key: SMTP_FROM
           value: admin@huybrechts.xyz
         - key: SMTP_USERNAME
-          secret: INFOMANIAK_EMAIL__USERNAME
+          value: "${secret:INFOMANIAK_EMAIL__USERNAME}"
         - key: SMTP_PASSWORD
-          secret: INFOMANIAK_EMAIL__PASSWORD
+          value: "${secret:INFOMANIAK_EMAIL__PASSWORD}"
       mounts:
         - name: data
           type: bind

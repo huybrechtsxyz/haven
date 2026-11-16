@@ -1,0 +1,94 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: vaultwarden
+  annotations:
+    description: Vaultwarden — Bitwarden-compatible password manager for the family
+  labels:
+    version: "1.0.0"
+  tags: [haven, hearth, vaultwarden, bitwarden, passwords]
+spec:
+  source:
+    repository: haven
+    source_path: services/hearth/vaultwarden
+  type: compose
+  references:
+    secrets:
+      - VAULTWARDEN_ADMIN_TOKEN
+      - VAULTWARDEN_SSO_CLIENT_SECRET
+      # SMTP — same shared Infomaniak mailbox credentials Authentik's
+      # (currently disabled) SMTP block references, see authentik.yaml.
+      # Reused here, not duplicated, since these are already declared once
+      # in config/environment.yaml and populated in Infisical.
+      - INFOMANIAK_EMAIL__HOST
+      - INFOMANIAK_EMAIL__PORT
+      - INFOMANIAK_EMAIL__USERNAME
+      - INFOMANIAK_EMAIL__PASSWORD
+  services:
+    - name: vaultwarden
+      # Pinned to 1.37.2 (2026-08-22) — 1.36.0 no longer syncs with Bitwarden
+      # clients v2026.8.0+ (iOS app, browser extensions); the 1.37.2 release
+      # notes state this explicitly: "This update is required for support
+      # with clients with version 2026.8.0+". See
+      # https://github.com/dani-garcia/vaultwarden/discussions/7615 for the
+      # full client-compatibility writeup if a future client update breaks
+      # sync again.
+      image: vaultwarden/server:1.37.2-alpine
+      restart: unless-stopped
+      environment:
+        - key: SIGNUPS_ALLOWED
+          value: "false"
+        - key: INVITATIONS_ALLOWED
+          value: "true"
+        - key: ADMIN_TOKEN
+          secret: VAULTWARDEN_ADMIN_TOKEN
+        - key: WEBSOCKET_ENABLED
+          value: "true"
+        - key: TZ
+          value: Europe/Brussels
+        - key: LOG_LEVEL
+          value: warn
+        - key: DOMAIN
+          value: https://vault.huybrechts.xyz
+        # Caddy's reverse_proxy sends its own default proxy headers
+        # (X-Forwarded-For/-Proto/-Host), not X-Real-IP (that's an nginx
+        # convention) — Vaultwarden's own default ip_header is X-Real-IP,
+        # so without this override every login/audit-log entry and the
+        # rate-limiter see the internal Docker network IP instead of the
+        # real client IP (confirmed via the diagnostics page's failing
+        # "IP Header check").
+        - key: IP_HEADER
+          value: X-Forwarded-For
+        - key: SSO_ENABLED
+          value: "true"
+        - key: SSO_SCOPES
+          value: "openid email profile"
+        - key: SSO_AUTHORITY
+          value: https://auth.huybrechts.xyz/application/o/vaultwarden/
+        - key: SSO_CLIENT_ID
+          value: vaultwarden
+        - key: SSO_CLIENT_SECRET
+          secret: VAULTWARDEN_SSO_CLIENT_SECRET
+        # SMTP — required for organization invitation emails, password hint
+        # emails, and new-device login notifications. Reuses the same
+        # shared Infomaniak mailbox credentials as Authentik's (currently
+        # disabled) SMTP block — see infomaniak.md's SMTP Server
+        # Configuration section for the source values (mail.infomaniak.com,
+        # port 587, STARTTLS).
+        - key: SMTP_HOST
+          secret: INFOMANIAK_EMAIL__HOST
+        - key: SMTP_PORT
+          secret: INFOMANIAK_EMAIL__PORT
+        - key: SMTP_SECURITY
+          value: starttls
+        - key: SMTP_FROM
+          value: admin@huybrechts.xyz
+        - key: SMTP_USERNAME
+          secret: INFOMANIAK_EMAIL__USERNAME
+        - key: SMTP_PASSWORD
+          secret: INFOMANIAK_EMAIL__PASSWORD
+      mounts:
+        - name: data
+          type: bind
+          source_path: /opt/haven/var/data/vaultwarden
+          target_path: /data

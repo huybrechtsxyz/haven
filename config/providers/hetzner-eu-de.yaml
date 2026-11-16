@@ -1,18 +1,20 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: provider
 meta:
-  name: hetzner_dc_eu_de
+  name: hetzner-eu-de
   annotations:
-    description: Hetzner Cloud — Europe Nuremberg (EU-DE) for family platform
-  labels:
-    version: "1.0.0"
+    description: Hetzner Cloud project for the family platform - Europe (Nuremberg / Falkenstein)
   tags: [haven, hetzner, provider, family]
 spec:
-  properties:
-    type: hetzner
-    region: eu-de
-    location: nbg1
-    organization: huybrechts-xyz
-    version: "~> 1.49"
-  custom:
-    engine: hetznercloud/hcloud
+  type: hetzner
+  region: eu-de
+  display_name: Europe - Nuremberg (nbg1), Falkenstein (fsn1)
+  authentication:
+    method: api_key
+    description: Hetzner Cloud project API token, a secret declared in the environment (Infisical).
+    api_key:
+      api_key: HETZNER_API_TOKEN
+  # Not here on purpose:
+  # - Terraform Cloud organization (huybrechts-xyz): the workspace's Terraform backend.
+  # - hcloud provider source/version (hetznercloud/hcloud ~> 1.49): deploy/terraform/versions.tf.
+  # - datacenter location (nbg1): each virtualmachine resource's `configuration.location`.

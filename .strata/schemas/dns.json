@@ -1,0 +1,399 @@
+{
+  "$defs": {
+    "DnsMetaModel": {
+      "additionalProperties": false,
+      "description": "DNS metadata including name, annotations, labels, and tags.",
+      "properties": {
+        "name": {
+          "description": "Unique name for the DNS resource",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional annotations (key-value pairs for documentation)"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional labels (key-value pairs for classification/filtering)"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional list of tags for the DNS resource"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "DnsRecordModel": {
+      "additionalProperties": false,
+      "description": "One DNS record in a zone. `value` is a literal, or contains value tokens such as `${var:KEY}`, `${secret:KEY}`, `${feature:KEY}`, `${output:STEP.KEY}` or `${value:kind.name.path}`, resolved at build or deploy time.\n\n`${output:STEP.KEY}` uses the output of an earlier execution step, for example to point an `A` record at the public IP Terraform produced. It is only accepted when this DNS document is a target of a provisioning step.\n\nRules:\n- `priority` is only allowed on `MX` and `SRV` records.",
+      "properties": {
+        "name": {
+          "description": "Record name, e.g. '@', 'www', '_dmarc'",
+          "minLength": 1,
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/DnsRecordType",
+          "description": "Record type: A, AAAA, CNAME, MX, TXT, SRV, NS, PTR, CAA"
+        },
+        "value": {
+          "description": "Record value: a literal, or a string containing value tokens (`${var:KEY}`, `${secret:KEY}`, `${feature:KEY}`, `${output:STEP.KEY}`, `${value:kind.name.path}`).",
+          "minLength": 1,
+          "type": "string"
+        },
+        "ttl": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Record-level TTL override in seconds (>=1 if set)"
+        },
+        "priority": {
+          "anyOf": [
+            {
+              "maximum": 65535,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Priority, 1-65535. Only valid for MX and SRV records."
+        },
+        "description": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Description of the DNS record, optionally for provider"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Additional notes for the DNS record, not for provider"
+        },
+        "custom": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Free-form values for your own scripts and Terraform code, passed with this record as `strata.dns.<name>.zones.<zone>.records[].custom`. Strata does not interpret them."
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "value"
+      ],
+      "type": "object"
+    },
+    "DnsRecordType": {
+      "description": "DNS record type.",
+      "enum": [
+        "A",
+        "AAAA",
+        "CNAME",
+        "MX",
+        "TXT",
+        "SRV",
+        "NS",
+        "PTR",
+        "CAA"
+      ],
+      "type": "string"
+    },
+    "DnsSpecModel": {
+      "additionalProperties": false,
+      "description": "The DNS provider and the zones it manages.\n\nRules:\n- Zone names must be unique within the document.",
+      "properties": {
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "DNS provider name, e.g. 'inwx', 'cloudflare', 'route53'"
+        },
+        "zones": {
+          "description": "List of DNS zones (at least one required)\n\nRules:\n- A record is a duplicate when its name, type and value are all the same. Records whose value contains a token are skipped in this comparison.\n- A `CNAME` record's name cannot be shared with any other record in the zone, including another `CNAME`.",
+          "items": {
+            "$ref": "#/$defs/DnsZoneModel"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "zones"
+      ],
+      "type": "object"
+    },
+    "DnsZoneModel": {
+      "additionalProperties": false,
+      "description": "One DNS zone (a domain) and its records. Each zone is its own cloud resource, so its configuration, custom values and tags are set here; one document can hold several zones.\n\nRules:\n- A record is a duplicate when its name, type and value are all the same. Records whose value contains a token are skipped in this comparison.\n- A `CNAME` record's name cannot be shared with any other record in the zone, including another `CNAME`.",
+      "properties": {
+        "name": {
+          "description": "Domain name for this zone, e.g. 'huybrechts.xyz'",
+          "minLength": 1,
+          "type": "string"
+        },
+        "ttl": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 3600,
+          "description": "Default TTL in seconds for all records in this zone"
+        },
+        "records": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/DnsRecordModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "List of DNS records in this zone\n\nRules:\n- `priority` is only allowed on `MX` and `SRV` records."
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Free-form provisioner settings for this zone, passed to Terraform as `strata.dns.<name>.zones.<zone>.configuration`. Strata does not validate them."
+        },
+        "custom": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Free-form values for your own scripts and Terraform code, passed to Terraform as `strata.dns.<name>.zones.<zone>.custom`. Strata does not interpret them."
+        },
+        "default_tags": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Baseline cloud tags for this zone (for example `cost-center`, `environment`, `owner`), passed to Terraform as `strata.dns.<name>.zones.<zone>.default_tags`. Not the same as `meta.tags`, which is a free-form list for documentation. Strata does not limit the number of tags, so stay within your cloud provider's limit."
+        },
+        "custom_tags": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Additional cloud tags on top of `default_tags`, for one-off needs."
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "PlatformKind": {
+      "description": "Enumeration of supported platform kinds.",
+      "enum": [
+        "solution",
+        "configuration",
+        "providerconfig",
+        "topologyconfig",
+        "attributeconfig",
+        "provider",
+        "resource",
+        "dns",
+        "network",
+        "firewall",
+        "module",
+        "namespace",
+        "workspace",
+        "integration",
+        "tenant",
+        "environment",
+        "deployment",
+        "version",
+        "artifact",
+        "asset",
+        "parameterset"
+      ],
+      "type": "string"
+    },
+    "PlatformVersion": {
+      "description": "Enumeration of supported platform versions.",
+      "enum": [
+        "strata.huybrechts.xyz/v2",
+        "strata.omp.com/v2"
+      ],
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DNS zones and their records, managed through a DNS provider such as `inwx`, `cloudflare` or `route53`. A workspace uses it by listing the document in `dns_zones`.\n\nRules:\n- A zone domain should be declared in only one DNS document; declaring it twice gives a warning.",
+  "properties": {
+    "apiVersion": {
+      "$ref": "#/$defs/PlatformVersion",
+      "default": "strata.huybrechts.xyz/v2",
+      "description": "API version for DNS configuration"
+    },
+    "kind": {
+      "$ref": "#/$defs/PlatformKind",
+      "default": "dns",
+      "description": "Platform kind (always 'dns')"
+    },
+    "meta": {
+      "$ref": "#/$defs/DnsMetaModel",
+      "description": "DNS metadata (name, annotations, labels, tags)"
+    },
+    "spec": {
+      "$ref": "#/$defs/DnsSpecModel",
+      "description": "DNS specification (provider, zones)\n\nRules:\n- Zone names must be unique within the document."
+    }
+  },
+  "required": [
+    "meta",
+    "spec"
+  ],
+  "type": "object",
+  "examples": [
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "dns",
+      "meta": {
+        "name": "example"
+      },
+      "spec": {
+        "zones": [
+          {
+            "name": "example.com"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "dns",
+      "meta": {
+        "name": "example"
+      },
+      "spec": {
+        "provider": "cloudflare",
+        "zones": [
+          {
+            "name": "example.com",
+            "ttl": 3600,
+            "records": [
+              {
+                "name": "@",
+                "type": "A",
+                "value": "203.0.113.10"
+              },
+              {
+                "name": "www",
+                "type": "CNAME",
+                "value": "example.com."
+              },
+              {
+                "name": "@",
+                "type": "MX",
+                "value": "mail.example.com.",
+                "priority": 10
+              },
+              {
+                "name": "api",
+                "type": "A",
+                "value": "${var:api_ip}"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

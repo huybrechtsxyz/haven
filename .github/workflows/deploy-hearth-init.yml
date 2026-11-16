@@ -33,7 +33,7 @@ permissions:
 
 env:
   STRATA_OUTPUT: json
-  DEPLOYMENT_FILE: "config/deployment.yaml"
+  DEPLOYMENT: haven_deploy_prd
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -82,20 +82,11 @@ jobs:
       # ------------------------------------------------------------------
       # Ansible setup
       # ------------------------------------------------------------------
-      - name: Setup strata
+      - name: Setup tools (VERSIONS.env)
         if: ${{ inputs.dry_run != true }}
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.9.3
+        uses: ./.github/actions/setup-tools
         with:
-          # See deploy-infra.yml for the full 1.9.3 bump rationale (ADR-0072
-          # breaking change, migrated config/configuration.yaml + deployment.yaml).
-          strata-version: "==1.9.3"
-        env:
-          # See deploy-infra.yml for why this is set — no-op on GitHub-hosted runners.
-          UV_INDEX_STRATEGY: unsafe-best-match
-
-      - name: Install Ansible
-        if: ${{ inputs.dry_run != true }}
-        run: pip install ansible-core
+          ansible: "true"
 
       - name: Write deploy SSH private key
         if: ${{ inputs.dry_run != true }}
@@ -120,12 +111,12 @@ jobs:
           INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
         run: |
           set +e
-          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH STORAGEBOX_BACKUP_HEARTH_PASSWORD -f $DEPLOYMENT_FILE --output json)
+          VALUES=$(strata values get "$DEPLOYMENT" BORG_PASSPHRASE_HEARTH STORAGEBOX_BACKUP_HEARTH_PASSWORD --output json)
           STATUS=$?
           set -e
           if [ $STATUS -ne 0 ]; then
             echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
-            echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+            echo "$VALUES" | jq -r '.diagnostics[]? | "\(.location // "-"): \(.message)"' 2>/dev/null || echo "(no parseable error detail)"
             exit $STATUS
           fi
           BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_HEARTH')

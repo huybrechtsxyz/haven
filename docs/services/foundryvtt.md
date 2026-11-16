@@ -43,7 +43,7 @@ This is a deliberate departure from Kavita/Nextcloud/Grimoire's pattern of mount
 
 ## Credentials — manually provided in Infisical
 
-Unlike almost every other secret in this repo, `FOUNDRY_USERNAME`/`FOUNDRY_PASSWORD`/`FOUNDRY_ADMIN_KEY` are **not** strata-generated (`config/environment.yaml` has no `generate:` block for them) — they're your real foundryvtt.com account credentials and a chosen admin/GM password, entered directly into Infisical by hand before the first deploy. Routed through the `foundryvtt-secrets` K8s Secret (module `config/forge/modules/foundryvtt-secrets.yaml`, chart `services/forge/foundryvtt-secrets/`) via `secretKeyRef` — the same "dedicated tiny Secret-only chart" pattern used by `grimoire-secrets`/`nextcloud-secrets`/`homarr-secrets`.
+Unlike almost every other secret in this repo, `FOUNDRY_USERNAME`/`FOUNDRY_PASSWORD`/`FOUNDRY_ADMIN_KEY` are **not** strata-generated (`config/environments/prd.yaml` has no `generate:` block for them) — they're your real foundryvtt.com account credentials and a chosen admin/GM password, entered directly into Infisical by hand before the first deploy. Routed through the `foundryvtt-secrets` K8s Secret (module `config/forge/modules/foundryvtt-secrets.yaml`, chart `services/forge/foundryvtt-secrets/`) via `secretKeyRef` — the same "dedicated tiny Secret-only chart" pattern used by `grimoire-secrets`/`nextcloud-secrets`/`homarr-secrets`.
 
 `FOUNDRY_ADMIN_KEY` is applied fresh **on every container startup** — this is the single shared password used to log in as GM/admin in Foundry's own join screen (Foundry has no per-user account system; see [Access](#access--no-native-sso) below).
 

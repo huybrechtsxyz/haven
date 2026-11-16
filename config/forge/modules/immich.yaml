@@ -1,11 +1,9 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: module
 meta:
   name: immich
   annotations:
     description: Immich — self-hosted photo and video management (k3s / Helm)
-  labels:
-    version: "1.0.0"
   tags: [haven, forge, immich, photos, media]
 spec:
   type: helm
@@ -23,9 +21,6 @@ spec:
     # Verify this is still current before applying: https://github.com/immich-app/immich-charts/releases
     chart_version: "0.13.1"
   kubernetes_namespace: immich
-  references:
-    secrets:
-      - IMMICH_DB_PASSWORD
   # Raw passthrough — deliberately NOT using spec.services here. This chart's
   # top-level value keys (controllers/valkey/server/machine-learning/immich)
   # are fixed by the chart itself; strata's per-service module-name prefixing
@@ -71,7 +66,7 @@ spec:
               DB_USERNAME: immich
               DB_DATABASE_NAME: immich
               # Real value injected by strata at deploy time — never written here.
-              DB_PASSWORD: "${IMMICH_DB_PASSWORD}"
+              DB_PASSWORD: "${secret:IMMICH_DB_PASSWORD}"
 
     # Photo/video library — PVC created by the immich-library module (backed
     # by the Storage Box NFS mount, not local disk).

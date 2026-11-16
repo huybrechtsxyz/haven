@@ -1,5 +1,5 @@
 # =============================================================================
-# Haven Platform — Terraform/OpenTofu Version & Provider Requirements
+# Haven Platform — Terraform Version & Provider Requirements
 # =============================================================================
 # Hetzner Cloud provider for VPS, networking, and firewall provisioning.
 # State stored in Terraform Cloud (remote backend).
@@ -7,7 +7,7 @@
 # =============================================================================
 
 terraform {
-  required_version = ">= 1.6" # OpenTofu 1.6+
+  required_version = ">= 1.6"
 
   cloud {
     organization = "huybrechts-xyz"
@@ -29,5 +29,5 @@ terraform {
 # =============================================================================
 
 provider "hcloud" {
-  token = var.HETZNER_API_TOKEN
+  token = local.hcloud_token
 }

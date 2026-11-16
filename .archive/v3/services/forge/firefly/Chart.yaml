@@ -1,0 +1,10 @@
+apiVersion: v2
+name: firefly
+description: >
+  Firefly III — self-hosted personal finance manager. Local chart (no
+  official upstream Helm chart exists) wrapping the official fireflyiii/core
+  image + a k8s-native CronJob for the recurring "cron" task (replaces the
+  docker-compose reference stack's always-running cron sidecar/HTTP-token
+  approach with a direct `artisan firefly-iii:cron` invocation instead).
+type: application
+version: "1.0.0"

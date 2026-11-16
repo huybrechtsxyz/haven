@@ -37,7 +37,7 @@ Infrastructure provisioning is handled by the `deploy-infra.yml` GitHub Actions 
 
 When we first run the deployment workflows, they will provision the infrastructure defined in the Strata configuration. This includes creating the VPS instance for the hearth system, setting up the firewall rules, and configuring the network settings.
 
-GitHub Actions → Select `deploy-infra` → Run workflow. This runs `strata build` + Terraform to provision the VPS, firewall, and network. Use these inputs:
+GitHub Actions → Select `deploy-infra` → Run workflow. This runs `strata build run haven_deploy_prd` + Terraform to provision the VPS, firewall, and network. Use these inputs:
 
 | Input     | Value           | Notes                                                                                                                   |
 | --------- | --------------- | ----------------------------------------------------------------------------------------------------------------------- |

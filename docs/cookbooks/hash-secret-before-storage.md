@@ -1,96 +1,78 @@
 # Cookbook: Storing a Hashed Secret Before Storage
 
-> Works today with existing `strata secret` commands — no strata changes needed.
-
 [← Back to Guide](../index.rst)
 
 ## Problem
 
-Some backends expect a **pre-hashed** value rather than plaintext. Vaultwarden's `ADMIN_TOKEN` is the motivating case: Vaultwarden hashes the token itself (Argon2id) and expects the **hash** in its environment, but a human still needs the **raw** plaintext to actually log in to the admin panel.
+Some backends expect a **pre-hashed** value rather than plaintext. Vaultwarden's `ADMIN_TOKEN` is the motivating case: Vaultwarden expects the **Argon2id hash** of the admin token in its environment, but a human still needs the **raw** plaintext to log in to the admin panel.
 
-If you don't want to wait for the `post_generate` hook (see [setup.md → Automated Secrets Generation](../guides/setup.md#automated-secrets-generation)), this two-key workflow works right now with the existing `strata secret` commands.
+strata v2 has no post-generate hook, so this is a two-key workflow with one manual step, run whenever the raw token is generated or rotated.
 
-## Prerequisites
+## The two keys
 
-Declare **two** keys in your environment YAML, each with an **integration-backed** `store:` (`bitwarden`, `vault`, `azure-keyvault`, or `infisical` — `put` cannot write to `constant`/`environment`/`github` stores):
+Both are declared in [`config/environments/prd.yaml`](../../config/environments/prd.yaml) with an **integration-backed** `store:` (`infisical` here — `strata values set` cannot write to `constant`/`environment`/`github` stores):
 
 ```yaml
-# deploy.yaml
 spec:
   secrets:
-    - key: VAULTWARDEN_ADMIN_TOKEN_RAW
+    - key: VAULTWARDEN_ADMIN_TOKEN      # raw token — what you type at /admin
       store: infisical
+      value: VAULTWARDEN_ADMIN_TOKEN
       generate:
         type: urlsafe
         length: 48
-
-    - key: VAULTWARDEN_ADMIN_TOKEN_HASH
+    - key: VAULTWARDEN_ADMIN_ARGON      # its Argon2 hash — what Vaultwarden gets
       store: infisical
+      value: VAULTWARDEN_ADMIN_ARGON
 ```
+
+The Hearth module ([`config/hearth/modules/vaultwarden.yaml`](../../config/hearth/modules/vaultwarden.yaml)) sets `ADMIN_TOKEN: "${secret:VAULTWARDEN_ADMIN_ARGON}"`.
 
 ## Steps
 
-**Run this interactively, from your own terminal — not from an automated pipeline.** The raw value only ever lives transiently in a shell variable, never in a temp file or CLI argument (other than the caveat noted below).
+**Run this interactively, from your own terminal — not from an automated pipeline.** It needs Docker and the Infisical credentials (`INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`, `INFISICAL_PROJECT_ID`) in the environment.
 
-### PowerShell
-
-```powershell
-# 1. Bootstrap the raw secret once (run interactively, not in CI)
-strata secret put VAULTWARDEN_ADMIN_TOKEN_RAW --generate -f deploy.yaml
-
-# 2. Read it back
-$raw = strata secret get VAULTWARDEN_ADMIN_TOKEN_RAW --unmask -f deploy.yaml
-
-# 3. Transform it
-$hash = $raw | docker run --rm -i vaultwarden/server /vaultwarden hash --preset owasp
-
-# 4. Store the transformed value under a second key
-strata secret put VAULTWARDEN_ADMIN_TOKEN_HASH --value $hash -f deploy.yaml
-```
-
-### Bash equivalent
+### Recommended: one pipe
 
 ```bash
-# 1. Bootstrap the raw secret once (run interactively, not in CI)
-strata secret put VAULTWARDEN_ADMIN_TOKEN_RAW --generate -f deploy.yaml
+# 1. Generate the raw token (skip if it already exists — strata also creates it
+#    on first use because of its generate: spec)
+strata values set haven_deploy_prd --key VAULTWARDEN_ADMIN_TOKEN --generate
 
-# 2. Read it back
-raw=$(strata secret get VAULTWARDEN_ADMIN_TOKEN_RAW --unmask -f deploy.yaml)
-
-# 3. Transform it
-hash=$(echo -n "$raw" | docker run --rm -i vaultwarden/server /vaultwarden hash --preset owasp)
-
-# 4. Store the transformed value under a second key
-strata secret put VAULTWARDEN_ADMIN_TOKEN_HASH --value "$hash" -f deploy.yaml
+# 2. Hash it and store the hash — neither value lands in a shell variable,
+#    a temp file or a command-line argument
+strata values get haven_deploy_prd VAULTWARDEN_ADMIN_TOKEN --format raw \
+  | python scripts/hash_argon2.py \
+  | strata values set haven_deploy_prd --key VAULTWARDEN_ADMIN_ARGON --stdin
 ```
+
+[`scripts/hash_argon2.py`](../../scripts/hash_argon2.py) runs `vaultwarden hash --preset owasp` in the official image and prints only the hash line.
+
+### Manual equivalent (PowerShell)
+
+```powershell
+strata values set haven_deploy_prd --key VAULTWARDEN_ADMIN_TOKEN --generate
+$raw = strata values get haven_deploy_prd VAULTWARDEN_ADMIN_TOKEN --format raw
+$hash = ("$raw`n$raw`n" | docker run --rm -i vaultwarden/server /vaultwarden hash --preset owasp) |
+    Select-String -Pattern '\$argon2(id|i|d)\$\S+' | ForEach-Object { $_.Matches[0].Value }
+$hash | strata values set haven_deploy_prd --key VAULTWARDEN_ADMIN_ARGON --stdin
+```
+
+`vaultwarden hash` prompts for the password twice, hence `"$raw`n$raw`n"`, and prints extra text around the hash, hence the `Select-String`.
 
 ## Pre-flight check: verify the hash command's output format
 
-The `vaultwarden hash` command prints extra text around the PHC-formatted hash. Confirm what your image version actually outputs before trusting `$hash` in step 3 — don't assume it's a single clean line:
+Confirm what your image version actually outputs before trusting the extracted hash:
 
 ```powershell
-"test-value" | docker run --rm -i vaultwarden/server /vaultwarden hash --preset owasp
+"test-value`ntest-value`n" | docker run --rm -i vaultwarden/server /vaultwarden hash --preset owasp
 ```
 
-Expected output contains a line matching `$argon2id$v=...$m=...,t=...,p=...$...`. If the command also prints prompts or extra text, extract just the hash line before storing it, e.g.:
+Expected output contains a line matching `$argon2id$v=...$m=...,t=...,p=...$...`.
 
-```powershell
-$hashLine = ($raw | docker run --rm -i vaultwarden/server /vaultwarden hash --preset owasp) |
-    Select-String -Pattern '\$argon2(id|i|d)\$' |
-    ForEach-Object { $_.Matches[0].Value }
-```
+## Afterwards
 
-## Known caveat
+- Copy the raw `VAULTWARDEN_ADMIN_TOKEN` into Bitwarden once — you need it to log in, and it cannot be recovered from the hash.
+- Redeploy Hearth (`23 - Hearth - Deploy`) so the new hash reaches the container.
 
-⚠️ `strata secret put --value` currently logs its full arguments (including the value) to strata's local audit log — so step 4 will write the hash into `.strata/audit.log` for now. This is tracked separately and doesn't block this workflow, but be aware the hash (not the raw token) ends up in the local log.
-
-## When to prefer this over the `post_generate` hook
-
-|                         | This cookbook (2 keys, manual steps)                 | `post_generate` hook (1 key, automatic)                                            |
-| ----------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Strata version required | Any current release                                  | Requires the hook feature ([scripts/hash_argon2.py](../../scripts/hash_argon2.py)) |
-| Manual steps            | 4 commands, run once                                 | 1 command (`strata secret put --generate`)                                         |
-| Raw value handling      | Printed via `--unmask`, lives in a shell variable    | Printed to console once during generation                                          |
-| Use case                | Interim workaround, or backends without hook support | Steady-state, once available                                                       |
-
-See [setup.md → Secrets for Vaultwarden](../guides/setup.md#secrets-for-vaultwarden) for the automated flow.
+See [setup.md → Secrets for Vaultwarden](../guides/setup.md#secrets-for-vaultwarden) for where this fits in the setup.

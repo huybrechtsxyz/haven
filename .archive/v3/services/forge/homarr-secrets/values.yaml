@@ -1,0 +1,8 @@
+# Credentials MUST live under a literal `env:` dict — strata's Helm secret
+# substitution only resolves `${TOKEN}` placeholders found inside a dict
+# node keyed literally "env" (see Chart.yaml / homarr.yaml's module comment
+# for the full writeup). Real values injected by strata at deploy time —
+# never written here.
+env:
+  HOMARR_SSO_CLIENT_SECRET: ""
+  HOMARR_DB_ENCRYPTION_KEY: ""

@@ -45,15 +45,16 @@ Gatus has **native OIDC support** — no plugin or forward-auth proxy needed.
 
 The Authentik side is **already automated** — `deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2` creates the OAuth2 Provider + Application for Gatus (client ID `gatus`, `members` group policy) every time `deploy-hearth-config.yml` runs, using the `GATUS_SSO_CLIENT_SECRET` Infisical secret.
 
-The Gatus side is **fully automated** — the Helm chart's `spec.configuration.config.security.oidc` section is populated at deploy time via strata's secret substitution (`${GATUS_SSO_CLIENT_SECRET}`), injected into the pod's environment, and read by Gatus at startup:
+The Gatus side is **fully automated**, with two substitution passes. In `config/forge/modules/gatus.yaml`, the chart's `env:` block maps `GATUS_OIDC_CLIENT_SECRET: "${secret:GATUS_SSO_CLIENT_SECRET}"`, which strata resolves at deploy time into a real pod env var. The Gatus config then reads that env var with Gatus's own `${...}` substitution at startup — written as `$${...}` in the module, strata's escape for a literal `${...}`:
 
 ```yaml
+# config/forge/modules/gatus.yaml (spec.configuration.config)
 security:
   oidc:
     issuer-url: https://auth.huybrechts.xyz/application/o/gatus/
     redirect-url: https://status.huybrechts.xyz/authorization-code/callback
     client-id: gatus
-    client-secret: "${GATUS_OIDC_CLIENT_SECRET}"  # Gatus's own env-var substitution
+    client-secret: "$${GATUS_OIDC_CLIENT_SECRET}"  # Gatus receives ${GATUS_OIDC_CLIENT_SECRET}
     scopes: ["openid", "email", "profile"]
 ```
 
@@ -65,16 +66,17 @@ security:
 
 Gatus's built-in `alerting.email` provider is configured — sends an email to `admin@huybrechts.xyz` whenever any monitored endpoint fails 3 consecutive checks, and a resolved notification once it recovers (`send-on-resolved: true`). Every endpoint in the config has `alerts: [{type: email}]` attached.
 
-Reuses the same shared Infomaniak mailbox as Vaultwarden/Authentik — no separate mailbox or app password needed. Same double-substitution pattern as the OIDC client secret above: strata resolves `${INFOMANIAK_EMAIL__*}` into real pod env vars (`GATUS_SMTP_*`) at deploy time, and Gatus's own runtime env-var substitution reads those in `config.alerting.email`:
+Reuses the same shared Infomaniak mailbox as Vaultwarden/Authentik — no separate mailbox or app password needed. Same two-pass pattern as the OIDC client secret above: strata resolves `${secret:INFOMANIAK_EMAIL__*}` into real pod env vars (`GATUS_SMTP_*`) at deploy time, and Gatus's own runtime env-var substitution reads those in `config.alerting.email`:
 
 ```yaml
+# config/forge/modules/gatus.yaml (spec.configuration.config)
 alerting:
   email:
     from: gatus@huybrechts.xyz
-    host: "${GATUS_SMTP_HOST}"
-    port: ${GATUS_SMTP_PORT}
-    username: "${GATUS_SMTP_USERNAME}"
-    password: "${GATUS_SMTP_PASSWORD}"
+    host: "$${GATUS_SMTP_HOST}"
+    port: $${GATUS_SMTP_PORT}
+    username: "$${GATUS_SMTP_USERNAME}"
+    password: "$${GATUS_SMTP_PASSWORD}"
     to: "admin@huybrechts.xyz"
 ```
 

@@ -1,12 +1,34 @@
 {
   "$defs": {
     "APIKeyAuthenticationModel": {
-      "description": "API key authentication.\n\nUsed by: Generic REST APIs, some cloud services.\nAll fields are key references resolved from environment declarations.",
+      "additionalProperties": false,
+      "description": "API key authentication.\n\nUsed by: Generic REST APIs, some cloud services. All fields are key references resolved from environment declarations.",
       "properties": {
         "api_key": {
           "description": "Key reference for API key value",
-          "title": "Api Key",
           "type": "string"
+        },
+        "api_secret": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for API secret (used alongside the API key)"
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for API endpoint URL"
         },
         "header_name": {
           "anyOf": [
@@ -17,28 +39,24 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Key reference for HTTP header name (default: 'X-API-Key')",
-          "title": "Header Name"
+          "description": "Key reference for HTTP header name (default: 'X-API-Key')"
         }
       },
       "required": [
         "api_key"
       ],
-      "title": "APIKeyAuthenticationModel",
       "type": "object"
     },
     "AWSAuthenticationModel": {
+      "additionalProperties": false,
       "description": "AWS access key authentication.\n\nAll fields are key references resolved from environment declarations.",
       "properties": {
         "access_key_id": {
           "description": "Key reference for AWS access key ID",
-          "title": "Access Key Id",
           "type": "string"
         },
         "secret_access_key": {
           "description": "Key reference for AWS secret access key",
-          "title": "Secret Access Key",
           "type": "string"
         },
         "session_token": {
@@ -50,9 +68,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Key reference for AWS session token (temporary credentials)",
-          "title": "Session Token"
+          "description": "Key reference for AWS session token (temporary credentials)"
         },
         "region": {
           "anyOf": [
@@ -63,9 +79,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Key reference for AWS region",
-          "title": "Region"
+          "description": "Key reference for AWS region"
         },
         "role_arn": {
           "anyOf": [
@@ -76,20 +90,18 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Key reference for AWS IAM role ARN for AssumeRole",
-          "title": "Role Arn"
+          "description": "Key reference for AWS IAM role ARN for AssumeRole"
         }
       },
       "required": [
         "access_key_id",
         "secret_access_key"
       ],
-      "title": "AWSAuthenticationModel",
       "type": "object"
     },
     "AuthenticationModel": {
-      "description": "Authentication configuration for cloud provider or integration access.\n\nSpecifies authentication method and corresponding credentials as key references.\nKeys are resolved at runtime from centralized environment declarations.",
+      "additionalProperties": false,
+      "description": "How to authenticate to a cloud provider or an integration. `method` selects the scheme and the block of the same name holds its settings.\n\nCredential fields are key references: the names of variables or secrets declared in an Environment, resolved when they are needed. Never put a credential value here.\n\nRules:\n- The block named by `method` must be set (for example `method: oauth2` needs `oauth2`).\n- No other method's block may be set at the same time.",
       "properties": {
         "method": {
           "description": "Authentication method to use",
@@ -101,9 +113,10 @@
             "certificate",
             "saml",
             "cli",
-            "managed_identity"
+            "managed_identity",
+            "ssh_key",
+            "token"
           ],
-          "title": "Method",
           "type": "string"
         },
         "oauth2": {
@@ -115,7 +128,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "description": "OAuth2/Service Principal authentication"
         },
         "aws": {
@@ -127,7 +139,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "description": "AWS access key authentication"
         },
         "gcp": {
@@ -139,7 +150,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "description": "GCP service account authentication"
         },
         "api_key": {
@@ -151,7 +161,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "description": "API key authentication"
         },
         "certificate": {
@@ -163,7 +172,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "description": "Certificate-based authentication (mTLS)"
         },
         "saml": {
@@ -175,7 +183,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "description": "SAML 2.0 authentication"
         },
         "cli": {
@@ -187,7 +194,6 @@
               "type": "null"
             }
           ],
-          "default": null,
           "description": "CLI-based authentication"
         },
         "managed_identity": {
@@ -199,40 +205,69 @@
               "type": "null"
             }
           ],
-          "default": null,
           "description": "Managed/Workload Identity authentication"
+        },
+        "ssh_key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SSHKeyAuthenticationModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "SSH private key authentication (git deploy keys)"
+        },
+        "token": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TokenAuthenticationModel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Bearer/PAT token authentication (git HTTPS)"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Human-readable description of this authentication configuration and setup instructions"
         }
       },
       "required": [
         "method"
       ],
-      "title": "AuthenticationModel",
       "type": "object"
     },
     "CLIAuthenticationModel": {
-      "description": "CLI-based authentication using local credentials.\n\nUses existing CLI authentication: az login, gcloud auth, aws configure.\nNo credential references needed - uses ambient credentials.",
+      "additionalProperties": false,
+      "description": "CLI-based authentication using local credentials.\n\nUses existing CLI authentication: az login, gcloud auth, aws configure. No credential references needed - uses ambient credentials.",
       "properties": {
         "use_cli": {
           "default": true,
           "description": "Use local CLI authentication (az, gcloud, aws)",
-          "title": "Use Cli",
           "type": "boolean"
         }
       },
-      "title": "CLIAuthenticationModel",
       "type": "object"
     },
     "CertificateAuthenticationModel": {
+      "additionalProperties": false,
       "description": "Certificate-based authentication (mTLS).\n\nAll fields are key references resolved from environment declarations.",
       "properties": {
         "certificate_path": {
           "description": "Key reference for client certificate file path",
-          "title": "Certificate Path",
           "type": "string"
         },
         "private_key_path": {
           "description": "Key reference for private key file path",
-          "title": "Private Key Path",
           "type": "string"
         },
         "ca_bundle_path": {
@@ -244,9 +279,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Key reference for CA bundle file path",
-          "title": "Ca Bundle Path"
+          "description": "Key reference for CA bundle file path"
         },
         "certificate_password": {
           "anyOf": [
@@ -257,29 +290,25 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Key reference for certificate password (if encrypted)",
-          "title": "Certificate Password"
+          "description": "Key reference for certificate password (if encrypted)"
         }
       },
       "required": [
         "certificate_path",
         "private_key_path"
       ],
-      "title": "CertificateAuthenticationModel",
       "type": "object"
     },
     "CommonLifecycleModel": {
       "additionalProperties": {
         "$ref": "#/$defs/CommonLifecyclePhaseModel"
       },
-      "default": {},
-      "description": "Lifecycle phases for common models.\nMaps phase names to phase configurations.\nPhase names follow pattern: {command}_{action}_{suffix}\nExamples: config_clear, config_fetch, deploy_plan_before, deploy_apply_after",
-      "title": "CommonLifecycleModel",
+      "description": "Lifecycle phases for common models.\n\nMaps phase names to phase configurations. Phase names follow the pattern ``{command}_{action}_{suffix}``, e.g. ``deploy_plan_before``, ``deploy_provision``, ``deploy_destroy_after``, ``config_clear``. This is an open map (any phase name is allowed) rather than a fixed set of fields, since each kind and provisioner type defines its own set of supported phases.",
       "type": "object"
     },
     "CommonLifecyclePhaseModel": {
-      "description": "Model for common lifecycle phase with script validation.",
+      "additionalProperties": false,
+      "description": "Lifecycle phase configuration: a description plus its scripts.",
       "properties": {
         "description": {
           "anyOf": [
@@ -290,9 +319,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional description for documentation purposes",
-          "title": "Description"
+          "description": "Optional description for documentation purposes"
         },
         "scripts": {
           "anyOf": [
@@ -313,19 +340,17 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Scripts"
+          "description": "Scripts to run. Each entry is a path relative to the solution root, with one of the extensions bash, go, js, mjs, ps1, py, sh, or an object with `file`, `scope`, `priority` and `target`."
         }
       },
-      "title": "CommonLifecyclePhaseModel",
       "type": "object"
     },
     "GCPAuthenticationModel": {
+      "additionalProperties": false,
       "description": "Google Cloud Platform service account authentication.\n\nAll fields are key references resolved from environment declarations.",
       "properties": {
         "project_id": {
           "description": "Key reference for GCP project ID",
-          "title": "Project Id",
           "type": "string"
         },
         "credentials_json": {
@@ -337,9 +362,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Key reference for GCP service account JSON credentials (as string content)",
-          "title": "Credentials Json"
+          "description": "Key reference for GCP service account JSON credentials (as string content)"
         },
         "credentials_file": {
           "anyOf": [
@@ -350,9 +373,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Key reference for path to GCP service account JSON file",
-          "title": "Credentials File"
+          "description": "Key reference for path to GCP service account JSON file"
         },
         "service_account_email": {
           "anyOf": [
@@ -363,24 +384,21 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Key reference for GCP service account email",
-          "title": "Service Account Email"
+          "description": "Key reference for GCP service account email"
         }
       },
       "required": [
         "project_id"
       ],
-      "title": "GCPAuthenticationModel",
       "type": "object"
     },
     "ManagedIdentityAuthenticationModel": {
-      "description": "Managed/Workload Identity authentication.\n\nUses cloud provider managed identity (Azure MSI, GCP Workload Identity, AWS IAM Roles).\nNo credential references needed - uses ambient credentials.",
+      "additionalProperties": false,
+      "description": "Managed/Workload Identity authentication.\n\nUses cloud provider managed identity (Azure MSI, GCP Workload Identity, AWS IAM Roles). No credential references needed - uses ambient credentials.",
       "properties": {
         "use_managed_identity": {
           "default": true,
           "description": "Use cloud provider managed identity",
-          "title": "Use Managed Identity",
           "type": "boolean"
         },
         "client_id": {
@@ -392,25 +410,21 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Key reference for user-assigned managed identity client ID (Azure only)",
-          "title": "Client Id"
+          "description": "Key reference for user-assigned managed identity client ID (Azure only)"
         }
       },
-      "title": "ManagedIdentityAuthenticationModel",
       "type": "object"
     },
     "OAuth2AuthenticationModel": {
-      "description": "OAuth2/OpenID Connect authentication.\n\nUsed by: Azure (Service Principal), generic OAuth2 providers.\nAll fields are key references resolved from environment declarations.",
+      "additionalProperties": false,
+      "description": "OAuth2/OpenID Connect authentication.\n\nUsed by: Azure (Service Principal), generic OAuth2 providers. All fields are key references resolved from environment declarations.",
       "properties": {
         "client_id": {
           "description": "Key reference for OAuth2 client/application ID",
-          "title": "Client Id",
           "type": "string"
         },
         "client_secret": {
           "description": "Key reference for OAuth2 client secret",
-          "title": "Client Secret",
           "type": "string"
         },
         "tenant_id": {
@@ -422,9 +436,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Key reference for tenant/directory ID (Azure AD, Okta, etc.)",
-          "title": "Tenant Id"
+          "description": "Key reference for tenant/directory ID (Azure AD, Okta, etc.)"
         },
         "token_url": {
           "anyOf": [
@@ -435,9 +447,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Key reference for OAuth2 token endpoint URL",
-          "title": "Token Url"
+          "description": "Key reference for OAuth2 token endpoint URL"
         },
         "authorization_url": {
           "anyOf": [
@@ -448,9 +458,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Key reference for OAuth2 authorization endpoint URL",
-          "title": "Authorization Url"
+          "description": "Key reference for OAuth2 authorization endpoint URL"
         },
         "scope": {
           "anyOf": [
@@ -461,44 +469,52 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Key reference for OAuth2 scopes (space-separated)",
-          "title": "Scope"
+          "description": "Key reference for OAuth2 scopes (space-separated)"
         }
       },
       "required": [
         "client_id",
         "client_secret"
       ],
-      "title": "OAuth2AuthenticationModel",
       "type": "object"
     },
     "PlatformKind": {
       "description": "Enumeration of supported platform kinds.",
       "enum": [
+        "solution",
         "configuration",
-        "deployment",
-        "environment",
+        "providerconfig",
+        "topologyconfig",
+        "attributeconfig",
+        "provider",
+        "resource",
+        "dns",
+        "network",
         "firewall",
         "module",
         "namespace",
-        "platform_model",
-        "provider",
-        "resource",
-        "workspace"
+        "workspace",
+        "integration",
+        "tenant",
+        "environment",
+        "deployment",
+        "version",
+        "artifact",
+        "asset",
+        "parameterset"
       ],
-      "title": "PlatformKind",
       "type": "string"
     },
     "PlatformVersion": {
       "description": "Enumeration of supported platform versions.",
       "enum": [
-        "strata.huybrechts.xyz/v1"
+        "strata.huybrechts.xyz/v2",
+        "strata.omp.com/v2"
       ],
-      "title": "PlatformVersion",
       "type": "string"
     },
     "ProviderMetaModel": {
+      "additionalProperties": false,
       "description": "Provider metadata including name, annotations, labels, and tags.",
       "properties": {
         "name": {
@@ -506,7 +522,6 @@
           "maxLength": 64,
           "minLength": 1,
           "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Name",
           "type": "string"
         },
         "annotations": {
@@ -519,9 +534,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional annotations (key-value pairs for documentation)",
-          "title": "Annotations"
+          "description": "Optional annotations (key-value pairs for documentation)"
         },
         "labels": {
           "anyOf": [
@@ -533,9 +546,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional labels (key-value pairs for classification/filtering)",
-          "title": "Labels"
+          "description": "Optional labels (key-value pairs for classification/filtering)"
         },
         "tags": {
           "anyOf": [
@@ -547,128 +558,17 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional tags (list of values for categorization)",
-          "title": "Tags"
+          "description": "Optional tags (list of values for categorization)"
         }
       },
       "required": [
         "name"
       ],
-      "title": "ProviderMetaModel",
-      "type": "object"
-    },
-    "ProviderPropertiesModel": {
-      "description": "Provider configuration: cloud provider and datacenter location.",
-      "properties": {
-        "type": {
-          "description": "Cloud or infrastructure provider (e.g., kamatera, local). Must match a provider type in configuration.yaml.",
-          "minLength": 1,
-          "title": "Type",
-          "type": "string"
-        },
-        "region": {
-          "description": "Region of the datacenter used by the provider API to select the datacenter",
-          "minLength": 1,
-          "title": "Region",
-          "type": "string"
-        },
-        "engine": {
-          "anyOf": [
-            {
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Infrastructure as Code (IaC) engine to use for this provider (e.g., azurerm, azureapi)",
-          "title": "Engine"
-        },
-        "version": {
-          "anyOf": [
-            {
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Version constraint for the IaC engine (e.g., '~>3.0')",
-          "title": "Version"
-        }
-      },
-      "required": [
-        "type",
-        "region"
-      ],
-      "title": "ProviderPropertiesModel",
-      "type": "object"
-    },
-    "ProviderReferencesModel": {
-      "description": "References to variables, secrets, and features required by this provider.\n\nLists the keys that must be defined in the environment configuration.\nActual values and store backends are defined at environment/workspace level.",
-      "properties": {
-        "variables": {
-          "anyOf": [
-            {
-              "items": {
-                "minLength": 1,
-                "type": "string"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "List of variable keys this provider requires from environment",
-          "title": "Variables"
-        },
-        "secrets": {
-          "anyOf": [
-            {
-              "items": {
-                "minLength": 1,
-                "type": "string"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "List of secret keys this provider requires from environment",
-          "title": "Secrets"
-        },
-        "features": {
-          "anyOf": [
-            {
-              "items": {
-                "minLength": 1,
-                "type": "string"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "List of feature flag keys this provider requires from environment",
-          "title": "Features"
-        }
-      },
-      "title": "ProviderReferencesModel",
       "type": "object"
     },
     "ProviderSpecModel": {
-      "description": "Provider specification containing properties, references, and lifecycle configuration.",
+      "additionalProperties": false,
+      "description": "A cloud or infrastructure account: its provider `type`, primary `region`, how to authenticate, and optional free-form settings and default tags.",
       "properties": {
         "lifecycle": {
           "anyOf": [
@@ -679,12 +579,29 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "IaC workflow lifecycle phases (setup, validate, plan, apply, output, destroy)"
+          "description": "Hook scripts per phase name, for example `deploy_plan_before` or `deploy_destroy_after`. Accepted and validated, but strata does not run lifecycle hooks yet."
         },
-        "properties": {
-          "$ref": "#/$defs/ProviderPropertiesModel",
-          "description": "Provider configuration (cloud provider, IaC tool, datacenter location)"
+        "type": {
+          "description": "Provider type, for example `azure` or `kamatera`. Must be listed in the Configuration's `spec.providers`, and is matched to the ProviderConfig document of that name.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "region": {
+          "description": "Primary region or datacenter of this account, for example `westeurope`. Must be one of the regions in the ProviderConfig of this `type`, unless that ProviderConfig allows additional regions. It is strata's own identifier, not necessarily an argument of the Terraform provider block; the region's geography comes from the ProviderConfig.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "display_name": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional human-readable label for the region (e.g., 'West US', 'eu-west-1'). Purely cosmetic/documentation \u2014 not a distinct geographic concept from `region` and not required for provider validation."
         },
         "authentication": {
           "anyOf": [
@@ -695,20 +612,19 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Authentication configuration for cloud provider access"
+          "description": "Authentication configuration for cloud provider access\n\nRules:\n- The block named by `method` must be set (for example `method: oauth2` needs `oauth2`).\n- No other method's block may be set at the same time."
         },
-        "references": {
+        "configuration": {
           "anyOf": [
             {
-              "$ref": "#/$defs/ProviderReferencesModel"
+              "additionalProperties": true,
+              "type": "object"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Variable and secret mappings for runtime configuration injection"
+          "description": "Free-form provisioner settings (for example extra Terraform provider-block arguments such as `skip_provider_registration`), passed to Terraform as `strata.providers.<slot>.configuration`. Strata does not validate the keys itself: add an `attributeconfig` with `target.kind: provider` and `target.block: configuration` to do so."
         },
         "custom": {
           "anyOf": [
@@ -720,9 +636,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional custom key-value pairs for automation",
-          "title": "Custom"
+          "description": "Free-form key/value pairs for your own scripts and Terraform code (for example cost center or billing account), passed to Terraform as `strata.providers.<slot>.custom`. Strata does not interpret them. Validate them with an `attributeconfig` targeting `provider` and `custom`."
         },
         "default_tags": {
           "anyOf": [
@@ -736,33 +650,29 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Default tags to apply to all resources created by this provider (ignored if provider doesn't support tagging)",
-          "title": "Default Tags"
+          "description": "Default cloud tags for everything created through this provider, passed to Terraform as `strata.providers.<slot>.default_tags`. Not the same as `meta.tags`, which is a free-form list for documentation. Strata does not limit the number of tags, so stay within your cloud provider's limit."
         }
       },
       "required": [
-        "properties"
+        "type",
+        "region"
       ],
-      "title": "ProviderSpecModel",
       "type": "object"
     },
     "SAMLAuthenticationModel": {
+      "additionalProperties": false,
       "description": "SAML 2.0 authentication.\n\nAll fields are key references resolved from environment declarations.",
       "properties": {
         "idp_entity_id": {
           "description": "Key reference for SAML Identity Provider entity ID",
-          "title": "Idp Entity Id",
           "type": "string"
         },
         "sp_entity_id": {
           "description": "Key reference for SAML Service Provider entity ID",
-          "title": "Sp Entity Id",
           "type": "string"
         },
         "sso_url": {
           "description": "Key reference for SAML Single Sign-On URL",
-          "title": "Sso Url",
           "type": "string"
         },
         "certificate_path": {
@@ -774,9 +684,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Key reference for SAML certificate file path",
-          "title": "Certificate Path"
+          "description": "Key reference for SAML certificate file path"
         }
       },
       "required": [
@@ -784,27 +692,61 @@
         "sp_entity_id",
         "sso_url"
       ],
-      "title": "SAMLAuthenticationModel",
+      "type": "object"
+    },
+    "SSHKeyAuthenticationModel": {
+      "additionalProperties": false,
+      "description": "SSH private key authentication, used for git deploy keys. Every field is a key reference, never the key itself.",
+      "properties": {
+        "private_key": {
+          "description": "Key reference for the SSH private key (PEM/OpenSSH format)",
+          "type": "string"
+        },
+        "passphrase": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for the private key's passphrase, if encrypted"
+        },
+        "known_hosts": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Key reference for a known_hosts entry pinning the remote host's key"
+        }
+      },
+      "required": [
+        "private_key"
+      ],
       "type": "object"
     },
     "ScriptPathModel": {
+      "additionalProperties": false,
       "description": "Individual script with scope and execution metadata.",
       "properties": {
         "file": {
           "description": "Path to script file",
-          "title": "File",
           "type": "string"
         },
         "scope": {
           "$ref": "#/$defs/PlatformKind",
-          "description": "Execution scope - determines how many times script runs (deployment, environment, workspace, provider, resource, module, namespace)"
+          "description": "Execution scope - determines how many times the script runs (e.g. deployment, environment, workspace, provider, resource, module, namespace)"
         },
         "priority": {
           "default": 100,
           "description": "Execution order within scope (lower runs first)",
           "maximum": 9999,
           "minimum": 0,
-          "title": "Priority",
           "type": "integer"
         },
         "target": {
@@ -816,9 +758,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional target filter (e.g., 'vm-*', 'azure-*', 'production')",
-          "title": "Target"
+          "description": "Optional target filter (e.g., 'vm-*', 'azure-*', 'production')"
         },
         "description": {
           "anyOf": [
@@ -829,24 +769,47 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional description for documentation purposes",
-          "title": "Description"
+          "description": "Optional description for documentation purposes"
         }
       },
       "required": [
         "file",
         "scope"
       ],
-      "title": "ScriptPathModel",
+      "type": "object"
+    },
+    "TokenAuthenticationModel": {
+      "additionalProperties": false,
+      "description": "Bearer or personal access token authentication, used for git over HTTPS. `token` is a key reference; `username` is a literal.",
+      "properties": {
+        "token": {
+          "description": "Key reference for the token/PAT value",
+          "type": "string"
+        },
+        "username": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Literal username to pair with the token \u2014 not a key reference"
+        }
+      },
+      "required": [
+        "token"
+      ],
       "type": "object"
     }
   },
-  "description": "Root model for a provider configuration file.",
+  "additionalProperties": false,
+  "description": "A cloud or infrastructure account, for example one Azure subscription: its provider type, primary region and credentials. Create one per account. A workspace uses providers through named slots, which a deployment can rebind to another provider.",
   "properties": {
     "apiVersion": {
       "$ref": "#/$defs/PlatformVersion",
-      "default": "strata.huybrechts.xyz/v1",
+      "default": "strata.huybrechts.xyz/v2",
       "description": "API version for provider configuration"
     },
     "kind": {
@@ -860,13 +823,50 @@
     },
     "spec": {
       "$ref": "#/$defs/ProviderSpecModel",
-      "description": "Provider specification (properties, references, lifecycle)"
+      "description": "Provider specification (type, region, authentication, lifecycle)"
     }
   },
   "required": [
     "meta",
     "spec"
   ],
-  "title": "ProviderModel",
-  "type": "object"
+  "type": "object",
+  "examples": [
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "provider",
+      "meta": {
+        "name": "azure-main"
+      },
+      "spec": {
+        "type": "azure",
+        "region": "westeurope"
+      }
+    },
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "provider",
+      "meta": {
+        "name": "azure-main"
+      },
+      "spec": {
+        "type": "azure",
+        "region": "westeurope",
+        "authentication": {
+          "method": "oauth2",
+          "oauth2": {
+            "client_id": "azure_client_id",
+            "client_secret": "azure_client_secret",
+            "tenant_id": "azure_tenant_id"
+          }
+        },
+        "configuration": {
+          "skip_provider_registration": true
+        },
+        "default_tags": {
+          "owner": "platform"
+        }
+      }
+    }
+  ]
 }

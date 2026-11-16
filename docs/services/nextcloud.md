@@ -103,7 +103,7 @@ occ files_external:create "Haven" local null::null -c datadir=/mnt/haven-data-do
 
 ### Email (SMTP) — fully automated
 
-Password resets, share notifications, and admin alert emails are wired up via the official Nextcloud image's own autoconfig env vars (read directly by the docker-entrypoint — no `mail:` chart values block needed, since that block has the same strata Helm-secret-substitution gap as `nextcloud.password`/`externalDatabase.password` above). Reuses the same shared Infomaniak mailbox as Vaultwarden/Authentik/Gatus, routed through the `nextcloud-secrets` K8s Secret (`smtp-host`/`smtp-port`/`smtp-username`/`smtp-password` keys) the same way `NEXTCLOUD_SSO_CLIENT_SECRET` already is:
+Password resets, share notifications, and admin alert emails are wired up via the official Nextcloud image's own autoconfig env vars (read directly by the docker-entrypoint — no `mail:` chart values block needed; it was avoided under strata v1, which could not resolve secrets there, and the env-var route still keeps the credentials in the `nextcloud-secrets` Secret). Reuses the same shared Infomaniak mailbox as Vaultwarden/Authentik/Gatus, routed through the `nextcloud-secrets` K8s Secret (`smtp-host`/`smtp-port`/`smtp-username`/`smtp-password` keys) the same way `NEXTCLOUD_SSO_CLIENT_SECRET` already is:
 
 | Env var             | Value                                     |
 | ------------------- | ----------------------------------------- |

@@ -1,0 +1,20 @@
+apiVersion: strata.huybrechts.xyz/v2
+kind: attributeconfig
+meta:
+  name: deployment-properties
+  tags: [haven]
+spec:
+  # Checked on the merged properties of every deployable deployment, so a
+  # partial base deployment does not need to set `environment` itself.
+  target:
+    kind: deployment
+    block: properties
+    view: effective
+  schema:
+    type: object
+    required: [environment]
+    properties:
+      environment:
+        type: string
+        description: Deployment environment (prd, dev)
+        enum: [prd, dev]

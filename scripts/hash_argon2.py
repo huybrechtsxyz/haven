@@ -1,14 +1,24 @@
 #!/usr/bin/env python3
-"""Post-generate hook for VAULTWARDEN_ADMIN_TOKEN.
+"""Derive VAULTWARDEN_ADMIN_ARGON from VAULTWARDEN_ADMIN_TOKEN.
 
-Reads the raw generated secret from stdin, hashes it using Vaultwarden's own
+Reads the raw admin token from stdin, hashes it using Vaultwarden's own
 Argon2id hashing (via the official `vaultwarden/server` Docker image's `hash`
 subcommand), and writes only the resulting PHC-formatted hash string to
-stdout.
+stdout. Vaultwarden's ADMIN_TOKEN gets the hash; you type the raw token at
+/admin.
 
-strata `post_generate` hook contract:
-  - stdin:       raw generated value
-  - stdout:      transformed value to write to the configured secret store
+Run it after VAULTWARDEN_ADMIN_TOKEN is generated or rotated (needs Docker
+and the Infisical credentials in the environment), from the repo root:
+
+  strata values get haven_deploy_prd VAULTWARDEN_ADMIN_TOKEN --format raw \
+    | python scripts/hash_argon2.py \
+    | strata values set haven_deploy_prd --key VAULTWARDEN_ADMIN_ARGON --stdin
+
+strata v2 has no post-generate hook, so this is a manual step.
+
+Contract:
+  - stdin:       raw token
+  - stdout:      the Argon2 hash, nothing else
   - exit code:   0 on success, non-zero on failure
   - never logs or prints the raw or hashed value except the final stdout line
 """

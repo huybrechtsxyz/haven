@@ -8,7 +8,7 @@ Immich runs on **Forge** (Hetzner CPX41, k3s), in its own `immich` Kubernetes na
 
 **Prerequisites:** `deploy-forge-init.yml` must have run successfully at least once (k3s + Traefik installed, haven-data Storage Box's media sub-account SMB-mounted at `/mnt/haven-data-media`), and a DNS A record for `photos.{domain}` must point directly at Forge's public IP (Forge terminates its own ingress — see [Forge's design decision](../guides/forge.md#design-decision--forge-terminates-its-own-ingress)).
 
-> ✅ Verified end-to-end in production (2026-08-27) — `strata deploy run --scope apps --stage applications_forge` successfully deployed `immich-library`, `immich-postgres`, and `immich` (server, machine-learning, cache) into the live `immich` namespace on Forge.
+> ✅ Verified end-to-end in production (2026-08-27) — `strata deploy run haven_deploy_prd --stage applications_forge` successfully deployed `immich-library`, `immich-postgres`, and `immich` (server, machine-learning, cache) into the live `immich` namespace on Forge.
 
 ---
 
@@ -24,7 +24,7 @@ Three Helm modules make up the `immich` namespace, in dependency order:
 
 `image.tag` for the `immich` module's server/ML containers is pinned to `v3.0.0` — confirmed against chart 0.13.1's own `Chart.yaml` (`appVersion: v3.0.0`) and default `values.yaml`.
 
-> Immich's chart moved to OCI-only distribution (the old HTTP repo is deprecated/frozen) — this required strata 1.8.3+ (OCI `chart_repository` support and the `${KEY}` Helm secret-substitution fix), both confirmed fixed and in use. See the module comments in `config/forge/modules/immich.yaml` for details.
+> Immich's chart moved to OCI-only distribution (the old HTTP repo is deprecated/frozen) — the module sets `chart_repository: oci://ghcr.io/immich-app/immich-charts`, which strata v2 supports directly. See the module comments in `config/forge/modules/immich.yaml` for details.
 
 ---
 
@@ -79,7 +79,7 @@ Immich supports SMTP for its own notification emails (album invites, album updat
 Reuses the same shared Infomaniak mailbox as Vaultwarden/Authentik/Gatus/Nextcloud. Retrieve the credentials first:
 
 ```powershell
-strata values get INFOMANIAK_EMAIL__HOST INFOMANIAK_EMAIL__PORT INFOMANIAK_EMAIL__USERNAME INFOMANIAK_EMAIL__PASSWORD -f config/environment.yaml --output json
+strata values get haven_deploy_prd INFOMANIAK_EMAIL__HOST INFOMANIAK_EMAIL__PORT INFOMANIAK_EMAIL__USERNAME INFOMANIAK_EMAIL__PASSWORD --output json
 ```
 
 Then in Administration → Settings → Notifications:

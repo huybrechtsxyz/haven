@@ -1,0 +1,168 @@
+apiVersion: strata.huybrechts.xyz/v1
+kind: module
+meta:
+  name: immich
+  annotations:
+    description: Immich — self-hosted photo and video management (k3s / Helm)
+  labels:
+    version: "1.0.0"
+  tags: [haven, forge, immich, photos, media]
+spec:
+  type: helm
+  source:
+    # Immich's chart moved to OCI-only distribution — the old HTTP repo
+    # (https://immich-app.github.io/immich-charts/) is deprecated/frozen.
+    # Requires strata 1.8.3+ (OCI chart_repository support — see the bug
+    # report filed against strata; also needs 1.8.2's Terraform input-validator
+    # scoping fix, since IMMICH_DB_PASSWORD is a Helm-only secret unused by
+    # Terraform — a workspace-wide 'strata build run' blocker on 1.7.0-1.8.1;
+    # and 1.8.3's fix for 'strata deploy run' crashing unconditionally on
+    # every invocation since v1.7.0).
+    chart_repository: oci://ghcr.io/immich-app/immich-charts
+    chart_name: immich
+    # Verify this is still current before applying: https://github.com/immich-app/immich-charts/releases
+    chart_version: "0.13.1"
+  kubernetes_namespace: immich
+  references:
+    secrets:
+      - IMMICH_DB_PASSWORD
+  # Raw passthrough — deliberately NOT using spec.services here. This chart's
+  # top-level value keys (controllers/valkey/server/machine-learning/immich)
+  # are fixed by the chart itself; strata's per-service module-name prefixing
+  # (module-name}-{service}) would break them. spec.configuration merges
+  # verbatim with no prefixing, so it's the correct mechanism for this shape.
+  configuration:
+    # Shared across all Immich components (bjw-s common-library convention).
+    controllers:
+      main:
+        containers:
+          main:
+            image:
+              # v3.0.0 -> v3.1.0 -> reverted to v3.0.0 -> back to v3.1.0 (2026-08-28).
+              # This is NOT optional anymore: the earlier v3.1.0 attempt ran its
+              # database migrations against immich-postgres before that deploy
+              # was killed/reverted (helm's --atomic rollback does not undo
+              # migrations the app itself already applied at startup). Reverting
+              # the image tag alone left the DB on the v3.1.0 migration schema
+              # while the code was back on v3.0.0, which refuses to start
+              # ("corrupted migrations: previously executed migration
+              # 1782500000000-RestoreLivePhotoStillVisibility is missing") —
+              # confirmed via a real crash-loop. Rolling forward again is the
+              # only safe fix (rolling the DB itself back would need manual
+              # migration-table surgery). Do not revert this to v3.0.0 again
+              # without also handling the DB migration state.
+              #
+              # v3.1.0 -> v3.2.2 (2026-09-16): forward-only bump, same
+              # migrations-are-one-way rule applies. Checked the v3.2.0
+              # release discussion (github.com/immich-app/immich/discussions/31408)
+              # and open issues before bumping: no reported server-side
+              # migration/crash-loop bugs for this jump. The only known open
+              # bugs (#31514, #31439) are scoped to the new OPT-IN "cluster
+              # groups" cross-user face-sharing feature (requires manually
+              # inviting users + a destructive facial-recognition reset to
+              # use) and a mobile-app-only faces display bug — neither
+              # applies here since this chart doesn't touch that feature.
+              # v3.2.0 also shipped its own safety net (PR #30493): clearer
+              # log hints when a migration mismatch is detected, a direct
+              # response to the kind of incident described above.
+              tag: "v3.2.2"
+            env:
+              DB_HOSTNAME: immich-postgres
+              DB_USERNAME: immich
+              DB_DATABASE_NAME: immich
+              # Real value injected by strata at deploy time — never written here.
+              DB_PASSWORD: "${IMMICH_DB_PASSWORD}"
+
+    # Photo/video library — PVC created by the immich-library module (backed
+    # by the Storage Box NFS mount, not local disk).
+    immich:
+      persistence:
+        library:
+          existingClaim: immich-library
+
+    # Bundled cache — kept enabled, but swapped to plain redis (per design
+    # decision) instead of the chart's default valkey image. Ephemeral cache
+    # only, no persistence needed.
+    # NOTE: the chart's default probes (inherited from bjw-s common-library's
+    # valkey preset) run `valkey-cli ping`, which doesn't exist in the plain
+    # redis:7-alpine image — this caused the startup probe to fail forever
+    # ("sh: valkey-cli: not found"), crash-looping this pod and, in turn,
+    # immich-server (which couldn't reach Redis). Overridden below to use
+    # `redis-cli` instead, keeping the same delay/period/failure thresholds
+    # as the chart's original valkey-cli probes.
+    valkey:
+      enabled: true
+      controllers:
+        main:
+          containers:
+            main:
+              image:
+                repository: redis
+                tag: 7-alpine
+              probes:
+                liveness:
+                  enabled: true
+                  custom: true
+                  spec:
+                    exec:
+                      command: ["sh", "-c", "redis-cli ping | grep PONG"]
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 3
+                readiness:
+                  enabled: true
+                  custom: true
+                  spec:
+                    exec:
+                      command: ["sh", "-c", "redis-cli ping | grep PONG"]
+                    initialDelaySeconds: 5
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 3
+                startup:
+                  enabled: true
+                  custom: true
+                  spec:
+                    exec:
+                      command: ["sh", "-c", "redis-cli ping | grep PONG"]
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 30
+      persistence:
+        data:
+          enabled: true
+          type: emptyDir
+
+    server:
+      enabled: true
+      # cert-manager is now installed on Forge (see the `cert-manager` +
+      # `cert-manager-issuers` modules in config/forge/namespaces/system.yaml).
+      # Used the STAGING issuer initially — Let's Encrypt production has
+      # strict rate limits (5 certs/domain/week), so the HTTP-01 flow was
+      # proven end-to-end first (staging certs are untrusted/self-signed by a
+      # non-public CA, browsers warn — confirmed working 2026-08-27, saw
+      # "welcome to immich" with the expected dev-cert warning). Now switched
+      # to `letsencrypt-prod` for a real trusted cert.
+      # NOTE: unlike jellyfin.yaml/kavita.yaml (bjw-s app-template, flat
+      # ingress: {enabled,className,hosts,tls}), the official immich-charts
+      # schema requires ingress to be a MAP of named ingresses — confirmed
+      # via a real `helm upgrade --dry-run` schema validation error.
+      ingress:
+        main:
+          enabled: true
+          className: traefik
+          annotations:
+            cert-manager.io/cluster-issuer: letsencrypt-prod
+          hosts:
+            - host: photos.huybrechts.xyz
+              paths:
+                - path: /
+                  pathType: ImplementationSpecific
+          tls:
+            - hosts:
+                - photos.huybrechts.xyz
+              secretName: photos-tls
+
+    machine-learning:
+      enabled: true

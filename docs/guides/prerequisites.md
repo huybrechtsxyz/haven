@@ -149,19 +149,24 @@ See [infomaniak.md](./services//infomaniak.md#initial-setup) for detailed instru
 
 You will need the following tools installed on your workstation to follow this guide and manage the haven platform:
 
-| Tool       | Version | Install                                                                              |
-| ---------- | ------- | ------------------------------------------------------------------------------------ |
-| `strata`   | ≥ 1.0.0 | `pip install xyz-strata==1.0.0`                                                      |
-| OpenTofu   | ≥ 1.6   | `choco install opentofu` or [opentofu.org](https://opentofu.org/docs/intro/install/) |
-| Ansible    | ≥ 2.14  | `pip install ansible-core`                                                           |
-| GitHub CLI | latest  | `winget install GitHub.cli`                                                          |
-| Git        | latest  | `winget install Git.Git`                                                             |
+| Tool       | Version (see `VERSIONS.env`) | Install                                                                                   |
+| ---------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
+| `strata`   | 2.7.0                        | `pip install "xyz-strata @ git+https://github.com/huybrechtsxyz/strata.git@v2.7.0"`       |
+| Python     | 3.13                         | `winget install Python.Python.3.13`                                                       |
+| Terraform  | 1.17.2                       | `winget install Hashicorp.Terraform` or [terraform.io](https://developer.hashicorp.com/terraform/install) |
+| Helm       | 4.3.2                        | `winget install Helm.Helm` (strata 2.7.0 needs Helm 4)                                    |
+| Ansible    | ansible-core 2.22.0          | `pip install ansible-core==2.22.0` (Linux/WSL — Ansible does not run natively on Windows) |
+| GitHub CLI | latest                       | `winget install GitHub.cli`                                                               |
+| Git        | latest                       | `winget install Git.Git`                                                                  |
+
+`VERSIONS.env` at the repository root is the single place these versions are set; CI (`.github/actions/setup-tools`) and the devcontainer install exactly those.
 
 **Verify:**
 
 ```powershell
 strata --version
-tofu --version
+terraform version
+helm version --short
 ansible --version
 gh --version
 ```
@@ -172,19 +177,24 @@ gh --version
 
 Install on your local workstation before running any deployment commands.
 
-| Tool       | Version | Install                                                                              |
-| ---------- | ------- | ------------------------------------------------------------------------------------ |
-| `strata`   | ≥ 1.0.0 | `pip install xyz-strata`                                                             |
-| OpenTofu   | ≥ 1.6   | `choco install opentofu` or [opentofu.org](https://opentofu.org/docs/intro/install/) |
-| Ansible    | ≥ 2.14  | `pip install ansible-core`                                                           |
-| GitHub CLI | latest  | `winget install GitHub.cli`                                                          |
-| Git        | latest  | `winget install Git.Git`                                                             |
+| Tool       | Version (see `VERSIONS.env`) | Install                                                                                   |
+| ---------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
+| `strata`   | 2.7.0                        | `pip install "xyz-strata @ git+https://github.com/huybrechtsxyz/strata.git@v2.7.0"`       |
+| Python     | 3.13                         | `winget install Python.Python.3.13`                                                       |
+| Terraform  | 1.17.2                       | `winget install Hashicorp.Terraform` or [terraform.io](https://developer.hashicorp.com/terraform/install) |
+| Helm       | 4.3.2                        | `winget install Helm.Helm` (strata 2.7.0 needs Helm 4)                                    |
+| Ansible    | ansible-core 2.22.0          | `pip install ansible-core==2.22.0` (Linux/WSL — Ansible does not run natively on Windows) |
+| GitHub CLI | latest                       | `winget install GitHub.cli`                                                               |
+| Git        | latest                       | `winget install Git.Git`                                                                  |
+
+`VERSIONS.env` at the repository root is the single place these versions are set; CI (`.github/actions/setup-tools`) and the devcontainer install exactly those.
 
 **Verify:**
 
 ```powershell
 strata --version
-tofu --version
+terraform version
+helm version --short
 ansible --version
 gh --version
 git --version

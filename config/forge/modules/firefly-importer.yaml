@@ -1,4 +1,4 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: module
 meta:
   name: firefly-importer
@@ -9,18 +9,12 @@ meta:
       CronJob that auto-imports anything dropped into a shared folder on
       the haven-data Storage Box (visible/writable via FileBrowser too).
       See services/forge/firefly-importer/Chart.yaml for the full design.
-  labels:
-    version: "1.0.0"
   tags: [haven, forge, finance, firefly, import]
 spec:
   type: helm
   source:
-    repository: haven
     source_path: services/forge/firefly-importer
   kubernetes_namespace: finance
-  references:
-    secrets:
-      - FIREFLY_IMPORTER_ACCESS_TOKEN
   configuration:
     image:
       repository: fireflyiii/data-importer
@@ -39,7 +33,7 @@ spec:
       # first deploy (Remote access and tokens -> Personal Access Token ->
       # Create new token), then store as the FIREFLY_IMPORTER_ACCESS_TOKEN
       # secret.
-      FIREFLY_III_ACCESS_TOKEN: "${FIREFLY_IMPORTER_ACCESS_TOKEN}"
+      FIREFLY_III_ACCESS_TOKEN: "${secret:FIREFLY_IMPORTER_ACCESS_TOKEN}"
       TRUSTED_PROXIES: "**"
       IMPORT_DIR_ALLOWLIST: /import
       FALLBACK_IN_DIR: "false"

@@ -1,31 +1,18 @@
 # =============================================================================
 # Module: Forge — Hetzner Cloud Resources
 # =============================================================================
-# Provisions the Forge VPS: CPX41 running k3s single-node cluster
-# (Immich, Jellyfin, Gatus, home-grown apps via Helm + Argo CD)
-#
-# Firewall rules are built dynamically from the strata firewalls config.
-# Loopback/interface rules are filtered out — those are OS-level (nftables).
-# =============================================================================
-
-# =============================================================================
-# Locals — filter firewall rules to hcloud-compatible ones
+# Provisions the Forge VPS: CPX41 running a k3s single-node cluster
+# (Immich, Jellyfin, Nextcloud, Gatus, apps via Helm).
 # =============================================================================
 
 locals {
-  network_rules = [
-    for rule in var.firewall_config.rules.allow : rule
-    if rule.proto != null && rule.interface == null
-  ]
-
-  inbound_rules = [
-    for rule in local.network_rules : rule
-    if rule.direction == "in"
-  ]
-
-  outbound_rules = [
-    for rule in local.network_rules : rule
-    if rule.direction == "out"
+  # Hetzner wants one port ("443") or a range ("20-21").
+  rules = [
+    for rule in var.firewall_rules : merge(rule, {
+      port = length(rule.ports) == 0 ? null : (
+        length(rule.ports) == 1 ? replace(rule.ports[0], ":", "-") : "${rule.ports[0]}-${rule.ports[length(rule.ports) - 1]}"
+      )
+    })
   ]
 }
 
@@ -34,28 +21,30 @@ locals {
 # =============================================================================
 
 resource "hcloud_firewall" "forge" {
-  name   = "${replace(var.workspace_name, "_", "-")}-fw-forge"
+  name   = "${var.name_prefix}-fw-forge"
   labels = merge(var.labels, { role = "forge" })
 
+  # Inbound rules
   dynamic "rule" {
-    for_each = local.inbound_rules
+    for_each = [for r in local.rules : r if r.direction == "in"]
     content {
-      description = rule.value.comment
+      description = rule.value.description
       direction   = "in"
-      protocol    = rule.value.proto
-      port        = rule.value.port != null ? (length(rule.value.port) == 1 ? tostring(rule.value.port[0]) : "${rule.value.port[0]}-${rule.value.port[length(rule.value.port) - 1]}") : null
-      source_ips  = rule.value.from != null ? [rule.value.from] : ["0.0.0.0/0", "::/0"]
+      protocol    = rule.value.protocol
+      port        = rule.value.port
+      source_ips  = rule.value.cidrs
     }
   }
 
+  # Outbound rules
   dynamic "rule" {
-    for_each = local.outbound_rules
+    for_each = [for r in local.rules : r if r.direction == "out"]
     content {
-      description     = rule.value.comment
+      description     = rule.value.description
       direction       = "out"
-      protocol        = rule.value.proto
-      port            = rule.value.port != null ? (length(rule.value.port) == 1 ? tostring(rule.value.port[0]) : "${rule.value.port[0]}-${rule.value.port[length(rule.value.port) - 1]}") : null
-      destination_ips = rule.value.to != null ? [rule.value.to] : ["0.0.0.0/0", "::/0"]
+      protocol        = rule.value.protocol
+      port            = rule.value.port
+      destination_ips = rule.value.cidrs
     }
   }
 }
@@ -78,10 +67,10 @@ resource "hcloud_firewall" "forge" {
 #   prevent_destroy — 2026-08-29).
 
 resource "hcloud_server" "forge" {
-  name        = "${replace(var.workspace_name, "_", "-")}-forge"
-  server_type = var.resource_config.configuration.server_type
-  image       = var.resource_config.configuration.image
-  location    = var.resource_config.configuration.location
+  name        = "${var.name_prefix}-forge"
+  server_type = var.server_type
+  image       = var.image
+  location    = var.location
   ssh_keys    = [var.ssh_key_id]
   labels      = merge(var.labels, { role = "forge" })
 
@@ -90,7 +79,7 @@ resource "hcloud_server" "forge" {
   user_data = <<-EOF
     #cloud-config
     runcmd:
-      - mkdir -p ${var.resource_config.storage.install_path}/{var/data,var/logs}
+      - mkdir -p ${var.install_path}/{var/data,var/logs}
       - mkdir -p /mnt/haven-data-media
       - mkdir -p /mnt/haven-data-docs
   EOF

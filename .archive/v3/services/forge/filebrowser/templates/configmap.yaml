@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  labels:
+    app: {{ .Release.Name }}
+data:
+  config.yaml: |
+    http:
+      port: {{ .Values.service.port }}
+      baseURL: "/"
+      # Traefik terminates TLS and forwards plain HTTP to the pod (same
+      # topology as every other Forge app in this repo) — without this, the
+      # OIDC callback registers as http:// and Authentik rejects the
+      # redirect_uri mismatch (same class of bug documented on Jellyfin's
+      # schemeOverride / Nextcloud's OVERWRITEPROTOCOL).
+      trustProxyHeaders: true
+    server:
+      database:
+        path: /data/filebrowser.sqlite
+      sources:
+      {{- range .Values.sources }}
+        - path: {{ .hostPath | quote }}
+          name: {{ .name | quote }}
+          config:
+            # Multiple sources are declared — each needs defaultEnabled: true
+            # explicitly, or a brand-new user sees zero files on first login
+            # (FileBrowser's documented default is defaultEnabled: false once
+            # more than one source exists).
+            defaultEnabled: true
+            # CRITICAL (found 2026-09-16): as of FileBrowser Quantum v2.0.0,
+            # file permissions are PER SOURCE, not global — create/modify/
+            # delete all default to false regardless of defaultEnabled. Without
+            # this block, every new user (including every SSO-auto-provisioned
+            # family member) gets view+download only — no upload/rename/delete
+            # button appears at all — silently contradicting this module's own
+            # stated design intent ("giving every family member direct browse/
+            # upload/rename/delete access"). This only seeds NEW users going
+            # forward; any account that already logged in before this fix
+            # keeps its old (view-only) permissions and must be corrected once
+            # manually via Settings -> User Management in FileBrowser's own UI.
+            defaultPermissions:
+              view: true
+              download: true
+              create: true
+              modify: true
+              delete: true
+      {{- end }}
+    auth:
+      methods:
+        # OIDC-only login: local admin/password login is disabled — SSO
+        # via Authentik confirmed working end-to-end (2026-09-14).
+        password:
+          enabled: false
+        oidc:
+          enabled: true
+          issuerUrl: {{ .Values.auth.issuerUrl | quote }}
+          scopes: {{ .Values.auth.scopes | quote }}
+          userIdentifier: email
+          groupsClaim: groups
+          adminGroup: {{ .Values.auth.adminGroup | quote }}
+          # clientId/clientSecret deliberately NOT set here — supplied via
+          # FILEBROWSER_OIDC_CLIENT_ID / FILEBROWSER_OIDC_CLIENT_SECRET pod
+          # env vars instead (see templates/deployment.yaml). A literal
+          # ${TOKEN} placeholder here would never be substituted by strata's
+          # Helm secret substitution, which only resolves ${TOKEN} values
+          # found inside a dict node keyed literally "env" — see
+          # config/forge/modules/filebrowser.yaml's file-level comment.
+    frontend:
+      name: "Haven Files"

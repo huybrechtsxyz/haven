@@ -1,0 +1,232 @@
+{
+  "$defs": {
+    "PlatformKind": {
+      "description": "Enumeration of supported platform kinds.",
+      "enum": [
+        "solution",
+        "configuration",
+        "providerconfig",
+        "topologyconfig",
+        "attributeconfig",
+        "provider",
+        "resource",
+        "dns",
+        "network",
+        "firewall",
+        "module",
+        "namespace",
+        "workspace",
+        "integration",
+        "tenant",
+        "environment",
+        "deployment",
+        "version",
+        "artifact",
+        "asset",
+        "parameterset"
+      ],
+      "type": "string"
+    },
+    "PlatformVersion": {
+      "description": "Enumeration of supported platform versions.",
+      "enum": [
+        "strata.huybrechts.xyz/v2",
+        "strata.omp.com/v2"
+      ],
+      "type": "string"
+    },
+    "TopologyConfigComponentModel": {
+      "additionalProperties": false,
+      "description": "A topology type's registry entry for one expected component role.\n\nRules:\n- `max_count` must be at least `min_count`, unless `max_count` is 0 (unlimited).",
+      "properties": {
+        "role": {
+          "description": "Component role, matched against the `role` of a workspace's resources.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Description of this component role"
+        },
+        "uses_module": {
+          "default": false,
+          "description": "Whether a resource with this role must have a module attached",
+          "type": "boolean"
+        },
+        "required": {
+          "default": true,
+          "description": "Whether at least one resource with this role must be present",
+          "type": "boolean"
+        },
+        "min_count": {
+          "default": 0,
+          "description": "Minimum number of resource instances with this role",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_count": {
+          "default": 0,
+          "description": "Maximum number of resource instances with this role (0 = unlimited)",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "role"
+      ],
+      "type": "object"
+    },
+    "TopologyConfigMetaModel": {
+      "additionalProperties": false,
+      "description": "Topology config metadata (name, annotations, labels, tags).\n\n`name` is the topology type key (e.g. 'kubernetes', 'dockerswarm') \u2014 matched against a real `Topology` document's `spec.type`.",
+      "properties": {
+        "name": {
+          "description": "Topology type name (e.g. kubernetes, dockerswarm)",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional annotations (key-value pairs for documentation)"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional labels (key-value pairs for classification/filtering)"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional list of tags"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "TopologyConfigSpecModel": {
+      "additionalProperties": false,
+      "description": "A topology type's registry entry: its expected component roles.\n\nRules:\n- Component roles must be unique within the topology type.",
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Description of the topology type"
+        },
+        "additional_components": {
+          "default": false,
+          "description": "Allow component roles not listed in this topology type's registry entry",
+          "type": "boolean"
+        },
+        "components": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/TopologyConfigComponentModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Expected component roles for this topology type\n\nRules:\n- `max_count` must be at least `min_count`, unless `max_count` is 0 (unlimited)."
+        }
+      },
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Registry entry for one topology type (for example `kubernetes`): the component roles a workspace of that type is expected to have. Create one per topology type and list its name in the Configuration's `spec.topologies`. `meta.name` is matched against a Topology's `spec.type`.",
+  "properties": {
+    "apiVersion": {
+      "$ref": "#/$defs/PlatformVersion",
+      "default": "strata.huybrechts.xyz/v2",
+      "description": "API version for topology config"
+    },
+    "kind": {
+      "$ref": "#/$defs/PlatformKind",
+      "default": "topologyconfig",
+      "description": "Platform kind (always 'topologyconfig')"
+    },
+    "meta": {
+      "$ref": "#/$defs/TopologyConfigMetaModel",
+      "description": "Topology config metadata (name, annotations, labels, tags)"
+    },
+    "spec": {
+      "$ref": "#/$defs/TopologyConfigSpecModel",
+      "description": "Topology config specification (expected component roles)\n\nRules:\n- Component roles must be unique within the topology type."
+    }
+  },
+  "required": [
+    "meta",
+    "spec"
+  ],
+  "type": "object",
+  "examples": [
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "topologyconfig",
+      "meta": {
+        "name": "kubernetes"
+      },
+      "spec": {
+        "description": "Kubernetes cluster",
+        "components": [
+          {
+            "role": "control-plane",
+            "required": true,
+            "min_count": 1,
+            "max_count": 1
+          },
+          {
+            "role": "worker",
+            "required": false,
+            "min_count": 0,
+            "max_count": 0
+          }
+        ]
+      }
+    }
+  ]
+}

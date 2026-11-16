@@ -82,5 +82,6 @@ ksuite_mailboxes: []
 # =============================================================================
 # Deploy — build artifact location
 # =============================================================================
-# Deployment name — used to locate build artifacts (build/<deployment_name>/hearth/)
-deployment_name: haven_deploy_prd-1.0.0
+# Deployment name — used to locate build artifacts (build/<deployment_name>/hearth/).
+# strata v2 names the build folder after the deployment only (no -<version> suffix).
+deployment_name: haven_deploy_prd

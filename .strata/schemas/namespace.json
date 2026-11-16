@@ -4,13 +4,12 @@
       "additionalProperties": {
         "$ref": "#/$defs/CommonLifecyclePhaseModel"
       },
-      "default": {},
-      "description": "Lifecycle phases for common models.\nMaps phase names to phase configurations.\nPhase names follow pattern: {command}_{action}_{suffix}\nExamples: config_clear, config_fetch, deploy_plan_before, deploy_apply_after",
-      "title": "CommonLifecycleModel",
+      "description": "Lifecycle phases for common models.\n\nMaps phase names to phase configurations. Phase names follow the pattern ``{command}_{action}_{suffix}``, e.g. ``deploy_plan_before``, ``deploy_provision``, ``deploy_destroy_after``, ``config_clear``. This is an open map (any phase name is allowed) rather than a fixed set of fields, since each kind and provisioner type defines its own set of supported phases.",
       "type": "object"
     },
     "CommonLifecyclePhaseModel": {
-      "description": "Model for common lifecycle phase with script validation.",
+      "additionalProperties": false,
+      "description": "Lifecycle phase configuration: a description plus its scripts.",
       "properties": {
         "description": {
           "anyOf": [
@@ -21,9 +20,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional description for documentation purposes",
-          "title": "Description"
+          "description": "Optional description for documentation purposes"
         },
         "scripts": {
           "anyOf": [
@@ -44,22 +41,86 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Scripts"
+          "description": "Scripts to run. Each entry is a path relative to the solution root, with one of the extensions bash, go, js, mjs, ps1, py, sh, or an object with `file`, `scope`, `priority` and `target`."
         }
       },
-      "title": "CommonLifecyclePhaseModel",
+      "type": "object"
+    },
+    "ModuleReferenceModel": {
+      "additionalProperties": false,
+      "description": "A reference to a Module document with placement options. Used in a namespace's `modules` and in a topology component's `modules`.\n\n`name` is the reference's own name and `module` the Module document it points at, so one module can be referenced several times under different names.",
+      "properties": {
+        "name": {
+          "description": "Unique module reference name within its parent",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string"
+        },
+        "module": {
+          "description": "Name of the Module document this reference points at (its meta.name, resolved by discovery)",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "type": "string",
+          "x-strata-references": "module"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional description of what this module provides"
+        },
+        "slot_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "main",
+          "description": "Deployment slot type: `main` (default), `staging`, `canary`, `sidecar` or `init`. Other values are allowed but give a warning. Strata only uses it for the rule that exactly one of several enabled modules on a resource must be `main`."
+        },
+        "enabled": {
+          "default": true,
+          "description": "Whether this module is enabled/deployed",
+          "type": "boolean"
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Settings for this reference only. Accepted and validated, but strata does not apply them yet; put settings on the Module document instead."
+        }
+      },
+      "required": [
+        "name",
+        "module"
+      ],
       "type": "object"
     },
     "NamespaceMetaModel": {
-      "description": "Model for namespace metadata (name, annotations, labels, tags).",
+      "additionalProperties": false,
+      "description": "Namespace metadata (name, annotations, labels, tags).",
       "properties": {
         "name": {
           "description": "Unique namespace name",
           "maxLength": 64,
           "minLength": 1,
           "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Name",
           "type": "string"
         },
         "annotations": {
@@ -72,9 +133,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional annotations (key-value pairs for documentation)",
-          "title": "Annotations"
+          "description": "Optional annotations (key-value pairs for documentation)"
         },
         "labels": {
           "anyOf": [
@@ -86,9 +145,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional labels (key-value pairs for classification/filtering)",
-          "title": "Labels"
+          "description": "Optional labels (key-value pairs for classification/filtering)"
         },
         "tags": {
           "anyOf": [
@@ -100,115 +157,23 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional list of tags",
-          "title": "Tags"
+          "description": "Optional list of tags"
         }
       },
       "required": [
         "name"
       ],
-      "title": "NamespaceMetaModel",
-      "type": "object"
-    },
-    "NamespaceModuleModel": {
-      "description": "Model for a namespace module (name, description, properties, lifecycle, labels, tags).",
-      "properties": {
-        "name": {
-          "description": "Unique module name within the namespace",
-          "maxLength": 64,
-          "minLength": 1,
-          "pattern": "^[a-z][a-z0-9_-]*$",
-          "title": "Name",
-          "type": "string"
-        },
-        "description": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Optional description of what this module provides",
-          "title": "Description"
-        },
-        "file": {
-          "description": "File reference for the module configuration or script",
-          "title": "File",
-          "type": "string"
-        }
-      },
-      "required": [
-        "name",
-        "file"
-      ],
-      "title": "NamespaceModuleModel",
-      "type": "object"
-    },
-    "NamespaceReferenceModel": {
-      "description": "References to variables, secrets, and features required by this namespace.\n\nLists the keys that must be defined in the environment configuration.\nActual values and store backends are defined at environment/workspace level.",
-      "properties": {
-        "variables": {
-          "anyOf": [
-            {
-              "items": {
-                "minLength": 1,
-                "type": "string"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "List of variable keys this namespace requires from environment",
-          "title": "Variables"
-        },
-        "secrets": {
-          "anyOf": [
-            {
-              "items": {
-                "minLength": 1,
-                "type": "string"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "List of secret keys this namespace requires from environment",
-          "title": "Secrets"
-        },
-        "features": {
-          "anyOf": [
-            {
-              "items": {
-                "minLength": 1,
-                "type": "string"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "List of feature flag keys this namespace requires from environment",
-          "title": "Features"
-        }
-      },
-      "title": "NamespaceReferenceModel",
       "type": "object"
     },
     "NamespaceSpecModel": {
-      "description": "Model for namespace spec (lifecycle, modules, validation).",
+      "additionalProperties": false,
+      "description": "A group of modules deployed together, typically a Kubernetes namespace or a Compose deployment: its `modules`, plus optional lifecycle hooks, labels and free-form settings.\n\nRules:\n- A namespace needs `modules`, `lifecycle` or both; an empty namespace is rejected. A namespace with only `lifecycle` gives a warning.\n- Module reference names must be unique within the namespace.",
       "properties": {
+        "type": {
+          "$ref": "#/$defs/NamespaceType",
+          "default": "dedicated",
+          "description": "`dedicated` (default) or `shared`. Documents whether the namespace is used by one deployment layer or intentionally by several; strata does not act on it yet."
+        },
         "lifecycle": {
           "anyOf": [
             {
@@ -218,14 +183,13 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Namespace lifecycle phases"
+          "description": "Hook scripts per phase name. Accepted and validated, but strata does not run lifecycle hooks yet."
         },
         "modules": {
           "anyOf": [
             {
               "items": {
-                "$ref": "#/$defs/NamespaceModuleModel"
+                "$ref": "#/$defs/ModuleReferenceModel"
               },
               "type": "array"
             },
@@ -233,69 +197,123 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "List of modules in the namespace",
-          "title": "Modules"
+          "description": "Modules deployed in this namespace, each a reference to a Module document. Disabled references are skipped."
         },
-        "references": {
+        "configuration": {
           "anyOf": [
             {
-              "$ref": "#/$defs/NamespaceReferenceModel"
+              "additionalProperties": true,
+              "type": "object"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Namespace references for variable and secret injection"
+          "description": "Free-form settings for this namespace (for example annotations or quotas), passed to Terraform as `strata.namespaces.<name>.configuration`. Strata does not validate the keys itself: add an `attributeconfig` with `target.kind: namespace` and `target.block: configuration` to do so."
+        },
+        "custom": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Free-form values for your own scripts and Terraform code, passed to Terraform as `strata.namespaces.<name>.custom`. Strata does not interpret them."
+        },
+        "default_labels": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Baseline labels for this namespace (for example `environment`, `team`), passed to Terraform as `strata.namespaces.<name>.default_labels`. Strata does not set them on the Kubernetes Namespace object itself."
+        },
+        "custom_labels": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional additional namespace labels beyond default_labels."
         }
       },
-      "title": "NamespaceSpecModel",
       "type": "object"
+    },
+    "NamespaceType": {
+      "description": "`dedicated`: the namespace belongs to one deployment layer. `shared`: it is intentionally used by several layers. Documents intent only: strata does not check cross-layer overlap yet.",
+      "enum": [
+        "dedicated",
+        "shared"
+      ],
+      "type": "string"
     },
     "PlatformKind": {
       "description": "Enumeration of supported platform kinds.",
       "enum": [
+        "solution",
         "configuration",
-        "deployment",
-        "environment",
+        "providerconfig",
+        "topologyconfig",
+        "attributeconfig",
+        "provider",
+        "resource",
+        "dns",
+        "network",
         "firewall",
         "module",
         "namespace",
-        "platform_model",
-        "provider",
-        "resource",
-        "workspace"
+        "workspace",
+        "integration",
+        "tenant",
+        "environment",
+        "deployment",
+        "version",
+        "artifact",
+        "asset",
+        "parameterset"
       ],
-      "title": "PlatformKind",
       "type": "string"
     },
     "PlatformVersion": {
       "description": "Enumeration of supported platform versions.",
       "enum": [
-        "strata.huybrechts.xyz/v1"
+        "strata.huybrechts.xyz/v2",
+        "strata.omp.com/v2"
       ],
-      "title": "PlatformVersion",
       "type": "string"
     },
     "ScriptPathModel": {
+      "additionalProperties": false,
       "description": "Individual script with scope and execution metadata.",
       "properties": {
         "file": {
           "description": "Path to script file",
-          "title": "File",
           "type": "string"
         },
         "scope": {
           "$ref": "#/$defs/PlatformKind",
-          "description": "Execution scope - determines how many times script runs (deployment, environment, workspace, provider, resource, module, namespace)"
+          "description": "Execution scope - determines how many times the script runs (e.g. deployment, environment, workspace, provider, resource, module, namespace)"
         },
         "priority": {
           "default": 100,
           "description": "Execution order within scope (lower runs first)",
           "maximum": 9999,
           "minimum": 0,
-          "title": "Priority",
           "type": "integer"
         },
         "target": {
@@ -307,9 +325,7 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional target filter (e.g., 'vm-*', 'azure-*', 'production')",
-          "title": "Target"
+          "description": "Optional target filter (e.g., 'vm-*', 'azure-*', 'production')"
         },
         "description": {
           "anyOf": [
@@ -320,30 +336,28 @@
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Optional description for documentation purposes",
-          "title": "Description"
+          "description": "Optional description for documentation purposes"
         }
       },
       "required": [
         "file",
         "scope"
       ],
-      "title": "ScriptPathModel",
       "type": "object"
     }
   },
-  "description": "Top-level model for a namespace resource.",
+  "additionalProperties": false,
+  "description": "A group of modules deployed together, for example a Kubernetes namespace or a Compose deployment. Create one per group, list it in a workspace's `namespaces`, and let an execution step deploy it.",
   "properties": {
     "apiVersion": {
       "$ref": "#/$defs/PlatformVersion",
-      "default": "strata.huybrechts.xyz/v1",
+      "default": "strata.huybrechts.xyz/v2",
       "description": "API version for namespace configuration"
     },
     "kind": {
       "$ref": "#/$defs/PlatformKind",
       "default": "namespace",
-      "description": "Resource kind (always 'Namespace')"
+      "description": "Platform kind (always 'namespace')"
     },
     "meta": {
       "$ref": "#/$defs/NamespaceMetaModel",
@@ -351,13 +365,53 @@
     },
     "spec": {
       "$ref": "#/$defs/NamespaceSpecModel",
-      "description": "Namespace specification (lifecycle, modules, variables, secrets)"
+      "description": "Namespace specification (type, lifecycle, modules)\n\nRules:\n- A namespace needs `modules`, `lifecycle` or both; an empty namespace is rejected. A namespace with only `lifecycle` gives a warning.\n- Module reference names must be unique within the namespace."
     }
   },
   "required": [
     "meta",
     "spec"
   ],
-  "title": "NamespaceModel",
-  "type": "object"
+  "type": "object",
+  "examples": [
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "namespace",
+      "meta": {
+        "name": "apps"
+      },
+      "spec": {
+        "modules": [
+          {
+            "name": "authentik",
+            "module": "authentik"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "strata.huybrechts.xyz/v2",
+      "kind": "namespace",
+      "meta": {
+        "name": "apps"
+      },
+      "spec": {
+        "type": "shared",
+        "modules": [
+          {
+            "name": "authentik",
+            "module": "authentik"
+          },
+          {
+            "name": "app",
+            "module": "app",
+            "enabled": false
+          }
+        ],
+        "default_labels": {
+          "team": "platform"
+        }
+      }
+    }
+  ]
 }

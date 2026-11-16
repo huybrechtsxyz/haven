@@ -1,4 +1,4 @@
-apiVersion: strata.huybrechts.xyz/v1
+apiVersion: strata.huybrechts.xyz/v2
 kind: module
 meta:
   name: filebrowser
@@ -9,8 +9,6 @@ meta:
       shares already used elsewhere on Forge (Immich/Jellyfin's haven-data
       media share, Nextcloud/Kavita's haven-data docs share), from one
       admin-friendly UI at files.huybrechts.xyz.
-  labels:
-    version: "1.0.0"
   tags: [haven, forge, system, filebrowser, storage]
 spec:
   type: helm
@@ -18,19 +16,11 @@ spec:
     # No official Helm chart exists upstream for FileBrowser Quantum
     # (Docker-first project) — local chart, same pattern as kavita/
     # homarr-secrets.
-    repository: haven
     source_path: services/forge/filebrowser
   kubernetes_namespace: system
-  references:
-    secrets:
-      - FILEBROWSER_SSO_CLIENT_SECRET
-      - FILEBROWSER_ADMIN_PASSWORD
   configuration:
-    # strata's build does NOT merge this configuration on top of the local
-    # chart's own values.yaml defaults for helm lint's -f invocation — every
-    # field a template dereferences must be declared explicitly here (same
-    # convention already followed by every other local-chart module in this
-    # repo, e.g. kavita.yaml/nextcloud-redis.yaml's own `image:` blocks).
+    # Overlaid on the local chart's own values.yaml (Helm `-f`): maps merge,
+    # lists are replaced.
     image:
       repository: gtstef/filebrowser
       # CONFIRMED directly against Docker Hub's tag list (2026-09-14, via a
@@ -41,11 +31,7 @@ spec:
       # with ErrImagePull before this was verified against the real registry.
       tag: 2.0.6-beta
 
-    # Credentials MUST live under a literal `env:` dict — strata's Helm
-    # secret substitution only resolves ${TOKEN} placeholders found inside a
-    # dict node keyed literally "env" (see nextcloud-secrets.yaml's module
-    # comment for the full writeup of this constraint). FileBrowser Quantum
-    # conveniently supports supplying its admin password and OIDC client
+    # FileBrowser Quantum supports supplying its admin password and OIDC client
     # id/secret via FILEBROWSER_ADMIN_PASSWORD / FILEBROWSER_OIDC_CLIENT_ID /
     # FILEBROWSER_OIDC_CLIENT_SECRET env vars (confirmed via the project's
     # reference/environment-variables.md docs), so — unlike Homarr/Nextcloud
@@ -56,9 +42,9 @@ spec:
       # Without this, the bootstrap "admin" account keeps the software's own
       # default admin/admin credentials on a publicly reachable ingress —
       # generated explicitly instead (see config/environment.yaml).
-      FILEBROWSER_ADMIN_PASSWORD: "${FILEBROWSER_ADMIN_PASSWORD}"
+      FILEBROWSER_ADMIN_PASSWORD: "${secret:FILEBROWSER_ADMIN_PASSWORD}"
       FILEBROWSER_OIDC_CLIENT_ID: filebrowser
-      FILEBROWSER_OIDC_CLIENT_SECRET: "${FILEBROWSER_SSO_CLIENT_SECRET}"
+      FILEBROWSER_OIDC_CLIENT_SECRET: "${secret:FILEBROWSER_SSO_CLIENT_SECRET}"
 
     persistence:
       data:

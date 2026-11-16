@@ -1,0 +1,9 @@
+apiVersion: v2
+name: grimoire
+description: >
+  Grimoire — self-hosted TTRPG library manager (books, maps, tokens, audio,
+  3D models) with campaign wiki, VTT map/token tools, and OPDS. Reads from
+  the haven-data Storage Box's docs sub-account SMB mount, same tree Kavita
+  and Nextcloud use.
+type: application
+version: "1.0.0"

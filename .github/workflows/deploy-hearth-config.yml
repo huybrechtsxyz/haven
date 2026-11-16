@@ -28,7 +28,7 @@ on:
         default: true
       # kSuite backup (mbsync + vdirsyncer) disabled for now — input commented
       # out alongside the secret-fetch/heredoc/ansible-playbook wiring below
-      # and the 6 secret declarations in config/environment.yaml. Un-comment
+      # and the 6 secret declarations in config/environments/prd.yaml. Un-comment
       # all together when ready to actually provision this feature.
       # configure_ksuite_backup:
       #   description: "Deploy/refresh the kSuite email+calendar+contacts backup (mbsync + vdirsyncer) — requires KSUITE_BACKUP_* app passwords to already be in Infisical"
@@ -40,7 +40,7 @@ permissions:
 
 env:
   STRATA_OUTPUT: json
-  DEPLOYMENT_FILE: "config/deployment.yaml"
+  DEPLOYMENT: haven_deploy_prd
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -89,20 +89,11 @@ jobs:
       # ------------------------------------------------------------------
       # Ansible setup
       # ------------------------------------------------------------------
-      - name: Setup strata
+      - name: Setup tools (VERSIONS.env)
         if: ${{ inputs.dry_run != true }}
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.9.3
+        uses: ./.github/actions/setup-tools
         with:
-          # See deploy-infra.yml for the full 1.9.3 bump rationale (ADR-0072
-          # breaking change, migrated config/configuration.yaml + deployment.yaml).
-          strata-version: "==1.9.3"
-        env:
-          # See deploy-infra.yml for why this is set — no-op on GitHub-hosted runners.
-          UV_INDEX_STRATEGY: unsafe-best-match
-
-      - name: Install Ansible
-        if: ${{ inputs.dry_run != true }}
-        run: pip install ansible-core
+          ansible: "true"
 
       - name: Write deploy SSH private key
         if: ${{ inputs.dry_run != true }}
@@ -129,13 +120,13 @@ jobs:
           set +e
           # kSuite backup secrets (HEALTHCHECK_PING_KSUITE, KSUITE_BACKUP_*)
           # deliberately omitted from this call — feature disabled for now,
-          # see config/environment.yaml's commented-out declarations.
-          VALUES=$(strata values get BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_HEARTH VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET JELLYFIN_SSO_CLIENT_SECRET NEXTCLOUD_SSO_CLIENT_SECRET IMMICH_SSO_CLIENT_SECRET KAVITA_SSO_CLIENT_SECRET GRIMOIRE_SSO_CLIENT_SECRET GATUS_SSO_CLIENT_SECRET PGADMIN_SSO_CLIENT_SECRET HOMARR_SSO_CLIENT_SECRET FILEBROWSER_SSO_CLIENT_SECRET YUVOMI_SSO_CLIENT_SECRET -f $DEPLOYMENT_FILE --output json)
+          # see config/environments/prd.yaml's commented-out declarations.
+          VALUES=$(strata values get "$DEPLOYMENT" BORG_PASSPHRASE_HEARTH HEALTHCHECK_PING_HEARTH VAULTWARDEN_SSO_CLIENT_SECRET WUD_SSO_CLIENT_SECRET JELLYFIN_SSO_CLIENT_SECRET NEXTCLOUD_SSO_CLIENT_SECRET IMMICH_SSO_CLIENT_SECRET KAVITA_SSO_CLIENT_SECRET GRIMOIRE_SSO_CLIENT_SECRET GATUS_SSO_CLIENT_SECRET PGADMIN_SSO_CLIENT_SECRET HOMARR_SSO_CLIENT_SECRET FILEBROWSER_SSO_CLIENT_SECRET YUVOMI_SSO_CLIENT_SECRET --output json)
           STATUS=$?
           set -e
           if [ $STATUS -ne 0 ]; then
             echo "::error::strata values get failed (exit $STATUS). Non-sensitive error detail:"
-            echo "$VALUES" | jq -r '.errors[]?' 2>/dev/null || echo "(no parseable error detail)"
+            echo "$VALUES" | jq -r '.diagnostics[]? | "\(.location // "-"): \(.message)"' 2>/dev/null || echo "(no parseable error detail)"
             exit $STATUS
           fi
           BORG_PASSPHRASE=$(echo "$VALUES" | jq -r '.data.results.BORG_PASSPHRASE_HEARTH')

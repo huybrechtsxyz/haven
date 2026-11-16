@@ -1,6 +1,18 @@
 # Haven
 
-Configuration repository managed by [strata](https://github.com/huybrechtsxyz/strata).
+Self-hosted family platform on Hetzner, defined as code and managed with
+[strata](https://github.com/huybrechtsxyz/strata) v2:
+
+- **Hearth** — a Docker Compose VM: Caddy, Authentik, Vaultwarden, Portainer, WUD.
+- **Forge** — a single-node k3s VM: Immich, Jellyfin, Nextcloud, Kavita, Grimoire,
+  FoundryVTT, Firefly III, Gatus, Homarr, pgAdmin, FileBrowser, Yuvomi.
+
+strata renders Terraform, Helm values and the Compose file from the YAML in
+[`config/`](config/); GitHub Actions runs them. Secrets live in Infisical and are
+resolved at deploy time — never in git.
+
+**Start here:** [GETTING_STARTED.md](GETTING_STARTED.md) — setup, the strata
+commands and how a change reaches production.
 
 📖 **Documentation:** [`docs/`](docs/) — build with Sphinx (`make html` from `docs/`)
 
@@ -9,28 +21,15 @@ Configuration repository managed by [strata](https://github.com/huybrechtsxyz/st
 | [Design & Architecture](docs/design.md) | Two-node Hetzner platform — Core VPS + k3s Workload VPS |
 | [Migration Guide](docs/migration.md)    | Living workbook — track progress as you go              |
 | [Architecture](docs/architecture.md)    | System topology, node specs, data durability model      |
+| [Guides](docs/guides/index.md)          | Prerequisites, setup, infrastructure, Hearth, Forge, backups |
 
-## Getting Started
-
-**Prerequisites:** `strata` installed (`uv tool install xyz-strata`) and `git`, `terraform` on PATH.
-
-**First time setup:**
+## Quick reference
 
 ```bash
-# Register this repo as the config source
-strata repo add haven_config <repo-url> --branch main --clone
-
-# Add a profile and point it at your config files
-strata profile add <environment> --activate
-strata ref config add haven-config --path "@haven_config/config/haven-config.yaml"
-strata ref env add haven-env --path "@haven_config/environments/haven-env-<environment>.yaml"
+strata validate --strict                  # check every document in config/
+strata deploy steps haven_deploy_prd      # what a deploy would run, in order
+strata build run haven_deploy_prd         # render everything into build/haven_deploy_prd/
 ```
 
-**Day-to-day:**
-
-```bash
-strata status                                                  # workspace overview
-strata validate run -f deployments/<deployment>.yaml           # lint & validate
-strata build run -f deployments/<deployment>.yaml              # build artifact
-strata deploy run -f deployments/<deployment>.yaml             # provision & deploy
-```
+Tool versions (strata, Python, Terraform, Helm, ansible-core) are set in one
+place: [`VERSIONS.env`](VERSIONS.env).

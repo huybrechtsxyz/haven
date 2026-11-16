@@ -1,0 +1,9 @@
+apiVersion: v2
+name: cert-manager-issuers
+description: >
+  Let's Encrypt ClusterIssuer resources (staging + production) for cert-manager,
+  solved via HTTP-01 through Forge's Traefik ingress. cert-manager itself must
+  already be installed (see the sibling `cert-manager` module) before this
+  chart's CustomResources can be created.
+type: application
+version: "1.0.0"

@@ -1,0 +1,161 @@
+# Jellyfin
+
+> Jellyfin — media streaming server, self-hosted on Forge (k3s).
+
+## Overview
+
+Jellyfin runs on **Forge** (Hetzner CPX41, k3s), in its own `media` Kubernetes namespace — separate from Immich's `immich` namespace and any future self-hosted-app namespaces, so apps can be added/changed independently without colliding. See [Forge](../guides/forge.md) for the node-level overview.
+
+**Prerequisites:**
+- `deploy-forge-init.yml` (`31 - Forge - Init`) must have run successfully at least once — installs k3s + Traefik, and (with `configure_smb: true`) mounts the haven-data Storage Box's **docs** sub-account over SMB/CIFS at `/mnt/haven-data-docs` (Hetzner Storage Box subaccounts don't support NFS — see [Forge](../guides/forge.md)). Jellyfin's media folder lives under this same mount (`/mnt/haven-data-docs/media`) — moved here from the media sub-account on 2026-08-29, back when Jellyfin had zero live data, so the move was free; named generically "media/" (not "jellyfin/") since it's not tied to any one app. See [Storage](#storage) below.
+- The `system` namespace (`cert-manager` + `cert-manager-issuers`) must already be deployed — Jellyfin's ingress relies on its `letsencrypt-staging`/`letsencrypt-prod` `ClusterIssuer`s existing first.
+- A DNS A record for `media.{domain}` must point directly at Forge's public IP (Forge terminates its own ingress — see [Forge's design decision](../guides/forge.md#design-decision--forge-terminates-its-own-ingress)).
+- `deploy-forge-config.yml` (`32 - Forge - Config`, LAN routing to Hearth's Authentik) is **not** required for Jellyfin's SSO to work — confirmed 2026-08-28: the plugin's server-side token exchange resolves `auth.{domain}` via public DNS just fine (an extra network hop, not a blocker). It's a networking optimization only, not a hard dependency for this app.
+
+---
+
+## What gets deployed
+
+| Item      | Value                                                                                                                                                                                                                                                                                                                 |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chart     | `jellyfin` from the official repo, `https://jellyfin.github.io/jellyfin-helm`                                                                                                                                                                                                                                         |
+| Version   | `3.2.0`, `image.tag` pinned to `10.11.11` — the chart's default appVersion (`10.11.8`) is below the SSO plugin's required `targetAbi` (`10.11.11.0`); Jellyfin silently disables any plugin whose `targetAbi` exceeds the running server version (see [SSO](#sso--authentik-oidc-via-k0linjellyfin-plugin-sso) below) |
+| Namespace | `media` (Kubernetes), module file `config/forge/modules/jellyfin.yaml`                                                                                                                                                                                                                                                |
+| Ingress   | Traefik (`className: traefik`), host `media.{domain}`, TLS via cert-manager (`letsencrypt-prod`, switched from `letsencrypt-staging` 2026-08-28 once verified issuing)                                                                                                                                                |
+
+---
+
+## Deployment process (in order)
+
+1. Confirm prerequisites above are satisfied (Forge init done, `system` namespace's cert-manager deployed, DNS record exists).
+2. Ensure `media` is uncommented in `config/stack/workspace.yaml`'s `spec.namespaces` list (and its `hetzner_forge` topology `namespaces:` sub-list, kept in lockstep) — already done.
+3. Run **`33 - Forge - Deploy`** (`strata deploy run --scope apps --stage applications_forge`). This deploys the Helm chart, the ingress (TLS via cert-manager), and — after the Helm deploy succeeds — attempts the automated SSO provider registration step (skips silently if `JELLYFIN_API_KEY` isn't set yet).
+4. **New hostname TLS pattern**: leave the ingress annotation on `letsencrypt-staging` for the very first deploy of a brand-new hostname, confirm `kubectl describe certificate -n media` shows `Ready: True`, then switch to `letsencrypt-prod` and redeploy (already done for `media.{domain}` — see [What gets deployed](#what-gets-deployed) above).
+5. Complete the **one-time manual step** (API key creation, see [SSO](#sso--authentik-oidc-via-k0linjellyfin-plugin-sso) below) — every deploy after that automatically (re-)registers the SSO provider.
+6. Verify with the [checklist](#verification-checklist) below.
+
+---
+
+## Secrets
+
+| Secret                       | Store     | Used by                                                                                                                                                                             |
+| ---------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JELLYFIN_SSO_CLIENT_SECRET` | Infisical | Authentik's Jellyfin OAuth2 provider + the plugin's `oidSecret` (both automated)                                                                                                    |
+| `JELLYFIN_API_KEY`           | Infisical | Authenticates the automated SSO-provider-registration step in `deploy-forge-deploy.yml` — literal value, set manually once (Jellyfin has no API to generate its own key headlessly) |
+
+---
+
+## Storage
+
+| Volume               | Type                                     | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `persistence.config` | PVC, `local-path`, 5Gi                   | Jellyfin's own metadata/database — local disk, not backed up to Storage Box yet                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `persistence.media`  | `hostPath`, `/mnt/haven-data-docs/media` | The actual media library. Lives in the haven-data Storage Box's **docs** sub-account (moved here 2026-08-29 from the media sub-account, which is now Immich-only — free move since Jellyfin had zero live data at the time; named generically "media/" not "jellyfin/" since it's not tied to any one app). Sharing this tree with Nextcloud lets family members upload media via Nextcloud's own iOS/iPadOS app straight into Jellyfin's library — see [Adding media](#adding-media) below — without a second cross-sub-account mount. |
+| `persistence.cache`  | disabled (default)                       | Transcode cache — left disabled; Jellyfin uses software transcoding only (no GPU), so this isn't performance-critical yet                                                                                                                                                                                                                                                                                                                                                                                                               |
+
+---
+
+## Adding media
+
+Jellyfin has no upload feature in its own web UI — it only scans whatever's already on disk. The recommended way to add files, especially for family members on iPad who shouldn't need to map an SMB network drive by hand:
+
+1. Open the **Nextcloud** app (iOS/iPadOS, or the web UI) — already SSO-logged-in via Authentik.
+2. Find the **"Media"** folder — an External Storage mount Nextcloud exposes straight into `/mnt/haven-data-docs/media` (see `config/forge/modules/nextcloud.yaml`, and [nextcloud.md](./nextcloud.md#adding-media-for-jellyfin-and-books-for-kavita)).
+3. Upload/organize files into subfolders matching Jellyfin's configured libraries (e.g. `movies/`, `shows/`, `music/` — pre-created by `deploy-forge-config.yml`).
+4. Files land directly on the same Storage Box path Jellyfin scans — no copy/sync step, no intermediate staging. They stay exactly where uploaded; Jellyfin never moves/renames/reorganizes files during a scan.
+5. Trigger a scan from Jellyfin's Dashboard → Libraries → "Scan All Libraries" (or wait for the next scheduled scan).
+
+Admins who prefer a direct route can still mount the `docs` sub-account as an SMB network drive (same credentials `forge-init.yml` uses) instead of going through Nextcloud.
+
+---
+
+## Initial Setup
+
+### SSO — Authentik OIDC via K0lin/jellyfin-plugin-sso
+
+Jellyfin has no native OIDC support. SSO requires a third-party plugin.
+
+> **Plugin choice note:** the well-known `9p4/jellyfin-plugin-sso` was **archived by its owner on 2026-05-12**. This setup uses **[K0lin/jellyfin-plugin-sso](https://github.com/K0lin/jellyfin-plugin-sso)** instead — an active, transparent continuation of the same code ("forked from the creator's code, with the intention of continuing to maintain it"), same config/API shape, commits as recent as days old.
+
+The Authentik side is **fully automated** — `deploy/ansible-hearth/templates/authentik-blueprint.yaml.j2` creates the OAuth2 Provider + Application for Jellyfin (client ID `jellyfin`, `members` group policy) every time `deploy-hearth-config.yml` runs, using the `JELLYFIN_SSO_CLIENT_SECRET` Infisical secret. Uses `issuer_mode: per_provider` (not `global`) — `global` mode's issuer claim is just the bare domain, which breaks strict OIDC issuer validation against the app-specific discovery path; this was discovered and fixed on Immich first (see [immich.md](./immich.md#single-sign-on-authentik)). It also includes a custom `groups` scope + property mapping (`mapping-group-membership`) per [K0lin/jellyfin-plugin-sso's providers.md#authentik](https://github.com/K0lin/jellyfin-plugin-sso/blob/main/providers.md#authentik), so the plugin's RBAC (`roleClaim: groups`) can map Authentik's `admins` group to Jellyfin admin access and `members`/`parents` to normal access.
+
+The Jellyfin side is **also automated**, aside from one unavoidable one-time step (Jellyfin has no headless bootstrap):
+
+1. **Plugin install** — an idempotent `extraInitContainers` entry in `config/forge/modules/jellyfin.yaml` downloads the latest [K0lin/jellyfin-plugin-sso](https://github.com/K0lin/jellyfin-plugin-sso) release from its manifest and unpacks it into the `config` PVC's `plugins/` dir on every pod start; skips entirely once already installed (no-op on every future restart/redeploy). [Manifest](https://github.com/K0lin/jellyfin-plugin-sso/blob/main/manifest.json)
+
+2. **Provider registration** — `.github/workflows/deploy-forge-deploy.yml` POSTs to `/sso/OID/Add/authentik` after every Helm deploy, using `JELLYFIN_API_KEY` + `JELLYFIN_SSO_CLIENT_SECRET` from Infisical. Idempotent (`Add` always overwrites) and retries briefly for ingress/cert readiness. Skips silently (doesn't fail the deploy) if `JELLYFIN_API_KEY` isn't set yet. Includes `schemeOverride: "https"` — Traefik terminates TLS and forwards plain HTTP to the pod, so without this the plugin builds an `http://` redirect_uri and Authentik rejects it with a "Redirect URI Error" (strict match against the registered `https://` one).
+
+3. **One-time manual step**: `JELLYFIN_API_KEY` can only be minted via the web UI (Dashboard → API Keys), which itself requires the first-run admin setup wizard to have been completed once via the web UI. Once you have a key:
+   ```powershell
+   strata secret put JELLYFIN_API_KEY --value "<key>" -f config/environment.yaml
+   ```
+   After that, every future deploy registers/updates the SSO provider automatically — no further manual steps.
+
+See [K0lin/jellyfin-plugin-sso's README](https://github.com/K0lin/jellyfin-plugin-sso) for the login-button snippet to add under Dashboard → General → Branding → Login disclaimer (still a manual, cosmetic, one-time step — see [Branding: login button](#branding--login-button) below).
+
+**MILESTONE (2026-08-28): confirmed working end-to-end in production** — "Sign in with SSO" successfully authenticates via Authentik after the `schemeOverride: "https"` fix above. All three bugs hit along the way (curl TLS trust + `set -e` retry-loop bug, `issuer_mode` mismatch, redirect_uri scheme mismatch) are resolved.
+
+**REGRESSION (2026-09-01): SSO silently broken after a routine redeploy** — pod logs showed `Skipping disabled plugin 5.0.0.0 of SSO Authentication`. Root cause: the plugin's `meta.json` requires `targetAbi: 10.11.11.0`, but the chart's default `image.tag` tracked appVersion `10.11.8` — Jellyfin auto-disables any plugin whose `targetAbi` exceeds the running server version, so the plugin's routes (`/sso/OID/Add/...`) never registered (404). Fixed by pinning `image.tag: "10.11.11"` explicitly (see [What gets deployed](#what-gets-deployed) above). This also surfaced a second, unrelated problem: the `JELLYFIN_API_KEY` stored in Infisical no longer matched a valid key in Jellyfin's database (401 on registration) — resolved by wiping the `config` PVC (`kubectl delete pvc jellyfin-config -n media`, then redeploying to recreate it via Helm) and redoing the one-time manual setup from scratch. **Recovery sequence used:**
+1. Run `33 - Forge - Deploy` — recreates the (now-empty) `config` PVC via the Helm chart and reinstalls the SSO plugin via the init container.
+2. Visit `https://media.{domain}` → complete Jellyfin's first-run setup wizard (fresh admin account).
+3. Dashboard → API Keys → generate a new key → `strata secret put JELLYFIN_API_KEY --value "<key>" -f config/environment.yaml`.
+4. Run `33 - Forge - Deploy` again — SSO provider registration now succeeds against the fresh install.
+
+**Confirmed fixed (2026-09-01)**: recovery sequence completed — deploy log shows `Jellyfin SSO provider registered successfully (HTTP 200).`, and after adding the login button (see below) a user successfully signed in via SSO end-to-end. Fully working again post-regression.
+
+### Branding — login button
+
+This is a manual, cosmetic, one-time step stored in Jellyfin's own database (`config` PVC) — lost on any config-PVC reset (see the 2026-09-01 regression above) and must be redone after one.
+
+Dashboard → General → Branding → **"Login disclaimer"**:
+```html
+<form action="https://media.huybrechts.xyz/sso/OID/start/authentik">
+  <button class="raised block emby-button button-submit">
+    Sign in with SSO
+  </button>
+</form>
+```
+
+Dashboard → General → Branding → **"Custom CSS code"**:
+```css
+a.raised.emby-button {
+  padding: 0.9em 1em;
+  color: inherit !important;
+}
+
+.disclaimerContainer {
+  display: block;
+}
+
+/* Hide every path to the standard username/password login — cosmetic only
+   (security through obscurity), see note below. Deliberately does NOT touch
+   .readOnlyContent itself or .loginDisclaimerContainer — the SSO button
+   above lives nested inside .readOnlyContent, so hiding that whole
+   container would also hide the SSO button. */
+.btnManual,
+.btnForgotPassword,
+.btnQuick,
+.btnSelectServer,
+.visualLoginForm {
+  display: none !important;
+}
+```
+
+Save, then reload the Jellyfin login page — only the SSO button is visible; the standard username/password form, the "Manual Login"/"Forgot Password"/"Quick Connect"/"Change Server" buttons, and the public-user quick-select avatar grid are all hidden.
+
+> **This is cosmetic (security through obscurity), not access control.** `.manualLoginForm` (the actual username/password inputs) is already hidden-by-default until `.btnManual` is clicked — hiding that button, plus the public-user picker (`.visualLoginForm`/`#divUsers`) and the other buttons, just removes every visible path to reach standard login in the **web client** specifically. It does **not** disable Jellyfin's password authentication server-side: the API still accepts username/password logins from anyone who knows a valid one (e.g. via `/Users/authenticatebyname`), and any other client with its own native login screen (mobile apps, Kodi, etc.) is entirely unaffected — Custom CSS only ships to the web client, and a user can always bypass this by opening browser dev tools or disabling CSS. If you want a real server-side lock (matching what was done for [Immich](./immich.md#disabling-password-login-manual-step-optional)), Jellyfin has no built-in equivalent to `immich-admin disable-password-login`; the closest real control is disabling/removing each local user account's password entirely (Dashboard → Users), which is a heavier, per-user change rather than a global toggle.
+
+---
+
+## Verification checklist
+
+- [x] `https://media.{domain}` — Jellyfin loads and is reachable from a browser
+- [x] Media library shows content from `/mnt/haven-data-docs/media`
+- [x] SSO plugin installed and Authentik provider registered (re-confirmed 2026-09-01 after the config-PVC reset — HTTP 200)
+- [x] "Sign in with SSO" login button works end-to-end (re-confirmed 2026-09-01 — a user successfully signed in via SSO)
+
+---
+
+## Still open
+
+- Login-button HTML snippet (Dashboard → General → Branding, see [Branding: login button](#branding--login-button)) is a manual, cosmetic, one-time step — needs redoing after any config-PVC reset (done and confirmed working again 2026-09-01)

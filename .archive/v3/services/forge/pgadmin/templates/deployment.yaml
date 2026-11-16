@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  replicas: 1
+  # Recreate, not the default RollingUpdate — per pgAdmin's own container
+  # docs: its config database (pgadmin4.db) migrates forward-only, and a
+  # rolling upgrade would briefly run old+new pods against the same shared
+  # volume, which can break the older pod's ORM against an already-migrated
+  # schema. Single replica anyway, so this costs nothing.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      # The official image runs as a fixed UID/GID 5050 (not configurable
+      # like LinuxServer's PUID/PGID) — fsGroup makes the PVC writable by it.
+      securityContext:
+        runAsUser: 5050
+        runAsGroup: 5050
+        fsGroup: 5050
+      containers:
+        - name: pgadmin
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: 80
+          env:
+            - name: PGADMIN_DEFAULT_EMAIL
+              value: {{ .Values.env.PGADMIN_DEFAULT_EMAIL | quote }}
+            - name: PGADMIN_DEFAULT_PASSWORD
+              value: {{ .Values.env.PGADMIN_DEFAULT_PASSWORD | quote }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/pgadmin
+            - name: config-local
+              mountPath: /pgadmin4/config_local.py
+              subPath: config_local.py
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-data
+        - name: config-local
+          configMap:
+            name: {{ .Release.Name }}-config-local
