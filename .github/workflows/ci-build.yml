@@ -80,7 +80,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup strata
-        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v1.9.3
+        uses: huybrechtsxyz/strata/.github/actions/setup-strata@v2.6.1
         with:
           # See deploy-infra.yml for the full 1.9.3 bump rationale.
           strata-version: "==1.9.3"
