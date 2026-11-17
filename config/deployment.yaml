@@ -12,6 +12,8 @@ spec:
   workspace: haven_platform
   environments:
     - prd
+  # Image and chart pins (config/versions.yaml). A pin wins over the module.
+  version: prd
 
   # Forge: the context in the k3s kubeconfig the workflows fetch from the node
   # (/etc/rancher/k3s/k3s.yaml names it `default`). Helm refuses to run if the

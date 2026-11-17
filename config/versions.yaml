@@ -28,11 +28,11 @@ spec:
         reason: Redis 8 is a licensing and behaviour major bump (also carries RCE/OOB fixes); verify Authentik/Immich compatibility first.
         reviewed: 2026-09-08
       server:
-        version: ghcr.io/goauthentik/server:2026.5.6
+        version: ghcr.io/goauthentik/server:2026.5.2 # what production runs; 2026.5.6 is the next patch
         available: 2026.8.1
         reviewed: 2026-09-08
       worker:
-        version: ghcr.io/goauthentik/server:2026.5.6 # keep in sync with server
+        version: ghcr.io/goauthentik/server:2026.5.2 # keep in sync with server
         available: 2026.8.1
         reviewed: 2026-09-08
       # Hearth — other modules
@@ -40,7 +40,7 @@ spec:
         version: caddy:2-alpine # floating major tag, resolves to the latest v2
         reviewed: 2026-09-08
       portainer:
-        version: portainer/portainer-ce:2.39.7-alpine
+        version: portainer/portainer-ce:2.39.3-alpine # what production runs; 2.39.7 is the next patch
         available: 2.45.0-alpine
         reviewed: 2026-09-08
       vaultwarden:
