@@ -23,6 +23,7 @@ locals {
   common_labels = {
     workspace   = local.workspace_name
     environment = local.environment
+    version     = local.workspace_ver
     managed_by  = "opentofu"
   }
 }

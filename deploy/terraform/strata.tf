@@ -81,7 +81,14 @@ locals {
   workspace_name  = var.strata.workspace.name
   workspace_ver   = var.strata.workspace.version
   deployment_name = var.strata.workspace.deployment
-  environment     = var.strata.properties.environment
+  # The deployment property is the short form (prd/dev); the Hetzner labels and
+  # the platform output have always carried the long form, so map it back here
+  # to keep the live labels unchanged.
+  environment = lookup(
+    { prd = "production", dev = "development" },
+    var.strata.properties.environment,
+    var.strata.properties.environment,
+  )
 
   hcloud_token   = var.HETZNER_API_TOKEN
   ssh_public_key = var.HETZNER_PUBLIC_KEY

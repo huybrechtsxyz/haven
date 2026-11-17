@@ -47,5 +47,7 @@ build/
 node_modules/
 ERRORS.md
 
+# strata local state — keep .strata/schemas/ and .strata/README.md (generated, committed)
 .strata/cli.yaml
-.strata/cache/model/cache.db
+.strata/cache/
+.strata/helm/

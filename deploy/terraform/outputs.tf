@@ -6,7 +6,6 @@ output "platform" {
   description = "Platform deployment summary"
   value = {
     workspace   = local.workspace_name
-    deployment  = local.deployment_name
     environment = local.environment
     version     = local.workspace_ver
   }
